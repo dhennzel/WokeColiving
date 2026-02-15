@@ -6,4 +6,3 @@ if (isset($_SESSION['user_id'])) {
     header("Location: guest.php");
 }
 exit();
-//bORAT
