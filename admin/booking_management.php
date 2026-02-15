@@ -1,0 +1,314 @@
+<?php
+session_start();
+include("../db.php");
+
+// Only allow admin
+if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true){
+    header("Location: admin_login.php");
+    exit;
+}
+
+// Handle reservation approval/rejection
+if(isset($_GET['action']) && isset($_GET['id'])){
+    $reservation_id = (int)$_GET['id'];
+    $action = $_GET['action'];
+
+    // Get User ID for logging
+    $u_res = mysqli_query($conn, "SELECT user_id FROM reservations WHERE reservation_id=$reservation_id");
+    $u_row = mysqli_fetch_assoc($u_res);
+    $target_user_id = $u_row['user_id'] ?? 0;
+
+    // Determine redirect URL
+    $redirect_url = "booking_management.php";
+    if(isset($_GET['redirect'])){
+        if($_GET['redirect'] == 'view_user' && isset($_GET['uid'])){
+            $redirect_url = "view_user.php?uid=" . (int)$_GET['uid'];
+        } elseif($_GET['redirect'] == 'dashboard') {
+            $redirect_url = "admin_dashboard.php";
+        }
+    }
+
+    if($action == 'approve'){
+        // Check if this is an extension request
+        $chk_ext = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
+        $res_data = mysqli_fetch_assoc($chk_ext);
+
+        if(!empty($res_data['extended_from'])){
+            // MERGE EXTENSION INTO ORIGINAL CONTRACT
+            $parent_id = $res_data['extended_from'];
+            $new_end = $res_data['end_date'];
+            $added_months = $res_data['months'];
+            $added_price = $res_data['total_price'];
+            $new_room = $res_data['room_id']; // In case room changed
+
+            // Update parent reservation
+            mysqli_query($conn, "UPDATE reservations SET 
+                end_date='$new_end', 
+                months = months + $added_months, 
+                total_price = total_price + $added_price,
+                room_id = $new_room,
+                status = 'Approved'
+                WHERE reservation_id=$parent_id");
+            
+            // Move payments to parent
+            mysqli_query($conn, "UPDATE payments SET reservation_id=$parent_id WHERE reservation_id=$reservation_id");
+
+            // Delete the temporary extension request
+            mysqli_query($conn, "DELETE FROM reservations WHERE reservation_id=$reservation_id");
+            
+            if($target_user_id) log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated (Merged extension).");
+        } else {
+            // NORMAL APPROVAL
+            $stmt = mysqli_prepare($conn, "UPDATE reservations SET status='Approved' WHERE reservation_id=?");
+            mysqli_stmt_bind_param($stmt, "i", $reservation_id);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+            if($target_user_id) {
+                log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id has been approved.");
+                send_notification($conn, $target_user_id, "🎉 <strong>Reservation Approved!</strong><br>Your booking #$reservation_id has been approved. Please proceed to payment or view details.", "Booking Approved");
+            }
+        }
+    } elseif($action == 'reject'){
+        $stmt = mysqli_prepare($conn, "UPDATE reservations SET status='Cancelled' WHERE reservation_id=?");
+        mysqli_stmt_bind_param($stmt, "i", $reservation_id);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+        if($target_user_id) {
+            log_activity($conn, $target_user_id, "Reservation Rejected", "Reservation #$reservation_id has been cancelled.");
+            send_notification($conn, $target_user_id, "❌ <strong>Reservation Rejected</strong><br>Your booking #$reservation_id has been cancelled. Please contact support for details.", "Booking Rejected");
+        }
+    } elseif($action == 'terminate'){
+        // End Contract (Expiring/Expired)
+        $stmt = mysqli_prepare($conn, "UPDATE reservations SET status='Completed' WHERE reservation_id=?");
+        mysqli_stmt_bind_param($stmt, "i", $reservation_id);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+        if($target_user_id) {
+            log_activity($conn, $target_user_id, "Contract Ended", "Reservation #$reservation_id marked as Completed by admin.");
+            send_notification($conn, $target_user_id, "🏁 <strong>Contract Completed</strong><br>Your stay for reservation #$reservation_id has been marked as completed. Thank you for staying with us!", "Contract Ended");
+        }
+    } elseif($action == 'renew' && isset($_GET['months'])){
+        // Renew Contract
+        $months_to_add = (int)$_GET['months'];
+        if($months_to_add > 0){
+            $res_q = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
+            $res = mysqli_fetch_assoc($res_q);
+            
+            // Calculate new end date
+            $current_end = new DateTime($res['end_date']);
+            $current_end->modify("+$months_to_add months");
+            $new_end_date = $current_end->format('Y-m-d');
+            
+            // Calculate price increase
+            $room_id = $res['room_id'];
+            $room_q = mysqli_query($conn, "SELECT total_price FROM rooms WHERE room_id=$room_id");
+            $room_price = mysqli_fetch_assoc($room_q)['total_price'];
+            $added_cost = $room_price * $months_to_add;
+            
+            // Update Reservation & Add Payment Record
+            mysqli_query($conn, "UPDATE reservations SET end_date='$new_end_date', months=months+$months_to_add, total_price=total_price+$added_cost WHERE reservation_id=$reservation_id");
+            mysqli_query($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date) VALUES ($reservation_id, $added_cost, 'Cash', 'Unpaid', NOW())");
+            
+            if($target_user_id) {
+                log_activity($conn, $target_user_id, "Contract Renewed", "Admin extended contract #$reservation_id by $months_to_add months.");
+                send_notification($conn, $target_user_id, "🔄 <strong>Contract Renewed</strong><br>Your stay has been extended by $months_to_add months. Please check your billing.", "Contract Renewed");
+            }
+        }
+    } elseif($action == 'toggle_dnr' && isset($_GET['uid'])){
+        // Toggle Do Not Renew Flag
+        $uid = (int)$_GET['uid'];
+        mysqli_query($conn, "UPDATE users SET do_not_renew = NOT do_not_renew WHERE user_id=$uid");
+        header("Location: $redirect_url");
+        exit;
+    }
+    header("Location: $redirect_url");
+    exit;
+}
+
+// Search & Filter Logic
+$where_clause = "1=1";
+$params = [];
+$types = "";
+
+if(isset($_GET['search']) && !empty($_GET['search'])){
+    $search = "%" . $_GET['search'] . "%";
+    $where_clause .= " AND (u.full_name LIKE ? OR u.email LIKE ? OR rm.room_name LIKE ?)";
+    $params[] = $search;
+    $params[] = $search;
+    $params[] = $search;
+    $types .= "sss";
+}
+if(isset($_GET['status']) && !empty($_GET['status'])){
+    $status_filter = $_GET['status'];
+    $where_clause .= " AND r.status = ?";
+    $params[] = $status_filter;
+    $types .= "s";
+}
+
+// Fetch Reservations with Filters
+$sql = "
+    SELECT r.*, u.full_name, u.email, u.do_not_renew, rm.room_name, rm.room_type, rm.total_price AS room_monthly_price, rm.image
+    FROM reservations r
+    JOIN users u ON r.user_id = u.user_id
+    JOIN rooms rm ON r.room_id = rm.room_id
+    WHERE $where_clause
+    AND r.reservation_id IN (
+        SELECT MAX(reservation_id) FROM reservations GROUP BY user_id
+    )
+    ORDER BY r.reservation_id DESC
+";
+
+if (!empty($params)) {
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, $types, ...$params);
+    mysqli_stmt_execute($stmt);
+    $reservations = mysqli_stmt_get_result($stmt);
+} else {
+    $reservations = mysqli_query($conn, $sql);
+}
+$theme = get_theme_colors($conn);
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Booking Management | Woke Coliving INC</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary-green: <?= $theme['primary'] ?>;
+            --dark-green: <?= $theme['dark'] ?>;
+            --accent-yellow: <?= $theme['accent'] ?>;
+            --light-bg: #f8f9fa;
+        }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
+        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
+        #wrapper { display: flex; width: 100%; }
+        #sidebar-wrapper { width: 260px; background-color: var(--dark-green); flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; transition: margin 0.25s ease-out; }
+        #wrapper.toggled #sidebar-wrapper { margin-left: -250px; }
+        #page-content-wrapper { flex-grow: 1; }
+        .sidebar-link { color: rgba(255,255,255,0.8); text-decoration: none; padding: 15px 25px; display: block; font-weight: 500; border-left: 5px solid transparent; transition: 0.3s; }
+        .sidebar-link:hover, .sidebar-link.active { color: var(--dark-green); background-color: var(--accent-yellow); border-left-color: white; font-weight: 600; }
+        .sidebar-brand { color: var(--accent-yellow); font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.3rem; padding: 25px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
+        .card-table { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
+        .table th { background-color: var(--primary-green); color: white; font-weight: 500; border: none; }
+        .user-avatar { width: 35px; height: 35px; background: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; }
+        .badge-pending { background: #fff3cd; color: #856404; }
+        .badge-approved { background: #d4edda; color: #155724; }
+        .badge-cancelled { background: #f8d7da; color: #721c24; }
+        .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
+        .btn-custom:hover { background-color: #f9a825; }
+        @media (max-width: 768px) { #sidebar-wrapper { margin-left: -250px; } #wrapper.toggled #sidebar-wrapper { margin-left: 0; } }
+    </style>
+</head>
+<body>
+<div id="wrapper">
+    <div id="sidebar-wrapper">
+        <div class="sidebar-brand" id="sidebar-toggle">
+            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning"> Woke Coliving
+        </div>
+        <div class="list-group list-group-flush py-3">
+            <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
+            <a href="booking_management.php" class="sidebar-link active"><i class="fas fa-calendar-check me-2"></i>Bookings</a>
+            <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
+            <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center"><span><i class="fas fa-tools me-2"></i>Utilities</span><i class="fas fa-chevron-down small"></i></a>
+            <div class="collapse" id="utilitiesSubmenu">
+                <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-file-invoice-dollar me-2"></i>Billing</a>
+                <a href="admin_maintenance.php" class="sidebar-link ps-5"><i class="fas fa-wrench me-2"></i>Maintenance</a>
+                <a href="admin_housekeeping.php" class="sidebar-link ps-5"><i class="fas fa-broom me-2"></i>Housekeeping</a>
+                <a href="admin_utilities.php" class="sidebar-link ps-5"><i class="fas fa-archive me-2"></i>Utilities Archive</a>
+                <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
+            </div>
+            <a href="manage_hero.php" class="sidebar-link"><i class="fas fa-image me-2"></i>Hero Image</a>
+            <a href="profit_report.php" class="sidebar-link"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
+            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center"><span><i class="fas fa-cog me-2"></i>Settings</span><i class="fas fa-chevron-down small"></i></a>
+            <div class="collapse" id="settingsSubmenu">
+                <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
+                <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
+            </div>
+            <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
+        </div>
+    </div>
+    <div id="page-content-wrapper">
+        <div class="container-fluid px-4 py-4">
+            <div class="d-flex align-items-center mb-4">
+                <a href="#" id="menu-toggle" class="text-decoration-none me-3"><img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px;" class="rounded-circle shadow-sm"></a>
+                <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Bookings Management</h4>
+            </div>
+            <div class="card card-table p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <a href="add_reservation.php" class="btn btn-sm btn-success rounded-pill"><i class="fas fa-plus me-1"></i> New Booking</a>
+                    <form class="d-flex gap-2" method="GET">
+                        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Status</option>
+                            <option value="Pending" <?= (isset($_GET['status']) && $_GET['status']=='Pending')?'selected':'' ?>>Pending</option>
+                            <option value="Approved" <?= (isset($_GET['status']) && $_GET['status']=='Approved')?'selected':'' ?>>Approved</option>
+                            <option value="Cancelled" <?= (isset($_GET['status']) && $_GET['status']=='Cancelled')?'selected':'' ?>>Cancelled</option>
+                        </select>
+                        <input type="text" name="search" class="form-control form-control-sm" placeholder="Search..." value="<?= $_GET['search'] ?? '' ?>">
+                        <button class="btn btn-sm btn-custom"><i class="fas fa-search"></i></button>
+                    </form>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead><tr><th>Guest</th><th>Room</th><th>Stay Info</th><th>Total</th><th>Status</th><th>Receipt</th><th class="text-end">Manage</th></tr></thead>
+                        <tbody>
+                            <?php while($res = mysqli_fetch_assoc($reservations)) { ?>
+                            <tr>
+                                <td><div class="d-flex align-items-center"><div class="user-avatar"><?= strtoupper(substr($res['full_name'],0,1)) ?></div><div><div class="fw-bold"><?= $res['full_name'] ?> <div class="dropdown d-inline ms-1"><a href="#" class="text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v fa-sm"></i></a><ul class="dropdown-menu"><li><a class="dropdown-item" href="view_user.php?uid=<?= $res['user_id'] ?>"><i class="fas fa-eye me-2"></i>View History</a></li><li><a class="dropdown-item" href="?action=toggle_dnr&uid=<?= $res['user_id'] ?>"><i class="fas fa-flag me-2"></i><?= $res['do_not_renew'] ? 'Unflag DNR' : 'Flag DNR' ?></a></li></ul></div></div><small class="text-muted"><?= $res['email'] ?></small><?php if($res['do_not_renew']): ?><div class="badge bg-danger" style="font-size: 0.6rem;">Do Not Renew</div><?php endif; ?></div></div></td>
+                                <td><div class="d-flex align-items-center"><img src="../assets/images/<?= $res['image'] ?>" class="rounded me-2" style="width:40px;height:40px;object-fit:cover;"><div><div class="fw-bold text-success"><?= $res['room_name'] ?></div><small class="text-muted"><?= $res['room_type'] ?></small></div></div></td>
+                                <td><div><i class="fas fa-calendar-alt text-muted me-1"></i> <?= $res['start_date'] ?></div><small class="text-muted"><?= $res['months'] ?> Month(s)</small></td>
+                                <td class="fw-bold">₱<?= number_format($res['total_price'],2) ?></td>
+                                <td><span class="badge <?= $res['status']=='Approved'?'badge-approved':($res['status']=='Cancelled'?'badge-cancelled':'badge-pending') ?> rounded-pill px-3"><?= $res['status'] ?></span></td>
+                                <td><?php if(!empty($res['signature_image'])) { ?><a href="view_receipt.php?id=<?= $res['reservation_id'] ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-signature"></i> View</a><?php } else { ?>-<?php } ?></td>
+                                <td class="text-end">
+                                    <?php if($res['status'] == 'Pending'): ?>
+                                        <a href="?action=approve&id=<?= $res['reservation_id'] ?>" class="btn btn-sm btn-success" title="Approve"><i class="fas fa-check"></i></a>
+                                        <a href="?action=reject&id=<?= $res['reservation_id'] ?>" class="btn btn-sm btn-danger" title="Reject" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
+                                    <?php elseif($res['status'] == 'Approved'): ?>
+                                        <a href="?action=terminate&id=<?= $res['reservation_id'] ?>" class="btn btn-sm btn-outline-danger" title="End Contract" onclick="confirmAction(event, this.href, 'End this contract?')"><i class="fas fa-ban"></i></a>
+                                    <?php endif; ?>
+                                    <a href="view_user.php?uid=<?= $res['user_id'] ?>" class="btn btn-sm btn-info text-white" title="View Profile"><i class="fas fa-user"></i></a>
+                                </td>
+                            </tr>
+                            <?php } ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.getElementById("menu-toggle").addEventListener("click", function(e) { e.preventDefault(); document.getElementById("wrapper").classList.toggle("toggled"); });
+    document.getElementById("sidebar-toggle").addEventListener("click", function(e) { e.preventDefault(); document.getElementById("wrapper").classList.toggle("toggled"); });
+
+    <?php if(isset($_GET['msg']) && $_GET['msg'] == 'user_deleted'): ?>
+    Swal.fire({
+        title: 'Deleted!',
+        text: 'User account has been permanently deleted.',
+        icon: 'success'
+    });
+    <?php endif; ?>
+
+    function confirmAction(e, url, msg) {
+        e.preventDefault();
+        Swal.fire({
+            title: 'Are you sure?',
+            text: msg,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, proceed!'
+        }).then((result) => {
+            if (result.isConfirmed) window.location.href = url;
+        });
+    }
+</script>
+</body>
+</html>

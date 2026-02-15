@@ -1,0 +1,194 @@
+<?php
+include '../db.php';
+session_start();
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
+$user_id = $_SESSION['user_id'];
+$message = "";
+$error = "";
+
+// Check for active reservation (Approved only)
+$room_check = mysqli_query($conn, "SELECT room_id FROM reservations WHERE user_id='$user_id' AND status='Approved' LIMIT 1");
+$has_active_reservation = (mysqli_num_rows($room_check) > 0);
+
+// Handle Cancellation
+if(isset($_GET['cancel_id'])){
+    $cancel_id = (int)$_GET['cancel_id'];
+    // Only allow cancelling if status is Pending
+    $stmt = mysqli_prepare($conn, "UPDATE maintenance_requests SET status='Cancelled' WHERE request_id=? AND user_id=? AND status='Pending'");
+    mysqli_stmt_bind_param($stmt, "ii", $cancel_id, $user_id);
+    
+    if(mysqli_stmt_execute($stmt)){
+        header("Location: maintenance.php?msg=cancelled");
+        exit;
+    }
+}
+
+// Handle Form Submission
+if (isset($_POST['submit_request'])) {
+    $description = mysqli_real_escape_string($conn, $_POST['description']);
+    
+    if ($has_active_reservation) {
+        $room_row = mysqli_fetch_assoc($room_check);
+        $room_id = $room_row['room_id'];
+        
+        $sql = "INSERT INTO maintenance_requests (user_id, room_id, description, status) VALUES ('$user_id', '$room_id', '$description', 'Pending')";
+        if (mysqli_query($conn, $sql)) {
+            $message = "Maintenance request submitted successfully.";
+        } else {
+            $error = "Error submitting request: " . mysqli_error($conn);
+        }
+    } else {
+        $error = "You do not have an active room reservation to request maintenance for.";
+    }
+}
+
+// Fetch User's Requests
+$requests_query = mysqli_query($conn, "SELECT m.*, r.room_name 
+    FROM maintenance_requests m 
+    LEFT JOIN rooms r ON m.room_id = r.room_id 
+    WHERE m.user_id='$user_id' 
+    ORDER BY m.created_at DESC");
+
+// Get User Name for Navbar
+$u_query = mysqli_query($conn, "SELECT full_name FROM users WHERE user_id=$user_id");
+$user_info = mysqli_fetch_assoc($u_query);
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Maintenance Requests | Woke Coliving INC</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary-green: #2E7D32;
+            --dark-green: #1B5E20;
+            --accent-yellow: #FBC02D;
+            --light-bg: #f8f9fa;
+        }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
+        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
+        .navbar { background: var(--dark-green); padding: 15px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        
+        .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
+        .table thead th { background-color: var(--primary-green); color: white; border: none; }
+        .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
+        .btn-custom:hover { background-color: #f9a825; }
+        
+        .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <div class="container">
+        <a class="navbar-brand fw-bold d-flex align-items-center" href="../index.php">
+            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
+            Woke Coliving INC
+        </a>
+        <div class="d-flex align-items-center gap-3 ms-auto">
+            <a href="profile.php" class="text-white text-decoration-none fw-bold">My Profile</a>
+            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars(explode(' ', $user_info['full_name'])[0]) ?></span>
+            <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container reveal" style="margin-top: 100px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-success"><i class="fas fa-tools me-2"></i>Maintenance Requests</h2>
+        <a href="profile.php" class="btn btn-secondary rounded-pill">&larr; Back</a>
+    </div>
+
+    <?php if ($message) { echo "<div class='alert alert-success'>$message</div>"; } ?>
+    <?php if (isset($_GET['msg']) && $_GET['msg'] == 'cancelled') { echo "<div class='alert alert-warning'>Request cancelled.</div>"; } ?>
+    <?php if ($error) { echo "<div class='alert alert-danger'>$error</div>"; } ?>
+
+    <!-- Request Form -->
+    <?php if ($has_active_reservation) { ?>
+    <div class="card card-custom p-4 mb-5">
+        <h5 class="fw-bold mb-3">Submit New Request</h5>
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label">Issue Description</label>
+                <textarea name="description" class="form-control" rows="3" placeholder="Describe the issue in your room (e.g., Leaking faucet, AC not cooling)..." required></textarea>
+            </div>
+            <button type="submit" name="submit_request" class="btn btn-custom px-4">Submit Request</button>
+        </form>
+    </div>
+    <?php } else { ?>
+        <div class="alert alert-warning mb-5"><i class="fas fa-exclamation-circle me-2"></i>You must have an active (approved) room reservation to submit maintenance requests.</div>
+    <?php } ?>
+
+    <!-- List of Requests -->
+    <div class="card card-custom p-4">
+        <h5 class="fw-bold mb-3">My Request History</h5>
+        <?php if (mysqli_num_rows($requests_query) > 0) { ?>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Room</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Scheduled Date</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php while ($row = mysqli_fetch_assoc($requests_query)) { ?>
+                    <tr>
+                        <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
+                        <td class="fw-bold text-success"><?= $row['room_name'] ?></td>
+                        <td><?= htmlspecialchars($row['description']) ?></td>
+                        <td>
+                            <span class="badge bg-secondary rounded-pill"><?= $row['status'] ?></span>
+                        </td>
+                        <td>
+                            <?= $row['scheduled_date'] ? $row['scheduled_date'] : '<span class="text-muted">-</span>' ?>
+                        </td>
+                        <td>
+                            <?php if($row['status'] == 'Pending') { ?>
+                                <a href="maintenance.php?cancel_id=<?= $row['request_id'] ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'Cancel this request?')">Cancel</a>
+                            <?php } else { ?>
+                                <span class="text-muted small">Uncancelable</span>
+                            <?php } ?>
+                        </td>
+                    </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </div>
+        <?php } else { ?>
+            <p class="text-muted">No maintenance requests found.</p>
+        <?php } ?>
+    </div>
+</div>
+<script>
+function confirmAction(e, url, msg) {
+    e.preventDefault();
+    Swal.fire({
+        title: 'Are you sure?',
+        text: msg,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, cancel it!'
+    }).then((result) => {
+        if (result.isConfirmed) window.location.href = url;
+    });
+}
+</script>
+</body>
+</html>

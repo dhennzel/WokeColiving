@@ -1,0 +1,242 @@
+/* ================================
+   GLOBAL RESET
+================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f4fdf7;
+    color: #333;
+}
+
+/* ================================
+   COLORS
+================================ */
+:root {
+    --green: #1fa84f;
+    --dark-green: #16823d;
+    --yellow: #ffd84d;
+    --light-yellow: #fff3c4;
+    --white: #ffffff;
+    --gray: #f1f1f1;
+}
+
+/* ================================
+   HEADER / NAVBAR
+================================ */
+.navbar {
+    background-color: var(--green);
+    padding: 15px 30px;
+}
+
+.navbar-brand {
+    color: var(--white);
+    font-size: 22px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.navbar a {
+    color: var(--white);
+    margin-left: 20px;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.navbar a:hover {
+    color: var(--yellow);
+}
+
+/* ================================
+   PAGE TITLE
+================================ */
+.page-title {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: var(--dark-green);
+}
+
+/* ================================
+   ROOM CARD (AGODA STYLE)
+================================ */
+.card {
+    border: none;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+}
+
+.card-body {
+    padding: 16px;
+}
+
+.card h5 {
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.card p {
+    font-size: 14px;
+    color: #555;
+}
+
+/* ================================
+   PRICE STYLE
+================================ */
+.price {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--green);
+    margin: 10px 0;
+}
+
+.price span {
+    font-size: 13px;
+    color: #777;
+}
+
+/* ================================
+   BUTTONS
+================================ */
+.btn-primary {
+    background-color: var(--green);
+    border: none;
+    border-radius: 25px;
+    padding: 10px 16px;
+    font-weight: bold;
+}
+
+.btn-primary:hover {
+    background-color: var(--dark-green);
+}
+
+.btn-success {
+    background-color: var(--yellow);
+    color: #000;
+    border: none;
+    border-radius: 25px;
+    padding: 10px 16px;
+    font-weight: bold;
+}
+
+.btn-success:hover {
+    background-color: #f5c800;
+}
+
+/* ================================
+   ROOM DETAILS PAGE
+================================ */
+.room-image {
+    border-radius: 15px;
+    max-height: 350px;
+    object-fit: cover;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.room-info h2 {
+    font-weight: bold;
+    color: var(--dark-green);
+}
+
+.room-info p {
+    line-height: 1.6;
+}
+
+/* ================================
+   FORM STYLES
+================================ */
+form label {
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.form-control {
+    border-radius: 10px;
+    padding: 10px;
+}
+
+form button {
+    margin-top: 10px;
+}
+
+/* ================================
+   TABLE (MY RESERVATIONS / ADMIN)
+================================ */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--white);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+table th {
+    background-color: var(--green);
+    color: var(--white);
+    padding: 12px;
+    text-align: left;
+}
+
+table td {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+table tr:hover {
+    background-color: var(--light-yellow);
+}
+
+/* ================================
+   STATUS BADGES
+================================ */
+.status {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.status.pending {
+    background-color: var(--yellow);
+    color: #000;
+}
+
+.status.approved {
+    background-color: var(--green);
+    color: #fff;
+}
+
+.status.cancelled {
+    background-color: #ff6b6b;
+    color: #fff;
+}
+
+/* ================================
+   FOOTER
+================================ */
+.footer {
+    margin-top: 40px;
+    background-color: var(--green);
+    color: var(--white);
+    text-align: center;
+    padding: 15px;
+    font-size: 14px;
+}

@@ -1,0 +1,147 @@
+<?php
+session_start();
+include("../db.php");
+
+if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true){
+    header("Location: admin_login.php");
+    exit;
+}
+
+if(!isset($_GET['id'])) die("Invalid Request");
+$id = (int)$_GET['id'];
+
+// Fetch Reservation Info
+$query = "SELECT r.*, u.full_name, u.email, u.phone_number, u.gender, rm.room_name, rm.room_type, rm.total_price as room_price 
+          FROM reservations r 
+          JOIN users u ON r.user_id = u.user_id 
+          JOIN rooms rm ON r.room_id = rm.room_id 
+          WHERE r.reservation_id = $id";
+$res = mysqli_query($conn, $query);
+if(mysqli_num_rows($res) == 0) die("Reservation not found");
+$data = mysqli_fetch_assoc($res);
+$theme = get_theme_colors($conn);
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Registration #<?= $data['reservation_id'] ?> | Woke Coliving</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-green: <?= $theme['primary'] ?>;
+            --dark-green: <?= $theme['dark'] ?>;
+            --accent-yellow: <?= $theme['accent'] ?>;
+        }
+        body { background: #f4f6f8; font-family: 'Poppins', sans-serif; }
+        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
+        
+        .receipt-container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 40px;
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .header { border-bottom: 3px solid var(--accent-yellow); padding-bottom: 20px; margin-bottom: 30px; }
+        .logo { width: 60px; height: 60px; object-fit: cover; border-radius: 50%; }
+        .company-name { color: var(--dark-green); font-weight: bold; font-size: 1.5rem; font-family: 'Playfair Display', serif; }
+        .label { font-weight: 600; color: #555; font-size: 0.9rem; text-transform: uppercase; }
+        .value { font-size: 1.1rem; font-weight: 500; color: #000; }
+        .sig-box { border-top: 1px solid #000; padding-top: 10px; display: inline-block; margin-top: 40px; width: 100%; text-align: center; }
+        @media print {
+            body { background: #fff; }
+            .receipt-container { box-shadow: none; border: none; margin: 0; padding: 0; width: 100%; max-width: 100%; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="receipt-container">
+        <!-- Header -->
+        <div class="header d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" class="logo me-3">
+                <div>
+                    <div class="company-name">Woke Coliving INC</div>
+                    <small class="text-muted">123 Coliving Street, City Center</small><br>
+                    <small class="text-muted">contact@wokecoliving.com | +63 912 345 6789</small>
+                </div>
+            </div>
+            <div class="text-end">
+                <h4 class="fw-bold text-uppercase mb-0">Registration Form</h4>
+                <div class="text-muted">#<?= str_pad($data['reservation_id'], 6, '0', STR_PAD_LEFT) ?></div>
+                <div class="small text-muted">Date: <?= date('M d, Y') ?></div>
+            </div>
+        </div>
+
+        <!-- Guest & Room Info -->
+        <div class="row mb-4">
+            <div class="col-6">
+                <div class="mb-3">
+                    <div class="label">Guest Name</div>
+                    <div class="value"><?= $data['full_name'] ?></div>
+                </div>
+                <div class="mb-3">
+                    <div class="label">Contact Info</div>
+                    <div><?= $data['email'] ?></div>
+                    <div><?= $data['phone_number'] ?></div>
+                    <div>Gender: <?= $data['gender'] ?></div>
+                </div>
+            </div>
+            <div class="col-6 text-end">
+                <div class="mb-3">
+                    <div class="label">Room Details</div>
+                    <div class="value"><?= $data['room_name'] ?></div>
+                    <div><?= $data['room_type'] ?></div>
+                    <div>Bed: <?= $data['bed_preference'] ?></div>
+                </div>
+                <div class="mb-3">
+                    <div class="label">Stay Duration</div>
+                    <div>In: <strong><?= date('F d, Y', strtotime($data['start_date'])) ?></strong></div>
+                    <div>Out: <strong><?= date('F d, Y', strtotime($data['end_date'])) ?></strong></div>
+                    <div>(<?= $data['months'] ?> Months)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terms -->
+        <div class="mb-4 p-3 bg-light rounded border">
+            <div class="label mb-2">Terms & Conditions</div>
+            <p class="small text-muted text-justify mb-0" style="line-height: 1.6;">
+                I, the undersigned, hereby agree to the terms and conditions of Woke Coliving INC. I acknowledge that I am responsible for the room and its amenities during my stay. I understand that utilities (Water & Electric) are charged separately for stays of 6 months or longer. I agree to abide by the house rules regarding noise, cleanliness, and visitors.
+            </p>
+        </div>
+
+        <!-- Signatures -->
+        <div class="row mt-5 pt-4">
+            <div class="col-6">
+                <div class="sig-box">
+                    <strong><?= $data['full_name'] ?></strong><br>
+                    Guest Signature
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="sig-box">
+                    <strong>Authorized Admin</strong><br>
+                    Woke Coliving Representative
+                </div>
+            </div>
+        </div>
+
+        <!-- Print Button -->
+        <div class="text-center mt-5 no-print">
+            <button onclick="window.print()" class="btn btn-success btn-lg"><i class="fas fa-print me-2"></i>Print Form</button>
+            <button onclick="window.close()" class="btn btn-secondary btn-lg ms-2">Close</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

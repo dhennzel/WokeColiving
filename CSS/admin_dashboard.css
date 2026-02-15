@@ -1,0 +1,105 @@
+body {
+            margin:0;
+            font-family: Arial, sans-serif;
+            background-color: #e8f5e9;
+        }
+
+        /* Navbar */
+        .navbar {
+            background-color: #2e7d32;
+            color: white;
+            display:flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+        }
+        .navbar .brand { font-size: 1.5em; font-weight: bold; }
+        .navbar .nav-right { display:flex; align-items:center; gap:10px; }
+        .navbar a {
+            text-decoration: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 5px;
+            background-color: #fbc02d;
+            font-weight: bold;
+        }
+
+        /* Summary Box */
+        .summary-box {
+            background-color: #fbc02d;
+            color: #2e7d32;
+            text-align: center;
+            padding: 20px;
+            border-radius: 12px;
+            font-weight: bold;
+            max-width: 400px;
+            margin: 20px auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            font-size: 1.2em;
+        }
+
+        /* Card grid */
+        .card-grid {
+            display:flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px;
+            justify-content: center;
+        }
+
+        /* Card */
+        .card-reservation {
+            background-color:white;
+            border-radius:12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 15px;
+            flex: 1 1 calc(30% - 20px);
+            box-sizing: border-box;
+            transition: transform 0.2s;
+            min-width: 280px;
+        }
+        .card-reservation:hover { transform: translateY(-5px); }
+
+        .card-reservation img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            
+        }
+        .card-reservation h5 { margin:0 0 10px; color:#2e7d32; }
+        .card-reservation p { margin:5px 0; font-size: 0.95em; }
+
+        /* Badges */
+        .badge {
+            padding:4px 8px;
+            border-radius: 5px;
+            font-weight:bold;
+            font-size:0.85em;
+        }
+        .bg-warning { background-color:#fbc02d; color:#000; }
+        .bg-success { background-color:#388e3c; color:#fff; }
+        .bg-danger  { background-color:#d32f2f; color:#fff; }
+
+        /* Buttons */
+        .btn-approve, .btn-reject {
+            display:block;
+            width:100%;
+            text-align:center;
+            padding:8px 0;
+            border:none;
+            border-radius:6px;
+            font-weight:bold;
+            margin-top:8px;
+            text-decoration:none;
+            cursor:pointer;
+        }
+        .btn-approve { background-color:#fbc02d; color:black; }
+        .btn-approve:hover { background-color:#fdd835; }
+        .btn-reject { background-color:#d32f2f; color:white; }
+        .btn-reject:hover { background-color:#c62828; }
+
+        /* Responsive */
+        @media screen and (max-width: 1000px){ .card-reservation { flex:1 1 calc(45% - 20px); } }
+        @media screen and (max-width: 650px){ .card-reservation { flex:1 1 100%; } }
