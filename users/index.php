@@ -639,7 +639,7 @@ if(isset($_SESSION['user_id'])){
       offset: 100
   });
 
-  // Navbar Scroll Effect tite ko malaki
+  // Navbar Scroll Effect 
   window.addEventListener('scroll', function() {
       if (window.scrollY > 50) {
           document.querySelector('.navbar').classList.add('scrolled');
