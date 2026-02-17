@@ -16,14 +16,28 @@ if(isset($_POST['archive_action'])) {
     $type = $_POST['type']; // 'maintenance' or 'housekeeping'
     $action = $_POST['archive_action']; // 'delete' or 'restore'
     
-    $table = ($type == 'maintenance') ? 'maintenance_requests' : 'housekeeping_requests';
-    
-    if($action == 'delete') {
-        mysqli_query($conn, "DELETE FROM $table WHERE request_id=$id");
-        $message = ucfirst($type) . " record deleted permanently.";
-    } elseif($action == 'restore') {
-        mysqli_query($conn, "UPDATE $table SET status='Pending' WHERE request_id=$id");
-        $message = ucfirst($type) . " record restored to Pending.";
+    if ($type == 'room') {
+        if ($action == 'restore') {
+            mysqli_query($conn, "UPDATE rooms SET is_archived='0' WHERE room_id=$id");
+            $message = "Room restored successfully.";
+        } elseif ($action == 'delete') {
+            try {
+                mysqli_query($conn, "DELETE FROM rooms WHERE room_id=$id");
+                $message = "Room deleted permanently.";
+            } catch (Exception $e) {
+                $message = "Error: Cannot delete room. It may be linked to reservations.";
+            }
+        }
+    } else {
+        $table = ($type == 'maintenance') ? 'maintenance_requests' : 'housekeeping_requests';
+        
+        if($action == 'delete') {
+            mysqli_query($conn, "DELETE FROM $table WHERE request_id=$id");
+            $message = ucfirst($type) . " record deleted permanently.";
+        } elseif($action == 'restore') {
+            mysqli_query($conn, "UPDATE $table SET status='Pending' WHERE request_id=$id");
+            $message = ucfirst($type) . " record restored to Pending.";
+        }
     }
 }
 
@@ -45,6 +59,20 @@ $housekeeping_query = mysqli_query($conn, "
     LEFT JOIN rooms r ON h.room_id = r.room_id 
     WHERE h.status IN ('Completed', 'Cancelled')
     ORDER BY h.created_at DESC
+");
+
+// Fetch Archived Rooms
+$archived_rooms_query = mysqli_query($conn, "SELECT * FROM rooms WHERE is_archived='1' ORDER BY room_name ASC");
+
+// Fetch Transaction Reports (All Paid Payments)
+$transactions_query = mysqli_query($conn, "
+    SELECT p.*, u.full_name, rm.room_name 
+    FROM payments p
+    JOIN reservations r ON p.reservation_id = r.reservation_id
+    JOIN users u ON r.user_id = u.user_id
+    JOIN rooms rm ON r.room_id = rm.room_id
+    WHERE p.payment_status='Paid'
+    ORDER BY p.payment_date DESC
 ");
 
 // Fetch Paid Utility Bills
@@ -181,6 +209,12 @@ $theme = get_theme_colors($conn);
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="billing-tab" data-bs-toggle="tab" data-bs-target="#billing" type="button" role="tab">Utility Bills</button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#rooms" type="button" role="tab">Archived Rooms</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab">Transaction Reports</button>
+                    </li>
                 </ul>
 
                 <div class="tab-content" id="archiveTabsContent">
@@ -280,6 +314,64 @@ $theme = get_theme_colors($conn);
                             </table>
                         </div>
                     </div>
+
+                    <!-- Archived Rooms Tab -->
+                    <div class="tab-pane fade" id="rooms" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead><tr><th>Image</th><th>Room Name</th><th>Type</th><th>Price</th><th class="text-end">Actions</th></tr></thead>
+                                <tbody>
+                                    <?php while($row = mysqli_fetch_assoc($archived_rooms_query)): ?>
+                                    <tr>
+                                        <td><img src="../assets/images/<?= $row['image'] ?>" style="width: 50px; height: 50px; object-fit: cover;" class="rounded"></td>
+                                        <td class="fw-bold"><?= htmlspecialchars($row['room_name']) ?></td>
+                                        <td><?= $row['room_type'] ?></td>
+                                        <td>₱<?= number_format($row['total_price'], 2) ?></td>
+                                        <td class="text-end">
+                                            <form method="POST" class="d-inline" onsubmit="return confirm('Restore this room?')">
+                                                <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
+                                                <input type="hidden" name="type" value="room">
+                                                <button type="submit" name="archive_action" value="restore" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                            </form>
+                                            <form method="POST" class="d-inline" onsubmit="return confirm('Permanently delete this room?')">
+                                                <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
+                                                <input type="hidden" name="type" value="room">
+                                                <button type="submit" name="archive_action" value="delete" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    <?php endwhile; ?>
+                                    <?php if(mysqli_num_rows($archived_rooms_query) == 0): ?>
+                                        <tr><td colspan="5" class="text-center text-muted py-3">No archived rooms found.</td></tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Transaction Reports Tab -->
+                    <div class="tab-pane fade" id="reports" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead><tr><th>Date</th><th>Tenant</th><th>Room</th><th>Description</th><th>Method</th><th class="text-end">Amount</th></tr></thead>
+                                <tbody>
+                                    <?php while($row = mysqli_fetch_assoc($transactions_query)): ?>
+                                    <tr>
+                                        <td><?= date('M d, Y', strtotime($row['payment_date'])) ?></td>
+                                        <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
+                                        <td><?= htmlspecialchars($row['room_name']) ?></td>
+                                        <td class="small text-muted"><?= htmlspecialchars($row['description'] ?? '') ?></td>
+                                        <td><?= $row['payment_method'] ?></td>
+                                        <td class="text-end fw-bold text-success">₱<?= number_format($row['amount'], 2) ?></td>
+                                    </tr>
+                                    <?php endwhile; ?>
+                                    <?php if(mysqli_num_rows($transactions_query) == 0): ?>
+                                        <tr><td colspan="6" class="text-center text-muted py-3">No transactions found.</td></tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -307,6 +399,16 @@ document.addEventListener('click', function(event) {
         }
     }
 });
+
+// Handle URL Hash for Tabs
+var hash = window.location.hash;
+if (hash) {
+    var triggerEl = document.querySelector('button[data-bs-target="' + hash + '"]');
+    if (triggerEl) {
+        var tab = new bootstrap.Tab(triggerEl);
+        tab.show();
+    }
+}
 </script>
 </body>
 </html>

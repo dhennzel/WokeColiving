@@ -143,7 +143,7 @@ $theme = get_theme_colors($conn);
             <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Room Inventory</h4>
         </div>
         <div>
-            <a href="archived_rooms.php" class="btn btn-outline-secondary me-2"><i class="fas fa-archive me-2"></i>View Archive</a>
+            <a href="admin_utilities.php#rooms" class="btn btn-outline-secondary me-2"><i class="fas fa-archive me-2"></i>View Archive</a>
             <a href="add_room.php" class="btn btn-custom px-4"><i class="fas fa-plus me-2"></i>Add New Room</a>
         </div>
     </div>

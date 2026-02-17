@@ -50,17 +50,6 @@ for ($i = $end_ts; $i >= $start_ts; $i = strtotime("-1 month", $i)) {
     $monthly_data[] = isset($db_data[$ym]) ? $db_data[$ym] : ['month' => $ym, 'earnings' => 0, 'bookings' => 0];
 }
 
-// Fetch Payment History (Archive View)
-$payments_query = mysqli_query($conn, "
-    SELECT p.*, u.full_name, rm.room_name 
-    FROM payments p
-    JOIN reservations r ON p.reservation_id = r.reservation_id
-    JOIN users u ON r.user_id = u.user_id
-    JOIN rooms rm ON r.room_id = rm.room_id
-    WHERE p.payment_status='Paid'
-    ORDER BY p.payment_date DESC
-");
-
 $theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
@@ -157,7 +146,7 @@ $theme = get_theme_colors($conn);
                     <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Profit & Earnings Report</h4>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="?export_csv=1" class="btn btn-success btn-sm btn-export"><i class="fas fa-file-csv me-2"></i>Export Archive</a>
+                    <a href="?export_csv=1" class="btn btn-success btn-sm btn-export"><i class="fas fa-file-csv me-2"></i>Export Report</a>
                     <button onclick="window.print()" class="btn btn-outline-secondary btn-sm btn-print"><i class="fas fa-print me-2"></i>Print Report</button>
                 </div>
             </div>
@@ -242,41 +231,6 @@ $theme = get_theme_colors($conn);
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
-
-            <!-- Transaction Archive Table -->
-            <div class="card card-stat p-4 mt-4">
-                <h5 class="fw-bold mb-3 text-secondary"><i class="fas fa-history me-2"></i>Transaction Archive</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Date</th>
-                                <th>Tenant</th>
-                                <th>Room</th>
-                                <th>Description</th>
-                                <th>Method</th>
-                                <th>Ref No.</th>
-                                <th class="text-end">Amount</th>
-                                <th class="text-center">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php while($pay = mysqli_fetch_assoc($payments_query)): ?>
-                            <tr>
-                                <td><?= date('M d, Y', strtotime($pay['payment_date'])) ?></td>
-                                <td class="fw-bold"><?= htmlspecialchars($pay['full_name']) ?></td>
-                                <td><?= htmlspecialchars($pay['room_name']) ?></td>
-                                <td class="small text-muted"><?= isset($pay['description']) ? htmlspecialchars($pay['description']) : '-' ?></td>
-                                <td><?= $pay['payment_method'] ?></td>
-                                <td class="small text-muted"><?= $pay['reference_number'] ?: '-' ?></td>
-                                <td class="text-end fw-bold text-success">₱<?= number_format($pay['amount'], 2) ?></td>
-                                <td class="text-center"><a href="payment_details.php?id=<?= $pay['payment_id'] ?>" class="btn btn-sm btn-outline-primary" title="View Details"><i class="fas fa-eye"></i></a></td>
-                            </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </div>
