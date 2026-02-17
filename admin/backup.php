@@ -94,21 +94,34 @@ if(isset($_GET['action'])) {
 
 // Fetch Backups
 $backups = [];
+$filter_type = isset($_GET['type']) ? $_GET['type'] : 'all';
+
 if(is_dir($backup_dir)){
     $files = scandir($backup_dir);
     foreach($files as $f){
         if($f != '.' && $f != '..'){
+            $is_sql = (strpos($f, '.sql') !== false);
+            
+            if($filter_type == 'sql' && !$is_sql) continue;
+            if($filter_type == 'zip' && $is_sql) continue;
+
             $backups[] = [
                 'file' => $f,
                 'size' => round(filesize($backup_dir . $f) / 1024, 2) . ' KB',
                 'date' => date("M d, Y H:i", filemtime($backup_dir . $f)),
-                'type' => (strpos($f, '.sql') !== false) ? 'Database' : 'Source Code'
+                'type' => $is_sql ? 'Database' : 'Source Code'
             ];
         }
     }
     usort($backups, function($a, $b) {
         return strtotime($b['date']) - strtotime($a['date']);
     });
+    
+    // Limit Logic
+    $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
+    if($limit > 0 && count($backups) > $limit){
+        $backups = array_slice($backups, 0, $limit);
+    }
 }
 
 // --- Display result within the admin template ---
@@ -224,10 +237,28 @@ $theme = get_theme_colors($conn);
             <div class="card card-custom p-4">
                 <div class="d-flex gap-3 mb-4">
                     <a href="?action=backup_db" class="btn btn-success fw-bold"><i class="fas fa-database me-2"></i>Backup Database (SQL)</a>
-                    <a href="?action=backup_files" class="btn btn-warning text-dark fw-bold"><i class="fas fa-file-archive me-2"></i>Archive Source Code (ZIP)</a>
+                    <a href="?action=backup_files" class="btn btn-warning text-dark fw-bold"><i class="fas fa-file-archive me-2"></i>Source Code (ZIP)</a>
                 </div>
                 
-                <h5 class="fw-bold mb-3">Existing Backups</h5>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">Existing Backups</h5>
+                    <form method="GET" class="d-flex align-items-center gap-2">
+                        <label class="fw-bold small">Type:</label>
+                        <select name="type" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                            <option value="all" <?= $filter_type == 'all' ? 'selected' : '' ?>>All</option>
+                            <option value="sql" <?= $filter_type == 'sql' ? 'selected' : '' ?>>Database</option>
+                            <option value="zip" <?= $filter_type == 'zip' ? 'selected' : '' ?>>Source Code</option>
+                        </select>
+
+                        <label class="fw-bold small ms-2">Show:</label>
+                        <select name="limit" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                            <option value="5" <?= $limit == 5 ? 'selected' : '' ?>>5</option>
+                            <option value="10" <?= $limit == 10 ? 'selected' : '' ?>>10</option>
+                            <option value="20" <?= $limit == 20 ? 'selected' : '' ?>>20</option>
+                            <option value="0" <?= $limit == 0 ? 'selected' : '' ?>>All</option>
+                        </select>
+                    </form>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">

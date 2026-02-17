@@ -41,50 +41,38 @@ if(isset($_POST['archive_action'])) {
     }
 }
 
+// Search Logic
+$search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
+
 // Fetch Maintenance Archive
-$maintenance_query = mysqli_query($conn, "
-    SELECT m.*, u.full_name, r.room_name 
-    FROM maintenance_requests m 
-    JOIN users u ON m.user_id = u.user_id 
-    LEFT JOIN rooms r ON m.room_id = r.room_id 
-    WHERE m.status IN ('Completed', 'Cancelled')
-    ORDER BY m.created_at DESC
-");
+$m_sql = "SELECT m.*, u.full_name, r.room_name FROM maintenance_requests m JOIN users u ON m.user_id = u.user_id LEFT JOIN rooms r ON m.room_id = r.room_id WHERE m.status IN ('Completed', 'Cancelled')";
+if($search) $m_sql .= " AND (u.full_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR m.description LIKE '%$search%')";
+$m_sql .= " ORDER BY m.created_at DESC";
+$maintenance_query = mysqli_query($conn, $m_sql);
 
 // Fetch Housekeeping Archive
-$housekeeping_query = mysqli_query($conn, "
-    SELECT h.*, u.full_name, r.room_name 
-    FROM housekeeping_requests h 
-    JOIN users u ON h.user_id = u.user_id 
-    LEFT JOIN rooms r ON h.room_id = r.room_id 
-    WHERE h.status IN ('Completed', 'Cancelled')
-    ORDER BY h.created_at DESC
-");
+$h_sql = "SELECT h.*, u.full_name, r.room_name FROM housekeeping_requests h JOIN users u ON h.user_id = u.user_id LEFT JOIN rooms r ON h.room_id = r.room_id WHERE h.status IN ('Completed', 'Cancelled')";
+if($search) $h_sql .= " AND (u.full_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR h.description LIKE '%$search%')";
+$h_sql .= " ORDER BY h.created_at DESC";
+$housekeeping_query = mysqli_query($conn, $h_sql);
 
 // Fetch Archived Rooms
-$archived_rooms_query = mysqli_query($conn, "SELECT * FROM rooms WHERE is_archived='1' ORDER BY room_name ASC");
+$r_sql = "SELECT * FROM rooms WHERE is_archived='1'";
+if($search) $r_sql .= " AND (room_name LIKE '%$search%' OR room_type LIKE '%$search%')";
+$r_sql .= " ORDER BY room_name ASC";
+$archived_rooms_query = mysqli_query($conn, $r_sql);
 
 // Fetch Transaction Reports (All Paid Payments)
-$transactions_query = mysqli_query($conn, "
-    SELECT p.*, u.full_name, rm.room_name 
-    FROM payments p
-    JOIN reservations r ON p.reservation_id = r.reservation_id
-    JOIN users u ON r.user_id = u.user_id
-    JOIN rooms rm ON r.room_id = rm.room_id
-    WHERE p.payment_status='Paid'
-    ORDER BY p.payment_date DESC
-");
+$t_sql = "SELECT p.*, u.full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status='Paid'";
+if($search) $t_sql .= " AND (u.full_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%' OR p.reference_number LIKE '%$search%')";
+$t_sql .= " ORDER BY p.payment_date DESC";
+$transactions_query = mysqli_query($conn, $t_sql);
 
 // Fetch Paid Utility Bills
-$utility_bills_query = mysqli_query($conn, "
-    SELECT p.*, u.full_name, rm.room_name
-    FROM payments p
-    JOIN reservations r ON p.reservation_id = r.reservation_id
-    JOIN users u ON r.user_id = u.user_id
-    JOIN rooms rm ON r.room_id = rm.room_id
-    WHERE p.payment_status = 'Paid' AND p.description LIKE 'Utility Bill%'
-    ORDER BY p.payment_date DESC
-");
+$u_sql = "SELECT p.*, u.full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status = 'Paid' AND p.description LIKE 'Utility Bill%'";
+if($search) $u_sql .= " AND (u.full_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%')";
+$u_sql .= " ORDER BY p.payment_date DESC";
+$utility_bills_query = mysqli_query($conn, $u_sql);
 
 $theme = get_theme_colors($conn);
 ?>
@@ -199,6 +187,14 @@ $theme = get_theme_colors($conn);
             <?php endif; ?>
 
             <div class="card card-table p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0 text-secondary">Archive Records</h5>
+                    <form method="GET" class="d-flex gap-2">
+                        <input type="text" name="search" class="form-control form-control-sm" placeholder="Search archives..." value="<?= htmlspecialchars($search) ?>">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+                        <?php if($search): ?><a href="admin_utilities.php" class="btn btn-sm btn-outline-secondary">Reset</a><?php endif; ?>
+                    </form>
+                </div>
                 <ul class="nav nav-tabs mb-3" id="archiveTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="maintenance-tab" data-bs-toggle="tab" data-bs-target="#maintenance" type="button" role="tab">Maintenance</button>
