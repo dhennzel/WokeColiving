@@ -146,7 +146,7 @@ $theme = get_theme_colors($conn);
                     <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Profit & Earnings Report</h4>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="?export_csv=1" class="btn btn-success btn-sm btn-export"><i class="fas fa-file-csv me-2"></i>Export Report</a>
+                    <a href="admin_utilities.php#reports" class="btn btn-outline-secondary btn-sm btn-export"><i class="fas fa-archive me-2"></i>View Archive</a>
                     <button onclick="window.print()" class="btn btn-outline-secondary btn-sm btn-print"><i class="fas fa-print me-2"></i>Print Report</button>
                 </div>
             </div>

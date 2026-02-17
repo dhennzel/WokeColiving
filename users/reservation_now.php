@@ -94,12 +94,17 @@ if (isset($_POST['join_waitlist'])) {
 // Handle Extension (Pre-fill data)
 $pre_cin = date("Y-m-d");
 $pre_room = "";
+$pre_bed = "Any";
 
 if ($is_extension) {
     $pre_cin = $ext_data['end_date']; // Start new booking when old one ends
     $pre_room = $ext_data['room_type'];
 } elseif(isset($_GET['room_type'])){
     $pre_room = htmlspecialchars($_GET['room_type']);
+}
+
+if(isset($_GET['bed_preference'])){
+    $pre_bed = htmlspecialchars($_GET['bed_preference']);
 }
 
 // Handle Submission
@@ -454,11 +459,17 @@ if (isset($_POST['submit'])) {
 
                         <div class="mb-3" id="bed_pref_div" style="display:none;">
                             <label class="form-label">Bed Preference</label>
-                            <select name="bed_preference" class="form-select" onchange="calculateTotal()">
-                                <option value="Any">Any</option>
-                                <option value="Lower Bunk">Lower Bunk</option>
-                                <option value="Upper Bunk">Upper Bunk</option>
-                            </select>
+                            <?php if(isset($_GET['bed_preference']) && in_array($_GET['bed_preference'], ['Lower Bunk', 'Upper Bunk'])): ?>
+                                <input type="text" class="form-control bg-white" value="<?= htmlspecialchars($_GET['bed_preference']) ?>" readonly>
+                                <input type="hidden" name="bed_preference" value="<?= htmlspecialchars($_GET['bed_preference']) ?>">
+                                <small class="text-success"><i class="fas fa-lock me-1"></i> Preference locked from selection</small>
+                            <?php else: ?>
+                                <select name="bed_preference" class="form-select" onchange="calculateTotal()">
+                                    <option value="Any">Any</option>
+                                    <option value="Lower Bunk">Lower Bunk</option>
+                                    <option value="Upper Bunk">Upper Bunk</option>
+                                </select>
+                            <?php endif; ?>
                         </div>
 
                         <div class="mb-3">
@@ -641,7 +652,8 @@ if (isset($_POST['submit'])) {
             prefDiv.style.display = 'block';
         } else {
             prefDiv.style.display = 'none';
-            document.querySelector('select[name="bed_preference"]').value = 'Any';
+            let bedSelect = document.querySelector('select[name="bed_preference"]');
+            if(bedSelect) bedSelect.value = 'Any';
         }
     }
 
@@ -707,7 +719,8 @@ if (isset($_POST['submit'])) {
         let room = document.getElementById('troom').value;
         let cinVal = document.getElementById('cin').value;
         let coutVal = document.getElementById('cout').value;
-        let bedPref = document.querySelector('select[name="bed_preference"]').value;
+        let bedPrefEl = document.querySelector('[name="bed_preference"]');
+        let bedPref = bedPrefEl ? bedPrefEl.value : 'Any';
 
         // Update displays regardless of room selection
         if (cinVal) document.getElementById('cin_display').innerText = cinVal;

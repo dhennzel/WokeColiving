@@ -314,6 +314,7 @@ if(isset($_SESSION['user_id'])){
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
         }
+        .room-img { width: 100%; height: 400px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
@@ -374,22 +375,14 @@ if(isset($_SESSION['user_id'])){
     </div>
     <div class="row g-4">
         <?php while($room = mysqli_fetch_assoc($rooms_q)): ?>
-        <div class="col-md-4" data-aos="fade-up">
-            <div class="room-card h-100">
+        <div class="col-lg-4 col-md-6" data-aos="fade-up">
+            <div class="card room-card h-100 border-0 shadow-sm">
                 <div class="room-img-wrapper">
                     <img src="assets/images/<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>">
-                    <div class="position-absolute top-0 end-0 m-3">
-                        <span class="badge badge-custom rounded-pill px-3 py-2">₱<?= number_format($room['total_price'], 2) ?>/mo</span>
-                    </div>
                 </div>
-                <div class="card-body p-4">
-                    <h4 class="fw-bold mb-2"><?= $room['room_name'] ?></h4>
-                    <p class="text-muted small mb-3"><i class="fas fa-bed me-2"></i><?= $room['room_type'] ?> | <?= $room['total_beds'] ?> Beds Total</p>
-                    <?php if($has_active_booking): ?>
-                        <a href="users/room_details.php?id=<?= $room['room_id'] ?>" class="btn btn-outline-success w-100">View Details</a>
-                    <?php else: ?>
-                        <a href="users/reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>" class="btn btn-custom w-100">Book Now</a>
-                    <?php endif; ?>
+                <div class="card-body text-center p-4">
+                    <h4 class="fw-bold text-success mb-3"><?= $room['room_name'] ?></h4>
+                    <a href="users/room_details.php?id=<?= $room['room_id'] ?>" class="btn btn-outline-success rounded-pill px-4">View Details</a>
                 </div>
             </div>
         </div>

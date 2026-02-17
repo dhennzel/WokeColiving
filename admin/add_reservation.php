@@ -96,11 +96,50 @@ if(isset($_POST['add_reservation'])){
 
         while($room = $r_res->fetch_assoc()) {
             $rid = $room['room_id'];
-            $q = "SELECT COUNT(*) as booked FROM reservations WHERE room_id = $rid AND status IN ('Pending','Approved') AND start_date < '$cout' AND end_date > '$cin'";
-            $c_res = mysqli_query($conn, $q);
-            $c_row = mysqli_fetch_assoc($c_res);
+            $total_capacity = $room['total_beds'];
             
-            if(($room['total_beds'] - $c_row['booked']) > 0){
+            // Get counts for specific dates
+            $q_counts = "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id = $rid AND status IN ('Pending','Approved') AND start_date < '$cout' AND end_date > '$cin' GROUP BY bed_preference";
+            $res_counts = mysqli_query($conn, $q_counts);
+            
+            $taken_upper = 0;
+            $taken_lower = 0;
+            $taken_any = 0;
+            
+            while($row_c = mysqli_fetch_assoc($res_counts)){
+                if($row_c['bed_preference'] == 'Upper Bunk') $taken_upper += $row_c['cnt'];
+                elseif($row_c['bed_preference'] == 'Lower Bunk') $taken_lower += $row_c['cnt'];
+                else $taken_any += $row_c['cnt'];
+            }
+            
+            $total_taken = $taken_upper + $taken_lower + $taken_any;
+            
+            // If totally full, skip
+            if($total_taken >= $total_capacity) continue;
+
+            // Check specific bed availability
+            if(($room_type == '4-Bed' || $room_type == '6-Bed') && ($bed_preference == 'Upper Bunk' || $bed_preference == 'Lower Bunk')){
+                $cap_upper = floor($total_capacity / 2);
+                $cap_lower = ceil($total_capacity / 2);
+                
+                // Distribute 'Any' to Lower first
+                $slots_lower_free = max(0, $cap_lower - $taken_lower);
+                $any_in_lower = min($taken_any, $slots_lower_free);
+                $any_in_upper = $taken_any - $any_in_lower;
+                
+                if($bed_preference == 'Upper Bunk'){
+                    if(($taken_upper + $any_in_upper) < $cap_upper){
+                        $found_room = $room;
+                        break;
+                    }
+                } elseif($bed_preference == 'Lower Bunk'){
+                    if(($taken_lower + $any_in_lower) < $cap_lower){
+                        $found_room = $room;
+                        break;
+                    }
+                }
+            } else {
+                // Single room or 'Any' preference - just needs space
                 $found_room = $room;
                 break;
             }

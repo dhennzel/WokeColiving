@@ -283,6 +283,7 @@ if(isset($_SESSION['user_id'])){
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
         }
+        .room-img { width: 100%; height: 400px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
@@ -343,65 +344,14 @@ if(isset($_SESSION['user_id'])){
     </div>
     <div class="row g-4">
         <?php while($room = mysqli_fetch_assoc($rooms_q)): ?>
-        <div class="col-md-4" data-aos="fade-up">
-            <div class="room-card h-100">
+        <div class="col-lg-4 col-md-6" data-aos="fade-up">
+            <div class="card room-card h-100 border-0 shadow-sm">
                 <div class="room-img-wrapper">
                     <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>">
-                    <div class="position-absolute top-0 end-0 m-3">
-                        <span class="badge badge-custom rounded-pill px-3 py-2">₱<?= number_format($room['total_price'], 2) ?>/mo</span>
-                    </div>
                 </div>
-                <div class="card-body p-4">
-                    <h4 class="fw-bold mb-2"><?= $room['room_name'] ?></h4>
-                    <p class="text-muted small mb-3"><i class="fas fa-bed me-2"></i><?= $room['room_type'] ?> | <?= $room['total_beds'] ?> Beds Total</p>
-                    <?php
-                    $is_bunk = false;
-                    $lower_left = 0;
-                    $upper_left = 0;
-
-                    if(strpos($room['room_type'], 'Bed') !== false){
-                        $is_bunk = true;
-                        $rid = $room['room_id'];
-                        $total_beds = $room['total_beds'];
-                        $lower_cap = ceil($total_beds / 2);
-                        $upper_cap = floor($total_beds / 2);
-                        
-                        $today = date('Y-m-d');
-                        $q_occ = mysqli_query($conn, "SELECT bed_preference, COUNT(*) as cnt FROM reservations 
-                                                      WHERE room_id = $rid 
-                                                      AND status IN ('Pending', 'Approved') 
-                                                      AND start_date <= '$today' AND end_date > '$today'
-                                                      GROUP BY bed_preference");
-                        
-                        $lower_taken = 0;
-                        $upper_taken = 0;
-                        $total_taken = 0;
-                        
-                        while($row_occ = mysqli_fetch_assoc($q_occ)){
-                            if($row_occ['bed_preference'] == 'Lower Bunk') $lower_taken = $row_occ['cnt'];
-                            elseif($row_occ['bed_preference'] == 'Upper Bunk') $upper_taken = $row_occ['cnt'];
-                            $total_taken += $row_occ['cnt'];
-                        }
-                        
-                        $free_beds = $total_beds - $total_taken;
-                        $lower_left = ($free_beds > 0) ? max(0, min($free_beds, $lower_cap - $lower_taken)) : 0;
-                        $upper_left = ($free_beds > 0) ? max(0, min($free_beds, $upper_cap - $upper_taken)) : 0;
-                    }
-                    ?>
-                    <?php if($has_active_booking): ?>
-                        <a href="room_details.php?id=<?= $room['room_id'] ?>" class="btn btn-outline-success w-100">View Details</a>
-                    <?php else: ?>
-                        <button type="button" class="btn btn-custom w-100" onclick="showRoomDetails(
-                            '<?= htmlspecialchars($room['room_name']) ?>',
-                            '<?= htmlspecialchars($room['room_type']) ?>',
-                            '<?= $room['total_price'] ?>',
-                            '<?= $room['image'] ?>',
-                            <?= $is_bunk ? 1 : 0 ?>,
-                            <?= $lower_left ?>,
-                            <?= $upper_left ?>,
-                            '<?= urlencode($room['room_type']) ?>'
-                        )">View Details</button>
-                    <?php endif; ?>
+                <div class="card-body text-center p-4">
+                    <h4 class="fw-bold text-success mb-3"><?= $room['room_name'] ?></h4>
+                    <a href="room_details.php?id=<?= $room['room_id'] ?>" class="btn btn-outline-success rounded-pill px-4">View Details</a>
                 </div>
             </div>
         </div>
