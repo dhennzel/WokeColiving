@@ -38,16 +38,6 @@ function get_theme_colors($conn) {
 if (!function_exists('send_notification')) {
 function send_notification($conn, $user_id, $message, $type = 'System') {
     // 1. Insert into Database (In-App Notification)
-    
-    // Ensure table exists
-    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS notifications (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        message TEXT NOT NULL,
-        type VARCHAR(50) DEFAULT 'System',
-        is_read TINYINT(1) DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )");
 
     try {
         $msg_safe = mysqli_real_escape_string($conn, $message);
@@ -169,6 +159,18 @@ if(mysqli_num_rows($check_col_floor) == 0) {
     mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN floor INT DEFAULT 2");
 }
 
+// Ensure notifications table exists and is correct before use in automated tasks
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50) DEFAULT 'System',
+    is_read TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)");
+$check_col_notif = mysqli_query($conn, "SHOW COLUMNS FROM notifications LIKE 'id'");
+if(mysqli_num_rows($check_col_notif) == 0) mysqli_query($conn, "ALTER TABLE notifications ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY FIRST");
+
 // 1. Auto-expire Pending reservations older than 24 hours (With Logging)
 $expire_query = mysqli_query($conn, "SELECT reservation_id, user_id FROM reservations WHERE status='Pending' AND created_at < (NOW() - INTERVAL 24 HOUR)");
 if($expire_query){
@@ -189,8 +191,8 @@ $rem_query = mysqli_query($conn, "SELECT r.reservation_id, r.user_id, r.start_da
 if($rem_query) {
     while($row = mysqli_fetch_assoc($rem_query)) {
         $uid = $row['user_id'];
-        $chk = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND message LIKE '%reminder%' AND created_at > DATE_SUB(NOW(), INTERVAL 18 HOUR)");
-        if(mysqli_num_rows($chk) == 0){
+        $chk_rem = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND type = 'Reminder' AND created_at > DATE_SUB(NOW(), INTERVAL 18 HOUR)");
+        if(mysqli_num_rows($chk_rem) == 0){
             send_notification($conn, $uid, "📅 Reminder: Your stay starts tomorrow (" . $row['start_date'] . "). We look forward to welcoming you!", "Reminder");
         }
     }
@@ -203,8 +205,8 @@ if($expire_soon_query) {
     while($row = mysqli_fetch_assoc($expire_soon_query)) {
         $uid = $row['user_id'];
         // Check if notification sent in last 24 hours to avoid spam
-        $chk = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND message LIKE '%expiring soon%' AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)");
-        if(mysqli_num_rows($chk) == 0){
+        $chk_exp = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND type = 'Expiration Alert' AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+        if(mysqli_num_rows($chk_exp) == 0){
             $days_left = ceil((strtotime($row['end_date']) - time()) / (60 * 60 * 24));
             $msg = "⚠️ <strong>Contract Expiring Soon</strong><br>Your stay in <strong>{$row['room_name']}</strong> ends on <strong>{$row['end_date']}</strong> ($days_left days left). Please contact admin to renew.";
             send_notification($conn, $uid, $msg, "Expiration Alert");
