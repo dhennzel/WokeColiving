@@ -71,6 +71,7 @@ if(isset($_SESSION['user_id'])){
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="../CSS/index.css">
     <style>
         :root {
             --primary-green: #2E7D32;
@@ -104,6 +105,16 @@ if(isset($_SESSION['user_id'])){
         h1, h2, h3, .navbar-brand {
             font-family: 'Playfair Display', serif;
         }
+        .hero-section {
+            position: relative;
+            color: white;
+            text-align: center;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         .navbar {
             background: transparent;
             padding: 20px 0;
@@ -132,16 +143,6 @@ if(isset($_SESSION['user_id'])){
             padding: 12px 0;
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         }
-        .hero-section {
-            position: relative;
-            color: white;
-            text-align: center;
-            overflow: hidden;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
         .hero-bg-carousel {
             position: absolute;
             top: 0;
@@ -164,18 +165,68 @@ if(isset($_SESSION['user_id'])){
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, rgba(27, 94, 32, 0.85), rgba(20, 60, 20, 0.7));
+            background: linear-gradient(to bottom, rgba(27, 94, 32, 0.7), rgba(27, 94, 32, 0.5));
             z-index: 1;
         }
         .hero-content {
             position: relative;
             z-index: 2;
-            animation: float 4s ease-in-out infinite;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 1s ease-out forwards 0.5s, float 4s ease-in-out infinite 1.5s;
         }
         @keyframes float {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-15px); }
             100% { transform: translateY(0px); }
+        }
+        .feature-icon {
+            font-size: 3.5rem;
+            color: var(--primary-green);
+            margin-bottom: 15px;
+            transition: transform 0.3s;
+        }
+        .feature-card:hover .feature-icon {
+            transform: scale(1.1) rotate(5deg);
+            color: var(--accent-yellow);
+        }
+        .room-card {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            transition: all 0.4s ease;
+            background: white;
+        }
+        .room-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        .room-img-wrapper {
+            height: 250px;
+            overflow: hidden;
+            position: relative;
+        }
+        .room-img-wrapper img {
+            transition: transform 0.5s ease;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .room-card:hover .room-img-wrapper img {
+            transform: scale(1.1);
+        }
+        .btn-custom {
+            background-color: var(--accent-yellow);
+            color: var(--dark-green);
+            font-weight: 700;
+            border-radius: 50px;
+            padding: 12px 35px;
+            border: none;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 5px 15px rgba(251, 192, 45, 0.3);
         }
         .feature-card {
             transition: transform 0.3s, box-shadow 0.3s;
@@ -208,55 +259,17 @@ if(isset($_SESSION['user_id'])){
         .feature-card:hover .feature-icon {
             transform: rotateY(180deg);
         }
-        .btn-custom {
-            background-color: var(--accent-yellow);
-            color: var(--dark-green);
-            font-weight: 700;
-            border-radius: 50px;
-            padding: 12px 40px;
-            border: none;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 5px 15px rgba(251, 192, 45, 0.4);
-        }
         .btn-custom:hover {
-            background-color: #fff;
-            color: var(--dark-green);
+            background-color: #F9A825;
             transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 20px rgba(251, 192, 45, 0.4);
+            color: var(--dark-green);
         }
         footer {
             background: var(--dark-green);
             color: white;
             padding: 3rem 0;
             margin-top: 3rem;
-        }
-        .room-card {
-            border: none;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-            transition: all 0.4s ease;
-            background: white;
-        }
-        .room-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-        }
-        .room-img-wrapper {
-            height: 250px;
-            overflow: hidden;
-            position: relative;
-        }
-        .room-img-wrapper img {
-            transition: transform 0.5s ease;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .room-card:hover .room-img-wrapper img {
-            transform: scale(1.1);
         }
         .section-title {
             color: var(--dark-green);
@@ -274,6 +287,22 @@ if(isset($_SESSION['user_id'])){
             margin: 10px auto 0;
             border-radius: 2px;
         }
+        /* Scroll Animations */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease-out;
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
         .badge-custom {
             background-color: rgba(255, 255, 255, 0.9);
             color: var(--dark-green);
@@ -283,6 +312,8 @@ if(isset($_SESSION['user_id'])){
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
         }
+        footer a { color: rgba(255,255,255,0.7); text-decoration: none; transition: 0.3s; }
+        footer a:hover { color: var(--accent-yellow); }
         .room-img { width: 100%; height: 400px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
     </style>
 </head>
@@ -291,8 +322,8 @@ if(isset($_SESSION['user_id'])){
 <!-- NAVBAR -->
 <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="../index.php">
-            <img src="../Images/WokeLogo.jpg" style="width: 30px; height: 30px; object-fit: cover;" class="me-2 rounded-circle">
+        <a class="navbar-brand fw-bold d-flex align-items-center" href="index.php">
+            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 30px; height: 30px; object-fit: cover;" class="me-2 rounded-circle">
             Woke Coliving INC
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -307,11 +338,11 @@ if(isset($_SESSION['user_id'])){
             </ul>
         <div class="d-flex gap-2">
             <?php if(isset($_SESSION['user_id'])): ?>
-                <a href="profile.php" class="btn btn-outline-light">My Profile</a>
-                <a href="logout.php" class="btn btn-warning text-dark fw-bold">Logout</a>
+                <a href="profile.php" class="btn btn-outline-light rounded-pill px-4">My Profile</a>
+                <a href="logout.php" class="btn btn-custom text-dark fw-bold">Logout</a>
             <?php else: ?>
-                <a href="login.php" class="btn btn-light fw-bold">Login</a>
-                <a href="register.php" class="btn btn-outline-light">Register</a>
+                <a href="login.php" class="btn btn-outline-light rounded-pill px-4">Login</a>
+                <a href="register.php" class="btn btn-custom">Register</a>
             <?php endif; ?>
         </div>
         </div>
@@ -331,16 +362,16 @@ if(isset($_SESSION['user_id'])){
     </div>
     <div class="container hero-content">
         <h1 class="display-3 fw-bold mb-3" data-aos="fade-down" data-aos-duration="1000">Convenient and Affordable Dormitory and Bed spaces</h1>
-        <p class="lead mb-5 fs-4" data-aos="fade-up" data-aos-delay="200">Your home away from home. Affordable, comfortable, and community-driven living spaces designed for modern students and professionals.</p>
-        <a href="reservation_now.php" class="btn btn-custom btn-lg" data-aos="zoom-in" data-aos-delay="400"><i class="fas fa-search me-2"></i>Find Your Room Now</a>
+        <p class="lead mb-5 fs-4" data-aos="fade-up" data-aos-delay="200">Your home away from home. Affordable, comfortable, and community-driven living spaces designed for you.</p>
+        <a href="reservation_now.php" class="btn btn-custom btn-lg shadow-lg" data-aos="zoom-in" data-aos-delay="400"><i class="fas fa-search me-2"></i>Find Your Room Now</a>
     </div>
 </div>
 
 <!-- ROOMS SECTION -->
 <div class="container py-5 mb-0" id="rooms">
     <div class="text-center mb-5" data-aos="fade-up">
-        <h2 class="fw-bold text-success display-5">Available Rooms</h2>
-        <p class="text-muted lead">Choose the perfect space for your needs.</p>
+        <h2 class="section-title display-5">Available Rooms</h2>
+        <p class="text-muted">Choose the perfect space for your needs.</p>
     </div>
     <div class="row g-4">
         <?php while($room = mysqli_fetch_assoc($rooms_q)): ?>
@@ -369,8 +400,8 @@ if(isset($_SESSION['user_id'])){
 <!-- FEATURES -->
 <div class="container py-4 mb-5" id="features">
     <div class="text-center mb-5" data-aos="fade-up">
-        <h2 class="fw-bold text-success display-5">Why Choose Woke?</h2>
-        <p class="text-muted lead">We provide more than just a bed; we provide a lifestyle.</p>
+        <h2 class="section-title display-5">Why Choose Us?</h2>
+        <p class="text-muted">We provide more than just a bed; we provide a lifestyle.</p>
     </div>
     <div class="row text-center g-4">
         <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
@@ -544,42 +575,6 @@ if(isset($_SESSION['user_id'])){
     </div>
 </footer>
 
-<!-- Room Details Modal -->
-<div class="modal fade" id="roomViewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow rounded-4">
-            <div class="modal-header border-0">
-                <h5 class="modal-title fw-bold text-success" id="modalRoomName"></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <img id="modalRoomImage" src="" class="img-fluid rounded-3 mb-3 w-100" style="height: 200px; object-fit: cover;">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="badge bg-success rounded-pill" id="modalRoomType"></span>
-                    <h4 class="text-success fw-bold mb-0">₱<span id="modalRoomPrice"></span>/mo</h4>
-                </div>
-                <p class="text-muted small mb-3">Includes amenities, Wi-Fi, and utilities policy applies.</p>
-                
-                <div id="modalBedAvailability" class="mb-3" style="display: none;">
-                    <h6 class="fw-bold border-bottom pb-2">Bed Availability</h6>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span><i class="fas fa-level-down-alt me-2 text-primary"></i>Lower Bunk</span>
-                        <span id="modalLowerStatus" class="badge bg-secondary">Checking...</span>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span><i class="fas fa-level-up-alt me-2 text-info"></i>Upper Bunk</span>
-                        <span id="modalUpperStatus" class="badge bg-secondary">Checking...</span>
-                    </div>
-                </div>
-
-                <div class="d-grid mt-4">
-                    <a href="#" id="modalBookBtn" class="btn btn-custom">BOOK NOW</a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script>
@@ -589,7 +584,7 @@ if(isset($_SESSION['user_id'])){
       offset: 100
   });
 
-  // Navbar Scroll Effect 
+  // Navbar Scroll Effect
   window.addEventListener('scroll', function() {
       if (window.scrollY > 50) {
           document.querySelector('.navbar').classList.add('scrolled');
@@ -605,42 +600,6 @@ if(isset($_SESSION['user_id'])){
         icon: '<?= $_SESSION['swal']['icon'] ?>'
     });
     <?php unset($_SESSION['swal']); endif; ?>
-
-  function showRoomDetails(name, type, price, image, isBunk, lower, upper, typeUrl) {
-      document.getElementById('modalRoomName').innerText = name;
-      document.getElementById('modalRoomType').innerText = type;
-      document.getElementById('modalRoomPrice').innerText = parseFloat(price).toLocaleString('en-US', {minimumFractionDigits: 2});
-      document.getElementById('modalRoomImage').src = '../assets/images/' + image;
-      document.getElementById('modalBookBtn').href = 'reservation_now.php?room_type=' + typeUrl;
-
-      const availDiv = document.getElementById('modalBedAvailability');
-      if(isBunk) {
-          availDiv.style.display = 'block';
-          
-          const lowerBadge = document.getElementById('modalLowerStatus');
-          if(lower > 0) {
-              lowerBadge.className = 'badge bg-success';
-              lowerBadge.innerText = lower + ' Available';
-          } else {
-              lowerBadge.className = 'badge bg-secondary';
-              lowerBadge.innerText = 'Full';
-          }
-
-          const upperBadge = document.getElementById('modalUpperStatus');
-          if(upper > 0) {
-              upperBadge.className = 'badge bg-info text-dark';
-              upperBadge.innerText = upper + ' Available';
-          } else {
-              upperBadge.className = 'badge bg-secondary';
-              upperBadge.innerText = 'Full';
-          }
-      } else {
-          availDiv.style.display = 'none';
-      }
-
-      var myModal = new bootstrap.Modal(document.getElementById('roomViewModal'));
-      myModal.show();
-  }
 </script>
 </body>
 </html>
