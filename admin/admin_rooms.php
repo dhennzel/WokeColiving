@@ -35,8 +35,14 @@ if(isset($_GET['archive_id'])){
     }
 }
 
-// Fetch all rooms
-$rooms = mysqli_query($conn, "SELECT * FROM rooms WHERE is_archived='0' ORDER BY floor ASC, room_name ASC");
+// Filter Logic
+$floor_filter = isset($_GET['floor']) ? (int)$_GET['floor'] : 0;
+$sql = "SELECT * FROM rooms WHERE is_archived='0'";
+if($floor_filter > 0){
+    $sql .= " AND floor = $floor_filter";
+}
+$sql .= " ORDER BY floor ASC, room_name ASC";
+$rooms = mysqli_query($conn, $sql);
 $theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
@@ -140,7 +146,16 @@ $theme = get_theme_colors($conn);
             <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
                 <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
             </a>
-            <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Room Inventory</h4>
+            <h4 class="fw-bold mb-0 me-3" style="color: var(--dark-green);">Room Inventory</h4>
+            <form method="GET" class="d-inline-block">
+                <select name="floor" class="form-select form-select-sm border-success text-success fw-bold" onchange="this.form.submit()" style="width: auto;">
+                    <option value="0">All Floors</option>
+                    <?php for($i=2; $i<=7; $i++): 
+                        $suffix = ($i == 2) ? 'nd' : (($i == 3) ? 'rd' : 'th'); ?>
+                        <option value="<?= $i ?>" <?= ($floor_filter == $i) ? 'selected' : '' ?>><?= $i . $suffix ?> Floor</option>
+                    <?php endfor; ?>
+                </select>
+            </form>
         </div>
         <div>
             <a href="admin_utilities.php#rooms" class="btn btn-outline-secondary me-2"><i class="fas fa-archive me-2"></i>View Archive</a>

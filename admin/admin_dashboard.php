@@ -48,11 +48,17 @@ $approved_count = mysqli_fetch_assoc($approved_count_query)['count'];
 $total_rooms_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM rooms");
 $total_rooms = mysqli_fetch_assoc($total_rooms_query)['count'];
 
-// Stats: Occupancy Rate (Active Bookings / Total Rooms)
+// Stats: Occupancy Rate (Active Beds / Total Capacity)
 $today = date('Y-m-d');
-$active_bookings_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM reservations WHERE status='Approved' AND start_date <= '$today' AND end_date >= '$today'");
-$active_bookings = mysqli_fetch_assoc($active_bookings_query)['count'];
-$occupancy_rate = ($total_rooms > 0) ? round(($active_bookings / $total_rooms) * 100) : 0;
+// 1. Total Capacity (Beds in non-maintenance rooms)
+$cap_q = mysqli_query($conn, "SELECT SUM(total_beds) as total FROM rooms WHERE status != 'Maintenance'");
+$total_capacity = mysqli_fetch_assoc($cap_q)['total'] ?? 0;
+
+// 2. Total Occupied (Active Approved Reservations)
+$occ_q = mysqli_query($conn, "SELECT COUNT(*) as occupied FROM reservations WHERE status='Approved' AND start_date <= '$today' AND end_date > '$today'");
+$total_occupied = mysqli_fetch_assoc($occ_q)['occupied'] ?? 0;
+
+$occupancy_rate = ($total_capacity > 0) ? round(($total_occupied / $total_capacity) * 100) : 0;
 
 // Fetch Expiring Contracts (Approved and ending within 5 days or already ended)
 $expiring_query = mysqli_query($conn, "
@@ -73,25 +79,49 @@ $pending_maint = ($pending_maint_query) ? mysqli_fetch_assoc($pending_maint_quer
 $pending_house_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM housekeeping_requests WHERE status='Pending'");
 $pending_house = ($pending_house_query) ? mysqli_fetch_assoc($pending_house_query)['count'] : 0;
 
-// Room Type Occupancy Data
-$room_types = ['Single', '4-Bed', '6-Bed'];
-$occupancy_data = [];
-foreach($room_types as $type){
-    // Total beds for this type
-    $t_q = mysqli_query($conn, "SELECT SUM(total_beds) as total FROM rooms WHERE room_type='$type'");
-    $total = mysqli_fetch_assoc($t_q)['total'] ?? 0;
+// Detailed Occupancy by Floor
+$floors_data = [];
+$floors_q = mysqli_query($conn, "SELECT DISTINCT floor FROM rooms ORDER BY floor ASC");
+
+while($f = mysqli_fetch_assoc($floors_q)){
+    $floor = $f['floor'];
+    $rooms_on_floor = [];
     
-    // Occupied beds (Active reservations)
-    $o_q = mysqli_query($conn, "
-        SELECT COUNT(*) as occupied 
-        FROM reservations r 
-        JOIN rooms rm ON r.room_id = rm.room_id 
-        WHERE rm.room_type='$type' AND r.status='Approved' AND CURDATE() BETWEEN r.start_date AND r.end_date
-    ");
-    $occupied = mysqli_fetch_assoc($o_q)['occupied'] ?? 0;
-    
-    $percent = ($total > 0) ? round(($occupied / $total) * 100) : 0;
-    $occupancy_data[$type] = ['total' => $total, 'occupied' => $occupied, 'percent' => $percent];
+    $r_q = mysqli_query($conn, "SELECT * FROM rooms WHERE floor = $floor ORDER BY room_name");
+    while($room = mysqli_fetch_assoc($r_q)){
+        $rid = $room['room_id'];
+        $rtype = $room['room_type'];
+        $total_beds = $room['total_beds'];
+        
+        // Get Occupancy for this room
+        $ro_q = mysqli_query($conn, "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id=$rid AND status='Approved' AND start_date <= '$today' AND end_date > '$today' GROUP BY bed_preference");
+        
+        $occ_upper = 0; $occ_lower = 0; $occ_any = 0;
+        while($ro = mysqli_fetch_assoc($ro_q)){
+            if($ro['bed_preference'] == 'Upper Bunk') $occ_upper += $ro['cnt'];
+            elseif($ro['bed_preference'] == 'Lower Bunk') $occ_lower += $ro['cnt'];
+            else $occ_any += $ro['cnt'];
+        }
+        
+        $cap_lower = ceil($total_beds / 2);
+        $cap_upper = floor($total_beds / 2);
+        if($rtype == 'Single') { $cap_lower = $total_beds; $cap_upper = 0; }
+
+        $slots_lower_free = max(0, $cap_lower - $occ_lower);
+        $any_in_lower = min($occ_any, $slots_lower_free);
+        $any_in_upper = $occ_any - $any_in_lower;
+        
+        $final_occ_lower = $occ_lower + $any_in_lower;
+        $final_occ_upper = $occ_upper + $any_in_upper;
+        $total_room_occ = $final_occ_lower + $final_occ_upper;
+        
+        $rooms_on_floor[] = [
+            'name' => $room['room_name'], 'type' => $rtype, 'total' => $total_beds,
+            'occupied' => $total_room_occ, 'occ_lower' => $final_occ_lower, 'occ_upper' => $final_occ_upper,
+            'cap_lower' => $cap_lower, 'cap_upper' => $cap_upper, 'status' => $room['status']
+        ];
+    }
+    $floors_data[$floor] = $rooms_on_floor;
 }
 
 // Stats: Monthly Earnings for Chart
@@ -162,6 +192,13 @@ $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT
         .stat-icon { font-size: 2.5rem; opacity: 0.15; position: absolute; right: 20px; top: 20px; }
         .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--primary-green); font-family: 'Playfair Display', serif; }
         .stat-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #666; }
+
+        /* Room Box */
+        .room-box { background: white; border-radius: 10px; padding: 10px; border: 1px solid #eee; height: 100%; transition: 0.2s; }
+        .room-box:hover { border-color: var(--primary-green); box-shadow: 0 3px 10px rgba(0,0,0,0.05); }
+        .bed-badge { font-size: 0.7rem; padding: 3px 6px; border-radius: 4px; }
+        .bg-lower { background-color: #e8f5e9; color: #2e7d32; }
+        .bg-upper { background-color: #e3f2fd; color: #1565c0; }
 
         /* Table */
         .card-table { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
@@ -245,7 +282,7 @@ $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT
             <a href="admin_rooms.php" class="text-decoration-none">
                 <div class="card stat-card h-100 p-3">
                     <div class="stat-label">Occupancy Rate</div>
-                    <div class="stat-value"><?= $occupancy_rate ?>%</div>
+                    <div class="stat-value"><?= $occupancy_rate ?>% <small class="text-muted fs-6">(<?= $total_occupied ?>/<?= $total_capacity ?>)</small></div>
                     <i class="fas fa-chart-pie stat-icon text-primary"></i>
                 </div>
             </a>
@@ -288,7 +325,7 @@ $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT
     <!-- Actionable Insights Row -->
     <div class="row g-4 mb-4">
         <!-- Pending Tasks List -->
-        <div class="col-md-6">
+        <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-header bg-white fw-bold py-3">
                     <i class="fas fa-tasks me-2 text-warning"></i> Pending Tasks Overview
@@ -310,21 +347,79 @@ $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT
             </div>
         </div>
 
-        <!-- Room Occupancy Breakdown -->
-        <div class="col-md-6">
+        <!-- Detailed Occupancy Breakdown -->
+        <div class="col-md-8">
             <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-white fw-bold py-3">
-                    <i class="fas fa-bed me-2 text-success"></i> Occupancy by Room Type
+                <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-building me-2 text-success"></i> 
+                        <span class="me-2">Occupancy</span>
+                        <select id="floorFilter" class="form-select form-select-sm w-auto py-0 me-2" style="font-size: 0.8rem;" onchange="filterOccupancy()">
+                            <option value="all">All Floors</option>
+                            <option value="2" selected>2nd Floor</option>
+                            <option value="3">3rd Floor</option>
+                            <option value="4">4th Floor</option>
+                            <option value="5">5th Floor</option>
+                            <option value="6">6th Floor</option>
+                            <option value="7">7th Floor</option>
+                        </select>
+                        <select id="occupancyFilter" class="form-select form-select-sm w-auto py-0 me-2" style="font-size: 0.8rem;" onchange="filterOccupancy()">
+                            <option value="all">All</option>
+                            <option value="available">Available</option>
+                            <option value="full">Full</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                        <input type="text" id="roomSearch" class="form-control form-control-sm w-auto py-0" style="font-size: 0.8rem; width: 120px;" placeholder="Search..." onkeyup="filterOccupancy()">
+                    </div>
+                    <span class="badge bg-success"><?= $total_occupied ?> / <?= $total_capacity ?> Beds</span>
                 </div>
-                <div class="card-body">
-                    <?php foreach($occupancy_data as $type => $data): ?>
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="small fw-bold"><?= $type ?> Room</span>
-                            <span class="small text-muted"><?= $data['occupied'] ?>/<?= $data['total'] ?> Beds (<?= $data['percent'] ?>%)</span>
-                        </div>
-                        <div class="progress" style="height: 10px;">
-                            <div class="progress-bar bg-success" role="progressbar" style="width: <?= $data['percent'] ?>%"></div>
+                <div class="card-body p-3" style="max-height: 400px; overflow-y: auto;">
+                    <?php foreach($floors_data as $floor => $rooms): ?>
+                    <div class="floor-group" data-floor="<?= $floor ?>">
+                        <h6 class="fw-bold text-muted mb-2 small text-uppercase border-bottom pb-1"><?= $floor == 2 ? '2nd' : ($floor == 3 ? '3rd' : $floor.'th') ?> Floor</h6>
+                        <div class="row g-2 mb-3">
+                            <?php foreach($rooms as $room): ?>
+                            <?php 
+                                $status_tag = 'available';
+                                if($room['status'] == 'Maintenance') $status_tag = 'maintenance';
+                                elseif($room['occupied'] >= $room['total']) $status_tag = 'full';
+                            ?>
+                            <div class="col-lg-4 col-md-6 room-item" data-status="<?= $status_tag ?>">
+                                <div class="room-box">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold small"><?= $room['name'] ?></span>
+                                        <span class="badge bg-light text-dark border" style="font-size: 0.6rem;"><?= $room['type'] ?></span>
+                                    </div>
+                                    <?php if($room['status'] == 'Maintenance'): ?>
+                                        <div class="text-center text-danger small fw-bold"><i class="fas fa-tools"></i> Maintenance</div>
+                                    <?php else: ?>
+                                        <?php 
+                                            $percent = ($room['total'] > 0 ? ($room['occupied']/$room['total'])*100 : 0);
+                                            $bar_color = 'bg-success';
+                                            if($percent >= 100) $bar_color = 'bg-danger';
+                                            elseif($percent >= 75) $bar_color = 'bg-warning';
+                                        ?>
+                                        <div class="progress mb-2" style="height: 4px;" title="<?= round($percent) ?>% Occupied">
+                                            <div class="progress-bar <?= $bar_color ?>" style="width: <?= $percent ?>%"></div>
+                                        </div>
+                                        <div class="d-flex justify-content-between small align-items-center">
+                                            <div>
+                                            <?php if($room['type'] == 'Single'): ?>
+                                                <span class="text-muted">Occupied:</span>
+                                                <span class="fw-bold <?= $room['occupied'] > 0 ? 'text-success' : 'text-muted' ?>"><?= $room['occupied'] ?>/<?= $room['total'] ?></span>
+                                            <?php else: ?>
+                                                <span class="bed-badge bg-lower" title="Lower Bunks">L: <b><?= $room['occ_lower'] ?></b>/<?= $room['cap_lower'] ?></span>
+                                                <span class="bed-badge bg-upper" title="Upper Bunks">U: <b><?= $room['occ_upper'] ?></b>/<?= $room['cap_upper'] ?></span>
+                                            <?php endif; ?>
+                                            </div>
+                                            <?php if($room['occupied'] < $room['total']): ?>
+                                                <a href="add_reservation.php?room_type=<?= urlencode($room['type']) ?>" class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" style="font-size: 0.7rem;" title="Quick Book"><i class="fas fa-plus"></i></a>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                     <?php endforeach; ?>
@@ -523,19 +618,32 @@ async function renewContract(id, dnr) {
         if (!result.isConfirmed) return;
     }
     
-    const { value: months } = await Swal.fire({
+    const { value: formValues } = await Swal.fire({
         title: 'Renew Contract',
-        input: 'number',
-        inputLabel: 'Enter number of months to extend',
-        inputValue: 1,
+        html:
+            '<div class="text-start">' +
+            '<label class="form-label fw-bold small">Months to Extend</label>' +
+            '<input id="swal-months" type="number" class="form-control mb-3" value="1" min="1">' +
+            '<label class="form-label fw-bold small">Description (Optional)</label>' +
+            '<input id="swal-desc" type="text" class="form-control" placeholder="e.g. Renewal for Semester 2">' +
+            '</div>',
+        focusConfirm: false,
         showCancelButton: true,
-        inputValidator: (value) => {
-            if (!value || value <= 0) return 'You need to enter a valid number of months!';
+        confirmButtonText: 'Renew',
+        preConfirm: () => {
+            const months = document.getElementById('swal-months').value;
+            const desc = document.getElementById('swal-desc').value;
+            if (!months || months <= 0) {
+                Swal.showValidationMessage('Please enter a valid number of months');
+                return false;
+            }
+            return { months: months, desc: desc };
         }
     });
 
-    if (months) {
-        window.location.href = `booking_management.php?action=renew&id=${id}&months=${months}`;
+    if (formValues) {
+        const descEncoded = encodeURIComponent(formValues.desc);
+        window.location.href = `booking_management.php?action=renew&id=${id}&months=${formValues.months}&desc=${descEncoded}&redirect=dashboard`;
     }
 }
 
@@ -568,6 +676,47 @@ function refreshActivity() {
         });
 }
 setInterval(refreshActivity, 30000); // 30 seconds
+
+function filterOccupancy() {
+    const filter = document.getElementById('occupancyFilter').value;
+    const floorFilter = document.getElementById('floorFilter').value;
+    const search = document.getElementById('roomSearch').value.toLowerCase();
+    const groups = document.querySelectorAll('.floor-group');
+    
+    groups.forEach(group => {
+        const groupFloor = group.getAttribute('data-floor');
+        const showFloor = (floorFilter === 'all') || (floorFilter === groupFloor);
+
+        const items = group.querySelectorAll('.room-item');
+        let visibleCount = 0;
+        
+        if (!showFloor) {
+            group.style.display = 'none';
+            return;
+        }
+        
+        items.forEach(item => {
+            const status = item.dataset.status;
+            const name = item.querySelector('.fw-bold').innerText.toLowerCase();
+            const type = item.querySelector('.badge').innerText.toLowerCase();
+            
+            const matchesFilter = (filter === 'all') || (filter === status);
+            const matchesSearch = name.includes(search) || type.includes(search);
+            
+            const show = matchesFilter && matchesSearch;
+            
+            item.style.display = show ? 'block' : 'none';
+            if(show) visibleCount++;
+        });
+        
+        group.style.display = visibleCount > 0 ? 'block' : 'none';
+    });
+}
+
+// Initialize filter on load
+document.addEventListener('DOMContentLoaded', function() {
+    filterOccupancy();
+});
 </script>
 </body>
 </html>

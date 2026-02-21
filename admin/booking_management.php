@@ -9,14 +9,17 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 }
 
 // Handle reservation approval/rejection
-if(isset($_GET['action']) && isset($_GET['id'])){
-    $reservation_id = (int)$_GET['id'];
+if(isset($_GET['action'])){
     $action = $_GET['action'];
+    $reservation_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    $target_user_id = 0;
 
     // Get User ID for logging
-    $u_res = mysqli_query($conn, "SELECT user_id FROM reservations WHERE reservation_id=$reservation_id");
-    $u_row = mysqli_fetch_assoc($u_res);
-    $target_user_id = $u_row['user_id'] ?? 0;
+    if($reservation_id > 0){
+        $u_res = mysqli_query($conn, "SELECT user_id FROM reservations WHERE reservation_id=$reservation_id");
+        $u_row = mysqli_fetch_assoc($u_res);
+        $target_user_id = $u_row['user_id'] ?? 0;
+    }
 
     // Determine redirect URL
     $redirect_url = "booking_management.php";
@@ -90,6 +93,8 @@ if(isset($_GET['action']) && isset($_GET['id'])){
     } elseif($action == 'renew' && isset($_GET['months'])){
         // Renew Contract
         $months_to_add = (int)$_GET['months'];
+        $description = isset($_GET['desc']) && !empty($_GET['desc']) ? mysqli_real_escape_string($conn, $_GET['desc']) : "Contract Renewal ($months_to_add months)";
+
         if($months_to_add > 0){
             $res_q = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
             $res = mysqli_fetch_assoc($res_q);
@@ -107,13 +112,33 @@ if(isset($_GET['action']) && isset($_GET['id'])){
             
             // Update Reservation & Add Payment Record
             mysqli_query($conn, "UPDATE reservations SET end_date='$new_end_date', months=months+$months_to_add, total_price=total_price+$added_cost WHERE reservation_id=$reservation_id");
-            mysqli_query($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date) VALUES ($reservation_id, $added_cost, 'Cash', 'Unpaid', NOW())");
+            
+            $ins_pay = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'Cash', 'Unpaid', NOW(), ?)");
+            mysqli_stmt_bind_param($ins_pay, "ids", $reservation_id, $added_cost, $description);
+            mysqli_stmt_execute($ins_pay);
             
             if($target_user_id) {
                 log_activity($conn, $target_user_id, "Contract Renewed", "Admin extended contract #$reservation_id by $months_to_add months.");
                 send_notification($conn, $target_user_id, "🔄 <strong>Contract Renewed</strong><br>Your stay has been extended by $months_to_add months. Please check your billing.", "Contract Renewed");
             }
         }
+    } elseif($action == 'mark_paid' && isset($_GET['pid'])){
+        // Mark Payment as Paid
+        $pid = (int)$_GET['pid'];
+        mysqli_query($conn, "UPDATE payments SET payment_status='Paid', payment_date=NOW() WHERE payment_id=$pid");
+        
+        // Log activity if user known (fetch if not set from reservation_id)
+        if($target_user_id == 0) {
+            $p_q = mysqli_query($conn, "SELECT r.user_id FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE p.payment_id=$pid");
+            if($row = mysqli_fetch_assoc($p_q)) $target_user_id = $row['user_id'];
+        }
+        
+        if($target_user_id) {
+            log_activity($conn, $target_user_id, "Payment Confirmed", "Payment #$pid marked as Paid by Admin.");
+            send_notification($conn, $target_user_id, "✅ <strong>Payment Confirmed</strong><br>Your payment #$pid has been verified and marked as Paid.", "Payment Update");
+        }
+        header("Location: $redirect_url");
+        exit;
     } elseif($action == 'toggle_dnr' && isset($_GET['uid'])){
         // Toggle Do Not Renew Flag
         $uid = (int)$_GET['uid'];

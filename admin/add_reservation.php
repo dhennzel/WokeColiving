@@ -36,6 +36,9 @@ while($row = mysqli_fetch_assoc($price_query)){
     ];
 }
 
+// Check for pre-selected room type
+$pre_room_type = isset($_GET['room_type']) ? $_GET['room_type'] : '';
+
 if(isset($_POST['add_reservation'])){
     $user_type = $_POST['user_type'];
     $user_id = 0;
@@ -262,9 +265,9 @@ $theme = get_theme_colors($conn);
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">Room Type</label>
                             <select name="room_type" id="room_type" class="form-select" required onchange="updateRoomOptions(); calculateTotal(); checkAvailability()">
-                                <option value="Single">Single</option>
-                                <option value="4-Bed">4-Bed</option>
-                                <option value="6-Bed">6-Bed</option>
+                                <option value="Single" <?= $pre_room_type == 'Single' ? 'selected' : '' ?>>Single</option>
+                                <option value="4-Bed" <?= $pre_room_type == '4-Bed' ? 'selected' : '' ?>>4-Bed</option>
+                                <option value="6-Bed" <?= $pre_room_type == '6-Bed' ? 'selected' : '' ?>>6-Bed</option>
                             </select>
                             <small id="availability_status" class="fw-bold mt-1 d-block"></small>
                         </div>
@@ -357,7 +360,12 @@ function updateCheckoutDate() {
 
     if(duration !== 'custom' && cinInput.value) {
         let d = new Date(cinInput.value);
+        let originalDay = d.getDate();
         d.setMonth(d.getMonth() + parseInt(duration));
+        // Handle month overflow (e.g. Jan 31 + 1 month -> Feb 28/29)
+        if (d.getDate() !== originalDay) {
+            d.setDate(0);
+        }
         coutInput.value = d.toISOString().split('T')[0];
     }
     calculateTotal();
@@ -435,6 +443,13 @@ Swal.fire({
     }
 });
 <?php endif; ?>
+
+// Initialize on load if room type is pre-selected
+window.addEventListener('DOMContentLoaded', (event) => {
+    if(document.getElementById('room_type').value) {
+        updateRoomOptions();
+    }
+});
 </script>
 </body>
 </html>

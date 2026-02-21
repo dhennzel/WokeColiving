@@ -7,6 +7,9 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
     exit;
 }
 
+$message = "";
+$error = "";
+
 // Handle Status Update
 if(isset($_POST['update_request'])){
     $req_id = (int)$_POST['request_id'];
@@ -18,6 +21,50 @@ if(isset($_POST['update_request'])){
     exit;
 }
 
+// Handle Auto Schedule Weekly (All Occupied Rooms)
+if(isset($_POST['auto_schedule_weekly'])){
+    $sched_date = $_POST['auto_date'];
+    $desc = "Weekly Routine Cleaning";
+    
+    $active_res = mysqli_query($conn, "SELECT user_id, room_id FROM reservations WHERE status='Approved'");
+    $count = 0;
+    while($row = mysqli_fetch_assoc($active_res)){
+        $uid = $row['user_id'];
+        $rid = $row['room_id'];
+        
+        // Avoid duplicates for same date/room
+        $chk = mysqli_query($conn, "SELECT request_id FROM housekeeping_requests WHERE room_id=$rid AND scheduled_date='$sched_date' AND status!='Cancelled'");
+        if(mysqli_num_rows($chk) == 0){
+            $stmt = mysqli_prepare($conn, "INSERT INTO housekeeping_requests (user_id, room_id, description, status, scheduled_date) VALUES (?, ?, ?, 'Scheduled', ?)");
+            mysqli_stmt_bind_param($stmt, "iiss", $uid, $rid, $desc, $sched_date);
+            mysqli_stmt_execute($stmt);
+            send_notification($conn, $uid, "🧹 <strong>Weekly Cleaning</strong><br>Routine housekeeping scheduled for " . date('M d, Y', strtotime($sched_date)) . ".", "Housekeeping");
+            $count++;
+        }
+    }
+    $message = "Weekly cleaning auto-scheduled for $count rooms.";
+}
+
+// Handle Admin Schedule (Free)
+if(isset($_POST['schedule_cleaning'])){
+    $room_id = (int)$_POST['room_id'];
+    $sched_date = $_POST['scheduled_date'];
+    $desc = "Routine Cleaning (Admin Scheduled)";
+    
+    // Find a user in this room to attach the request to (Required by DB schema)
+    $u_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE room_id=$room_id AND status='Approved' LIMIT 1");
+    if($u_row = mysqli_fetch_assoc($u_q)){
+        $uid = $u_row['user_id'];
+        $stmt = mysqli_prepare($conn, "INSERT INTO housekeeping_requests (user_id, room_id, description, status, scheduled_date) VALUES (?, ?, ?, 'Scheduled', ?)");
+        mysqli_stmt_bind_param($stmt, "iiss", $uid, $room_id, $desc, $sched_date);
+        mysqli_stmt_execute($stmt);
+        $message = "Routine cleaning scheduled successfully (Free).";
+        send_notification($conn, $uid, "🧹 <strong>Housekeeping Scheduled</strong><br>Admin has scheduled a routine cleaning for your room on " . date('M d, Y', strtotime($sched_date)) . ".", "Housekeeping");
+    } else {
+        $error = "No active tenant found in selected room to link request.";
+    }
+}
+
 // Fetch All Requests
 $query = "SELECT h.*, u.full_name, r.room_name 
           FROM housekeeping_requests h 
@@ -26,6 +73,10 @@ $query = "SELECT h.*, u.full_name, r.room_name
           WHERE h.status NOT IN ('Completed', 'Cancelled')
           ORDER BY FIELD(h.status, 'Pending', 'Scheduled'), h.created_at DESC";
 $requests = mysqli_query($conn, $query);
+
+// Fetch Occupied Rooms for Dropdown
+$rooms_q = mysqli_query($conn, "SELECT DISTINCT r.room_id, r.room_name, r.floor FROM rooms r JOIN reservations res ON r.room_id = res.room_id WHERE res.status = 'Approved' ORDER BY r.floor, r.room_name");
+
 $theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
@@ -116,13 +167,22 @@ $theme = get_theme_colors($conn);
     <!-- Page Content -->
     <div id="page-content-wrapper">
         <div class="container-fluid px-4 py-4 reveal">
-    <div class="d-flex align-items-center mb-4">
-        <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
-            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
-        </a>
-        <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Housekeeping Requests</h4>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
+                <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
+            </a>
+            <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Housekeeping Management</h4>
+        </div>
+        <div>
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#autoScheduleModal"><i class="fas fa-magic me-2"></i>Auto-Schedule Weekly</button>
+            <button class="btn btn-custom" data-bs-toggle="modal" data-bs-target="#scheduleModal"><i class="fas fa-calendar-plus me-2"></i>Schedule Cleaning</button>
+        </div>
     </div>
     
+    <?php if($message) echo "<div class='alert alert-success'>$message</div>"; ?>
+    <?php if($error) echo "<div class='alert alert-danger'>$error</div>"; ?>
+
     <div class="card card-table p-4">
         <div class="table-responsive">
             <table class="table table-hover align-middle">
@@ -176,6 +236,74 @@ $theme = get_theme_colors($conn);
         </div>
     </div>
 </div>
+
+<!-- Schedule Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Schedule Routine Cleaning</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <p class="text-muted small">This will create a free housekeeping schedule for the selected room.</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Filter by Floor</label>
+                        <select id="modalFloorFilter" class="form-select" onchange="filterModalRooms()">
+                            <option value="all">All Floors</option>
+                            <?php for($i=2; $i<=7; $i++): ?>
+                                <option value="<?= $i ?>"><?= $i ?>th Floor</option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Select Room</label>
+                        <select name="room_id" id="modalRoomSelect" class="form-select" required>
+                            <?php while($r = mysqli_fetch_assoc($rooms_q)): ?>
+                                <option value="<?= $r['room_id'] ?>" data-floor="<?= $r['floor'] ?>"><?= $r['room_name'] ?> (Floor <?= $r['floor'] ?>)</option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Scheduled Date</label>
+                        <input type="date" name="scheduled_date" class="form-control" min="<?= date('Y-m-d') ?>" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="schedule_cleaning" class="btn btn-success">Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Auto Schedule Modal -->
+<div class="modal fade" id="autoScheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Auto-Schedule Weekly Cleaning</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <p>This will schedule a "Weekly Routine Cleaning" for <strong>ALL occupied rooms</strong> on the selected date.</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Select Date</label>
+                        <input type="date" name="auto_date" class="form-control" min="<?= date('Y-m-d') ?>" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="auto_schedule_weekly" class="btn btn-primary">Generate Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 function toggleMenu(e) {
@@ -197,6 +325,21 @@ document.addEventListener('click', function(event) {
         }
     }
 });
+
+function filterModalRooms() {
+    const floor = document.getElementById('modalFloorFilter').value;
+    const select = document.getElementById('modalRoomSelect');
+    const options = select.querySelectorAll('option');
+    
+    options.forEach(opt => {
+        if(floor === 'all' || opt.getAttribute('data-floor') === floor) {
+            opt.hidden = false;
+        } else {
+            opt.hidden = true;
+        }
+    });
+    select.value = ""; // Reset selection
+}
 </script>
 </body>
 </html>

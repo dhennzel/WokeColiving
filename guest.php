@@ -48,7 +48,7 @@ if(isset($_POST['send_message'])){
 }
 
 // Fetch Available Rooms
-$rooms_q = mysqli_query($conn, "SELECT * FROM rooms WHERE status='Available' LIMIT 6");
+$rooms_q = mysqli_query($conn, "SELECT * FROM rooms WHERE status='Available' GROUP BY room_type ORDER BY total_beds ASC LIMIT 6");
 
 // Check for active booking
 $has_active_booking = false;
@@ -388,11 +388,6 @@ if(isset($_SESSION['user_id'])){
         </div>
         <?php endwhile; ?>
     </div>
-    <?php if(mysqli_num_rows($rooms_q) > 0): ?>
-    <div class="text-center mt-5">
-        <a href="users/reservation_now.php" class="btn btn-outline-success rounded-pill px-5 fw-bold">View All Rooms</a>
-    </div>
-    <?php endif; ?>
 </div>
 
 <hr class="container my-4 opacity-25" data-aos="zoom-in">

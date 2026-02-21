@@ -63,6 +63,17 @@ if(isset($_POST['delete_user'])){
     }
 }
 
+// Handle Bulk Mark Paid
+if(isset($_POST['bulk_mark_paid']) && !empty($_POST['payment_ids'])){
+    $ids = array_map('intval', $_POST['payment_ids']);
+    if(!empty($ids)){
+        $ids_str = implode(',', $ids);
+        mysqli_query($conn, "UPDATE payments SET payment_status='Paid', payment_date=NOW() WHERE payment_id IN ($ids_str)");
+        echo "<script>window.location.href='view_user.php?uid=$uid&msg=bulk_paid';</script>";
+        exit;
+    }
+}
+
 // Fetch User Details
 $user_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$uid");
 $user = mysqli_fetch_assoc($user_query);
@@ -70,6 +81,12 @@ $user = mysqli_fetch_assoc($user_query);
 if(!$user){
     header("Location: admin_dashboard.php");
     exit;
+}
+
+// Ensure payments table has description column
+$check_col = mysqli_query($conn, "SHOW COLUMNS FROM payments LIKE 'description'");
+if(mysqli_num_rows($check_col) == 0) {
+    mysqli_query($conn, "ALTER TABLE payments ADD COLUMN description VARCHAR(255) DEFAULT 'Room Payment'");
 }
 
 // Fetch All Reservations for this User
@@ -81,13 +98,29 @@ $res_query = mysqli_query($conn, "
     ORDER BY r.created_at DESC
 ");
 
+// Filter Logic for Payments
+$pay_status_filter = isset($_GET['pay_status']) ? $_GET['pay_status'] : '';
+$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
+$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
+
+$pay_where = "r.user_id=$uid";
+if($pay_status_filter){
+    $pay_where .= " AND p.payment_status = '" . mysqli_real_escape_string($conn, $pay_status_filter) . "'";
+}
+if($start_date){
+    $pay_where .= " AND p.payment_date >= '" . mysqli_real_escape_string($conn, $start_date) . " 00:00:00'";
+}
+if($end_date){
+    $pay_where .= " AND p.payment_date <= '" . mysqli_real_escape_string($conn, $end_date) . " 23:59:59'";
+}
+
 // Fetch Payment History
 $pay_query = mysqli_query($conn, "
-    SELECT p.*, r.reservation_id, rm.room_name 
+    SELECT p.*, r.reservation_id, rm.room_name, rm.room_type 
     FROM payments p 
     JOIN reservations r ON p.reservation_id = r.reservation_id 
-    JOIN rooms rm ON r.room_id = rm.room_id 
-    WHERE r.user_id=$uid 
+    LEFT JOIN rooms rm ON r.room_id = rm.room_id 
+    WHERE $pay_where 
     ORDER BY p.payment_date DESC
 ");
 
@@ -199,6 +232,10 @@ $theme = get_theme_colors($conn);
                 </div>
             <a href="booking_management.php" class="btn btn-outline-secondary rounded-pill">&larr; Back to Bookings</a>
             </div>
+            
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid'): ?>
+                <div class="alert alert-success">Selected payments marked as paid successfully.</div>
+            <?php endif; ?>
 
             <div class="row">
                 <!-- User Details -->
@@ -286,11 +323,30 @@ $theme = get_theme_colors($conn);
 
             <!-- Payment History -->
             <div class="card user-card p-4 mb-4">
-                <h5 class="fw-bold mb-3">Payment History</h5>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">Payment History</h5>
+                    <form method="GET" class="d-flex gap-2 align-items-center">
+                        <input type="hidden" name="uid" value="<?= $uid ?>">
+                        <input type="date" name="start_date" class="form-control form-control-sm" value="<?= $start_date ?>" title="Start Date">
+                        <span class="text-muted">-</span>
+                        <input type="date" name="end_date" class="form-control form-control-sm" value="<?= $end_date ?>" title="End Date">
+                        <select name="pay_status" class="form-select form-select-sm" style="width: 110px;">
+                            <option value="">All Status</option>
+                            <option value="Paid" <?= $pay_status_filter == 'Paid' ? 'selected' : '' ?>>Paid</option>
+                            <option value="Unpaid" <?= $pay_status_filter == 'Unpaid' ? 'selected' : '' ?>>Unpaid</option>
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-filter"></i></button>
+                        <?php if($pay_status_filter || $start_date || $end_date): ?>
+                            <a href="view_user.php?uid=<?= $uid ?>" class="btn btn-sm btn-outline-secondary">Reset</a>
+                        <?php endif; ?>
+                    </form>
+                </div>
+                <form method="POST" id="bulkForm">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
                                 <th>Date</th>
                                 <th>Room</th>
                                 <th>Description</th>
@@ -301,15 +357,29 @@ $theme = get_theme_colors($conn);
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while($pay = mysqli_fetch_assoc($pay_query)): ?>
+                            <?php 
+                            $total_amount = 0;
+                            while($pay = mysqli_fetch_assoc($pay_query)): 
+                                $total_amount += $pay['amount'];
+                            ?>
                             <?php
                                 $is_overdue = ($pay['payment_status'] == 'Unpaid' && strtotime($pay['payment_date']) < strtotime('-5 days'));
                                 $row_class = $is_overdue ? 'table-danger' : '';
+                                $desc = !empty($pay['description']) ? $pay['description'] : 'Room Payment';
+                                $room_info = $pay['room_name'] ? htmlspecialchars($pay['room_name']) . ' <small class="text-muted">('.$pay['room_type'].')</small>' : '<span class="text-muted">Unknown Room</span>';
                             ?>
                             <tr class="<?= $row_class ?>">
-                                <td><?= date('M d, Y', strtotime($pay['payment_date'])) ?></td>
-                                <td><?= htmlspecialchars($pay['room_name']) ?></td>
-                                <td class="small text-muted"><?= htmlspecialchars($pay['description']) ?></td>
+                                <td>
+                                    <?php if($pay['payment_status'] == 'Unpaid'): ?>
+                                        <input type="checkbox" name="payment_ids[]" value="<?= $pay['payment_id'] ?>" class="pay-checkbox">
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <div class="fw-bold"><?= date('M d, Y', strtotime($pay['payment_date'])) ?></div>
+                                    <small class="text-muted"><?= date('h:i A', strtotime($pay['payment_date'])) ?></small>
+                                </td>
+                                <td><?= $room_info ?></td>
+                                <td class="small text-muted"><?= htmlspecialchars($desc) ?></td>
                                 <td><?= htmlspecialchars($pay['payment_method']) ?></td>
                                 <td class="fw-bold">₱<?= number_format($pay['amount'], 2) ?></td>
                                 <td>
@@ -317,16 +387,29 @@ $theme = get_theme_colors($conn);
                                     <?php if($is_overdue): ?><br><small class="text-danger fw-bold">Overdue</small><?php endif; ?>
                                 </td>
                                 <td class="text-end">
+                                    <?php if($pay['payment_status'] == 'Unpaid'): ?>
+                                        <a href="booking_management.php?action=mark_paid&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success me-1" title="Confirm Payment" onclick="confirmAction(event, this.href, 'Mark this payment as Paid?')"><i class="fas fa-check"></i></a>
+                                    <?php endif; ?>
                                     <a href="payment_details.php?id=<?= $pay['payment_id'] ?>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</a>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
                             <?php if(mysqli_num_rows($pay_query) == 0): ?>
-                                <tr><td colspan="7" class="text-center text-muted">No payment history found.</td></tr>
+                                <tr><td colspan="8" class="text-center text-muted">No payment history found.</td></tr>
+                            <?php else: ?>
+                                <tr class="table-light fw-bold border-top">
+                                    <td colspan="5" class="text-end text-uppercase text-secondary">Total Amount:</td>
+                                    <td class="text-success fs-6">₱<?= number_format($total_amount, 2) ?></td>
+                                    <td colspan="2"></td>
+                                </tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-sm btn-success" onclick="confirmBulkPaid()"><i class="fas fa-check-double me-1"></i> Mark Selected as Paid</button>
+                </div>
+                </form>
             </div>
 
         </div>
@@ -363,21 +446,32 @@ async function renewContract(id, dnr) {
         if (!result.isConfirmed) return;
     }
 
-    const { value: months } = await Swal.fire({
+    const { value: formValues } = await Swal.fire({
         title: 'Renew Contract',
-        input: 'number',
-        inputLabel: 'Enter number of months to extend',
-        inputValue: 1,
+        html:
+            '<div class="text-start">' +
+            '<label class="form-label fw-bold small">Months to Extend</label>' +
+            '<input id="swal-months" type="number" class="form-control mb-3" value="1" min="1">' +
+            '<label class="form-label fw-bold small">Description (Optional)</label>' +
+            '<input id="swal-desc" type="text" class="form-control" placeholder="e.g. Renewal for Semester 2">' +
+            '</div>',
+        focusConfirm: false,
         showCancelButton: true,
-        inputValidator: (value) => {
-            if (!value || value <= 0) {
-                return 'You need to enter a valid number of months!'
+        confirmButtonText: 'Renew',
+        preConfirm: () => {
+            const months = document.getElementById('swal-months').value;
+            const desc = document.getElementById('swal-desc').value;
+            if (!months || months <= 0) {
+                Swal.showValidationMessage('Please enter a valid number of months');
+                return false;
             }
+            return { months: months, desc: desc };
         }
     });
 
-    if (months) {
-        window.location.href = `booking_management.php?action=renew&id=${id}&months=${months}&redirect=view_user&uid=<?= $uid ?>`;
+    if (formValues) {
+        const descEncoded = encodeURIComponent(formValues.desc);
+        window.location.href = `booking_management.php?action=renew&id=${id}&months=${formValues.months}&desc=${descEncoded}&redirect=view_user&uid=<?= $uid ?>`;
     }
 }
 
@@ -417,6 +511,41 @@ function confirmDeleteUser() {
     }).then((result) => {
         if (result.isConfirmed) {
             document.getElementById('deleteUserForm').submit();
+        }
+    });
+}
+
+function toggleSelectAll(source) {
+    checkboxes = document.getElementsByClassName('pay-checkbox');
+    for(var i=0, n=checkboxes.length;i<n;i++) {
+        checkboxes[i].checked = source.checked;
+    }
+}
+
+function confirmBulkPaid() {
+    const checkboxes = document.querySelectorAll('.pay-checkbox:checked');
+    if(checkboxes.length === 0) {
+        Swal.fire('No Selection', 'Please select at least one payment.', 'warning');
+        return;
+    }
+
+    Swal.fire({
+        title: 'Confirm Payment?',
+        text: `Mark ${checkboxes.length} selected payments as Paid?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2e7d32',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, Mark Paid'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.getElementById('bulkForm');
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'bulk_mark_paid';
+            hiddenInput.value = '1';
+            form.appendChild(hiddenInput);
+            form.submit();
         }
     });
 }

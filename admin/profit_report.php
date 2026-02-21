@@ -25,29 +25,50 @@ while($row = mysqli_fetch_assoc($type_query)){
     $room_type_data[] = $row;
 }
 
-// Earnings by Month
-$month_query = mysqli_query($conn, "
-    SELECT DATE_FORMAT(p.payment_date, '%Y-%m') as month, SUM(p.amount) as earnings, COUNT(DISTINCT r.reservation_id) as bookings
-    FROM reservations r
-    JOIN payments p ON r.reservation_id = p.reservation_id
-    WHERE p.payment_status='Paid'
+// --- ACCURATE MONTHLY TRENDS ---
+
+// 1. Earnings (Cash Flow)
+$earnings_data = [];
+$e_query = mysqli_query($conn, "
+    SELECT DATE_FORMAT(payment_date, '%Y-%m') as month, SUM(amount) as total 
+    FROM payments 
+    WHERE payment_status='Paid' 
     GROUP BY month
 ");
-$db_data = [];
-while($row = mysqli_fetch_assoc($month_query)){
-    $db_data[$row['month']] = $row;
+while($row = mysqli_fetch_assoc($e_query)){
+    $earnings_data[$row['month']] = $row['total'];
 }
 
-// Generate continuous month list from first payment to now
-$min_q = mysqli_query($conn, "SELECT MIN(payment_date) as d FROM payments WHERE payment_status='Paid'");
-$min_row = mysqli_fetch_assoc($min_q);
-$start_ts = !empty($min_row['d']) ? strtotime(date('Y-m-01', strtotime($min_row['d']))) : strtotime(date('Y-m-01'));
-$end_ts = strtotime(date('Y-m-01'));
+// 2. Bookings (New Reservations)
+$bookings_data = [];
+$b_query = mysqli_query($conn, "
+    SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count 
+    FROM reservations 
+    GROUP BY month
+");
+while($row = mysqli_fetch_assoc($b_query)){
+    $bookings_data[$row['month']] = $row['count'];
+}
+
+// 3. Generate Continuous Timeline
+$min_date = date('Y-m');
+if(!empty($earnings_data)) $min_date = min($min_date, min(array_keys($earnings_data)));
+if(!empty($bookings_data)) $min_date = min($min_date, min(array_keys($bookings_data)));
+
+$start = new DateTime($min_date . '-01');
+$end = new DateTime(date('Y-m-01'));
+$end->modify('+1 month');
+$period = new DatePeriod($start, new DateInterval('P1M'), $end);
 
 $monthly_data = [];
-for ($i = $end_ts; $i >= $start_ts; $i = strtotime("-1 month", $i)) {
-    $ym = date('Y-m', $i);
-    $monthly_data[] = isset($db_data[$ym]) ? $db_data[$ym] : ['month' => $ym, 'earnings' => 0, 'bookings' => 0];
+foreach ($period as $dt) {
+    $ym = $dt->format("Y-m");
+    // Prepend to array to have recent first for table
+    array_unshift($monthly_data, [
+        'month' => $ym,
+        'earnings' => $earnings_data[$ym] ?? 0,
+        'bookings' => $bookings_data[$ym] ?? 0
+    ]);
 }
 
 $theme = get_theme_colors($conn);
@@ -216,7 +237,7 @@ $theme = get_theme_colors($conn);
                             <thead>
                                 <tr>
                                     <th>Month</th>
-                                    <th>Bookings</th>
+                                    <th>New Bookings</th>
                                     <th class="text-end">Earnings</th>
                                 </tr>
                             </thead>

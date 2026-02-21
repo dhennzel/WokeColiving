@@ -80,12 +80,12 @@ if(isset($_SESSION['user_id'])){
             --accent-yellow: #FBC02D;
             --light-bg: #f8f9fa;
         }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); padding-top: 100px; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); padding-top: 80px; }
         h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
         .navbar { background: var(--dark-green); padding: 15px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; padding: 10px 30px; border: none; }
         .btn-custom:hover { background-color: #f9a825; }
-        .room-img { width: 100%; height: 400px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .room-img { width: 100%; height: 350px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
@@ -119,13 +119,13 @@ if(isset($_SESSION['user_id'])){
     </div>
 </nav>
 
-<div class="container py-5">
-    <div class="row g-5 align-items-center">
+<div class="container py-4">
+    <div class="row g-4 align-items-center">
         <div class="col-lg-6">
             <img src="../assets/images/<?= $room['image'] ?>" class="room-img" alt="<?= $room['room_name'] ?>">
         </div>
         <div class="col-lg-6">
-            <h2 class="fw-bold text-success display-5"><?= $room['room_name'] ?></h2>
+            <h2 class="fw-bold text-success display-6"><?= $room['room_name'] ?></h2>
             <div class="d-flex align-items-center gap-3 mb-3">
                 <span class="badge bg-secondary fs-6"><?= $room['room_type'] ?></span>
                 <span class="text-muted"><i class="fas fa-bed me-2"></i><?= $room['total_beds'] ?> Total Beds</span>
@@ -172,12 +172,12 @@ if(isset($_SESSION['user_id'])){
             </div>
             <?php endif; ?>
 
-            <h3 class="fw-bold mb-4">₱<?= number_format($room['total_price'], 2) ?> <small class="fs-6 text-muted">/ month</small></h3>
+            <h3 class="fw-bold mb-3">₱<?= number_format($room['total_price'], 2) ?> <small class="fs-6 text-muted">/ month</small></h3>
             
-            <p class="lead text-muted mb-4">Experience comfort and community in our <?= strtolower($room['room_type']) ?>. Fully furnished and ready for move-in. Perfect for students and professionals looking for a hassle-free stay.</p>
+            <p class="lead text-muted mb-3" style="font-size: 1rem;">Experience comfort and community in our <?= strtolower($room['room_type']) ?>. Fully furnished and ready for move-in. Perfect for students and professionals looking for a hassle-free stay.</p>
             
-            <h5 class="fw-bold mb-3">Room Amenities</h5>
-            <ul class="list-unstyled mb-4 row">
+            <h5 class="fw-bold mb-2">Room Amenities</h5>
+            <ul class="list-unstyled mb-3 row">
                 <li class="col-6 mb-2"><i class="fas fa-check-circle text-success me-2"></i> High-Speed Wi-Fi</li>
                 <li class="col-6 mb-2"><i class="fas fa-check-circle text-success me-2"></i> Air Conditioning</li>
                 <li class="col-6 mb-2"><i class="fas fa-check-circle text-success me-2"></i> Study Desk & Chair</li>

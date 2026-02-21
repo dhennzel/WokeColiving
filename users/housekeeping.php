@@ -12,7 +12,7 @@ $message = "";
 $error = "";
 
 // Check for active reservation (Approved only)
-$room_check = mysqli_query($conn, "SELECT room_id FROM reservations WHERE user_id='$user_id' AND status='Approved' LIMIT 1");
+$room_check = mysqli_query($conn, "SELECT room_id, reservation_id FROM reservations WHERE user_id='$user_id' AND status='Approved' LIMIT 1");
 $has_active_reservation = (mysqli_num_rows($room_check) > 0);
 
 // Handle Cancellation
@@ -110,18 +110,22 @@ $user_info = mysqli_fetch_assoc($u_query);
         <a href="profile.php" class="btn btn-secondary rounded-pill">&larr; Back</a>
     </div>
 
-    <?php if (isset($_GET['msg']) && $_GET['msg'] == 'submitted') { echo "<div class='alert alert-success'>Housekeeping request submitted successfully.</div>"; } ?>
+    <?php if (isset($_GET['msg']) && $_GET['msg'] == 'submitted') { echo "<div class='alert alert-success'>Housekeeping request submitted successfully. Fee added to bill.</div>"; } ?>
     <?php if (isset($_GET['msg']) && $_GET['msg'] == 'cancelled') { echo "<div class='alert alert-warning'>Request cancelled.</div>"; } ?>
     <?php if ($error) { echo "<div class='alert alert-danger'>$error</div>"; } ?>
 
     <!-- Request Form -->
     <?php if ($has_active_reservation) { ?>
     <div class="card card-custom p-4 mb-5">
-        <h5 class="fw-bold mb-3">Request Housekeeping Service</h5>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Request Housekeeping Service</h5>
+            <span class="badge bg-warning text-dark">Fee: ₱200.00</span>
+        </div>
         <form method="POST">
             <div class="mb-3">
                 <label class="form-label">Service Details</label>
                 <textarea name="description" class="form-control" rows="3" placeholder="Describe the service needed (e.g., Room cleaning, Change bed sheets, Restock toiletries)..." required></textarea>
+                <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Note: A fee of ₱200 will be charged for on-demand housekeeping requests.</small>
             </div>
             <button type="submit" name="submit_request" class="btn btn-custom px-4">Submit Request</button>
         </form>
