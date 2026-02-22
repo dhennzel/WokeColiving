@@ -122,13 +122,11 @@ if(isset($_POST['add_reservation'])){
                 $cap_upper = floor($total_capacity / 2);
                 $cap_lower = ceil($total_capacity / 2);
                 
-                // Distribute 'Any' to Lower first
-                $slots_lower_free = max(0, $cap_lower - $occ_lower);
-                $any_in_lower = min($occ_any, $slots_lower_free);
-                $any_in_upper = $occ_any - $any_in_lower;
-                
-                $avail_lower = max(0, $cap_lower - ($occ_lower + $any_in_lower));
-                $avail_upper = max(0, $cap_upper - ($occ_upper + $any_in_upper));
+                    $fill_lower = min($avail_lower, $occ_any);
+                    $avail_lower -= $fill_lower;    $occ_any -= $fill_lower;
+           
+                    $avail_upper = max(0, $avail_upper);
+                }
                 
                 if($bed_preference == 'Upper Bunk'){
                     if($avail_upper > 0) { $found_room = $room; break; }

@@ -77,7 +77,7 @@ if(isset($_POST['assign_room'])){
     $e_date = $res_dates['end_date'];
 
     // Check capacity
-    $chk_cap = mysqli_query($conn, "SELECT total_beds, room_name, room_type FROM rooms WHERE room_id=$new_room_id");
+    $chk_cap = mysqli_query($conn, "SELECT total_beds, room_name, room_type, availability FROM rooms WHERE room_id=$new_room_id");
     $room_info = mysqli_fetch_assoc($chk_cap);
     
     // Check occupancy during the specific dates of the reservation
@@ -98,18 +98,24 @@ if(isset($_POST['assign_room'])){
     $can_move = false;
     $error_msg = "Target room is fully booked.";
 
-    if($total_occ < $room_info['total_beds']){
+    if($room_info['availability'] == 'Maintenance') {
+        $error_msg = "Target room is under maintenance.";
+    } elseif($total_occ < $room_info['total_beds']){
         if($room_info['room_type'] == '4-Bed' || $room_info['room_type'] == '6-Bed'){
              $cap_lower = ceil($room_info['total_beds'] / 2);
              $cap_upper = floor($room_info['total_beds'] / 2);
              
-             // Calculate available slots considering 'Any' fills lower first
-             $slots_lower_free = max(0, $cap_lower - $occ_lower);
-             $any_in_lower = min($occ_any, $slots_lower_free);
-             $any_in_upper = $occ_any - $any_in_lower;
+             $avail_upper = max(0, $cap_upper - $occ_upper);
+             $avail_lower = max(0, $cap_lower - $occ_lower);
              
-             $avail_lower = max(0, $cap_lower - ($occ_lower + $any_in_lower));
-             $avail_upper = max(0, $cap_upper - ($occ_upper + $any_in_upper));
+             if($occ_any > 0) {
+                 $fill_lower = min($avail_lower, $occ_any);
+                 $avail_lower -= $fill_lower;
+                 $occ_any -= $fill_lower;
+                 
+                 $avail_upper -= $occ_any;
+                 $avail_upper = max(0, $avail_upper);
+             }
              
              if($new_bed_pref == 'Lower Bunk'){
                  if($avail_lower > 0) $can_move = true;

@@ -203,13 +203,17 @@ if (isset($_POST['confirm_booking'])) {
                     $cap_lower = ceil($capacity / 2);
                     $cap_upper = floor($capacity / 2);
                     
-                    // Distribute Any
-                    $slots_lower_free = max(0, $cap_lower - $occ_lower);
-                    $any_in_lower = min($occ_any, $slots_lower_free);
-                    $any_in_upper = $occ_any - $any_in_lower;
+                    $avail_upper = max(0, $cap_upper - $occ_upper);
+                    $avail_lower = max(0, $cap_lower - $occ_lower);
                     
-                    $avail_lower = max(0, $cap_lower - ($occ_lower + $any_in_lower));
-                    $avail_upper = max(0, $cap_upper - ($occ_upper + $any_in_upper));
+                    if($occ_any > 0) {
+                        $fill_lower = min($avail_lower, $occ_any);
+                        $avail_lower -= $fill_lower;
+                        $occ_any -= $fill_lower;
+                        
+                        $avail_upper -= $occ_any;
+                        $avail_upper = max(0, $avail_upper);
+                    }
                     
                     if($bed_preference == 'Lower Bunk'){
                         if($avail_lower > 0) { $found_room = $room; break; }
