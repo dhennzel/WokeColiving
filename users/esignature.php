@@ -9,7 +9,7 @@ $reservation_id = (int)$_GET['id'];
 $user_id = $_SESSION['user_id'];
 
 // Verify ownership and status
-$check = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id AND user_id=$user_id AND status='Approved'");
+$check = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id AND user_id=$user_id AND status IN ('Approved', 'Verifying')");
 if(mysqli_num_rows($check) == 0){
     echo "Invalid reservation or not approved yet.";
     exit;

@@ -120,6 +120,15 @@ if(isset($_GET['action'])){
             log_activity($conn, $target_user_id, "Contract Ended", "Reservation #$reservation_id marked as Completed by admin.");
             send_notification($conn, $target_user_id, "🏁 <strong>Contract Completed</strong><br>Your stay for reservation #$reservation_id has been marked as completed. Thank you for staying with us!", "Contract Ended");
         }
+    } elseif($action == 'verify'){
+        $stmt = mysqli_prepare($conn, "UPDATE reservations SET status='Verifying' WHERE reservation_id=?");
+        mysqli_stmt_bind_param($stmt, "i", $reservation_id);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+        if($target_user_id) {
+            log_activity($conn, $target_user_id, "Reservation Verifying", "Reservation #$reservation_id moved to Verifying status.");
+            send_notification($conn, $target_user_id, "🔍 <strong>Reservation Verifying</strong><br>Your booking #$reservation_id is now being verified. Please ensure payment and lease signing are completed.", "Booking Update");
+        }
     } elseif($action == 'renew' && isset($_GET['months'])){
         // Renew Contract
         $months_to_add = (int)$_GET['months'];
@@ -174,7 +183,7 @@ if(isset($_GET['action'])){
         $res_q = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
         $res_data = mysqli_fetch_assoc($res_q);
         
-        if($res_data && $res_data['status'] == 'Pending'){
+        if($res_data && ($res_data['status'] == 'Pending' || $res_data['status'] == 'Verifying')){
             $target_user_id = $res_data['user_id'];
             $current_room_id = $res_data['room_id'];
             $s_date = $res_data['start_date'];
@@ -323,6 +332,7 @@ $theme = get_theme_colors($conn);
         .badge-pending { background: #fff3cd; color: #856404; }
         .badge-approved { background: #d4edda; color: #155724; }
         .badge-cancelled { background: #f8d7da; color: #721c24; }
+        .badge-verifying { background: #d1ecf1; color: #0c5460; }
         .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
         .btn-custom:hover { background-color: #f9a825; }
         @media (max-width: 768px) { #sidebar-wrapper { margin-left: -250px; } #wrapper.toggled #sidebar-wrapper { margin-left: 0; } }
@@ -399,9 +409,31 @@ $theme = get_theme_colors($conn);
                             <tr>
                                 <td><div class="d-flex align-items-center"><div class="user-avatar"><?= strtoupper(substr($res['full_name'],0,1)) ?></div><div><div class="fw-bold"><?= $res['full_name'] ?> <div class="dropdown d-inline ms-1"><a href="#" class="text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v fa-sm"></i></a><ul class="dropdown-menu"><li><a class="dropdown-item" href="view_user.php?uid=<?= $res['user_id'] ?>"><i class="fas fa-eye me-2"></i>View History</a></li><li><a class="dropdown-item" href="?action=toggle_dnr&uid=<?= $res['user_id'] ?>"><i class="fas fa-flag me-2"></i><?= $res['do_not_renew'] ? 'Unflag DNR' : 'Flag DNR' ?></a></li></ul></div></div><small class="text-muted"><?= $res['email'] ?></small><?php if($res['do_not_renew']): ?><div class="badge bg-danger" style="font-size: 0.6rem;">Do Not Renew</div><?php endif; ?></div></div></td>
                                 <td><div class="d-flex align-items-center"><img src="../assets/images/<?= $res['image'] ?>" class="rounded me-2" style="width:40px;height:40px;object-fit:cover;"><div><div class="fw-bold text-success"><?= $res['room_name'] ?></div><small class="text-muted"><?= $res['room_type'] ?></small></div></div></td>
-                                <td><div><i class="fas fa-calendar-alt text-muted me-1"></i> <?= date('M d, Y', strtotime($res['start_date'])) ?> - <?= date('M d, Y', strtotime($res['end_date'])) ?></div><small class="text-muted"><?= $res['months'] ?> Month(s)</small></td>
+                                <td>
+                                    <div><i class="fas fa-calendar-alt text-muted me-1"></i> <?= date('M d, Y', strtotime($res['start_date'])) ?> - <?= date('M d, Y', strtotime($res['end_date'])) ?></div>
+                                    <?php
+                                        $d1 = new DateTime($res['start_date']);
+                                        $d2 = new DateTime($res['end_date']);
+                                        $interval = $d1->diff($d2);
+                                        $duration_text = "";
+                                        if($interval->y > 0) $duration_text .= $interval->y . " Yr ";
+                                        if($interval->m > 0) $duration_text .= $interval->m . " Mo ";
+                                        if($interval->d > 0) $duration_text .= $interval->d . " Days";
+                                        if(empty($duration_text)) $duration_text = "0 Days";
+                                    ?>
+                                    <small class="text-muted"><?= trim($duration_text) ?> <?= !empty($res['extended_from']) ? '<span class="badge bg-info text-dark" style="font-size:0.6rem">Extended</span>' : '' ?></small>
+                                </td>
                                 <td class="fw-bold">₱<?= number_format($res['total_price'],2) ?></td>
-                                <td><span class="badge <?= $res['status']=='Approved'?'badge-approved':($res['status']=='Cancelled'?'badge-cancelled':'badge-pending') ?> rounded-pill px-3"><?= $res['status'] ?></span></td>
+                                <td>
+                                    <?php
+                                        $s = $res['status'];
+                                        $b_class = 'badge-pending';
+                                        if($s == 'Approved') $b_class = 'badge-approved';
+                                        elseif($s == 'Cancelled') $b_class = 'badge-cancelled';
+                                        elseif($s == 'Verifying') $b_class = 'badge-verifying';
+                                    ?>
+                                    <span class="badge <?= $b_class ?> rounded-pill px-3"><?= $s ?></span>
+                                </td>
                                 <td><?php if(!empty($res['signature_image'])) { ?><a href="view_receipt.php?id=<?= $res['reservation_id'] ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-signature"></i> View</a><?php } else { ?>-<?php } ?></td>
                                 <td class="text-end">
                                     <?php if($res['status'] == 'Pending'): ?>

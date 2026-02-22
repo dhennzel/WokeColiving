@@ -160,6 +160,9 @@ $pay_cols_check = mysqli_query($conn, "SHOW COLUMNS FROM payments");
 $pay_cols = [];
 while($c = mysqli_fetch_assoc($pay_cols_check)) $pay_cols[] = $c['Field'];
 if(!in_array('is_penalized', $pay_cols)) mysqli_query($conn, "ALTER TABLE payments ADD COLUMN is_penalized TINYINT(1) DEFAULT 0");
+if(!in_array('reference_number', $pay_cols)) mysqli_query($conn, "ALTER TABLE payments ADD COLUMN reference_number VARCHAR(100) DEFAULT NULL");
+if(!in_array('proof_image', $pay_cols)) mysqli_query($conn, "ALTER TABLE payments ADD COLUMN proof_image VARCHAR(255) DEFAULT NULL");
+if(!in_array('description', $pay_cols)) mysqli_query($conn, "ALTER TABLE payments ADD COLUMN description VARCHAR(255) DEFAULT 'Room Payment'");
 
 // Ensure floor column exists in rooms table
 $check_col_floor = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'floor'");

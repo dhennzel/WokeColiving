@@ -149,6 +149,12 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     <?php } ?>
+    <?php if(isset($_GET['msg']) && $_GET['msg'] == 'payment_submitted') { ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            Payment submitted successfully! Admin will verify it shortly.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php } ?>
 
     <div class="card card-custom p-4">
         <?php if(mysqli_num_rows($query) > 0) { ?>
@@ -203,6 +209,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                                 $statusClass = 'bg-warning text-dark';
                                 $icon = 'fa-clock';
                                 if($row['status'] == 'Approved') { $statusClass = 'bg-success text-white'; $icon = 'fa-check-circle'; }
+                                if($row['status'] == 'Verifying') { $statusClass = 'bg-info text-dark'; $icon = 'fa-search'; }
                                 if($row['status'] == 'Cancelled') { $statusClass = 'bg-danger text-white'; $icon = 'fa-times-circle'; }
                             ?>
                             <span class="badge <?= $statusClass ?> rounded-pill px-3 py-2">
@@ -210,7 +217,18 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                             </span>
                         </td>
                         <td class="text-end">
-                            <?php if($row['status'] == 'Approved') { ?>
+                            <?php 
+                                $rid = $row['reservation_id'];
+                                $pay_chk = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM payments WHERE reservation_id=$rid AND payment_status='Unpaid'");
+                                $has_unpaid = mysqli_fetch_assoc($pay_chk)['cnt'] > 0;
+                                if($has_unpaid && ($row['status'] == 'Pending' || $row['status'] == 'Verifying')): 
+                            ?>
+                                <a href="pay_reservation.php?id=<?= $rid ?>" class="btn btn-sm btn-warning rounded-pill mb-1">
+                                    <i class="fas fa-credit-card me-1"></i> Pay Now
+                                </a>
+                            <?php endif; ?>
+
+                            <?php if($row['status'] == 'Approved' || $row['status'] == 'Verifying') { ?>
                                 <?php if(empty($row['signature_image'] ?? null)) { ?>
                                     <a href="esignature.php?id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-success rounded-pill">
                                         <i class="fas fa-pen-nib me-1"></i> Sign Lease
@@ -218,10 +236,17 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                                 <?php } else { ?>
                                     <span class="badge bg-info text-dark"><i class="fas fa-file-signature"></i> Signed</span>
                                 <?php } ?>
-                                <!-- Extend Stay Button -->
-                                <a href="reservation_now.php?extend_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-warning rounded-pill ms-1">
-                                    <i class="fas fa-history me-1"></i> Extend
+                                
+                                <a href="view_receipt.php?id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-dark rounded-pill ms-1">
+                                    <i class="fas fa-file-invoice"></i> Receipt
                                 </a>
+
+                                <?php if($row['status'] == 'Approved'): ?>
+                                    <!-- Extend Stay Button -->
+                                    <a href="reservation_now.php?extend_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-warning rounded-pill ms-1">
+                                        <i class="fas fa-history me-1"></i> Extend
+                                    </a>
+                                <?php endif; ?>
                             <?php } ?>
                             
                             <?php // Show Remove button for Cancelled or Past End Date (Completed)

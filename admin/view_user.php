@@ -165,7 +165,7 @@ if(mysqli_num_rows($check_col) == 0) {
 
 // Fetch All Reservations for this User
 $res_query = mysqli_query($conn, "
-    SELECT r.*, rm.room_name, rm.room_type 
+    SELECT r.*, rm.room_name, rm.room_type
     FROM reservations r 
     JOIN rooms rm ON r.room_id = rm.room_id 
     WHERE r.user_id=$uid 
@@ -544,6 +544,7 @@ $theme = get_theme_colors($conn);
                                                 $badge = 'bg-secondary';
                                                 if($row['status'] == 'Approved') $badge = 'bg-success';
                                                 if($row['status'] == 'Pending') $badge = 'bg-warning text-dark';
+                                                if($row['status'] == 'Verifying') $badge = 'bg-info text-dark';
                                                 if($row['status'] == 'Cancelled') $badge = 'bg-danger';
                                             ?>
                                             <span class="badge <?= $badge ?>"><?= $row['status'] ?></span>
@@ -551,7 +552,24 @@ $theme = get_theme_colors($conn);
                                         <td>₱<?= number_format($row['total_price'], 2) ?></td>
                                         <td class="text-end">
                                             <?php if($row['status'] == 'Pending'): ?>
-                                                <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this reservation?')" title="Approve"><i class="fas fa-check"></i></a>
+                                                <a href="booking_management.php?action=verify&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-info text-white" onclick="confirmAction(event, this.href, 'Move this reservation to Verifying status?')" title="Verify"><i class="fas fa-search"></i> Verify</a>
+                                                <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
+                                            <?php elseif($row['status'] == 'Verifying'): ?>
+                                                <?php
+                                                    // Check Payment
+                                                    $pay_chk = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM payments WHERE reservation_id=".$row['reservation_id']." AND payment_status='Paid'");
+                                                    $is_paid = mysqli_fetch_assoc($pay_chk)['cnt'] > 0;
+                                                    // Check Signature
+                                                    $has_sig = !empty($row['signature_image']);
+                                                ?>
+                                                <?php if($is_paid && $has_sig): ?>
+                                                    <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this reservation?')" title="Approve"><i class="fas fa-check"></i> Approve</a>
+                                                <?php else: ?>
+                                                    <button class="btn btn-sm btn-secondary" disabled title="Requires Payment & Signature">
+                                                        <i class="fas fa-hourglass-half"></i> 
+                                                        <?= !$is_paid ? 'Waiting Payment' : (!$has_sig ? 'Waiting Signature' : '') ?>
+                                                    </button>
+                                                <?php endif; ?>
                                                 <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
                                             <?php elseif($row['status'] == 'Approved'): ?>
                                                 <button onclick="renewContract(<?= $row['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt"></i></button>
