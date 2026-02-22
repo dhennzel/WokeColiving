@@ -399,16 +399,7 @@ $theme = get_theme_colors($conn);
                                         <td>₱<?= number_format($row['total_price'], 2) ?></td>
                                         <td class="text-end">
                                             <?php if($row['status'] == 'Pending'): ?>
-                                                <?php if(!empty($row['extended_from'])): ?>
-                                                    <form method="POST" action="booking_management.php" class="d-inline" onsubmit="confirmForm(event, 'Approve this extension request?')">
-                                                        <input type="hidden" name="reservation_id" value="<?= $row['reservation_id'] ?>">
-                                                        <input type="hidden" name="room_id" value="<?= $row['room_id'] ?>">
-                                                        <input type="hidden" name="redirect_url" value="view_user.php?uid=<?= $uid ?>&msg=extended">
-                                                        <button type="submit" name="confirm_approve" class="btn btn-sm btn-success" title="Approve Extension"><i class="fas fa-check"></i></button>
-                                                    </form>
-                                                <?php else: ?>
-                                                    <a href="javascript:void(0)" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, <?= $row['room_id'] ?? 0 ?>, '<?= htmlspecialchars(addslashes($row['room_type']), ENT_QUOTES) ?>')" title="Approve"><i class="fas fa-check"></i></a>
-                                                <?php endif; ?>
+                                                <a href="javascript:void(0)" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, <?= $row['room_id'] ?? 0 ?>, <?= htmlspecialchars(json_encode($row['room_type']), ENT_QUOTES, 'UTF-8') ?>)" title="Approve"><i class="fas fa-check"></i></a>
                                                 <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
                                             <?php elseif($row['status'] == 'Approved'): ?>
                                                 <button onclick="renewContract(<?= $row['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt"></i></button>
@@ -708,6 +699,7 @@ function confirmBulkPaid() {
 }
 
 function openApproveModal(resId, currentRoomId, roomType) {
+    console.log('openApproveModal called', { resId, currentRoomId, roomType });
     document.getElementById('approveResId').value = resId;
     const select = document.getElementById('approveRoomSelect');
     select.innerHTML = '';
@@ -721,6 +713,12 @@ function openApproveModal(resId, currentRoomId, roomType) {
             select.appendChild(option);
         }
     });
+
+    if (select.options.length === 0) {
+        console.warn('No rooms found for type:', roomType);
+        select.innerHTML = '<option value="">No available rooms found</option>';
+    }
+
     new bootstrap.Modal(document.getElementById('approveModal')).show();
 }
 
