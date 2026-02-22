@@ -203,7 +203,7 @@ $logs_query = mysqli_query($conn, "SELECT * FROM activity_logs WHERE user_id=$us
                                     <i class="fas fa-archive"></i> Remove
                                 </a>
                             <?php } ?>
-                            <a href="javascript:void(0)" onclick="viewRoomDetails(<?= $row['room_id'] ?>, <?= $duration ?>, <?= $total_price ?>)" class="btn btn-sm btn-primary rounded-pill ms-1">
+                            <a href="javascript:void(0)" onclick="viewRoomDetails(<?= $row['room_id'] ?>, <?= $duration ?>, <?= $total_price ?>, '<?= addslashes($row['bed_preference'] ?? 'Any') ?>')" class="btn btn-sm btn-primary rounded-pill ms-1">
                                 <i class="fas fa-eye"></i>
                             </a>
                         </td>
@@ -298,6 +298,10 @@ $logs_query = mysqli_query($conn, "SELECT * FROM activity_logs WHERE user_id=$us
                             <span class="text-muted small">Total Paid:</span>
                             <span class="fw-bold text-success">₱<span id="modalTotal"></span></span>
                         </div>
+                        <div class="d-flex justify-content-between" id="modalBedPrefRow" style="display:none;">
+                            <span class="text-muted small">Bed Preference:</span>
+                            <span class="fw-bold text-dark" id="modalBedPref"></span>
+                        </div>
                     </div>
 
                     <div class="d-flex justify-content-center gap-2 mb-3">
@@ -323,7 +327,7 @@ $logs_query = mysqli_query($conn, "SELECT * FROM activity_logs WHERE user_id=$us
     });
     <?php unset($_SESSION['swal']); endif; ?>
 
-    function viewRoomDetails(roomId, duration, totalPrice) {
+    function viewRoomDetails(roomId, duration, totalPrice, bedPref) {
         var myModal = new bootstrap.Modal(document.getElementById('roomDetailsModal'));
         document.getElementById('roomLoading').style.display = 'block';
         document.getElementById('roomContent').style.display = 'none';
@@ -331,6 +335,13 @@ $logs_query = mysqli_query($conn, "SELECT * FROM activity_logs WHERE user_id=$us
 
         document.getElementById('modalDuration').innerText = duration;
         document.getElementById('modalTotal').innerText = parseFloat(totalPrice).toLocaleString('en-US', {minimumFractionDigits: 2});
+
+        if (bedPref && bedPref !== 'Any') {
+            document.getElementById('modalBedPrefRow').style.display = 'flex';
+            document.getElementById('modalBedPref').innerText = bedPref;
+        } else {
+            document.getElementById('modalBedPrefRow').style.display = 'none';
+        }
 
         fetch('get_rooms.php?id=' + roomId)
             .then(response => response.json())
