@@ -8,6 +8,56 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
     exit;
 }
 
+// Fetch Rooms for Approval Modal
+$rooms_for_modal = [];
+$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor FROM rooms WHERE status != 'Maintenance' ORDER BY floor, room_number");
+while($r = mysqli_fetch_assoc($rfm_q)){
+    $rooms_for_modal[] = $r;
+}
+
+// Handle Approve with Room Selection (POST)
+if(isset($_POST['confirm_approve'])){
+    $reservation_id = (int)$_POST['reservation_id'];
+    $new_room_id = (int)$_POST['room_id'];
+    
+    // Fetch reservation details to check for extension
+    $chk_ext = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
+    $res_data = mysqli_fetch_assoc($chk_ext);
+    $target_user_id = $res_data['user_id'];
+
+    if(!empty($res_data['extended_from'])){
+        // MERGE EXTENSION INTO ORIGINAL CONTRACT
+        $parent_id = $res_data['extended_from'];
+        $new_end = $res_data['end_date'];
+        $added_months = $res_data['months'];
+        $added_price = $res_data['total_price'];
+
+        // Update parent reservation with NEW ROOM ID selected by admin
+        mysqli_query($conn, "UPDATE reservations SET 
+            end_date='$new_end', 
+            months = months + $added_months, 
+            total_price = total_price + $added_price,
+            room_id = $new_room_id, 
+            status = 'Approved'
+            WHERE reservation_id=$parent_id");
+        
+        // Move payments and delete temp request
+        mysqli_query($conn, "UPDATE payments SET reservation_id=$parent_id WHERE reservation_id=$reservation_id");
+        mysqli_query($conn, "DELETE FROM reservations WHERE reservation_id=$reservation_id");
+        
+        log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated. Assigned Room ID: $new_room_id");
+    } else {
+        // NORMAL APPROVAL
+        mysqli_query($conn, "UPDATE reservations SET status='Approved', room_id=$new_room_id WHERE reservation_id=$reservation_id");
+        log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id approved. Assigned Room ID: $new_room_id");
+        send_notification($conn, $target_user_id, "🎉 <strong>Reservation Approved!</strong><br>Your booking has been approved. Please proceed to payment or view details.", "Booking Approved");
+    }
+    
+    $redirect = isset($_POST['redirect_url']) ? $_POST['redirect_url'] : "booking_management.php";
+    header("Location: $redirect");
+    exit;
+}
+
 // Handle reservation approval/rejection
 if(isset($_GET['action'])){
     $action = $_GET['action'];
@@ -31,47 +81,7 @@ if(isset($_GET['action'])){
         }
     }
 
-    if($action == 'approve'){
-        // Check if this is an extension request
-        $chk_ext = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
-        $res_data = mysqli_fetch_assoc($chk_ext);
-
-        if(!empty($res_data['extended_from'])){
-            // MERGE EXTENSION INTO ORIGINAL CONTRACT
-            $parent_id = $res_data['extended_from'];
-            $new_end = $res_data['end_date'];
-            $added_months = $res_data['months'];
-            $added_price = $res_data['total_price'];
-            $new_room = $res_data['room_id']; // In case room changed
-
-            // Update parent reservation
-            mysqli_query($conn, "UPDATE reservations SET 
-                end_date='$new_end', 
-                months = months + $added_months, 
-                total_price = total_price + $added_price,
-                room_id = $new_room,
-                status = 'Approved'
-                WHERE reservation_id=$parent_id");
-            
-            // Move payments to parent
-            mysqli_query($conn, "UPDATE payments SET reservation_id=$parent_id WHERE reservation_id=$reservation_id");
-
-            // Delete the temporary extension request
-            mysqli_query($conn, "DELETE FROM reservations WHERE reservation_id=$reservation_id");
-            
-            if($target_user_id) log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated (Merged extension).");
-        } else {
-            // NORMAL APPROVAL
-            $stmt = mysqli_prepare($conn, "UPDATE reservations SET status='Approved' WHERE reservation_id=?");
-            mysqli_stmt_bind_param($stmt, "i", $reservation_id);
-            mysqli_stmt_execute($stmt);
-            mysqli_stmt_close($stmt);
-            if($target_user_id) {
-                log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id has been approved.");
-                send_notification($conn, $target_user_id, "🎉 <strong>Reservation Approved!</strong><br>Your booking #$reservation_id has been approved. Please proceed to payment or view details.", "Booking Approved");
-            }
-        }
-    } elseif($action == 'reject'){
+    if($action == 'reject'){
         $stmt = mysqli_prepare($conn, "UPDATE reservations SET status='Cancelled' WHERE reservation_id=?");
         mysqli_stmt_bind_param($stmt, "i", $reservation_id);
         mysqli_stmt_execute($stmt);
@@ -173,7 +183,7 @@ if(isset($_GET['status']) && !empty($_GET['status'])){
 
 // Fetch Reservations with Filters
 $sql = "
-    SELECT r.*, u.full_name, u.email, u.do_not_renew, rm.room_name, rm.room_type, rm.total_price AS room_monthly_price, rm.image
+    SELECT r.*, u.full_name, u.email, u.do_not_renew, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -292,7 +302,7 @@ $theme = get_theme_colors($conn);
                                 <td><?php if(!empty($res['signature_image'])) { ?><a href="view_receipt.php?id=<?= $res['reservation_id'] ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-signature"></i> View</a><?php } else { ?>-<?php } ?></td>
                                 <td class="text-end">
                                     <?php if($res['status'] == 'Pending'): ?>
-                                        <a href="?action=approve&id=<?= $res['reservation_id'] ?>" class="btn btn-sm btn-success" title="Approve"><i class="fas fa-check"></i></a>
+                                        <button type="button" class="btn btn-sm btn-success" title="Approve" onclick="openApproveModal(<?= $res['reservation_id'] ?>, <?= $res['room_id'] ?>, '<?= $res['room_type'] ?>')"><i class="fas fa-check"></i></button>
                                         <a href="?action=reject&id=<?= $res['reservation_id'] ?>" class="btn btn-sm btn-danger" title="Reject" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
                                     <?php elseif($res['status'] == 'Approved'): ?>
                                         <a href="?action=terminate&id=<?= $res['reservation_id'] ?>" class="btn btn-sm btn-outline-danger" title="End Contract" onclick="confirmAction(event, this.href, 'End this contract?')"><i class="fas fa-ban"></i></a>
@@ -308,6 +318,33 @@ $theme = get_theme_colors($conn);
         </div>
     </div>
 </div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-check-circle me-2"></i>Approve Reservation</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="reservation_id" id="approveResId">
+                    <p>Please confirm the room assignment before approving.</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Assign Room / Floor</label>
+                        <select name="room_id" id="approveRoomSelect" class="form-select" required></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="confirm_approve" class="btn btn-success fw-bold">Confirm & Approve</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     document.getElementById("menu-toggle").addEventListener("click", function(e) { e.preventDefault(); document.getElementById("wrapper").classList.toggle("toggled"); });
@@ -320,6 +357,26 @@ $theme = get_theme_colors($conn);
         icon: 'success'
     });
     <?php endif; ?>
+
+    const allRooms = <?= json_encode($rooms_for_modal) ?>;
+
+    function openApproveModal(resId, currentRoomId, roomType) {
+        document.getElementById('approveResId').value = resId;
+        const select = document.getElementById('approveRoomSelect');
+        select.innerHTML = '';
+
+        allRooms.forEach(room => {
+            // Filter by room type to ensure compatibility
+            if(room.room_type === roomType) {
+                let option = document.createElement('option');
+                option.value = room.room_id;
+                option.text = `Room ${room.room_number || ''} (${room.room_name}) - ${room.floor}th Floor`;
+                if(room.room_id == currentRoomId) option.selected = true;
+                select.appendChild(option);
+            }
+        });
+        new bootstrap.Modal(document.getElementById('approveModal')).show();
+    }
 
     function confirmAction(e, url, msg) {
         e.preventDefault();

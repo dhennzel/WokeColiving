@@ -145,6 +145,13 @@ $expiring_query = mysqli_query($conn, "
     ORDER BY r.end_date ASC
 ");
 
+// Fetch Rooms for Approval Modal
+$rooms_for_modal = [];
+$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor FROM rooms WHERE status != 'Maintenance' ORDER BY floor, room_number");
+while($r = mysqli_fetch_assoc($rfm_q)){
+    $rooms_for_modal[] = $r;
+}
+
 // Determine active tab
 $active_tab = 'reservations';
 if(isset($_GET['pay_status']) || isset($_GET['start_date']) || isset($_GET['end_date']) || (isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid')){
@@ -382,7 +389,7 @@ $theme = get_theme_colors($conn);
                                         <td>₱<?= number_format($row['total_price'], 2) ?></td>
                                         <td class="text-end">
                                             <?php if($row['status'] == 'Pending'): ?>
-                                                <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this reservation?')"><i class="fas fa-check"></i></a>
+                                                <button type="button" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, <?= $row['room_id'] ?>, '<?= $row['room_type'] ?>')"><i class="fas fa-check"></i></button>
                                                 <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
                                             <?php elseif($row['status'] == 'Approved'): ?>
                                                 <button onclick="renewContract(<?= $row['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt"></i></button>
@@ -498,6 +505,34 @@ $theme = get_theme_colors($conn);
         </div>
     </div>
 </div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-check-circle me-2"></i>Approve Reservation</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="booking_management.php">
+                <div class="modal-body">
+                    <input type="hidden" name="reservation_id" id="approveResId">
+                    <input type="hidden" name="redirect_url" value="view_user.php?uid=<?= $uid ?>">
+                    <p>Please confirm the room assignment before approving.</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Assign Room / Floor</label>
+                        <select name="room_id" id="approveRoomSelect" class="form-select" required></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="confirm_approve" class="btn btn-success fw-bold">Confirm & Approve</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 function confirmAction(e, url, msg) {
@@ -631,6 +666,25 @@ function confirmBulkPaid() {
             form.submit();
         }
     });
+}
+
+const allRooms = <?= json_encode($rooms_for_modal) ?>;
+
+function openApproveModal(resId, currentRoomId, roomType) {
+    document.getElementById('approveResId').value = resId;
+    const select = document.getElementById('approveRoomSelect');
+    select.innerHTML = '';
+
+    allRooms.forEach(room => {
+        if(room.room_type === roomType) {
+            let option = document.createElement('option');
+            option.value = room.room_id;
+            option.text = `Room ${room.room_number || ''} (${room.room_name}) - ${room.floor}th Floor`;
+            if(room.room_id == currentRoomId) option.selected = true;
+            select.appendChild(option);
+        }
+    });
+    new bootstrap.Modal(document.getElementById('approveModal')).show();
 }
 </script>
 </body>

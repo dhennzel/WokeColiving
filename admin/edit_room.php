@@ -33,8 +33,10 @@ if(mysqli_num_rows($query) == 0){
 $room = mysqli_fetch_assoc($query);
 
 if(isset($_POST['update_room'])){
-    $room_name = trim($_POST['room_name']);
+    $room_number = trim($_POST['room_number']);
     $room_type = trim($_POST['room_type']);
+    // Auto-set room name based on type
+    $room_name = ($room_type == 'Single') ? '1 Bed' : (($room_type == '4-Bed') ? '4 Beds' : '6 Beds');
     $floor = (int) $_POST['floor'];
     $price = isset($_POST['price']) ? (float) $_POST['price'] : 0;
     $price_upper = isset($_POST['price_upper']) ? (float) $_POST['price_upper'] : 0;
@@ -67,8 +69,8 @@ if(isset($_POST['update_room'])){
             $price = $price_lower;
         }
 
-        $stmt = mysqli_prepare($conn, "UPDATE rooms SET room_name=?, room_type=?, floor=?, total_price=?, price_upper=?, price_lower=?, total_beds=?, availability=?, image=? WHERE room_id=?");
-        mysqli_stmt_bind_param($stmt, "ssidddissi", $room_name, $room_type, $floor, $price, $price_upper, $price_lower, $beds, $availability, $image, $room_id);
+        $stmt = mysqli_prepare($conn, "UPDATE rooms SET room_name=?, room_number=?, room_type=?, floor=?, total_price=?, price_upper=?, price_lower=?, total_beds=?, availability=?, image=? WHERE room_id=?");
+        mysqli_stmt_bind_param($stmt, "sssidddissi", $room_name, $room_number, $room_type, $floor, $price, $price_upper, $price_lower, $beds, $availability, $image, $room_id);
         
         try {
             if(mysqli_stmt_execute($stmt)){
@@ -195,8 +197,8 @@ $theme = get_theme_colors($conn);
 
                         <form method="POST" enctype="multipart/form-data">
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Room Name</label>
-                                <input type="text" name="room_name" class="form-control" value="<?= htmlspecialchars($room['room_name']) ?>" required>
+                                <label class="form-label fw-bold">Room Number</label>
+                                <input type="text" name="room_number" class="form-control" value="<?= htmlspecialchars($room['room_number'] ?? '') ?>" required>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Floor Level</label>
@@ -211,28 +213,28 @@ $theme = get_theme_colors($conn);
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Room Type</label>
                                     <select name="room_type" id="room_type" class="form-select" required onchange="togglePriceFields()">
-                                        <option value="Single" <?= $room['room_type'] == 'Single' ? 'selected' : '' ?>>Single</option>
-                                        <option value="4-Bed" <?= $room['room_type'] == '4-Bed' ? 'selected' : '' ?>>4-Bed</option>
-                                        <option value="6-Bed" <?= $room['room_type'] == '6-Bed' ? 'selected' : '' ?>>6-Bed</option>
+                                        <option value="Single" <?= $room['room_type'] == 'Single' ? 'selected' : '' ?>>1 Bed</option>
+                                        <option value="4-Bed" <?= $room['room_type'] == '4-Bed' ? 'selected' : '' ?>>4 Beds</option>
+                                        <option value="6-Bed" <?= $room['room_type'] == '6-Bed' ? 'selected' : '' ?>>6 Beds</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3" id="single_price_div">
                                     <label class="form-label fw-bold">Price (₱)</label>
-                                    <input type="number" name="price" class="form-control" step="0.01" value="<?= $room['total_price'] ?>" required>
+                                    <input type="number" name="price" class="form-control" step="0.01" value="<?= $room['total_price'] ?>" readonly>
                                 </div>
                                 <div class="col-md-3 mb-3" id="upper_price_div" style="display:none;">
                                     <label class="form-label fw-bold">Upper Bed Price (₱)</label>
-                                    <input type="number" name="price_upper" class="form-control" step="0.01" value="<?= $room['price_upper'] ?? 0 ?>">
+                                    <input type="number" name="price_upper" class="form-control" step="0.01" value="<?= $room['price_upper'] ?? 0 ?>" readonly>
                                 </div>
                                 <div class="col-md-3 mb-3" id="lower_price_div" style="display:none;">
                                     <label class="form-label fw-bold">Lower Bed Price (₱)</label>
-                                    <input type="number" name="price_lower" class="form-control" step="0.01" value="<?= $room['price_lower'] ?? 0 ?>">
+                                    <input type="number" name="price_lower" class="form-control" step="0.01" value="<?= $room['price_lower'] ?? 0 ?>" readonly>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Total Beds</label>
-                                    <input type="number" name="beds" class="form-control" value="<?= $room['total_beds'] ?>" required>
+                                    <input type="number" name="beds" id="beds" class="form-control" value="<?= $room['total_beds'] ?>" required readonly>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Availability Status</label>
@@ -276,6 +278,7 @@ function togglePriceFields() {
     var priceInput = document.querySelector('input[name="price"]');
     var upperInput = document.querySelector('input[name="price_upper"]');
     var lowerInput = document.querySelector('input[name="price_lower"]');
+    var bedsInput = document.getElementById("beds");
 
     if (type === "Single") {
         singleDiv.style.display = "block";
@@ -285,6 +288,9 @@ function togglePriceFields() {
         priceInput.required = true;
         upperInput.required = false;
         lowerInput.required = false;
+        
+        priceInput.value = 14000;
+        bedsInput.value = 1;
     } else {
         singleDiv.style.display = "none";
         upperDiv.style.display = "block";
@@ -293,6 +299,16 @@ function togglePriceFields() {
         priceInput.required = false;
         upperInput.required = true;
         lowerInput.required = true;
+        
+        if(type === "4-Bed") {
+            upperInput.value = 4200;
+            lowerInput.value = 4700;
+            bedsInput.value = 4;
+        } else if(type === "6-Bed") {
+            upperInput.value = 3750;
+            lowerInput.value = 4500;
+            bedsInput.value = 6;
+        }
     }
 }
 // Initialize

@@ -43,6 +43,16 @@ if($floor_filter > 0){
 }
 $sql .= " ORDER BY floor ASC, room_name ASC";
 $rooms = mysqli_query($conn, $sql);
+
+// Pre-fetch active requests for mapping visualization
+$active_maint = [];
+$mq = mysqli_query($conn, "SELECT room_id, COUNT(*) as cnt FROM maintenance_requests WHERE status IN ('Pending', 'Scheduled') GROUP BY room_id");
+while($r = mysqli_fetch_assoc($mq)) $active_maint[$r['room_id']] = $r['cnt'];
+
+$active_house = [];
+$hq = mysqli_query($conn, "SELECT room_id, COUNT(*) as cnt FROM housekeeping_requests WHERE status IN ('Pending', 'Scheduled') GROUP BY room_id");
+while($r = mysqli_fetch_assoc($hq)) $active_house[$r['room_id']] = $r['cnt'];
+
 $theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
@@ -82,6 +92,13 @@ $theme = get_theme_colors($conn);
         .card-room:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
         .card-room img { height: 200px; object-fit: cover; width: 100%; }
         .price-tag { font-size: 1.2rem; font-weight: bold; color: var(--primary-green); font-family: 'Playfair Display', serif; }
+        
+        /* Status Indicators */
+        .status-indicator { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; }
+        .status-badge { font-size: 0.75rem; padding: 5px 10px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .border-maint { border-left: 5px solid #dc3545 !important; }
+        .border-house { border-left: 5px solid #0dcaf0 !important; }
+        
         .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
         .btn-custom:hover { background-color: #f9a825; }
         .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
@@ -172,6 +189,9 @@ $theme = get_theme_colors($conn);
             $room_id = $room['room_id'];
             $total_beds = $room['total_beds'];
             $room_type = $room['room_type'];
+            $m_cnt = $active_maint[$room_id] ?? 0;
+            $h_cnt = $active_house[$room_id] ?? 0;
+            
             $is_shared = ($room_type == '4-Bed' || $room_type == '6-Bed');
             
             // Count occupied beds based on active reservations
@@ -219,13 +239,28 @@ $theme = get_theme_colors($conn);
                 $suffix = ($floor == 2) ? 'nd' : (($floor == 3) ? 'rd' : 'th');
                 echo '<div class="col-12 mt-4"><h5 class="fw-bold text-secondary border-bottom pb-2"><i class="fas fa-layer-group me-2"></i>'.$floor.$suffix.' Floor</h5></div>';
             }
+            
+            // Determine card border class based on status
+            $border_class = "";
+            if($m_cnt > 0) $border_class = "border-maint";
+            elseif($h_cnt > 0) $border_class = "border-house";
         ?>
         <div class="col-md-4">
-            <div class="card card-room h-100">
+            <div class="card card-room h-100 <?= $border_class ?>">
+                <div class="position-relative">
                 <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>">
+                <div class="status-indicator">
+                    <?php if($m_cnt > 0): ?>
+                        <span class="badge bg-danger status-badge" title="Active Maintenance Requests"><i class="fas fa-tools"></i> <?= $m_cnt ?></span>
+                    <?php endif; ?>
+                    <?php if($h_cnt > 0): ?>
+                        <span class="badge bg-info text-dark status-badge" title="Active Housekeeping Requests"><i class="fas fa-broom"></i> <?= $h_cnt ?></span>
+                    <?php endif; ?>
+                </div>
+                </div>
                 <div class="card-body d-flex flex-column">
                     <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title fw-bold text-dark"><?= $room['room_name'] ?></h5>
+                        <h5 class="card-title fw-bold text-dark">Room <?= htmlspecialchars($room['room_number'] ?? '') ?> <small class="text-muted fs-6">(<?= $room['room_name'] ?>)</small></h5>
                         <span class="badge bg-secondary"><?= $room['room_type'] ?></span>
                     </div>
                 <p class="price-tag mb-1">₱<?= number_format($room['total_price'],2) ?> <small class="text-muted fs-6">/mo</small></p>
