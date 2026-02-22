@@ -135,6 +135,7 @@ $theme = get_theme_colors($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
             --primary-green: <?= $theme['primary'] ?>;
@@ -279,7 +280,7 @@ $theme = get_theme_colors($conn);
                                 <td><?= $b['date'] ?></td>
                                 <td class="text-end">
                                     <a href="<?= $backup_dir . $b['file'] ?>" class="btn btn-sm btn-outline-primary me-1" download><i class="fas fa-download"></i></a>
-                                    <a href="?action=delete&file=<?= $b['file'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this backup?')"><i class="fas fa-trash"></i></a>
+                                    <a href="?action=delete&file=<?= $b['file'] ?>" class="btn btn-sm btn-outline-danger" onclick="confirmLink(event, this.href, 'Delete this backup?')"><i class="fas fa-trash"></i></a>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -314,6 +315,21 @@ document.addEventListener('click', function(event) {
         }
     }
 });
+
+function confirmLink(e, url, msg) {
+    e.preventDefault();
+    Swal.fire({
+        title: 'Are you sure?',
+        text: msg,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+        if (result.isConfirmed) window.location.href = url;
+    });
+}
 </script>
 </body>
 </html>

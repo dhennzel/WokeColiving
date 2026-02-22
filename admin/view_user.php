@@ -150,8 +150,10 @@ $expiring_query = mysqli_query($conn, "
 // Fetch Rooms for Approval Modal
 $rooms_for_modal = [];
 $rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor FROM rooms WHERE availability != 'Maintenance' ORDER BY floor, room_number");
-while($r = mysqli_fetch_assoc($rfm_q)){
-    $rooms_for_modal[] = $r;
+if($rfm_q){
+    while($r = mysqli_fetch_assoc($rfm_q)){
+        $rooms_for_modal[] = $r;
+    }
 }
 
 // Determine active tab
@@ -391,7 +393,16 @@ $theme = get_theme_colors($conn);
                                         <td>₱<?= number_format($row['total_price'], 2) ?></td>
                                         <td class="text-end">
                                             <?php if($row['status'] == 'Pending'): ?>
-                                                <button type="button" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, <?= $row['room_id'] ?>, '<?= $row['room_type'] ?>')"><i class="fas fa-check"></i></button>
+                                                <?php if(!empty($row['extended_from'])): ?>
+                                                    <form method="POST" action="booking_management.php" class="d-inline" onsubmit="confirmForm(event, 'Approve this extension request?')">
+                                                        <input type="hidden" name="reservation_id" value="<?= $row['reservation_id'] ?>">
+                                                        <input type="hidden" name="room_id" value="<?= $row['room_id'] ?>">
+                                                        <input type="hidden" name="redirect_url" value="view_user.php?uid=<?= $uid ?>">
+                                                        <button type="submit" name="confirm_approve" class="btn btn-sm btn-success" title="Approve Extension"><i class="fas fa-check"></i></button>
+                                                    </form>
+                                                <?php else: ?>
+                                                    <a href="javascript:void(0)" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, <?= $row['room_id'] ?? 0 ?>, '<?= htmlspecialchars(addslashes($row['room_type']), ENT_QUOTES) ?>')" title="Approve"><i class="fas fa-check"></i></a>
+                                                <?php endif; ?>
                                                 <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
                                             <?php elseif($row['status'] == 'Approved'): ?>
                                                 <button onclick="renewContract(<?= $row['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt"></i></button>
@@ -537,6 +548,8 @@ $theme = get_theme_colors($conn);
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+const allRooms = <?= json_encode($rooms_for_modal) ?>;
+
 function confirmAction(e, url, msg) {
     e.preventDefault();
     const isDestructive = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('end') || msg.toLowerCase().includes('delete') || msg.toLowerCase().includes('terminate');
@@ -550,6 +563,21 @@ function confirmAction(e, url, msg) {
         confirmButtonText: 'Yes, proceed!'
     }).then((result) => {
         if (result.isConfirmed) window.location.href = url;
+    });
+}
+
+function confirmForm(e, msg) {
+    e.preventDefault();
+    Swal.fire({
+        title: 'Are you sure?',
+        text: msg,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2e7d32',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, proceed!'
+    }).then((result) => {
+        if (result.isConfirmed) e.target.submit();
     });
 }
 
@@ -604,8 +632,10 @@ function toggleMenu(e) {
     if(e) e.preventDefault();
     document.getElementById("wrapper").classList.toggle("toggled");
 }
-document.getElementById("menu-toggle").addEventListener("click", toggleMenu);
-document.getElementById("sidebar-toggle").addEventListener("click", toggleMenu);
+const menuToggle = document.getElementById("menu-toggle");
+if(menuToggle) menuToggle.addEventListener("click", toggleMenu);
+const sidebarToggle = document.getElementById("sidebar-toggle");
+if(sidebarToggle) sidebarToggle.addEventListener("click", toggleMenu);
 
 // Close sidebar when clicking outside on mobile
 document.addEventListener('click', function(event) {
@@ -670,8 +700,6 @@ function confirmBulkPaid() {
         }
     });
 }
-
-const allRooms = <?= json_encode($rooms_for_modal) ?>;
 
 function openApproveModal(resId, currentRoomId, roomType) {
     document.getElementById('approveResId').value = resId;

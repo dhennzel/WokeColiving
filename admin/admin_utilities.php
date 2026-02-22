@@ -84,6 +84,7 @@ $theme = get_theme_colors($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
             --primary-green: <?= $theme['primary'] ?>;
@@ -229,12 +230,12 @@ $theme = get_theme_colors($conn);
                                         <td><span class="badge <?= $row['status'] == 'Completed' ? 'bg-success' : 'bg-secondary' ?>"><?= $row['status'] ?></span></td>
                                         <td><?= $row['scheduled_date'] ? date('M d, Y', strtotime($row['scheduled_date'])) : '-' ?></td>
                                         <td class="text-end">
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Restore this request to Pending?')">
+                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this request to Pending?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="maintenance">
                                                 <button type="submit" name="archive_action" value="restore" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
                                             </form>
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Permanently delete this record?')">
+                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="maintenance">
                                                 <button type="submit" name="archive_action" value="delete" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
@@ -265,12 +266,12 @@ $theme = get_theme_colors($conn);
                                         <td><span class="badge <?= $row['status'] == 'Completed' ? 'bg-success' : 'bg-secondary' ?>"><?= $row['status'] ?></span></td>
                                         <td><?= $row['scheduled_date'] ? date('M d, Y', strtotime($row['scheduled_date'])) : '-' ?></td>
                                         <td class="text-end">
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Restore this request to Pending?')">
+                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this request to Pending?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="housekeeping">
                                                 <button type="submit" name="archive_action" value="restore" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
                                             </form>
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Permanently delete this record?')">
+                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="housekeeping">
                                                 <button type="submit" name="archive_action" value="delete" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
@@ -324,12 +325,12 @@ $theme = get_theme_colors($conn);
                                         <td><?= $row['room_type'] ?></td>
                                         <td>₱<?= number_format($row['total_price'], 2) ?></td>
                                         <td class="text-end">
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Restore this room?')">
+                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this room?')">
                                                 <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
                                                 <input type="hidden" name="type" value="room">
                                                 <button type="submit" name="archive_action" value="restore" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
                                             </form>
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Permanently delete this room?')">
+                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this room?')">
                                                 <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
                                                 <input type="hidden" name="type" value="room">
                                                 <button type="submit" name="archive_action" value="delete" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
@@ -404,6 +405,21 @@ if (hash) {
         var tab = new bootstrap.Tab(triggerEl);
         tab.show();
     }
+}
+
+function confirmForm(e, msg) {
+    e.preventDefault();
+    Swal.fire({
+        title: 'Are you sure?',
+        text: msg,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2e7d32',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, proceed!'
+    }).then((result) => {
+        if (result.isConfirmed) e.target.submit();
+    });
 }
 </script>
 </body>
