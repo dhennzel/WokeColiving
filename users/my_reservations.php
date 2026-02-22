@@ -347,6 +347,18 @@ $logs_query = mysqli_query($conn, "SELECT * FROM activity_logs WHERE user_id=$us
             })
             .catch(error => console.error('Error:', error));
     }
+
+    // Auto Refresh Logic
+    let lastUpdate = 0;
+    function checkUpdates() {
+        fetch('../check_updates.php')
+        .then(r => r.text())
+        .then(t => {
+            if(lastUpdate == 0) lastUpdate = t;
+            else if (t > lastUpdate) location.reload();
+        });
+    }
+    setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>
 </body>
 </html>

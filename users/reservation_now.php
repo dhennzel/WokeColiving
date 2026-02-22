@@ -301,6 +301,7 @@ if (isset($_POST['submit'])) {
                     // Log Activity
                     $log_action = $is_extension ? "Reservation Extended" : "Reservation Submitted";
                     log_activity($conn, $user_id, $log_action, "Room: $troom | Status: Pending");
+                    trigger_update($conn); // Auto-refresh admin view
 
                     // 2. Notify Admin (Simulated by sending to ID 1 or specific email)
                     // send_notification($conn, 1, "New Reservation from User #$user_id for $troom", "Admin Alert");

@@ -146,6 +146,7 @@ if(isset($_GET['action'])){
         header("Location: $redirect_url");
         exit;
     }
+    trigger_update($conn); // Auto-refresh user view
     header("Location: $redirect_url");
     exit;
 }
@@ -284,15 +285,7 @@ $theme = get_theme_colors($conn);
                             <?php while($res = mysqli_fetch_assoc($reservations)) { ?>
                             <tr>
                                 <td><div class="d-flex align-items-center"><div class="user-avatar"><?= strtoupper(substr($res['full_name'],0,1)) ?></div><div><div class="fw-bold"><?= $res['full_name'] ?> <div class="dropdown d-inline ms-1"><a href="#" class="text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v fa-sm"></i></a><ul class="dropdown-menu"><li><a class="dropdown-item" href="view_user.php?uid=<?= $res['user_id'] ?>"><i class="fas fa-eye me-2"></i>View History</a></li><li><a class="dropdown-item" href="?action=toggle_dnr&uid=<?= $res['user_id'] ?>"><i class="fas fa-flag me-2"></i><?= $res['do_not_renew'] ? 'Unflag DNR' : 'Flag DNR' ?></a></li></ul></div></div><small class="text-muted"><?= $res['email'] ?></small><?php if($res['do_not_renew']): ?><div class="badge bg-danger" style="font-size: 0.6rem;">Do Not Renew</div><?php endif; ?></div></div></td>
-                                <td>
-                                    <div class="d-flex align-items-center"><img src="../assets/images/<?= $res['image'] ?>" class="rounded me-2" style="width:40px;height:40px;object-fit:cover;">
-                                        <div>
-                                            <div class="fw-bold text-success"><?= $res['room_name'] ?></div>
-                                            <small class="text-muted"><?= $res['room_type'] ?></small>
-                                            <?php if(!empty($res['bed_preference']) && $res['bed_preference'] != 'Any'): ?><div class="badge bg-light text-dark border mt-1" style="font-size: 0.65rem;"><i class="fas fa-bed me-1"></i> <?= $res['bed_preference'] ?></div><?php endif; ?>
-                                        </div>
-                                    </div>
-                                </td>
+                                <td><div class="d-flex align-items-center"><img src="../assets/images/<?= $res['image'] ?>" class="rounded me-2" style="width:40px;height:40px;object-fit:cover;"><div><div class="fw-bold text-success"><?= $res['room_name'] ?></div><small class="text-muted"><?= $res['room_type'] ?></small></div></div></td>
                                 <td><div><i class="fas fa-calendar-alt text-muted me-1"></i> <?= $res['start_date'] ?></div><small class="text-muted"><?= $res['months'] ?> Month(s)</small></td>
                                 <td class="fw-bold">₱<?= number_format($res['total_price'],2) ?></td>
                                 <td><span class="badge <?= $res['status']=='Approved'?'badge-approved':($res['status']=='Cancelled'?'badge-cancelled':'badge-pending') ?> rounded-pill px-3"><?= $res['status'] ?></span></td>
@@ -342,6 +335,18 @@ $theme = get_theme_colors($conn);
             if (result.isConfirmed) window.location.href = url;
         });
     }
+
+    // Auto Refresh Logic
+    let lastUpdate = 0;
+    function checkUpdates() {
+        fetch('../check_updates.php')
+        .then(r => r.text())
+        .then(t => {
+            if(lastUpdate == 0) lastUpdate = t;
+            else if (t > lastUpdate) location.reload();
+        });
+    }
+    setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>
 </body>
 </html>
