@@ -41,7 +41,7 @@ function send_notification($conn, $user_id, $message, $type = 'System') {
 
     try {
         $msg_safe = mysqli_real_escape_string($conn, $message);
-        mysqli_query($conn, "INSERT INTO notifications (user_id, message, type) VALUES ('$user_id', '$msg_safe', '$type')");
+        mysqli_query($conn, "INSERT INTO notifications (user_id, message, type, created_at) VALUES ('$user_id', '$msg_safe', '$type', NOW())");
     } catch (mysqli_sql_exception $e) {
         // Handle missing 'message' column if table existed but was outdated
         if (strpos($e->getMessage(), "Unknown column 'message'") !== false) {
@@ -255,25 +255,13 @@ if($pay_query){
             log_activity($conn, $uid, "Penalty Applied", "Late fee of ".number_format($penalty_amount,2)." applied for Payment #$pid");
             send_notification($conn, $uid, "⚠️ <strong>Late Payment Penalty</strong><br>A penalty of ₱".number_format($penalty_amount,2)." has been applied to your account due to overdue payment.", "Billing Alert");
         }
-        // B. Send Warning if Overdue (every 6 hours)
+        // B. Send Warning if Overdue (every 4 hours)
         elseif($current_time > $due_timestamp){
-             $chk_warn = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND type = 'Payment Warning' AND message LIKE '%#$pid%' AND created_at > DATE_SUB(NOW(), INTERVAL 6 HOUR)");
+             $chk_warn = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND type = 'Payment Warning' AND created_at > DATE_SUB(NOW(), INTERVAL 4 HOUR)");
              if(mysqli_num_rows($chk_warn) == 0){
-                 $days_over = ceil(($current_time - $due_timestamp) / 86400);
-                 send_notification($conn, $uid, "⚠️ <strong>Payment Overdue</strong><br>Payment #$pid of ₱".number_format($amount,2)." is $days_over days overdue. Please pay immediately to avoid penalties.", "Payment Warning");
+                 $msg = "⚠️ <strong>Payment Overdue</strong><br>Your payment of ₱".number_format($amount,2)." was due on ".date('M d, Y', $due_timestamp).". Please pay immediately to avoid penalties.";
+                 send_notification($conn, $uid, $msg, "Payment Warning");
              }
         }
     }
 }
-
-// 6. Auto-complete Approved reservations (End of Contract)
-$complete_query = mysqli_query($conn, "SELECT reservation_id, user_id FROM reservations WHERE status='Approved' AND end_date < CURDATE()");
-if($complete_query){
-    while($row = mysqli_fetch_assoc($complete_query)){
-        $rid = $row['reservation_id'];
-        $uid = $row['user_id'];
-        mysqli_query($conn, "UPDATE reservations SET status='Completed' WHERE reservation_id=$rid");
-        log_activity($conn, $uid, "Contract Completed", "Reservation #$rid auto-completed (End date passed).");
-    }
-}
-?>

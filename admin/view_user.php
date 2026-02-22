@@ -116,7 +116,7 @@ if($end_date){
 
 // Fetch Payment History
 $pay_query = mysqli_query($conn, "
-    SELECT p.*, r.reservation_id, r.start_date, rm.room_name, rm.room_type 
+    SELECT p.*, r.reservation_id, rm.room_name, rm.room_type 
     FROM payments p 
     JOIN reservations r ON p.reservation_id = r.reservation_id 
     LEFT JOIN rooms rm ON r.room_id = rm.room_id 
@@ -133,6 +133,24 @@ mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )");
 $logs_query = mysqli_query($conn, "SELECT * FROM activity_logs WHERE user_id=$uid ORDER BY created_at DESC");
+
+// Fetch Expiring Contracts for this User (Approved and ending within 7 days or already ended)
+$expiring_query = mysqli_query($conn, "
+    SELECT r.*, rm.room_name 
+    FROM reservations r 
+    JOIN rooms rm ON r.room_id = rm.room_id 
+    WHERE r.user_id = $uid 
+    AND r.status = 'Approved' 
+    AND r.end_date <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+    ORDER BY r.end_date ASC
+");
+
+// Determine active tab
+$active_tab = 'reservations';
+if(isset($_GET['pay_status']) || isset($_GET['start_date']) || isset($_GET['end_date']) || (isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid')){
+    $active_tab = 'payments';
+}
+
 $theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
@@ -177,6 +195,11 @@ $theme = get_theme_colors($conn);
             #menu-toggle { display: inline-block; }
             #wrapper.toggled #menu-toggle { display: none; }
         }
+        .nav-tabs .nav-link { color: var(--dark-green); border: none; border-bottom: 3px solid transparent; padding-bottom: 10px; }
+        .nav-tabs .nav-link.active { color: var(--primary-green); border-bottom: 3px solid var(--primary-green); background: transparent; font-weight: bold; }
+        .nav-tabs .nav-link:hover { border-color: transparent; color: var(--primary-green); }
+        .profile-header { background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+        .avatar-circle { width: 80px; height: 80px; font-size: 2rem; background-color: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -223,50 +246,99 @@ $theme = get_theme_colors($conn);
     <!-- Page Content -->
     <div id="page-content-wrapper">
         <div class="container-fluid px-4 py-4 reveal">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div class="d-flex align-items-center">
-                    <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
-                        <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
-                    </a>
-                    <h4 class="fw-bold mb-0" style="color: var(--dark-green);">User Profile: <?= htmlspecialchars($user['full_name']) ?></h4>
+            
+            <!-- Minimal Profile Header -->
+            <div class="profile-header p-4 mb-4 d-flex flex-wrap align-items-center gap-4">
+                <div class="position-relative">
+                    <div class="avatar-circle">
+                        <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
+                    </div>
+                    <?php if($user['do_not_renew']): ?>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-white">DNR</span>
+                    <?php endif; ?>
                 </div>
-            <a href="booking_management.php" class="btn btn-outline-secondary rounded-pill">&larr; Back to Bookings</a>
+                <div class="flex-grow-1">
+                    <h3 class="fw-bold mb-1 text-dark"><?= htmlspecialchars($user['full_name']) ?></h3>
+                    <div class="d-flex flex-wrap gap-3 text-muted small">
+                        <span><i class="fas fa-envelope me-1"></i> <?= htmlspecialchars($user['email']) ?></span>
+                        <span><i class="fas fa-phone me-1"></i> <?= htmlspecialchars($user['phone_number']) ?></span>
+                        <span><i class="fas fa-calendar me-1"></i> Joined <?= date('M d, Y', strtotime($user['created_at'])) ?></span>
+                        <span><i class="fas fa-id-badge me-1"></i> ID: #<?= $user['user_id'] ?></span>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <a href="booking_management.php" class="btn btn-outline-secondary rounded-pill btn-sm"><i class="fas fa-arrow-left me-1"></i> Back</a>
+                    <form method="POST" id="deleteUserForm" class="d-inline">
+                        <input type="hidden" name="user_id" value="<?= $user['user_id'] ?>">
+                        <input type="hidden" name="delete_user" value="1">
+                        <button type="button" class="btn btn-outline-danger rounded-pill btn-sm" onclick="confirmDeleteUser()"><i class="fas fa-trash-alt me-1"></i> Delete</button>
+                    </form>
+                </div>
             </div>
             
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid'): ?>
                 <div class="alert alert-success">Selected payments marked as paid successfully.</div>
             <?php endif; ?>
 
-            <div class="row">
-                <!-- User Details -->
-                <div class="col-md-4 mb-4">
-                    <div class="card user-card p-4 h-100">
-                        <div class="text-center mb-3">
-                            <div class="text-white rounded-circle d-flex align-items-center justify-content-center mx-auto" style="width: 80px; height: 80px; font-size: 2rem; background-color: var(--primary-green);">
-                                <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
-                            </div>
-                            <h5 class="fw-bold mt-3"><?= htmlspecialchars($user['full_name']) ?></h5>
-                            <p class="text-muted"><?= htmlspecialchars($user['email']) ?></p>
-                            <?php if($user['do_not_renew']): ?>
-                                <span class="badge bg-danger">Do Not Renew Flagged</span>
-                            <?php endif; ?>
-                        </div>
-                        <hr>
-                        <p><strong>Phone:</strong> <?= htmlspecialchars($user['phone_number']) ?></p>
-                        <p><strong>Joined:</strong> <?= date('M d, Y', strtotime($user['created_at'])) ?></p>
-                        <p><strong>User ID:</strong> #<?= $user['user_id'] ?></p>
-                        <form method="POST" class="mt-4" id="deleteUserForm">
-                            <input type="hidden" name="user_id" value="<?= $user['user_id'] ?>">
-                            <input type="hidden" name="delete_user" value="1">
-                            <button type="button" class="btn btn-outline-danger w-100" onclick="confirmDeleteUser()"><i class="fas fa-trash-alt me-2"></i>Delete User Account</button>
-                        </form>
+            <!-- Expiring Contracts Alert -->
+            <?php if(mysqli_num_rows($expiring_query) > 0): ?>
+            <div class="card border-danger mb-4 shadow-sm card-table overflow-hidden">
+                <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-exclamation-triangle me-2"></i> Expiring & Expired Contracts (Action Required)</span>
+                    <span class="badge bg-white text-danger"><?= mysqli_num_rows($expiring_query) ?></span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle table-borderless">
+                            <thead class="bg-light text-dark">
+                                <tr>
+                                    <th>Room</th>
+                                    <th>End Date</th>
+                                    <th>Days Left</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php while($exp = mysqli_fetch_assoc($expiring_query)): 
+                                    $days_left = (strtotime($exp['end_date']) - time()) / (60 * 60 * 24);
+                                    $days_left = ceil($days_left);
+                                    $status_text = $days_left < 0 ? "Expired " . abs($days_left) . " days ago" : ($days_left == 0 ? "Expires Today" : "$days_left days left");
+                                    $text_class = $days_left <= 0 ? "text-danger fw-bold" : "text-warning fw-bold";
+                                ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($exp['room_name']) ?></td>
+                                    <td><?= $exp['end_date'] ?></td>
+                                    <td class="<?= $text_class ?>"><?= $status_text ?></td>
+                                    <td class="text-end">
+                                        <button onclick="renewContract(<?= $exp['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt me-1"></i> Renew</button>
+                                        <a href="booking_management.php?action=terminate&id=<?= $exp['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract? This will mark it as Completed.')"><i class="fas fa-file-contract me-1"></i> End Contract</a>
+                                    </td>
+                                </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+            </div>
+            <?php endif; ?>
 
-                <!-- Reservation History -->
-                <div class="col-md-8 mb-4">
-                    <div class="card user-card p-4">
-                        <h5 class="fw-bold mb-3">Reservation History</h5>
+            <!-- Tabs Section -->
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
+                    <ul class="nav nav-tabs" id="userTabs" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link <?= $active_tab == 'reservations' ? 'active' : '' ?>" id="res-tab" data-bs-toggle="tab" data-bs-target="#reservations" type="button">Reservations</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link <?= $active_tab == 'payments' ? 'active' : '' ?>" id="pay-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button">Payments</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body p-4">
+                    <div class="tab-content" id="userTabsContent">
+                        
+                        <!-- Reservations Tab -->
+                        <div class="tab-pane fade <?= $active_tab == 'reservations' ? 'show active' : '' ?>" id="reservations" role="tabpanel">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle">
                                 <thead>
@@ -317,14 +389,12 @@ $theme = get_theme_colors($conn);
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-                </div>
-            </div>
+                        </div>
 
-            <!-- Payment History -->
-            <div class="card user-card p-4 mb-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0">Payment History</h5>
+                        <!-- Payments Tab -->
+                        <div class="tab-pane fade <?= $active_tab == 'payments' ? 'show active' : '' ?>" id="payments" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold mb-0 text-muted">Transaction History</h6>
                     <form method="GET" class="d-flex gap-2 align-items-center">
                         <input type="hidden" name="uid" value="<?= $uid ?>">
                         <input type="date" name="start_date" class="form-control form-control-sm" value="<?= $start_date ?>" title="Start Date">
@@ -340,7 +410,7 @@ $theme = get_theme_colors($conn);
                             <a href="view_user.php?uid=<?= $uid ?>" class="btn btn-sm btn-outline-secondary">Reset</a>
                         <?php endif; ?>
                     </form>
-                </div>
+                            </div>
                 <form method="POST" id="bulkForm">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
@@ -363,15 +433,7 @@ $theme = get_theme_colors($conn);
                                 $total_amount += $pay['amount'];
                             ?>
                             <?php
-                                // Determine due date: Contract Start Date for Room Payments, Bill Date for others
-                                $desc_val = $pay['description'] ?? '';
-                                $is_room_payment = (stripos($desc_val, 'Room Payment') !== false);
-                                $due_timestamp = ($is_room_payment && !empty($pay['start_date'])) ? strtotime($pay['start_date']) : strtotime($pay['payment_date']);
-                                
-                                // Grace period of 5 days
-                                $overdue_timestamp = $due_timestamp + (5 * 86400);
-                                
-                                $is_overdue = ($pay['payment_status'] == 'Unpaid' && time() > $overdue_timestamp);
+                                $is_overdue = ($pay['payment_status'] == 'Unpaid' && strtotime($pay['payment_date']) < strtotime('-5 days'));
                                 $row_class = $is_overdue ? 'table-danger' : '';
                                 $desc = !empty($pay['description']) ? $pay['description'] : 'Room Payment';
                                 $room_info = $pay['room_name'] ? htmlspecialchars($pay['room_name']) . ' <small class="text-muted">('.$pay['room_type'].')</small>' : '<span class="text-muted">Unknown Room</span>';
@@ -418,6 +480,9 @@ $theme = get_theme_colors($conn);
                     <button type="button" class="btn btn-sm btn-success" onclick="confirmBulkPaid()"><i class="fas fa-check-double me-1"></i> Mark Selected as Paid</button>
                 </div>
                 </form>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
