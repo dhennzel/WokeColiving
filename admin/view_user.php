@@ -306,7 +306,12 @@ $theme = get_theme_colors($conn);
                                     $text_class = $days_left <= 0 ? "text-danger fw-bold" : "text-warning fw-bold";
                                 ?>
                                 <tr>
-                                    <td><?= htmlspecialchars($exp['room_name']) ?></td>
+                                    <td>
+                                        <?= htmlspecialchars($exp['room_name']) ?>
+                                        <?php if(!empty($exp['bed_preference']) && $exp['bed_preference'] != 'Any'): ?>
+                                            <div class="small text-muted"><i class="fas fa-bed"></i> <?= $exp['bed_preference'] ?></div>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><?= $exp['end_date'] ?></td>
                                     <td class="<?= $text_class ?>"><?= $status_text ?></td>
                                     <td class="text-end">
@@ -355,7 +360,12 @@ $theme = get_theme_colors($conn);
                                     <?php while($row = mysqli_fetch_assoc($res_query)): ?>
                                     <tr>
                                         <td>#<?= $row['reservation_id'] ?></td>
-                                        <td><?= $row['room_name'] ?> <small class="text-muted">(<?= $row['room_type'] ?>)</small></td>
+                                        <td>
+                                            <?= $row['room_name'] ?> <small class="text-muted">(<?= $row['room_type'] ?>)</small>
+                                            <?php if(!empty($row['bed_preference']) && $row['bed_preference'] != 'Any'): ?>
+                                                <div class="badge bg-light text-dark border mt-1"><i class="fas fa-bed me-1"></i> <?= $row['bed_preference'] ?></div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <small>In: <?= $row['start_date'] ?></small><br>
                                             <small>Out: <?= $row['end_date'] ?></small>
