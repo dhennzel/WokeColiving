@@ -8,13 +8,6 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
     exit;
 }
 
-// Fetch Rooms for Approval Modal
-$rooms_for_modal = [];
-$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor FROM rooms WHERE availability != 'Maintenance' ORDER BY floor, room_number");
-while($r = mysqli_fetch_assoc($rfm_q)){
-    $rooms_for_modal[] = $r;
-}
-
 // Handle Approve with Room Selection (POST)
 if(isset($_POST['confirm_approve'])){
     $reservation_id = (int)$_POST['reservation_id'];
@@ -302,10 +295,13 @@ $theme = get_theme_colors($conn);
                                 <td><?php if(!empty($res['signature_image'])) { ?><a href="view_receipt.php?id=<?= $res['reservation_id'] ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-signature"></i> View</a><?php } else { ?>-<?php } ?></td>
                                 <td class="text-end">
                                     <?php if($res['status'] == 'Pending'): ?>
-                                        <button type="button" class="btn btn-sm btn-success" title="Approve" onclick="openApproveModal(<?= $res['reservation_id'] ?>, <?= $res['room_id'] ?>, '<?= $res['room_type'] ?>')"><i class="fas fa-check"></i></button>
-                                        <a href="?action=reject&id=<?= $res['reservation_id'] ?>" class="btn btn-sm btn-danger" title="Reject" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
+                                        <a href="view_user.php?uid=<?= $res['user_id'] ?>" class="btn btn-sm btn-warning position-relative fw-bold text-dark" title="Action Required">
+                                            <i class="fas fa-exclamation-circle me-1"></i> Review Request
+                                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="view_user.php?uid=<?= $res['user_id'] ?>" class="btn btn-sm btn-info text-white" title="View Profile"><i class="fas fa-user"></i> View Profile</a>
                                     <?php endif; ?>
-                                    <a href="view_user.php?uid=<?= $res['user_id'] ?>" class="btn btn-sm btn-info text-white" title="View Profile"><i class="fas fa-user"></i></a>
                                 </td>
                             </tr>
                             <?php } ?>
@@ -313,32 +309,6 @@ $theme = get_theme_colors($conn);
                     </table>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Approve Modal -->
-<div class="modal fade" id="approveModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold"><i class="fas fa-check-circle me-2"></i>Approve Reservation</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST">
-                <div class="modal-body">
-                    <input type="hidden" name="reservation_id" id="approveResId">
-                    <p>Please confirm the room assignment before approving.</p>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Assign Room / Floor</label>
-                        <select name="room_id" id="approveRoomSelect" class="form-select" required></select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" name="confirm_approve" class="btn btn-success fw-bold">Confirm & Approve</button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
@@ -355,42 +325,6 @@ $theme = get_theme_colors($conn);
         icon: 'success'
     });
     <?php endif; ?>
-
-    const allRooms = <?= json_encode($rooms_for_modal) ?>;
-
-    function openApproveModal(resId, currentRoomId, roomType) {
-        document.getElementById('approveResId').value = resId;
-        const select = document.getElementById('approveRoomSelect');
-        select.innerHTML = '';
-
-        allRooms.forEach(room => {
-            // Filter by room type to ensure compatibility
-            if(room.room_type === roomType) {
-                let option = document.createElement('option');
-                option.value = room.room_id;
-                option.text = `Room ${room.room_number || ''} (${room.room_name}) - ${room.floor}th Floor`;
-                if(room.room_id == currentRoomId) option.selected = true;
-                select.appendChild(option);
-            }
-        });
-        new bootstrap.Modal(document.getElementById('approveModal')).show();
-    }
-
-    function confirmAction(e, url, msg) {
-        e.preventDefault();
-        const isDestructive = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('end') || msg.toLowerCase().includes('delete') || msg.toLowerCase().includes('terminate');
-        Swal.fire({
-            title: 'Are you sure?',
-            text: msg,
-            icon: isDestructive ? 'warning' : 'question',
-            showCancelButton: true,
-            confirmButtonColor: isDestructive ? '#d33' : '#2e7d32',
-            cancelButtonColor: isDestructive ? '#3085d6' : '#d33',
-            confirmButtonText: 'Yes, proceed!'
-        }).then((result) => {
-            if (result.isConfirmed) window.location.href = url;
-        });
-    }
 
     // Auto Refresh Logic
     let lastUpdate = 0;
