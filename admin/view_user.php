@@ -397,7 +397,7 @@ $theme = get_theme_colors($conn);
                                                     <form method="POST" action="booking_management.php" class="d-inline" onsubmit="confirmForm(event, 'Approve this extension request?')">
                                                         <input type="hidden" name="reservation_id" value="<?= $row['reservation_id'] ?>">
                                                         <input type="hidden" name="room_id" value="<?= $row['room_id'] ?>">
-                                                        <input type="hidden" name="redirect_url" value="view_user.php?uid=<?= $uid ?>">
+                                                        <input type="hidden" name="redirect_url" value="booking_management.php?msg=extended">
                                                         <button type="submit" name="confirm_approve" class="btn btn-sm btn-success" title="Approve Extension"><i class="fas fa-check"></i></button>
                                                     </form>
                                                 <?php else: ?>
@@ -530,7 +530,7 @@ $theme = get_theme_colors($conn);
             <form method="POST" action="booking_management.php">
                 <div class="modal-body">
                     <input type="hidden" name="reservation_id" id="approveResId">
-                    <input type="hidden" name="redirect_url" value="view_user.php?uid=<?= $uid ?>">
+                    <input type="hidden" name="redirect_url" value="booking_management.php?msg=approved">
                     <p>Please confirm the room assignment before approving.</p>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Assign Room / Floor</label>

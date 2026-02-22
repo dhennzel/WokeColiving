@@ -39,6 +39,7 @@ if(isset($_POST['confirm_approve'])){
         mysqli_query($conn, "DELETE FROM reservations WHERE reservation_id=$reservation_id");
         
         log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated. Assigned Room ID: $new_room_id");
+        send_notification($conn, $target_user_id, "🔄 <strong>Stay Extended!</strong><br>Your extension request has been approved.", "Extension Approved");
     } else {
         // NORMAL APPROVAL
         mysqli_query($conn, "UPDATE reservations SET status='Approved', room_id=$new_room_id WHERE reservation_id=$reservation_id");
@@ -322,6 +323,22 @@ $theme = get_theme_colors($conn);
     Swal.fire({
         title: 'Deleted!',
         text: 'User account has been permanently deleted.',
+        icon: 'success'
+    });
+    <?php endif; ?>
+    
+    <?php if(isset($_GET['msg']) && $_GET['msg'] == 'approved'): ?>
+    Swal.fire({
+        title: 'Approved!',
+        text: 'Reservation has been successfully approved.',
+        icon: 'success'
+    });
+    <?php endif; ?>
+    
+    <?php if(isset($_GET['msg']) && $_GET['msg'] == 'extended'): ?>
+    Swal.fire({
+        title: 'Extended!',
+        text: 'Reservation extension has been successfully approved.',
         icon: 'success'
     });
     <?php endif; ?>
