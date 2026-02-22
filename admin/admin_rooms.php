@@ -41,17 +41,13 @@ $sql = "SELECT * FROM rooms WHERE is_archived='0'";
 if($floor_filter > 0){
     $sql .= " AND floor = $floor_filter";
 }
-$sql .= " ORDER BY floor ASC, room_name ASC";
+$sql .= " ORDER BY room_type ASC, floor ASC, room_number ASC";
 $rooms = mysqli_query($conn, $sql);
 
-// Pre-fetch active requests for mapping visualization
-$active_maint = [];
-$mq = mysqli_query($conn, "SELECT room_id, COUNT(*) as cnt FROM maintenance_requests WHERE status IN ('Pending', 'Scheduled') GROUP BY room_id");
-while($r = mysqli_fetch_assoc($mq)) $active_maint[$r['room_id']] = $r['cnt'];
-
-$active_house = [];
-$hq = mysqli_query($conn, "SELECT room_id, COUNT(*) as cnt FROM housekeeping_requests WHERE status IN ('Pending', 'Scheduled') GROUP BY room_id");
-while($r = mysqli_fetch_assoc($hq)) $active_house[$r['room_id']] = $r['cnt'];
+$grouped_rooms = [];
+while($row = mysqli_fetch_assoc($rooms)){
+    $grouped_rooms[$row['room_type']][] = $row;
+}
 
 $theme = get_theme_colors($conn);
 ?>
@@ -91,14 +87,8 @@ $theme = get_theme_colors($conn);
         .card-room { border: none; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); transition: .3s; overflow: hidden; background: white; }
         .card-room:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
         .card-room img { height: 200px; object-fit: cover; width: 100%; }
+        .card-room-summary { cursor: pointer; }
         .price-tag { font-size: 1.2rem; font-weight: bold; color: var(--primary-green); font-family: 'Playfair Display', serif; }
-        
-        /* Status Indicators */
-        .status-indicator { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; }
-        .status-badge { font-size: 0.75rem; padding: 5px 10px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .border-maint { border-left: 5px solid #dc3545 !important; }
-        .border-house { border-left: 5px solid #0dcaf0 !important; }
-        
         .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
         .btn-custom:hover { background-color: #f9a825; }
         .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
@@ -181,124 +171,179 @@ $theme = get_theme_colors($conn);
     </div>
 
     <div class="row g-4">
-        <?php 
-        $current_floor = 0;
-        while($room = mysqli_fetch_assoc($rooms)) { 
-            $floor = $room['floor'] ?? 2; // Default to 2 if null
-            // Calculate Dynamic Availability
-            $room_id = $room['room_id'];
-            $total_beds = $room['total_beds'];
-            $room_type = $room['room_type'];
-            $m_cnt = $active_maint[$room_id] ?? 0;
-            $h_cnt = $active_house[$room_id] ?? 0;
+        <?php foreach($grouped_rooms as $type => $rooms_in_type): 
+            // Calculate Aggregate Stats
+            $type_total_beds = 0;
+            $type_avail_beds = 0;
+            $first_room = $rooms_in_type[0];
+            $image = $first_room['image'];
+            $price = $first_room['total_price'];
             
-            $is_shared = ($room_type == '4-Bed' || $room_type == '6-Bed');
-            
-            // Count occupied beds based on active reservations
-            $occ_q = mysqli_query($conn, "SELECT bed_preference, count(*) as cnt FROM reservations WHERE room_id=$room_id AND status IN ('Pending','Approved') AND start_date <= CURDATE() AND end_date > CURDATE() GROUP BY bed_preference");
-            $occupied_count = 0;
-            $taken_upper = 0;
-            $taken_lower = 0;
-            $taken_any = 0;
-            
-            while($occ = mysqli_fetch_assoc($occ_q)){
-                $occupied_count += $occ['cnt'];
-                if($occ['bed_preference'] == 'Upper Bunk') $taken_upper += $occ['cnt'];
-                elseif($occ['bed_preference'] == 'Lower Bunk') $taken_lower += $occ['cnt'];
-                else $taken_any += $occ['cnt'];
-            }
-            
-            $available_beds = max(0, $total_beds - $occupied_count);
-            
-            // Calculate specific bed availability for shared rooms
-            $cap_upper = floor($total_beds / 2);
-            $cap_lower = ceil($total_beds / 2);
-            
-            $avail_upper = max(0, $cap_upper - $taken_upper);
-            $avail_lower = max(0, $cap_lower - $taken_lower);
-            
-            // Distribute 'Any' bookings (fill lower first logic)
-            if($taken_any > 0) {
-                $fill_lower = min($avail_lower, $taken_any);
-                $avail_lower -= $fill_lower;
-                $taken_any -= $fill_lower;
+            // Pre-calculate availability for all rooms in this type
+            foreach($rooms_in_type as $key => $room) {
+                $room_id = $room['room_id'];
+                $occ_q = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM reservations WHERE room_id=$room_id AND status IN ('Pending','Approved') AND start_date <= CURDATE() AND end_date > CURDATE()");
+                $occ = mysqli_fetch_assoc($occ_q);
+                $avail = max(0, $room['total_beds'] - $occ['cnt']);
+                if($room['availability'] == 'Maintenance') $avail = 0;
                 
-                $avail_upper -= $taken_any; // Remaining goes to upper
-                $avail_upper = max(0, $avail_upper);
+                $type_total_beds += $room['total_beds'];
+                $type_avail_beds += $avail;
             }
-
-            // Override if Maintenance
-            if($room['availability'] == 'Maintenance') {
-                $available_beds = 0;
-                $avail_upper = 0;
-                $avail_lower = 0;
-            }
-
-            if($floor != $current_floor){
-                $current_floor = $floor;
-                $suffix = ($floor == 2) ? 'nd' : (($floor == 3) ? 'rd' : 'th');
-                echo '<div class="col-12 mt-4"><h5 class="fw-bold text-secondary border-bottom pb-2"><i class="fas fa-layer-group me-2"></i>'.$floor.$suffix.' Floor</h5></div>';
-            }
-            
-            // Determine card border class based on status
-            $border_class = "";
-            if($m_cnt > 0) $border_class = "border-maint";
-            elseif($h_cnt > 0) $border_class = "border-house";
         ?>
+        <!-- Summary Card -->
         <div class="col-md-4">
-            <div class="card card-room h-100 <?= $border_class ?>">
-                <div class="position-relative">
-                <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>">
-                <div class="status-indicator">
-                    <?php if($m_cnt > 0): ?>
-                        <span class="badge bg-danger status-badge" title="Active Maintenance Requests"><i class="fas fa-tools"></i> <?= $m_cnt ?></span>
-                    <?php endif; ?>
-                    <?php if($h_cnt > 0): ?>
-                        <span class="badge bg-info text-dark status-badge" title="Active Housekeeping Requests"><i class="fas fa-broom"></i> <?= $h_cnt ?></span>
-                    <?php endif; ?>
-                </div>
-                </div>
-                <div class="card-body d-flex flex-column">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title fw-bold text-dark">Room <?= htmlspecialchars($room['room_number'] ?? '') ?> <small class="text-muted fs-6">(<?= $room['room_name'] ?>)</small></h5>
-                        <span class="badge bg-secondary"><?= $room['room_type'] ?></span>
+            <div class="card card-room card-room-summary h-100" onclick="openTypeModal('<?= md5($type) ?>')">
+                <img src="../assets/images/<?= $image ?>" alt="<?= $type ?>">
+                <div class="card-body text-center">
+                    <h3 class="fw-bold text-dark mb-2"><?= $type ?></h3>
+                    <p class="price-tag mb-2">₱<?= number_format($price, 2) ?> <small class="text-muted fs-6">/mo</small></p>
+                    <div class="d-flex justify-content-center gap-3 text-muted small mb-3">
+                        <span><i class="fas fa-door-open me-1"></i> <?= count($rooms_in_type) ?> Rooms</span>
+                        <span><i class="fas fa-bed me-1"></i> <?= $type_total_beds ?> Beds</span>
                     </div>
-                <p class="price-tag mb-1">₱<?= number_format($room['total_price'],2) ?> <small class="text-muted fs-6">/mo</small></p>
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between small text-muted mb-1">
-                            <span><i class="fas fa-bed me-1"></i> Total Beds: <?= $room['total_beds'] ?></span>
-                            <?php if($room['availability'] == 'Maintenance'): ?>
-                                <span class="badge bg-warning text-dark">Maintenance</span>
-                            <?php else: ?>
-                                <span class="<?= $available_beds > 0 ? 'text-success' : 'text-danger' ?> fw-bold"><?= $available_beds ?> Available</span>
-                            <?php endif; ?>
-                        </div>
-                        <?php if($is_shared && $room['availability'] != 'Maintenance'): ?>
-                        <div class="bg-light p-2 rounded small">
-                            <div class="d-flex justify-content-between">
-                                <span>Upper:</span> <span class="<?= $avail_upper > 0 ? 'text-success' : 'text-danger' ?> fw-bold"><?= $avail_upper ?> left</span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span>Lower:</span> <span class="<?= $avail_lower > 0 ? 'text-success' : 'text-danger' ?> fw-bold"><?= $avail_lower ?> left</span>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="d-grid gap-2 mt-auto">
-                        <a href="edit_room.php?id=<?= $room['room_id'] ?>" class="btn btn-outline-success fw-bold">Edit Details</a>
-                        <a href="admin_rooms.php?archive_id=<?= $room['room_id'] ?>" class="btn btn-outline-danger fw-bold" onclick="confirmArchive(event, this.href)">Archive Room</a>
+                    <div class="alert <?= $type_avail_beds > 0 ? 'alert-success' : 'alert-danger' ?> py-2 mb-0 fw-bold">
+                        <?= $type_avail_beds ?> Beds Available
                     </div>
                 </div>
             </div>
         </div>
-        <?php } ?>
+        <?php endforeach; ?>
     </div>
         </div>
     </div>
 </div>
 
+<!-- Modals placed outside the reveal container -->
+<?php foreach($grouped_rooms as $type => $rooms_in_type): ?>
+<div class="modal fade" id="modal_<?= md5($type) ?>" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content bg-light">
+            <div class="modal-header bg-white">
+                <h5 class="modal-title fw-bold text-success"><i class="fas fa-layer-group me-2"></i><?= $type ?> Inventory</h5>
+                <div class="d-flex align-items-center ms-auto me-3">
+                    <label class="small fw-bold me-2 text-muted">Filter:</label>
+                    <select class="form-select form-select-sm" onchange="filterModalRooms(this, '<?= md5($type) ?>')">
+                        <option value="all">All Floors</option>
+                        <?php for($i=2; $i<=7; $i++): ?>
+                            <option value="<?= $i ?>"><?= $i ?>th Floor</option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-4">
+                    <?php foreach($rooms_in_type as $room): 
+    // Detailed Calculation for Individual Room
+    $floor = $room['floor'] ?? 2;
+    // Calculate Dynamic Availability
+    $room_id = $room['room_id'];
+    $total_beds = $room['total_beds'];
+    $room_type = $room['room_type'];
+    $room_display_name = $room['room_number'] ? "Room " . $room['room_number'] : $room['room_name'];
+    $is_shared = ($room_type == '4-Bed' || $room_type == '6-Bed');
+    
+    // Count occupied beds based on active reservations
+    $occ_q = mysqli_query($conn, "SELECT bed_preference, count(*) as cnt FROM reservations WHERE room_id=$room_id AND status IN ('Pending','Approved') AND start_date <= CURDATE() AND end_date > CURDATE() GROUP BY bed_preference");
+    $occupied_count = 0;
+    $taken_upper = 0;
+    $taken_lower = 0;
+    $taken_any = 0;
+    
+    while($occ = mysqli_fetch_assoc($occ_q)){
+        $occupied_count += $occ['cnt'];
+        if($occ['bed_preference'] == 'Upper Bunk') $taken_upper += $occ['cnt'];
+        elseif($occ['bed_preference'] == 'Lower Bunk') $taken_lower += $occ['cnt'];
+        else $taken_any += $occ['cnt'];
+    }
+    
+    $available_beds = max(0, $total_beds - $occupied_count);
+    
+    // Calculate specific bed availability for shared rooms
+    $cap_upper = floor($total_beds / 2);
+    $cap_lower = ceil($total_beds / 2);
+    
+    $avail_upper = max(0, $cap_upper - $taken_upper);
+    $avail_lower = max(0, $cap_lower - $taken_lower);
+    
+    // Distribute 'Any' bookings (fill lower first logic)
+    if($taken_any > 0) {
+        $fill_lower = min($avail_lower, $taken_any);
+        $avail_lower -= $fill_lower;
+        $taken_any -= $fill_lower;
+        
+        $avail_upper -= $taken_any; // Remaining goes to upper
+        $avail_upper = max(0, $avail_upper);
+    }
+
+    // Override if Maintenance
+    if($room['availability'] == 'Maintenance') {
+        $available_beds = 0;
+        $avail_upper = 0;
+        $avail_lower = 0;
+    }
+                    ?>
+                    <div class="col-md-6 col-lg-4 room-card-item" data-floor="<?= $floor ?>">
+    <div class="card card-room h-100">
+        <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>">
+        <div class="card-body d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h5 class="card-title fw-bold text-dark"><?= $room_display_name ?></h5>
+                <span class="badge bg-light text-dark border"><?= $floor ?>F</span>
+            </div>
+        <p class="price-tag mb-1">₱<?= number_format($room['total_price'],2) ?> <small class="text-muted fs-6">/mo</small></p>
+            <div class="mb-3">
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                    <span><i class="fas fa-bed me-1"></i> Total Beds: <?= $room['total_beds'] ?></span>
+                    <?php if($room['availability'] == 'Maintenance'): ?>
+                        <span class="badge bg-warning text-dark">Maintenance</span>
+                    <?php else: ?>
+                        <span class="<?= $available_beds > 0 ? 'text-success' : 'text-danger' ?> fw-bold"><?= $available_beds ?> Available</span>
+                    <?php endif; ?>
+                </div>
+                <?php if($is_shared && $room['availability'] != 'Maintenance'): ?>
+                <div class="bg-light p-2 rounded small">
+                    <div class="d-flex justify-content-between">
+                        <span>Upper:</span> <span class="<?= $avail_upper > 0 ? 'text-success' : 'text-danger' ?> fw-bold"><?= $avail_upper ?> left</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Lower:</span> <span class="<?= $avail_lower > 0 ? 'text-success' : 'text-danger' ?> fw-bold"><?= $avail_lower ?> left</span>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </div>
+            <div class="d-grid gap-2 mt-auto">
+                <a href="edit_room.php?id=<?= $room['room_id'] ?>" class="btn btn-outline-success fw-bold">Edit Details</a>
+                <a href="admin_rooms.php?archive_id=<?= $room['room_id'] ?>" class="btn btn-outline-danger fw-bold" onclick="confirmArchive(event, this.href)">Archive Room</a>
+            </div>
+        </div>
+    </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endforeach; ?>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+function filterModalRooms(select, typeId) {
+    const floor = select.value;
+    const modal = document.getElementById('modal_' + typeId);
+    const items = modal.querySelectorAll('.room-card-item');
+    
+    items.forEach(item => {
+        if(floor === 'all' || item.getAttribute('data-floor') === floor) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
 function confirmArchive(e, url) {
     e.preventDefault();
     Swal.fire({
@@ -312,6 +357,10 @@ function confirmArchive(e, url) {
     }).then((result) => {
         if (result.isConfirmed) window.location.href = url;
     });
+}
+
+function openTypeModal(id) {
+    new bootstrap.Modal(document.getElementById('modal_' + id)).show();
 }
 
 function toggleMenu(e) {

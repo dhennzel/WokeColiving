@@ -167,6 +167,12 @@ if(mysqli_num_rows($check_col_floor) == 0) {
     mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN floor INT DEFAULT 2");
 }
 
+// Ensure room_number column exists in rooms table
+$check_col_rn = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'room_number'");
+if(mysqli_num_rows($check_col_rn) == 0) {
+    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN room_number VARCHAR(50) DEFAULT NULL AFTER room_name");
+}
+
 // Ensure notifications table exists and is correct before use in automated tasks
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
