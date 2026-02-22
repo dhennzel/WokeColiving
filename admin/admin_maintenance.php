@@ -100,6 +100,12 @@ while($ar = mysqli_fetch_assoc($avail_rooms_q)){
         $room_options .= "<option value='".$ar['room_id']."'>".$ar['room_name']." (".$ar['room_type'].") - $slots beds free</option>";
     }
 }
+
+// Fetch Pending Counts for Sidebar
+$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
+$pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
+
 $theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
@@ -159,7 +165,12 @@ $theme = get_theme_colors($conn);
         </div>
         <div class="list-group list-group-flush py-3">
             <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
-            <a href="booking_management.php" class="sidebar-link"><i class="fas fa-calendar-check me-2"></i>Bookings</a>
+            <a href="booking_management.php" class="sidebar-link d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
+                <?php if($pending_res > 0): ?>
+                    <span class="badge bg-danger rounded-pill"><?= $pending_res ?></span>
+                <?php endif; ?>
+            </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
             
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="true" aria-controls="utilitiesSubmenu">
@@ -168,8 +179,18 @@ $theme = get_theme_colors($conn);
             </a>
             <div class="collapse show" id="utilitiesSubmenu">
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-file-invoice-dollar me-2"></i>Billing</a>
-                <a href="admin_maintenance.php" class="sidebar-link ps-5 active"><i class="fas fa-wrench me-2"></i>Maintenance</a>
-                <a href="admin_housekeeping.php" class="sidebar-link ps-5"><i class="fas fa-broom me-2"></i>Housekeeping</a>
+                <a href="admin_maintenance.php" class="sidebar-link ps-5 active d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-wrench me-2"></i>Maintenance</span>
+                    <?php if($pending_maint > 0): ?>
+                        <span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span>
+                    <?php endif; ?>
+                </a>
+                <a href="admin_housekeeping.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-broom me-2"></i>Housekeeping</span>
+                    <?php if($pending_house > 0): ?>
+                        <span class="badge bg-danger rounded-pill"><?= $pending_house ?></span>
+                    <?php endif; ?>
+                </a>
                 <a href="admin_utilities.php" class="sidebar-link ps-5"><i class="fas fa-archive me-2"></i>Utilities Archive</a>
                 <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
             </div>

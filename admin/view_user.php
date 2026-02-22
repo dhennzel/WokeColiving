@@ -64,6 +64,78 @@ if(isset($_POST['delete_user'])){
     }
 }
 
+// Handle Room Assignment (Move Tenant)
+if(isset($_POST['assign_room'])){
+    $res_id = (int)$_POST['reservation_id'];
+    $new_room_id = (int)$_POST['new_room_id'];
+    $new_bed_pref = $_POST['new_bed_preference'] ?? 'Any';
+    
+    // Get dates of the reservation being moved
+    $res_dates_q = mysqli_query($conn, "SELECT start_date, end_date FROM reservations WHERE reservation_id=$res_id");
+    $res_dates = mysqli_fetch_assoc($res_dates_q);
+    $s_date = $res_dates['start_date'];
+    $e_date = $res_dates['end_date'];
+
+    // Check capacity
+    $chk_cap = mysqli_query($conn, "SELECT total_beds, room_name, room_type FROM rooms WHERE room_id=$new_room_id");
+    $room_info = mysqli_fetch_assoc($chk_cap);
+    
+    // Check occupancy during the specific dates of the reservation
+    $chk_occ = mysqli_query($conn, "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id=$new_room_id AND status IN ('Pending', 'Approved') AND reservation_id != $res_id AND start_date < '$e_date' AND end_date > '$s_date' GROUP BY bed_preference");
+    
+    $total_occ = 0;
+    $occ_lower = 0;
+    $occ_upper = 0;
+    $occ_any = 0;
+    
+    while($row = mysqli_fetch_assoc($chk_occ)){
+        $total_occ += $row['cnt'];
+        if($row['bed_preference'] == 'Lower Bunk') $occ_lower += $row['cnt'];
+        elseif($row['bed_preference'] == 'Upper Bunk') $occ_upper += $row['cnt'];
+        else $occ_any += $row['cnt'];
+    }
+    
+    $can_move = false;
+    $error_msg = "Target room is fully booked.";
+
+    if($total_occ < $room_info['total_beds']){
+        if($room_info['room_type'] == '4-Bed' || $room_info['room_type'] == '6-Bed'){
+             $cap_lower = ceil($room_info['total_beds'] / 2);
+             $cap_upper = floor($room_info['total_beds'] / 2);
+             
+             // Calculate available slots considering 'Any' fills lower first
+             $slots_lower_free = max(0, $cap_lower - $occ_lower);
+             $any_in_lower = min($occ_any, $slots_lower_free);
+             $any_in_upper = $occ_any - $any_in_lower;
+             
+             $avail_lower = max(0, $cap_lower - ($occ_lower + $any_in_lower));
+             $avail_upper = max(0, $cap_upper - ($occ_upper + $any_in_upper));
+             
+             if($new_bed_pref == 'Lower Bunk'){
+                 if($avail_lower > 0) $can_move = true;
+                 else $error_msg = "No Lower Bunks available in target room.";
+             } elseif($new_bed_pref == 'Upper Bunk'){
+                 if($avail_upper > 0) $can_move = true;
+                 else $error_msg = "No Upper Bunks available in target room.";
+             } else {
+                 $can_move = true;
+             }
+        } else {
+            $new_bed_pref = 'Any'; // Force Any for Single
+            $can_move = true;
+        }
+    }
+    
+    if($can_move){
+        mysqli_query($conn, "UPDATE reservations SET room_id=$new_room_id, bed_preference='$new_bed_pref' WHERE reservation_id=$res_id");
+        log_activity($conn, $uid, "Room Re-assigned", "Reservation #$res_id moved to " . $room_info['room_name'] . " ($new_bed_pref)");
+        echo "<script>window.location.href='view_user.php?uid=$uid&msg=room_updated';</script>";
+        exit;
+    } else {
+        $swal_error = $error_msg;
+    }
+}
+
 // Handle Bulk Mark Paid
 if(isset($_POST['bulk_mark_paid']) && !empty($_POST['payment_ids'])){
     $ids = array_map('intval', $_POST['payment_ids']);
@@ -149,9 +221,43 @@ $expiring_query = mysqli_query($conn, "
 
 // Fetch Rooms for Approval Modal
 $rooms_for_modal = [];
-$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor FROM rooms WHERE availability != 'Maintenance' ORDER BY floor, room_number");
+$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor, total_beds FROM rooms WHERE availability != 'Maintenance' ORDER BY floor ASC, room_type ASC, room_number ASC");
 if($rfm_q){
     while($r = mysqli_fetch_assoc($rfm_q)){
+        // Calculate Availability
+        $rid = $r['room_id'];
+        $total_beds = $r['total_beds'];
+        
+        // Count active reservations
+        $occ_q = mysqli_query($conn, "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id=$rid AND status IN ('Pending', 'Approved') AND start_date <= CURDATE() AND end_date > CURDATE() GROUP BY bed_preference");
+        
+        $occupied = 0; $occ_upper = 0; $occ_lower = 0; $occ_any = 0;
+        while($row_occ = mysqli_fetch_assoc($occ_q)){
+            $occupied += $row_occ['cnt'];
+            if($row_occ['bed_preference'] == 'Upper Bunk') $occ_upper += $row_occ['cnt'];
+            elseif($row_occ['bed_preference'] == 'Lower Bunk') $occ_lower += $row_occ['cnt'];
+            else $occ_any += $row_occ['cnt'];
+        }
+        
+        $avail_total = max(0, $total_beds - $occupied);
+        $r['avail_total'] = $avail_total;
+        $r['avail_text'] = "$avail_total Free";
+        
+        $avail_lower = 0;
+        $avail_upper = 0;
+
+        if($r['room_type'] == '4-Bed' || $r['room_type'] == '6-Bed'){
+            $cap_upper = floor($total_beds / 2);
+            $cap_lower = ceil($total_beds / 2);
+            $slots_lower_free = max(0, $cap_lower - $occ_lower);
+            $any_in_lower = min($occ_any, $slots_lower_free);
+            $any_in_upper = $occ_any - $any_in_lower;
+            $avail_lower = max(0, $cap_lower - ($occ_lower + $any_in_lower));
+            $avail_upper = max(0, $cap_upper - ($occ_upper + $any_in_upper));
+            $r['avail_text'] .= " (L:$avail_lower, U:$avail_upper)";
+        }
+        $r['avail_lower'] = $avail_lower;
+        $r['avail_upper'] = $avail_upper;
         $rooms_for_modal[] = $r;
     }
 }
@@ -161,6 +267,15 @@ $active_tab = 'reservations';
 if(isset($_GET['pay_status']) || isset($_GET['start_date']) || isset($_GET['end_date']) || (isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid')){
     $active_tab = 'payments';
 }
+
+// Fetch User-Specific Pending Counts for Tabs
+$user_pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE user_id=$uid AND status='Pending'"))['c'];
+$user_pending_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid'"))['c'];
+
+// Fetch Pending Counts for Sidebar
+$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
+$pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 
 $theme = get_theme_colors($conn);
 ?>
@@ -223,7 +338,12 @@ $theme = get_theme_colors($conn);
         </div>
         <div class="list-group list-group-flush py-3">
             <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
-            <a href="booking_management.php" class="sidebar-link active"><i class="fas fa-calendar-check me-2"></i>Bookings</a>
+            <a href="booking_management.php" class="sidebar-link active d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
+                <?php if($pending_res > 0): ?>
+                    <span class="badge bg-danger rounded-pill"><?= $pending_res ?></span>
+                <?php endif; ?>
+            </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
             
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="false" aria-controls="utilitiesSubmenu">
@@ -232,8 +352,18 @@ $theme = get_theme_colors($conn);
             </a>
             <div class="collapse" id="utilitiesSubmenu">
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-file-invoice-dollar me-2"></i>Billing</a>
-                <a href="admin_maintenance.php" class="sidebar-link ps-5"><i class="fas fa-wrench me-2"></i>Maintenance</a>
-                <a href="admin_housekeeping.php" class="sidebar-link ps-5"><i class="fas fa-broom me-2"></i>Housekeeping</a>
+                <a href="admin_maintenance.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-wrench me-2"></i>Maintenance</span>
+                    <?php if($pending_maint > 0): ?>
+                        <span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span>
+                    <?php endif; ?>
+                </a>
+                <a href="admin_housekeeping.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-broom me-2"></i>Housekeeping</span>
+                    <?php if($pending_house > 0): ?>
+                        <span class="badge bg-danger rounded-pill"><?= $pending_house ?></span>
+                    <?php endif; ?>
+                </a>
                 <a href="admin_utilities.php" class="sidebar-link ps-5"><i class="fas fa-archive me-2"></i>Utilities Archive</a>
                 <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
             </div>
@@ -296,6 +426,12 @@ $theme = get_theme_colors($conn);
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'approved'): ?>
                 <div class="alert alert-success">Reservation has been successfully approved.</div>
             <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'room_updated'): ?>
+                <div class="alert alert-success">Room assignment updated successfully.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['error'])): ?>
+                <div class="alert alert-danger"><?= htmlspecialchars($_GET['error']) ?></div>
+            <?php endif; ?>
 
             <!-- Expiring Contracts Alert -->
             <?php if(mysqli_num_rows($expiring_query) > 0): ?>
@@ -349,10 +485,23 @@ $theme = get_theme_colors($conn);
                 <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
                     <ul class="nav nav-tabs" id="userTabs" role="tablist">
                         <li class="nav-item">
-                            <button class="nav-link <?= $active_tab == 'reservations' ? 'active' : '' ?>" id="res-tab" data-bs-toggle="tab" data-bs-target="#reservations" type="button">Reservations</button>
+                            <button class="nav-link <?= $active_tab == 'reservations' ? 'active' : '' ?>" id="res-tab" data-bs-toggle="tab" data-bs-target="#reservations" type="button">
+                                Reservations
+                                <?php if($user_pending_res > 0): ?>
+                                    <span class="badge bg-danger rounded-pill ms-1"><?= $user_pending_res ?></span>
+                                <?php endif; ?>
+                            </button>
                         </li>
                         <li class="nav-item">
-                            <button class="nav-link <?= $active_tab == 'payments' ? 'active' : '' ?>" id="pay-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button">Payments</button>
+                            <button class="nav-link <?= $active_tab == 'payments' ? 'active' : '' ?>" id="pay-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button">
+                                Payments
+                                <?php if($user_pending_pay > 0): ?>
+                                    <span class="badge bg-danger rounded-pill ms-1"><?= $user_pending_pay ?></span>
+                                <?php endif; ?>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="room-tab" data-bs-toggle="tab" data-bs-target="#room_assign" type="button">Room Assignment</button>
                         </li>
                     </ul>
                 </div>
@@ -382,6 +531,9 @@ $theme = get_theme_colors($conn);
                                             <?php if(!empty($row['bed_preference']) && $row['bed_preference'] != 'Any'): ?>
                                                 <div class="badge bg-light text-dark border mt-1"><i class="fas fa-bed me-1"></i> <?= $row['bed_preference'] ?></div>
                                             <?php endif; ?>
+                                            <?php if(!empty($row['extended_from'])): ?>
+                                                <div class="badge bg-info text-dark mt-1"><i class="fas fa-history me-1"></i> Extension Request (for #<?= $row['extended_from'] ?>)</div>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <small>In: <?= $row['start_date'] ?></small><br>
@@ -399,7 +551,7 @@ $theme = get_theme_colors($conn);
                                         <td>₱<?= number_format($row['total_price'], 2) ?></td>
                                         <td class="text-end">
                                             <?php if($row['status'] == 'Pending'): ?>
-                                                <a href="javascript:void(0)" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, <?= $row['room_id'] ?? 0 ?>, <?= htmlspecialchars(json_encode($row['room_type']), ENT_QUOTES, 'UTF-8') ?>)" title="Approve"><i class="fas fa-check"></i></a>
+                                                <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this reservation?')" title="Approve"><i class="fas fa-check"></i></a>
                                                 <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
                                             <?php elseif($row['status'] == 'Approved'): ?>
                                                 <button onclick="renewContract(<?= $row['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt"></i></button>
@@ -510,43 +662,83 @@ $theme = get_theme_colors($conn);
                         </div>
                     </div>
                 </div>
+
+                        <!-- Room Assignment Tab -->
+                        <div class="tab-pane fade" id="room_assign" role="tabpanel">
+                            <h6 class="fw-bold text-muted mb-3">Manage Room Assignments</h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead><tr><th>Reservation</th><th>Current Room</th><th>New Room</th><th class="text-center">Action</th></tr></thead>
+                                    <tbody>
+                                        <?php 
+                                        $assign_q = mysqli_query($conn, "SELECT r.*, rm.room_name, rm.room_type FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id WHERE r.user_id=$uid AND r.status IN ('Pending', 'Approved') ORDER BY r.created_at DESC");
+                                        while($row = mysqli_fetch_assoc($assign_q)): 
+                                        ?>
+                                        <tr>
+                                            <td>#<?= $row['reservation_id'] ?> <span class="badge bg-secondary"><?= $row['status'] ?></span></td>
+                                            <td>
+                                                <?= $row['room_name'] ?> (<?= $row['room_type'] ?>)
+                                                <?php if($row['bed_preference'] != 'Any'): ?>
+                                                    <br><small class="text-muted"><i class="fas fa-bed"></i> <?= $row['bed_preference'] ?></small>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex gap-2">
+                                                <select name="new_room_id" form="assign_form_<?= $row['reservation_id'] ?>" class="form-select form-select-sm" required style="max-width: 200px;" onchange="updateBedOptions(this)">
+                                                    <option value="" disabled>Select Room</option>
+                                                    <?php 
+                                                    $current_floor = 0;
+                                                    foreach($rooms_for_modal as $r): 
+                                                        if($current_floor != $r['floor']){
+                                                            if($current_floor != 0) echo '</optgroup>';
+                                                            $current_floor = $r['floor'];
+                                                            echo '<optgroup label="Floor ' . $current_floor . '">';
+                                                        }
+                                                        $room_display = "Room " . ($r['room_number'] ? $r['room_number'] : 'N/A') . " (" . $r['room_type'] . ")";
+                                                        
+                                                        $is_current = ($r['room_id'] == $row['room_id']);
+                                                        $is_full = ($r['avail_total'] == 0);
+                                                        $disabled = (!$is_current && $is_full) ? 'disabled' : '';
+                                                        
+                                                        if(!$is_current) $room_display .= $is_full ? " - FULL" : " - " . $r['avail_text'];
+                                                        else $room_display .= " (Current)";
+                                                    ?>
+                                                        <option value="<?= $r['room_id'] ?>" data-lower="<?= $r['avail_lower'] ?>" data-upper="<?= $r['avail_upper'] ?>" data-type="<?= $r['room_type'] ?>" <?= $is_current ? 'selected' : '' ?> <?= $disabled ?> class="<?= $is_full && !$is_current ? 'text-danger' : '' ?>">
+                                                            <?= $room_display ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                    <?php if($current_floor != 0) echo '</optgroup>'; ?>
+                                                </select>
+                                                <select name="new_bed_preference" form="assign_form_<?= $row['reservation_id'] ?>" class="form-select form-select-sm" style="width: 110px;">
+                                                    <option value="Any" <?= $row['bed_preference'] == 'Any' ? 'selected' : '' ?>>Any</option>
+                                                    <option value="Lower Bunk" <?= $row['bed_preference'] == 'Lower Bunk' ? 'selected' : '' ?>>Lower</option>
+                                                    <option value="Upper Bunk" <?= $row['bed_preference'] == 'Upper Bunk' ? 'selected' : '' ?>>Upper</option>
+                                                </select>
+                                                </div>
+                                            </td>
+                                            <td class="text-center">
+                                                <form method="POST" id="assign_form_<?= $row['reservation_id'] ?>">
+                                                    <input type="hidden" name="reservation_id" value="<?= $row['reservation_id'] ?>">
+                                                    <button type="submit" name="assign_room" class="btn btn-sm btn-primary px-3">Move</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        <?php endwhile; ?>
+                                        <?php if(mysqli_num_rows($assign_q) == 0): ?>
+                                            <tr><td colspan="4" class="text-center text-muted">No active reservations to move.</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
             </div>
 
-        </div>
-    </div>
-</div>
-
-<!-- Approve Modal -->
-<div class="modal fade" id="approveModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold"><i class="fas fa-check-circle me-2"></i>Approve Reservation</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="booking_management.php">
-                <div class="modal-body">
-                    <input type="hidden" name="reservation_id" id="approveResId">
-                    <input type="hidden" name="redirect_url" value="view_user.php?uid=<?= $uid ?>&msg=approved">
-                    <p>Please confirm the room assignment before approving.</p>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold" for="approveRoomSelect">Assign Room / Floor</label>
-                        <select name="room_id" id="approveRoomSelect" class="form-select" required></select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" name="confirm_approve" class="btn btn-success fw-bold">Confirm & Approve</button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-const allRooms = <?= json_encode($rooms_for_modal) ?>;
-
 function confirmAction(e, url, msg) {
     e.preventDefault();
     const isDestructive = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('end') || msg.toLowerCase().includes('delete') || msg.toLowerCase().includes('terminate');
@@ -698,28 +890,31 @@ function confirmBulkPaid() {
     });
 }
 
-function openApproveModal(resId, currentRoomId, roomType) {
-    console.log('openApproveModal called', { resId, currentRoomId, roomType });
-    document.getElementById('approveResId').value = resId;
-    const select = document.getElementById('approveRoomSelect');
-    select.innerHTML = '';
+function updateBedOptions(roomSelect) {
+    const selectedOption = roomSelect.options[roomSelect.selectedIndex];
+    const lower = parseInt(selectedOption.getAttribute('data-lower') || 0);
+    const upper = parseInt(selectedOption.getAttribute('data-upper') || 0);
+    const type = selectedOption.getAttribute('data-type');
+    
+    const bedSelect = roomSelect.parentNode.querySelector('select[name="new_bed_preference"]');
+    if(!bedSelect) return;
 
-    allRooms.forEach(room => {
-        if(room.room_type === roomType) {
-            let option = document.createElement('option');
-            option.value = room.room_id;
-            option.text = `Room ${room.room_number || ''} (${room.room_name}) - ${room.floor}th Floor`;
-            if(room.room_id == currentRoomId) option.selected = true;
-            select.appendChild(option);
-        }
-    });
+    const optLower = bedSelect.querySelector('option[value="Lower Bunk"]');
+    const optUpper = bedSelect.querySelector('option[value="Upper Bunk"]');
+    
+    optLower.disabled = false; optLower.text = "Lower";
+    optUpper.disabled = false; optUpper.text = "Upper";
 
-    if (select.options.length === 0) {
-        console.warn('No rooms found for type:', roomType);
-        select.innerHTML = '<option value="">No available rooms found</option>';
+    if (type === 'Single') {
+        optLower.disabled = true; optUpper.disabled = true;
+        bedSelect.value = 'Any';
+    } else {
+        if (lower <= 0) { optLower.disabled = true; optLower.text = "Lower (Full)"; }
+        if (upper <= 0) { optUpper.disabled = true; optUpper.text = "Upper (Full)"; }
+        
+        if(bedSelect.value === 'Lower Bunk' && lower <= 0) bedSelect.value = 'Any';
+        if(bedSelect.value === 'Upper Bunk' && upper <= 0) bedSelect.value = 'Any';
     }
-
-    new bootstrap.Modal(document.getElementById('approveModal')).show();
 }
 
 // Auto Refresh Logic

@@ -91,6 +91,11 @@ if (isset($_POST['join_waitlist'])) {
     }
 }
 
+// Fetch Unread Count & Notifications
+$unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$user_id AND is_read=0");
+$unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
+$notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$user_id ORDER BY created_at DESC LIMIT 10");
+
 // Handle Extension (Pre-fill data)
 $pre_cin = date("Y-m-d");
 $pre_room = "";
@@ -108,7 +113,7 @@ if(isset($_GET['bed_preference'])){
 }
 
 // Handle Submission
-if (isset($_POST['submit'])) {
+if (isset($_POST['confirm_booking'])) {
     $error = ""; // Initialize error variable
     if ($_POST['code1'] != $_POST['code']) {
         $error = "Invalid verification code.";
@@ -179,31 +184,39 @@ if (isset($_POST['submit'])) {
 
         while($room = $r_res->fetch_assoc()) {
             $rid = $room['room_id'];
-            // Check availability for dates
-            $q = "SELECT COUNT(*) as booked FROM reservations WHERE room_id = $rid AND status IN ('Pending','Approved') AND start_date < '$cout' AND end_date > '$cin'";
-            $c_res = mysqli_query($conn, $q);
-            $c_row = mysqli_fetch_assoc($c_res);
-            
-            $total_booked = $c_row['booked'];
             $capacity = $room['total_beds'];
+            
+            // Get detailed occupancy
+            $q_occ = "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id = $rid AND status IN ('Pending','Approved') AND start_date < '$cout' AND end_date > '$cin' GROUP BY bed_preference";
+            $res_occ = mysqli_query($conn, $q_occ);
+            
+            $occ_lower = 0; $occ_upper = 0; $occ_any = 0; $total_booked = 0;
+            while($row_o = mysqli_fetch_assoc($res_occ)){
+                $total_booked += $row_o['cnt'];
+                if($row_o['bed_preference'] == 'Lower Bunk') $occ_lower += $row_o['cnt'];
+                elseif($row_o['bed_preference'] == 'Upper Bunk') $occ_upper += $row_o['cnt'];
+                else $occ_any += $row_o['cnt'];
+            }
 
             if(($capacity - $total_booked) > 0){
-                // Room has space. Now check specific bed preference if applicable.
-                if (($troom == '4-Bed' || $troom == '6-Bed') && ($bed_preference == 'Lower Bunk' || $bed_preference == 'Upper Bunk')) {
-                    // Calculate specific capacity (Assume 50/50 split, odd number goes to Lower)
+                if (($troom == '4-Bed' || $troom == '6-Bed')) {
                     $cap_lower = ceil($capacity / 2);
                     $cap_upper = floor($capacity / 2);
-                    $target_cap = ($bed_preference == 'Lower Bunk') ? $cap_lower : $cap_upper;
-
-                    // Count existing bookings for this specific preference
-                    $q_pref = "SELECT COUNT(*) as cnt FROM reservations WHERE room_id = $rid AND status IN ('Pending','Approved') AND start_date < '$cout' AND end_date > '$cin' AND bed_preference = '$bed_preference'";
-                    $pref_res = mysqli_query($conn, $q_pref);
-                    $pref_row = mysqli_fetch_assoc($pref_res);
-                    $taken_specific = $pref_row['cnt'];
-
-                    if ($taken_specific < $target_cap) {
-                        $found_room = $room;
-                        break;
+                    
+                    // Distribute Any
+                    $slots_lower_free = max(0, $cap_lower - $occ_lower);
+                    $any_in_lower = min($occ_any, $slots_lower_free);
+                    $any_in_upper = $occ_any - $any_in_lower;
+                    
+                    $avail_lower = max(0, $cap_lower - ($occ_lower + $any_in_lower));
+                    $avail_upper = max(0, $cap_upper - ($occ_upper + $any_in_upper));
+                    
+                    if($bed_preference == 'Lower Bunk'){
+                        if($avail_lower > 0) { $found_room = $room; break; }
+                    } elseif($bed_preference == 'Upper Bunk'){
+                        if($avail_upper > 0) { $found_room = $room; break; }
+                    } else {
+                        $found_room = $room; break;
                     }
                 } else {
                     $found_room = $room;
@@ -361,6 +374,8 @@ if (isset($_POST['submit'])) {
         .btn-custom:hover { background-color: #f9a825; }
         
         .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
+        @keyframes shake { 0% { transform: rotate(0deg); } 20% { transform: rotate(15deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(5deg); } 80% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
+        .shake-animation { animation: shake 0.5s; }
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -374,6 +389,27 @@ if (isset($_POST['submit'])) {
             Woke Coliving INC
         </a>
         <div class="d-flex align-items-center gap-3 ms-auto">
+            <!-- Notification Dropdown -->
+            <div class="dropdown">
+                <a href="#" class="text-white text-decoration-none position-relative me-3" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-bell fa-lg"></i>
+                    <?php if($unread_count > 0): ?>
+                        <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;">
+                            <?= $unread_count ?>
+                            <span class="visually-hidden">unread messages</span>
+                        </span>
+                    <?php endif; ?>
+                </a>
+                <ul id="notifList" class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="notifDropdown" style="width: 320px; max-height: 400px; overflow-y: auto;">
+                    <li class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
+                        <span class="fw-bold small text-uppercase text-muted">Notifications</span>
+                        <?php if($unread_count > 0): ?>
+                            <a href="profile.php?read_all=1" class="small text-decoration-none">Mark all read</a>
+                        <?php endif; ?>
+                    </li>
+                    <!-- Notifications will be loaded via JS or PHP fallback -->
+                </ul>
+            </div>
             <a href="profile.php" class="text-white text-decoration-none fw-bold">My Profile</a>
             <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars(explode(' ', $user_name)[0]) ?></span>
             <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
@@ -403,7 +439,8 @@ if (isset($_POST['submit'])) {
         </div>
     <?php } ?>
 
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data" id="reservationForm">
+        <input type="hidden" name="confirm_booking" value="1">
         <?php if($is_extension): ?>
             <input type="hidden" name="extend_id" value="<?= $eid ?>">
         <?php endif; ?>
@@ -465,7 +502,7 @@ if (isset($_POST['submit'])) {
                                 <input type="hidden" name="bed_preference" value="<?= htmlspecialchars($_GET['bed_preference']) ?>">
                                 <small class="text-success"><i class="fas fa-lock me-1"></i> Preference locked from selection</small>
                             <?php else: ?>
-                                <select name="bed_preference" class="form-select" onchange="calculateTotal()">
+                                <select name="bed_preference" class="form-select" onchange="calculateTotal(); checkRealTimeAvailability()">
                                     <option value="Any">Any</option>
                                     <option value="Lower Bunk">Lower Bunk</option>
                                     <option value="Upper Bunk">Upper Bunk</option>
@@ -598,7 +635,7 @@ if (isset($_POST['submit'])) {
                             </div>
                         </div>
 
-                        <button type="submit" name="submit" class="btn btn-custom w-100 py-2">Confirm Reservation</button>
+                        <button type="button" onclick="confirmReservation()" class="btn btn-custom w-100 py-2">Confirm Reservation</button>
                     </div>
                 </div>
             </div>
@@ -606,22 +643,52 @@ if (isset($_POST['submit'])) {
     </form>
 </div>
 
+<!-- Notification Sound -->
+<audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
+
 <script>
     <?php if(isset($_SESSION['swal'])): ?>
+    const swalData = <?= json_encode($_SESSION['swal']) ?>;
     Swal.fire({
-        title: '<?= $_SESSION['swal']['title'] ?>',
-        text: '<?= $_SESSION['swal']['text'] ?>',
-        icon: '<?= $_SESSION['swal']['icon'] ?>'
+        title: swalData.title,
+        text: swalData.text,
+        icon: swalData.icon
     });
     <?php unset($_SESSION['swal']); endif; ?>
 
     const roomPrices = <?= json_encode($room_prices_js) ?>;
+
+    function confirmReservation() {
+        const form = document.getElementById('reservationForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const isExtension = <?= $is_extension ? 'true' : 'false' ?>;
+        
+        Swal.fire({
+            title: isExtension ? 'Confirm Extension?' : 'Confirm Reservation?',
+            text: isExtension ? 'Are you sure you want to extend your stay?' : 'Are you sure you want to book this room?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#2E7D32',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, Confirm'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+    }
 
     // Real-time Availability Checker
     function checkRealTimeAvailability() {
         let room = document.getElementById('troom').value;
         let cin = document.getElementById('cin').value;
         let cout = document.getElementById('cout').value;
+        let bedPrefEl = document.querySelector('[name="bed_preference"]');
+        let bedPref = bedPrefEl ? bedPrefEl.value : 'Any';
         let statusSpan = document.getElementById('availability_status');
 
         if(room && cin && cout) {
@@ -633,7 +700,13 @@ if (isset($_POST['submit'])) {
                 .then(response => response.json())
                 .then(data => {
                     // Filter data for selected room type
-                    let available = data.some(r => r.room_type === room && r.available_beds > 0);
+                    let available = data.some(r => {
+                        if (r.room_type !== room) return false;
+                        if (bedPref === 'Lower Bunk') return r.avail_lower > 0;
+                        if (bedPref === 'Upper Bunk') return r.avail_upper > 0;
+                        return r.available_beds > 0;
+                    });
+                    
                     if(available) {
                         statusSpan.innerHTML = '<i class="fas fa-check-circle"></i> Available';
                         statusSpan.className = 'fw-bold mt-1 d-block text-success';
@@ -794,6 +867,56 @@ if (isset($_POST['submit'])) {
             calculateTotal();
         }
     });
+
+    // Notification Logic
+    let lastUnreadCount = <?= (int)$unread_count ?>;
+    function fetchNotifications() {
+        fetch('get_notifications.php')
+            .then(response => response.json())
+            .then(data => {
+                const bell = document.getElementById('notifDropdown');
+                let badge = document.getElementById('notifBadge');
+                if(data.unread_count > 0) {
+                    if(!badge) {
+                        badge = document.createElement('span');
+                        badge.id = 'notifBadge';
+                        badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+                        badge.style.fontSize = '0.6rem';
+                        bell.appendChild(badge);
+                    }
+                    badge.innerHTML = `${data.unread_count} <span class="visually-hidden">unread messages</span>`;
+                } else if(badge) badge.remove();
+
+                if(data.unread_count > lastUnreadCount) {
+                    const audio = document.getElementById('notifSound');
+                    if(audio) audio.play().catch(e => {});
+                    const bellIcon = document.querySelector('#notifDropdown i');
+                    if(bellIcon) { bellIcon.classList.add('shake-animation'); setTimeout(() => bellIcon.classList.remove('shake-animation'), 500); }
+                }
+                lastUnreadCount = data.unread_count;
+
+                const list = document.getElementById('notifList');
+                let html = `<li class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light"><span class="fw-bold small text-uppercase text-muted">Notifications</span>${data.unread_count > 0 ? '<a href="profile.php?read_all=1" class="small text-decoration-none">Mark all read</a>' : ''}</li>`;
+                if(data.notifications.length > 0) {
+                    data.notifications.forEach(notif => {
+                        html += `<li><div class="dropdown-item p-3 border-bottom ${notif.is_read == 0 ? 'bg-white' : 'bg-light text-muted'}" style="white-space: normal;"><div class="d-flex justify-content-between mb-1"><strong class="small ${notif.is_read == 0 ? 'text-success' : ''}">${notif.type}</strong><small class="text-muted" style="font-size: 0.7rem;">${notif.created_at}</small></div><p class="mb-0 small">${notif.message}</p></div></li>`;
+                    });
+                } else { html += '<li class="p-3 text-center text-muted small">No notifications found.</li>'; }
+                list.innerHTML = html;
+            });
+    }
+    
+    document.getElementById('notifDropdown').addEventListener('click', function() {
+        const badge = document.getElementById('notifBadge');
+        if(badge) badge.remove();
+        fetch('get_notifications.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'mark_read=1'
+        });
+    });
+    setInterval(fetchNotifications, 5000);
+    fetchNotifications(); // Initial load
 </script>
 
 </body>

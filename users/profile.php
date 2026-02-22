@@ -28,6 +28,18 @@ try {
 } catch (Exception $e) {
     $notif_query = false;
 }
+
+// Fetch Counts for Dashboard Cards
+$c_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE user_id=$user_id AND is_archived=0 AND status IN ('Pending', 'Approved')"))['c'];
+$c_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE user_id=$user_id AND status IN ('Pending', 'Scheduled')"))['c'];
+$c_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE user_id=$user_id AND status IN ('Pending', 'Scheduled')"))['c'];
+$c_arch = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE user_id=$user_id AND is_archived=1"))['c'];
+
+$c_wait = 0;
+try {
+    $w_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE user_id=$user_id");
+    if($w_q) $c_wait = mysqli_fetch_assoc($w_q)['c'];
+} catch(Exception $e){}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -91,6 +103,24 @@ try {
         .delay-2 { animation-delay: 0.2s; }
         .delay-3 { animation-delay: 0.3s; }
         .delay-4 { animation-delay: 0.4s; }
+
+        .card-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
@@ -155,8 +185,9 @@ try {
     <div class="row g-4 justify-content-center">
         <!-- Book a Room -->
         <div class="col-md-3 reveal delay-1">
-            <a href="reservation_now.php" class="text-decoration-none">
+            <a href="reservation_now.php" class="text-decoration-none" onclick="markAsRead('waitlist', <?= $c_wait ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
+                    <?php if($c_wait > 0): ?><div class="card-badge" id="badge-waitlist" data-count="<?= $c_wait ?>" title="Waitlisted Rooms"><?= $c_wait ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-calendar-plus"></i></div>
                     <h4 class="fw-bold text-dark mb-3">Book a Room</h4>
                     <p class="text-muted small">Find and book your next stay with us.</p>
@@ -166,8 +197,9 @@ try {
 
         <!-- My Reservations -->
         <div class="col-md-3 reveal delay-2">
-            <a href="my_reservations.php" class="text-decoration-none">
+            <a href="my_reservations.php" class="text-decoration-none" onclick="markAsRead('reservations', <?= $c_res ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
+                    <?php if($c_res > 0): ?><div class="card-badge" id="badge-reservations" data-count="<?= $c_res ?>" title="Active Reservations"><?= $c_res ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-suitcase"></i></div>
                     <h4 class="fw-bold text-dark mb-3">My Reservations</h4>
                     <p class="text-muted small">View your booking history and status.</p>
@@ -177,8 +209,9 @@ try {
 
         <!-- Maintenance -->
         <div class="col-md-3 reveal delay-3">
-            <a href="maintenance.php" class="text-decoration-none">
+            <a href="maintenance.php" class="text-decoration-none" onclick="markAsRead('maintenance', <?= $c_maint ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
+                    <?php if($c_maint > 0): ?><div class="card-badge" id="badge-maintenance" data-count="<?= $c_maint ?>" title="Active Requests"><?= $c_maint ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-tools"></i></div>
                     <h4 class="fw-bold text-dark mb-3">Maintenance</h4>
                     <p class="text-muted small">Report issues and track repairs.</p>
@@ -188,8 +221,9 @@ try {
 
         <!-- Housekeeping -->
         <div class="col-md-3 reveal delay-4">
-            <a href="housekeeping.php" class="text-decoration-none">
+            <a href="housekeeping.php" class="text-decoration-none" onclick="markAsRead('housekeeping', <?= $c_house ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
+                    <?php if($c_house > 0): ?><div class="card-badge" id="badge-housekeeping" data-count="<?= $c_house ?>" title="Active Requests"><?= $c_house ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-broom"></i></div>
                     <h4 class="fw-bold text-dark mb-3">Housekeeping</h4>
                     <p class="text-muted small">Request cleaning services.</p>
@@ -199,8 +233,9 @@ try {
 
         <!-- Archived History -->
         <div class="col-md-3 reveal delay-4">
-            <a href="my_archives.php" class="text-decoration-none">
+            <a href="my_archives.php" class="text-decoration-none" onclick="markAsRead('archives', <?= $c_arch ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
+                    <?php if($c_arch > 0): ?><div class="card-badge" id="badge-archives" data-count="<?= $c_arch ?>" title="Archived Items"><?= $c_arch ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-archive"></i></div>
                     <h4 class="fw-bold text-dark mb-3">Archives</h4>
                     <p class="text-muted small">View removed and old contracts.</p>
@@ -297,6 +332,26 @@ try {
     // Poll every 5 seconds
     setInterval(fetchNotifications, 5000);
 
+    // Card Badge Logic (Hide if seen)
+    function checkCardBadges() {
+        const types = ['waitlist', 'reservations', 'maintenance', 'housekeeping', 'archives'];
+        types.forEach(type => {
+            const badge = document.getElementById('badge-' + type);
+            if(badge) {
+                const currentCount = parseInt(badge.getAttribute('data-count'));
+                const seenCount = parseInt(localStorage.getItem('seen_count_' + type) || 0);
+                
+                if(seenCount >= currentCount) {
+                    badge.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    function markAsRead(type, count) {
+        localStorage.setItem('seen_count_' + type, count);
+    }
+
     // Auto Refresh Logic (Global)
     let lastUpdate = 0;
     function checkUpdates() {
@@ -308,6 +363,7 @@ try {
         });
     }
     setInterval(checkUpdates, 3000); // Check every 3 seconds
+    document.addEventListener('DOMContentLoaded', checkCardBadges);
 </script>
 </body>
 </html>

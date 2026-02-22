@@ -105,41 +105,37 @@ if(isset($_POST['add_reservation'])){
             $q_counts = "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id = $rid AND status IN ('Pending','Approved') AND start_date < '$cout' AND end_date > '$cin' GROUP BY bed_preference";
             $res_counts = mysqli_query($conn, $q_counts);
             
-            $taken_upper = 0;
-            $taken_lower = 0;
-            $taken_any = 0;
+            $occ_upper = 0; $occ_lower = 0; $occ_any = 0; $total_taken = 0;
             
             while($row_c = mysqli_fetch_assoc($res_counts)){
-                if($row_c['bed_preference'] == 'Upper Bunk') $taken_upper += $row_c['cnt'];
-                elseif($row_c['bed_preference'] == 'Lower Bunk') $taken_lower += $row_c['cnt'];
-                else $taken_any += $row_c['cnt'];
+                $total_taken += $row_c['cnt'];
+                if($row_c['bed_preference'] == 'Upper Bunk') $occ_upper += $row_c['cnt'];
+                elseif($row_c['bed_preference'] == 'Lower Bunk') $occ_lower += $row_c['cnt'];
+                else $occ_any += $row_c['cnt'];
             }
-            
-            $total_taken = $taken_upper + $taken_lower + $taken_any;
             
             // If totally full, skip
             if($total_taken >= $total_capacity) continue;
 
             // Check specific bed availability
-            if(($room_type == '4-Bed' || $room_type == '6-Bed') && ($bed_preference == 'Upper Bunk' || $bed_preference == 'Lower Bunk')){
+            if(($room_type == '4-Bed' || $room_type == '6-Bed')){
                 $cap_upper = floor($total_capacity / 2);
                 $cap_lower = ceil($total_capacity / 2);
                 
                 // Distribute 'Any' to Lower first
-                $slots_lower_free = max(0, $cap_lower - $taken_lower);
-                $any_in_lower = min($taken_any, $slots_lower_free);
-                $any_in_upper = $taken_any - $any_in_lower;
+                $slots_lower_free = max(0, $cap_lower - $occ_lower);
+                $any_in_lower = min($occ_any, $slots_lower_free);
+                $any_in_upper = $occ_any - $any_in_lower;
+                
+                $avail_lower = max(0, $cap_lower - ($occ_lower + $any_in_lower));
+                $avail_upper = max(0, $cap_upper - ($occ_upper + $any_in_upper));
                 
                 if($bed_preference == 'Upper Bunk'){
-                    if(($taken_upper + $any_in_upper) < $cap_upper){
-                        $found_room = $room;
-                        break;
-                    }
+                    if($avail_upper > 0) { $found_room = $room; break; }
                 } elseif($bed_preference == 'Lower Bunk'){
-                    if(($taken_lower + $any_in_lower) < $cap_lower){
-                        $found_room = $room;
-                        break;
-                    }
+                    if($avail_lower > 0) { $found_room = $room; break; }
+                } else {
+                    $found_room = $room; break;
                 }
             } else {
                 // Single room or 'Any' preference - just needs space
@@ -273,7 +269,7 @@ $theme = get_theme_colors($conn);
                         </div>
                         <div class="col-md-6 mb-3" id="bed_pref_div" style="display:none;">
                             <label class="form-label fw-bold">Bed Preference</label>
-                            <select name="bed_preference" class="form-select" onchange="calculateTotal()">
+                            <select name="bed_preference" class="form-select" onchange="calculateTotal(); checkAvailability()">
                                 <option value="Any">Any</option>
                                 <option value="Lower Bunk">Lower Bunk</option>
                                 <option value="Upper Bunk">Upper Bunk</option>
@@ -405,6 +401,7 @@ function checkAvailability() {
     let room = document.getElementById('room_type').value;
     let cin = document.getElementById('cin').value;
     let cout = document.getElementById('cout').value;
+    let bedPref = document.querySelector('select[name="bed_preference"]').value;
     let statusSpan = document.getElementById('availability_status');
 
     if(room && cin && cout) {
@@ -414,7 +411,12 @@ function checkAvailability() {
         fetch(`../users/get_rooms.php?checkin=${cin}&checkout=${cout}`)
             .then(response => response.json())
             .then(data => {
-                let available = data.some(r => r.room_type === room && r.available_beds > 0);
+                let available = data.some(r => {
+                    if (r.room_type !== room) return false;
+                    if (bedPref === 'Lower Bunk') return r.avail_lower > 0;
+                    if (bedPref === 'Upper Bunk') return r.avail_upper > 0;
+                    return r.available_beds > 0;
+                });
                 if(available) {
                     statusSpan.innerHTML = '<i class="fas fa-check-circle"></i> Available';
                     statusSpan.className = 'fw-bold mt-1 d-block text-success';

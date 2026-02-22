@@ -212,8 +212,8 @@ if($rem_query) {
     }
 }
 
-// 4. Contract Expiration Reminders (5 days before)
-$expire_soon_query = mysqli_query($conn, "SELECT r.reservation_id, r.user_id, r.end_date, rm.room_name FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id WHERE r.status = 'Approved' AND r.end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 5 DAY)");
+// 4. Contract Expiration Reminders (7 days before)
+$expire_soon_query = mysqli_query($conn, "SELECT r.reservation_id, r.user_id, r.end_date, rm.room_name FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id WHERE r.status = 'Approved' AND r.end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)");
 
 if($expire_soon_query) {
     while($row = mysqli_fetch_assoc($expire_soon_query)) {

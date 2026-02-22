@@ -62,6 +62,11 @@ if(isset($_SESSION['user_id'])){
     $u_q = mysqli_query($conn, "SELECT full_name FROM users WHERE user_id=$uid");
     if($u_row = mysqli_fetch_assoc($u_q)){
         $user_name = $u_row['full_name'];
+        
+        // Fetch Unread Count & Notifications
+        $unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$uid AND is_read=0");
+        $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
+        $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$uid ORDER BY created_at DESC LIMIT 10");
     }
 }
 ?>
@@ -86,6 +91,8 @@ if(isset($_SESSION['user_id'])){
         .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; padding: 10px 30px; border: none; }
         .btn-custom:hover { background-color: #f9a825; }
         .room-img { width: 100%; height: 350px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        @keyframes shake { 0% { transform: rotate(0deg); } 20% { transform: rotate(15deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(5deg); } 80% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
+        .shake-animation { animation: shake 0.5s; }
     </style>
 </head>
 <body>
@@ -107,6 +114,27 @@ if(isset($_SESSION['user_id'])){
             </ul>
             <div class="d-flex gap-2 ms-3">
                 <?php if(isset($_SESSION['user_id'])): ?>
+                    <!-- Notification Dropdown -->
+                    <div class="dropdown">
+                        <a href="#" class="text-white text-decoration-none position-relative me-3" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-bell fa-lg"></i>
+                            <?php if($unread_count > 0): ?>
+                                <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;">
+                                    <?= $unread_count ?>
+                                    <span class="visually-hidden">unread messages</span>
+                                </span>
+                            <?php endif; ?>
+                        </a>
+                        <ul id="notifList" class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="notifDropdown" style="width: 320px; max-height: 400px; overflow-y: auto;">
+                            <li class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
+                                <span class="fw-bold small text-uppercase text-muted">Notifications</span>
+                                <?php if($unread_count > 0): ?>
+                                    <a href="profile.php?read_all=1" class="small text-decoration-none">Mark all read</a>
+                                <?php endif; ?>
+                            </li>
+                            <!-- Notifications will be loaded via JS -->
+                        </ul>
+                    </div>
                     <a href="profile.php" class="text-white text-decoration-none fw-bold me-3">My Profile</a>
                     <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars(explode(' ', $user_name)[0]) ?></span>
                     <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>

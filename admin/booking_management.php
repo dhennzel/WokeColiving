@@ -12,6 +12,14 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 if(isset($_POST['confirm_approve'])){
     $reservation_id = (int)$_POST['reservation_id'];
     $new_room_id = (int)$_POST['room_id'];
+
+    if ($new_room_id <= 0) {
+        $redirect = isset($_POST['redirect_url']) ? $_POST['redirect_url'] : "booking_management.php";
+        $redirect = str_replace(['?msg=approved', '&msg=approved'], '', $redirect);
+        $sep = (strpos($redirect, '?') === false) ? '?' : '&';
+        header("Location: $redirect{$sep}error=Invalid Room Selected");
+        exit;
+    }
     
     // Fetch reservation details to check for extension
     $chk_ext = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
@@ -25,26 +33,43 @@ if(isset($_POST['confirm_approve'])){
         $added_months = $res_data['months'];
         $added_price = $res_data['total_price'];
 
-        // Update parent reservation with NEW ROOM ID selected by admin
-        mysqli_query($conn, "UPDATE reservations SET 
-            end_date='$new_end', 
-            months = months + $added_months, 
-            total_price = total_price + $added_price,
-            room_id = $new_room_id, 
-            status = 'Approved'
-            WHERE reservation_id=$parent_id");
-        
-        // Move payments and delete temp request
-        mysqli_query($conn, "UPDATE payments SET reservation_id=$parent_id WHERE reservation_id=$reservation_id");
-        mysqli_query($conn, "DELETE FROM reservations WHERE reservation_id=$reservation_id");
-        
-        log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated. Assigned Room ID: $new_room_id");
-        send_notification($conn, $target_user_id, "🔄 <strong>Stay Extended!</strong><br>Your extension request has been approved.", "Extension Approved");
+        mysqli_begin_transaction($conn);
+        try {
+            // Update parent reservation with NEW ROOM ID selected by admin
+            $upd = mysqli_query($conn, "UPDATE reservations SET 
+                end_date='$new_end', 
+                months = months + $added_months, 
+                total_price = total_price + $added_price,
+                room_id = $new_room_id, 
+                status = 'Approved'
+                WHERE reservation_id=$parent_id");
+            if(!$upd) throw new Exception("Failed to update parent reservation");
+            
+            // Move payments and delete temp request
+            $mov = mysqli_query($conn, "UPDATE payments SET reservation_id=$parent_id WHERE reservation_id=$reservation_id");
+            if(!$mov) throw new Exception("Failed to move payments");
+            
+            $del = mysqli_query($conn, "DELETE FROM reservations WHERE reservation_id=$reservation_id");
+            if(!$del) throw new Exception("Failed to delete request");
+            
+            mysqli_commit($conn);
+            
+            log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated. Assigned Room ID: $new_room_id");
+            send_notification($conn, $target_user_id, "🔄 <strong>Stay Extended!</strong><br>Your extension request has been approved.", "Extension Approved");
+        } catch (Exception $e) {
+            mysqli_rollback($conn);
+            $redirect = isset($_POST['redirect_url']) ? $_POST['redirect_url'] : "booking_management.php";
+            $redirect = str_replace(['?msg=approved', '&msg=approved'], '', $redirect);
+            $sep = (strpos($redirect, '?') === false) ? '?' : '&';
+            header("Location: $redirect{$sep}error=" . urlencode($e->getMessage()));
+            exit;
+        }
     } else {
         // NORMAL APPROVAL
-        mysqli_query($conn, "UPDATE reservations SET status='Approved', room_id=$new_room_id WHERE reservation_id=$reservation_id");
-        log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id approved. Assigned Room ID: $new_room_id");
-        send_notification($conn, $target_user_id, "🎉 <strong>Reservation Approved!</strong><br>Your booking has been approved. Please proceed to payment or view details.", "Booking Approved");
+        if(mysqli_query($conn, "UPDATE reservations SET status='Approved', room_id=$new_room_id WHERE reservation_id=$reservation_id")){
+            log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id approved. Assigned Room ID: $new_room_id");
+            send_notification($conn, $target_user_id, "🎉 <strong>Reservation Approved!</strong><br>Your booking has been approved. Please proceed to payment or view details.", "Booking Approved");
+        }
     }
     
     trigger_update($conn);
@@ -144,6 +169,68 @@ if(isset($_GET['action'])){
         }
         header("Location: $redirect_url");
         exit;
+    } elseif($action == 'approve'){
+        // Direct Approval using existing room_id
+        $res_q = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
+        $res_data = mysqli_fetch_assoc($res_q);
+        
+        if($res_data && $res_data['status'] == 'Pending'){
+            $target_user_id = $res_data['user_id'];
+            $current_room_id = $res_data['room_id'];
+            $s_date = $res_data['start_date'];
+            $e_date = $res_data['end_date'];
+
+            // Check Availability for these dates
+            $chk_room = mysqli_query($conn, "SELECT total_beds FROM rooms WHERE room_id=$current_room_id");
+            $room_cap = mysqli_fetch_assoc($chk_room)['total_beds'];
+            
+            // Count overlapping reservations (excluding this one)
+            $chk_occ = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM reservations WHERE room_id=$current_room_id AND status IN ('Pending', 'Approved') AND reservation_id != $reservation_id AND start_date < '$e_date' AND end_date > '$s_date'");
+            $occ = mysqli_fetch_assoc($chk_occ)['cnt'];
+            
+            if($occ >= $room_cap){
+                $redirect = isset($_GET['redirect']) && $_GET['redirect'] == 'view_user' ? "view_user.php?uid=$target_user_id" : "booking_management.php";
+                $sep = (strpos($redirect, '?') === false) ? '?' : '&';
+                header("Location: $redirect{$sep}error=Room is fully booked for these dates.");
+                exit;
+            }
+
+            if(!empty($res_data['extended_from'])){
+                // MERGE EXTENSION INTO ORIGINAL CONTRACT
+                $parent_id = $res_data['extended_from'];
+                $new_end = $res_data['end_date'];
+                $added_months = $res_data['months'];
+                $added_price = $res_data['total_price'];
+
+                mysqli_begin_transaction($conn);
+                try {
+                    // Update parent reservation
+                    $upd = mysqli_query($conn, "UPDATE reservations SET end_date='$new_end', months = months + $added_months, total_price = total_price + $added_price, room_id = $current_room_id, status = 'Approved' WHERE reservation_id=$parent_id");
+                    if(!$upd) throw new Exception("Failed to update parent reservation");
+                    
+                    // Move payments and delete temp request
+                    $mov = mysqli_query($conn, "UPDATE payments SET reservation_id=$parent_id WHERE reservation_id=$reservation_id");
+                    if(!$mov) throw new Exception("Failed to move payments");
+                    
+                    $del = mysqli_query($conn, "DELETE FROM reservations WHERE reservation_id=$reservation_id");
+                    if(!$del) throw new Exception("Failed to delete request");
+                    
+                    mysqli_commit($conn);
+                    
+                    log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated.");
+                    send_notification($conn, $target_user_id, "🔄 <strong>Stay Extended!</strong><br>Your extension request has been approved.", "Extension Approved");
+                } catch (Exception $e) {
+                    mysqli_rollback($conn);
+                }
+            } else {
+                // NORMAL APPROVAL
+                mysqli_query($conn, "UPDATE reservations SET status='Approved' WHERE reservation_id=$reservation_id");
+                log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id approved.");
+                send_notification($conn, $target_user_id, "🎉 <strong>Reservation Approved!</strong><br>Your booking has been approved.", "Booking Approved");
+            }
+        }
+        header("Location: $redirect_url");
+        exit;
     } elseif($action == 'toggle_dnr' && isset($_GET['uid'])){
         // Toggle Do Not Renew Flag
         $uid = (int)$_GET['uid'];
@@ -197,6 +284,12 @@ if (!empty($params)) {
 } else {
     $reservations = mysqli_query($conn, $sql);
 }
+
+// Fetch Pending Counts for Sidebar
+$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
+$pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
+
 $theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
@@ -243,13 +336,28 @@ $theme = get_theme_colors($conn);
         </div>
         <div class="list-group list-group-flush py-3">
             <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
-            <a href="booking_management.php" class="sidebar-link active"><i class="fas fa-calendar-check me-2"></i>Bookings</a>
+            <a href="booking_management.php" class="sidebar-link active d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
+                <?php if($pending_res > 0): ?>
+                    <span class="badge bg-danger rounded-pill"><?= $pending_res ?></span>
+                <?php endif; ?>
+            </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center"><span><i class="fas fa-tools me-2"></i>Utilities</span><i class="fas fa-chevron-down small"></i></a>
             <div class="collapse" id="utilitiesSubmenu">
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-file-invoice-dollar me-2"></i>Billing</a>
-                <a href="admin_maintenance.php" class="sidebar-link ps-5"><i class="fas fa-wrench me-2"></i>Maintenance</a>
-                <a href="admin_housekeeping.php" class="sidebar-link ps-5"><i class="fas fa-broom me-2"></i>Housekeeping</a>
+                <a href="admin_maintenance.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-wrench me-2"></i>Maintenance</span>
+                    <?php if($pending_maint > 0): ?>
+                        <span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span>
+                    <?php endif; ?>
+                </a>
+                <a href="admin_housekeeping.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-broom me-2"></i>Housekeeping</span>
+                    <?php if($pending_house > 0): ?>
+                        <span class="badge bg-danger rounded-pill"><?= $pending_house ?></span>
+                    <?php endif; ?>
+                </a>
                 <a href="admin_utilities.php" class="sidebar-link ps-5"><i class="fas fa-archive me-2"></i>Utilities Archive</a>
                 <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
             </div>
@@ -291,7 +399,7 @@ $theme = get_theme_colors($conn);
                             <tr>
                                 <td><div class="d-flex align-items-center"><div class="user-avatar"><?= strtoupper(substr($res['full_name'],0,1)) ?></div><div><div class="fw-bold"><?= $res['full_name'] ?> <div class="dropdown d-inline ms-1"><a href="#" class="text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v fa-sm"></i></a><ul class="dropdown-menu"><li><a class="dropdown-item" href="view_user.php?uid=<?= $res['user_id'] ?>"><i class="fas fa-eye me-2"></i>View History</a></li><li><a class="dropdown-item" href="?action=toggle_dnr&uid=<?= $res['user_id'] ?>"><i class="fas fa-flag me-2"></i><?= $res['do_not_renew'] ? 'Unflag DNR' : 'Flag DNR' ?></a></li></ul></div></div><small class="text-muted"><?= $res['email'] ?></small><?php if($res['do_not_renew']): ?><div class="badge bg-danger" style="font-size: 0.6rem;">Do Not Renew</div><?php endif; ?></div></div></td>
                                 <td><div class="d-flex align-items-center"><img src="../assets/images/<?= $res['image'] ?>" class="rounded me-2" style="width:40px;height:40px;object-fit:cover;"><div><div class="fw-bold text-success"><?= $res['room_name'] ?></div><small class="text-muted"><?= $res['room_type'] ?></small></div></div></td>
-                                <td><div><i class="fas fa-calendar-alt text-muted me-1"></i> <?= $res['start_date'] ?></div><small class="text-muted"><?= $res['months'] ?> Month(s)</small></td>
+                                <td><div><i class="fas fa-calendar-alt text-muted me-1"></i> <?= date('M d, Y', strtotime($res['start_date'])) ?> - <?= date('M d, Y', strtotime($res['end_date'])) ?></div><small class="text-muted"><?= $res['months'] ?> Month(s)</small></td>
                                 <td class="fw-bold">₱<?= number_format($res['total_price'],2) ?></td>
                                 <td><span class="badge <?= $res['status']=='Approved'?'badge-approved':($res['status']=='Cancelled'?'badge-cancelled':'badge-pending') ?> rounded-pill px-3"><?= $res['status'] ?></span></td>
                                 <td><?php if(!empty($res['signature_image'])) { ?><a href="view_receipt.php?id=<?= $res['reservation_id'] ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-signature"></i> View</a><?php } else { ?>-<?php } ?></td>

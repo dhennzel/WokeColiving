@@ -58,6 +58,11 @@ if(isset($_SESSION['user_id'])){
     if(mysqli_num_rows($check_active) > 0) {
         $has_active_booking = true;
     }
+
+    // Fetch Unread Count & Notifications
+    $unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$uid AND is_read=0");
+    $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
+    $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$uid ORDER BY created_at DESC LIMIT 10");
 }
 ?>
 <!DOCTYPE html>
@@ -315,6 +320,8 @@ if(isset($_SESSION['user_id'])){
         footer a { color: rgba(255,255,255,0.7); text-decoration: none; transition: 0.3s; }
         footer a:hover { color: var(--accent-yellow); }
         .room-img { width: 100%; height: 400px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        @keyframes shake { 0% { transform: rotate(0deg); } 20% { transform: rotate(15deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(5deg); } 80% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
+        .shake-animation { animation: shake 0.5s; }
     </style>
 </head>
 <body>
@@ -338,6 +345,27 @@ if(isset($_SESSION['user_id'])){
             </ul>
         <div class="d-flex gap-2">
             <?php if(isset($_SESSION['user_id'])): ?>
+                <!-- Notification Dropdown -->
+                <div class="dropdown">
+                    <a href="#" class="text-white text-decoration-none position-relative me-3" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-bell fa-lg"></i>
+                        <?php if($unread_count > 0): ?>
+                            <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;">
+                                <?= $unread_count ?>
+                                <span class="visually-hidden">unread messages</span>
+                            </span>
+                        <?php endif; ?>
+                    </a>
+                    <ul id="notifList" class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="notifDropdown" style="width: 320px; max-height: 400px; overflow-y: auto;">
+                        <li class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
+                            <span class="fw-bold small text-uppercase text-muted">Notifications</span>
+                            <?php if($unread_count > 0): ?>
+                                <a href="profile.php?read_all=1" class="small text-decoration-none">Mark all read</a>
+                            <?php endif; ?>
+                        </li>
+                        <!-- Notifications will be loaded via JS -->
+                    </ul>
+                </div>
                 <a href="profile.php" class="btn btn-outline-light rounded-pill px-4">My Profile</a>
                 <a href="logout.php" class="btn btn-custom text-dark fw-bold">Logout</a>
             <?php else: ?>
@@ -570,6 +598,9 @@ if(isset($_SESSION['user_id'])){
     </div>
 </footer>
 
+<!-- Notification Sound -->
+<audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script>
@@ -595,6 +626,58 @@ if(isset($_SESSION['user_id'])){
         icon: '<?= $_SESSION['swal']['icon'] ?>'
     });
     <?php unset($_SESSION['swal']); endif; ?>
+
+    <?php if(isset($_SESSION['user_id'])): ?>
+    // Notification Logic
+    let lastUnreadCount = <?= (int)$unread_count ?>;
+    function fetchNotifications() {
+        fetch('get_notifications.php')
+            .then(response => response.json())
+            .then(data => {
+                const bell = document.getElementById('notifDropdown');
+                let badge = document.getElementById('notifBadge');
+                if(data.unread_count > 0) {
+                    if(!badge) {
+                        badge = document.createElement('span');
+                        badge.id = 'notifBadge';
+                        badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+                        badge.style.fontSize = '0.6rem';
+                        bell.appendChild(badge);
+                    }
+                    badge.innerHTML = `${data.unread_count} <span class="visually-hidden">unread messages</span>`;
+                } else if(badge) badge.remove();
+
+                if(data.unread_count > lastUnreadCount) {
+                    const audio = document.getElementById('notifSound');
+                    if(audio) audio.play().catch(e => {});
+                    const bellIcon = document.querySelector('#notifDropdown i');
+                    if(bellIcon) { bellIcon.classList.add('shake-animation'); setTimeout(() => bellIcon.classList.remove('shake-animation'), 500); }
+                }
+                lastUnreadCount = data.unread_count;
+
+                const list = document.getElementById('notifList');
+                let html = `<li class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light"><span class="fw-bold small text-uppercase text-muted">Notifications</span>${data.unread_count > 0 ? '<a href="profile.php?read_all=1" class="small text-decoration-none">Mark all read</a>' : ''}</li>`;
+                if(data.notifications.length > 0) {
+                    data.notifications.forEach(notif => {
+                        html += `<li><div class="dropdown-item p-3 border-bottom ${notif.is_read == 0 ? 'bg-white' : 'bg-light text-muted'}" style="white-space: normal;"><div class="d-flex justify-content-between mb-1"><strong class="small ${notif.is_read == 0 ? 'text-success' : ''}">${notif.type}</strong><small class="text-muted" style="font-size: 0.7rem;">${notif.created_at}</small></div><p class="mb-0 small">${notif.message}</p></div></li>`;
+                    });
+                } else { html += '<li class="p-3 text-center text-muted small">No notifications found.</li>'; }
+                list.innerHTML = html;
+            });
+    }
+    
+    document.getElementById('notifDropdown').addEventListener('click', function() {
+        const badge = document.getElementById('notifBadge');
+        if(badge) badge.remove();
+        fetch('get_notifications.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'mark_read=1'
+        });
+    });
+    setInterval(fetchNotifications, 5000);
+    fetchNotifications(); // Initial load
+    <?php endif; ?>
 </script>
 </body>
 </html>
