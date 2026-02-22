@@ -23,6 +23,7 @@ if(isset($_GET['cancel_id'])){
     mysqli_stmt_bind_param($stmt, "ii", $cancel_id, $user_id);
     
     if(mysqli_stmt_execute($stmt)){
+        trigger_update($conn);
         header("Location: housekeeping.php?msg=cancelled");
         exit;
     }
@@ -38,6 +39,7 @@ if (isset($_POST['submit_request'])) {
         
         $sql = "INSERT INTO housekeeping_requests (user_id, room_id, description, status) VALUES ('$user_id', '$room_id', '$description', 'Pending')";
         if (mysqli_query($conn, $sql)) {
+            trigger_update($conn);
             header("Location: housekeeping.php?msg=submitted");
             exit;
         } else {
@@ -194,6 +196,18 @@ function confirmAction(e, url, msg) {
         if (result.isConfirmed) window.location.href = url;
     });
 }
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php')
+    .then(r => r.text())
+    .then(t => {
+        if(lastUpdate == 0) lastUpdate = t;
+        else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>
 </body>
 </html>

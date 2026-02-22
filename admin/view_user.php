@@ -53,6 +53,7 @@ if(isset($_POST['delete_user'])){
             try { mysqli_query($conn, "DELETE FROM waitlist WHERE user_id=$del_uid"); } catch(Exception $e){}
 
             mysqli_query($conn, "DELETE FROM users WHERE user_id=$del_uid");
+            trigger_update($conn);
             mysqli_commit($conn);
             echo "<script>window.location='booking_management.php?msg=user_deleted';</script>";
             exit;
@@ -69,6 +70,7 @@ if(isset($_POST['bulk_mark_paid']) && !empty($_POST['payment_ids'])){
     if(!empty($ids)){
         $ids_str = implode(',', $ids);
         mysqli_query($conn, "UPDATE payments SET payment_status='Paid', payment_date=NOW() WHERE payment_id IN ($ids_str)");
+        trigger_update($conn);
         echo "<script>window.location.href='view_user.php?uid=$uid&msg=bulk_paid';</script>";
         exit;
     }
@@ -147,7 +149,7 @@ $expiring_query = mysqli_query($conn, "
 
 // Fetch Rooms for Approval Modal
 $rooms_for_modal = [];
-$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor FROM rooms WHERE status != 'Maintenance' ORDER BY floor, room_number");
+$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor FROM rooms WHERE availability != 'Maintenance' ORDER BY floor, room_number");
 while($r = mysqli_fetch_assoc($rfm_q)){
     $rooms_for_modal[] = $r;
 }
@@ -537,13 +539,14 @@ $theme = get_theme_colors($conn);
 <script>
 function confirmAction(e, url, msg) {
     e.preventDefault();
+    const isDestructive = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('end') || msg.toLowerCase().includes('delete') || msg.toLowerCase().includes('terminate');
     Swal.fire({
         title: 'Are you sure?',
         text: msg,
-        icon: 'question',
+        icon: isDestructive ? 'warning' : 'question',
         showCancelButton: true,
-        confirmButtonColor: '#2e7d32',
-        cancelButtonColor: '#d33',
+        confirmButtonColor: isDestructive ? '#d33' : '#2e7d32',
+        cancelButtonColor: isDestructive ? '#3085d6' : '#d33',
         confirmButtonText: 'Yes, proceed!'
     }).then((result) => {
         if (result.isConfirmed) window.location.href = url;
@@ -686,6 +689,18 @@ function openApproveModal(resId, currentRoomId, roomType) {
     });
     new bootstrap.Modal(document.getElementById('approveModal')).show();
 }
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php')
+    .then(r => r.text())
+    .then(t => {
+        if(lastUpdate == 0) lastUpdate = t;
+        else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>
 </body>
 </html>

@@ -75,6 +75,7 @@ if(isset($_POST['update_room'])){
         try {
             if(mysqli_stmt_execute($stmt)){
                 $success = "Room updated successfully!";
+                trigger_update($conn);
                 // Refresh data
                 $room = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM rooms WHERE room_id=$room_id"));
             } else {

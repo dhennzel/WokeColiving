@@ -28,6 +28,7 @@ if(isset($_GET['archive_id'])){
     $archive_id = (int)$_GET['archive_id'];
     try {
         mysqli_query($conn, "UPDATE rooms SET is_archived='1' WHERE room_id=$archive_id");
+        trigger_update($conn);
         header("Location: admin_rooms.php");
         exit;
     } catch (mysqli_sql_exception $e) {
@@ -382,6 +383,18 @@ document.addEventListener('click', function(event) {
         }
     }
 });
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php')
+    .then(r => r.text())
+    .then(t => {
+        if(lastUpdate == 0) lastUpdate = t;
+        else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>
 </body>
 </html>

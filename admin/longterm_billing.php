@@ -33,7 +33,7 @@ $error = "";
 
 // Handle Bill Generation
 if(isset($_POST['generate_bill'])){
-    $room_id = (int)$_POST['room_id'];
+    $res_id = (int)$_POST['reservation_id'];
     $bill_date = $_POST['bill_date'];
     
     // Electricity
@@ -53,62 +53,40 @@ if(isset($_POST['generate_bill'])){
     $total = $e_cost + $w_cost;
 
     if($total > 0){
-        // Find eligible tenants in this room (Long-term only)
-        $tenants_q = mysqli_query($conn, "SELECT reservation_id, user_id FROM reservations WHERE room_id=$room_id AND status='Approved' AND months >= 6");
-        $tenant_count = mysqli_num_rows($tenants_q);
-
-        if($tenant_count > 0){
-            $share_amount = $total / $tenant_count;
-            $success_count = 0;
-
-            while($t_row = mysqli_fetch_assoc($tenants_q)){
-                $res_id = $t_row['reservation_id'];
-                $uid = $t_row['user_id'];
-
-                // Insert into utility_bills log (Per tenant record for history)
-                $stmt = mysqli_prepare($conn, "INSERT INTO utility_bills (reservation_id, bill_date, electric_start, electric_end, electric_rate, water_start, water_end, water_rate, total_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                mysqli_stmt_bind_param($stmt, "isddddddd", $res_id, $bill_date, $e_start, $e_end, $e_rate, $w_start, $w_end, $w_rate, $share_amount);
-                mysqli_stmt_execute($stmt);
-
-                // Add to payments as Unpaid Bill
-                $desc = "Utility Bill ($bill_date) - Share: ₱".number_format($share_amount,2)." (Room Total: ₱".number_format($total,2).")";
-                $pay_stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'Cash', 'Unpaid', NOW(), ?)");
-                mysqli_stmt_bind_param($pay_stmt, "ids", $res_id, $share_amount, $desc);
-                mysqli_stmt_execute($pay_stmt);
-                
-                send_notification($conn, $uid, "🧾 <strong>New Utility Bill</strong><br>A bill of ₱".number_format($share_amount,2)." has been generated for $bill_date (Your share).", "Billing");
-                $success_count++;
-            }
-            $message = "Utility bill generated for Room. Split among $success_count tenants (₱".number_format($share_amount,2)." each).";
+        // Insert into utility_bills log
+        $stmt = mysqli_prepare($conn, "INSERT INTO utility_bills (reservation_id, bill_date, electric_start, electric_end, electric_rate, water_start, water_end, water_rate, total_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        mysqli_stmt_bind_param($stmt, "isddddddd", $res_id, $bill_date, $e_start, $e_end, $e_rate, $w_start, $w_end, $w_rate, $total);
+        
+        if(mysqli_stmt_execute($stmt)){
+            // Add to payments as Unpaid Bill
+            $desc = "Utility Bill ($bill_date) - Elec: {$e_usage}kw, Water: {$w_usage}m3";
+            $pay_stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'Cash', 'Unpaid', NOW(), ?)");
+            mysqli_stmt_bind_param($pay_stmt, "ids", $res_id, $total, $desc);
+            mysqli_stmt_execute($pay_stmt);
+            
+            $message = "Utility bill generated and added to tenant's account.";
+            trigger_update($conn);
+            
+            // Notify User
+            $u_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE reservation_id=$res_id");
+            $uid = mysqli_fetch_assoc($u_q)['user_id'];
+            send_notification($conn, $uid, "🧾 <strong>New Utility Bill</strong><br>A bill of ₱".number_format($total,2)." has been generated for $bill_date.", "Billing");
         } else {
-            $error = "No long-term tenants found in this room to bill.";
+            $error = "Database error: " . mysqli_error($conn);
         }
     } else {
         $error = "Total bill amount is 0. Please check readings.";
     }
 }
 
-// Filter Logic
-$floor_filter = isset($_GET['floor']) ? (int)$_GET['floor'] : 0;
-$type_filter = isset($_GET['room_type']) ? $_GET['room_type'] : '';
-
-$where_clause = "r.status = 'Approved' AND r.months >= 6";
-
-if($floor_filter > 0){
-    $where_clause .= " AND rm.floor = $floor_filter";
-}
-if(!empty($type_filter)){
-    $where_clause .= " AND rm.room_type = '" . mysqli_real_escape_string($conn, $type_filter) . "'";
-}
-
-// Fetch Rooms with Long-term Tenants
-$query = "SELECT rm.room_id, rm.room_name, rm.floor, rm.room_type, COUNT(r.reservation_id) as tenant_count 
-          FROM rooms rm 
-          JOIN reservations r ON rm.room_id = r.room_id 
-          WHERE $where_clause 
-          GROUP BY rm.room_id 
-          ORDER BY rm.room_name ASC";
-$rooms = mysqli_query($conn, $query);
+// Fetch Long-term Tenants (>= 6 months)
+$query = "SELECT r.*, u.full_name, rm.room_name 
+          FROM reservations r 
+          JOIN users u ON r.user_id = u.user_id 
+          JOIN rooms rm ON r.room_id = rm.room_id 
+          WHERE r.status = 'Approved' AND r.months >= 6 
+          ORDER BY r.end_date ASC";
+$tenants = mysqli_query($conn, $query);
 $theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
@@ -201,30 +179,11 @@ $theme = get_theme_colors($conn);
     <!-- Page Content -->
     <div id="page-content-wrapper">
         <div class="container-fluid px-4 py-4 reveal">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div class="d-flex align-items-center">
-                    <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
-                        <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
-                    </a>
-                    <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Utility Billing (Long-term Tenants)</h4>
-                </div>
-                <form method="GET" class="d-flex gap-2">
-                    <select name="floor" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="0">All Floors</option>
-                        <?php for($i=2; $i<=7; $i++): ?>
-                            <option value="<?= $i ?>" <?= ($floor_filter == $i) ? 'selected' : '' ?>><?= $i ?>th Floor</option>
-                        <?php endfor; ?>
-                    </select>
-                    <select name="room_type" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="">All Types</option>
-                        <option value="Single" <?= ($type_filter == 'Single') ? 'selected' : '' ?>>Single</option>
-                        <option value="4-Bed" <?= ($type_filter == '4-Bed') ? 'selected' : '' ?>>4-Bed</option>
-                        <option value="6-Bed" <?= ($type_filter == '6-Bed') ? 'selected' : '' ?>>6-Bed</option>
-                    </select>
-                    <?php if($floor_filter || $type_filter): ?>
-                        <a href="longterm_billing.php" class="btn btn-sm btn-outline-secondary">Reset</a>
-                    <?php endif; ?>
-                </form>
+            <div class="d-flex align-items-center mb-4">
+                <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
+                    <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
+                </a>
+                <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Utility Billing (Long-term Tenants)</h4>
             </div>
 
             <?php if($message) echo "<div class='alert alert-success'>$message</div>"; ?>
@@ -235,32 +194,30 @@ $theme = get_theme_colors($conn);
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
+                                <th>Tenant</th>
                                 <th>Room</th>
-                                <th>Floor</th>
-                                <th>Type</th>
-                                <th>Billable Tenants</th>
+                                <th>Contract End</th>
                                 <th>Last Bill</th>
                                 <th class="text-end">Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while($row = mysqli_fetch_assoc($rooms)) { 
-                                // Get last bill date for this room (from any tenant in it)
-                                $rid = $row['room_id'];
-                                $lb_q = mysqli_query($conn, "SELECT ub.bill_date, ub.electric_end, ub.water_end FROM utility_bills ub JOIN reservations r ON ub.reservation_id = r.reservation_id WHERE r.room_id=$rid ORDER BY ub.bill_date DESC LIMIT 1");
+                            <?php while($row = mysqli_fetch_assoc($tenants)) { 
+                                // Get last bill date
+                                $rid = $row['reservation_id'];
+                                $lb_q = mysqli_query($conn, "SELECT bill_date, electric_end, water_end FROM utility_bills WHERE reservation_id=$rid ORDER BY bill_date DESC LIMIT 1");
                                 $last_bill = mysqli_fetch_assoc($lb_q);
                                 $last_date = $last_bill ? $last_bill['bill_date'] : 'None';
                                 $prev_e = $last_bill ? $last_bill['electric_end'] : 0;
                                 $prev_w = $last_bill ? $last_bill['water_end'] : 0;
                             ?>
                             <tr>
-                                <td class="fw-bold"><?= $row['room_name'] ?></td>
-                                <td><?= $row['floor'] ?></td>
-                                <td><?= $row['room_type'] ?></td>
-                                <td><span class="badge bg-info text-dark"><?= $row['tenant_count'] ?> Tenants</span></td>
+                                <td class="fw-bold"><?= $row['full_name'] ?></td>
+                                <td><?= $row['room_name'] ?></td>
+                                <td><?= $row['end_date'] ?></td>
                                 <td><?= $last_date ?></td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-custom" onclick="openBillModal(<?= $rid ?>, '<?= addslashes($row['room_name']) ?>', <?= $prev_e ?>, <?= $prev_w ?>)">
+                                    <button class="btn btn-sm btn-custom" onclick="openBillModal(<?= $rid ?>, '<?= addslashes($row['full_name']) ?>', <?= $prev_e ?>, <?= $prev_w ?>)">
                                         <i class="fas fa-file-invoice-dollar me-2"></i>Generate Bill
                                     </button>
                                 </td>
@@ -284,8 +241,8 @@ $theme = get_theme_colors($conn);
             </div>
             <form method="POST">
                 <div class="modal-body">
-                    <p>Billing for Room: <strong id="modalRoomName"></strong></p>
-                    <input type="hidden" name="room_id" id="modalRoomId">
+                    <p>Billing for: <strong id="modalTenantName"></strong></p>
+                    <input type="hidden" name="reservation_id" id="modalResId">
                     
                     <div class="mb-3">
                         <label class="form-label">Billing Month/Date</label>
@@ -318,8 +275,8 @@ $theme = get_theme_colors($conn);
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 function openBillModal(id, name, prevE, prevW) {
-    document.getElementById('modalRoomId').value = id;
-    document.getElementById('modalRoomName').innerText = name;
+    document.getElementById('modalResId').value = id;
+    document.getElementById('modalTenantName').innerText = name;
     document.getElementById('e_start').value = prevE;
     document.getElementById('w_start').value = prevW;
     new bootstrap.Modal(document.getElementById('billModal')).show();
@@ -331,6 +288,18 @@ function toggleMenu(e) {
 }
 document.getElementById("menu-toggle").addEventListener("click", toggleMenu);
 document.getElementById("sidebar-toggle").addEventListener("click", toggleMenu);
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php')
+    .then(r => r.text())
+    .then(t => {
+        if(lastUpdate == 0) lastUpdate = t;
+        else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>
 </body>
 </html>

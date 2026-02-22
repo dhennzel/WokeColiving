@@ -578,7 +578,7 @@ if (isset($_POST['submit'])) {
                             
                             <div class="mb-3">
                                 <label class="form-label small fw-bold">Electronic Signature (Type Full Name)</label>
-                                <input type="text" name="typed_signature" class="form-control" placeholder="e.g. Juan Dela Cruz" required>
+                                <input type="text" name="typed_signature" class="form-control" value="<?= htmlspecialchars($user_name) ?>" readonly>
                             </div>
                             
                             <div class="mb-1">

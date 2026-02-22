@@ -42,6 +42,7 @@ if(isset($_POST['move_tenant'])){
     mysqli_query($conn, "INSERT INTO temporary_moves (reservation_id, original_room_id, temp_room_id) VALUES ($res_id, $orig_room, $target_room)");
     mysqli_query($conn, "UPDATE reservations SET room_id=$target_room WHERE reservation_id=$res_id");
     
+    trigger_update($conn);
     header("Location: admin_maintenance.php?msg=moved");
     exit;
 }
@@ -59,6 +60,7 @@ if(isset($_POST['return_tenant'])){
         mysqli_query($conn, "UPDATE reservations SET room_id=$orig_room WHERE reservation_id=$res_id");
         mysqli_query($conn, "UPDATE temporary_moves SET status='Returned' WHERE id=$move_id");
     }
+    trigger_update($conn);
     header("Location: admin_maintenance.php?msg=returned");
     exit;
 }
@@ -70,6 +72,7 @@ if(isset($_POST['update_request'])){
     $sched_date = !empty($_POST['scheduled_date']) ? "'".$_POST['scheduled_date']."'" : "NULL";
     
     mysqli_query($conn, "UPDATE maintenance_requests SET status='$status', scheduled_date=$sched_date WHERE request_id=$req_id");
+    trigger_update($conn);
     header("Location: admin_maintenance.php");
     exit;
 }
@@ -391,6 +394,18 @@ document.addEventListener('click', function(event) {
         }
     }
 });
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php')
+    .then(r => r.text())
+    .then(t => {
+        if(lastUpdate == 0) lastUpdate = t;
+        else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>
 </body>
 </html>

@@ -10,7 +10,7 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 
 // Fetch Rooms for Approval Modal
 $rooms_for_modal = [];
-$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor FROM rooms WHERE status != 'Maintenance' ORDER BY floor, room_number");
+$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor FROM rooms WHERE availability != 'Maintenance' ORDER BY floor, room_number");
 while($r = mysqli_fetch_assoc($rfm_q)){
     $rooms_for_modal[] = $r;
 }
@@ -304,8 +304,6 @@ $theme = get_theme_colors($conn);
                                     <?php if($res['status'] == 'Pending'): ?>
                                         <button type="button" class="btn btn-sm btn-success" title="Approve" onclick="openApproveModal(<?= $res['reservation_id'] ?>, <?= $res['room_id'] ?>, '<?= $res['room_type'] ?>')"><i class="fas fa-check"></i></button>
                                         <a href="?action=reject&id=<?= $res['reservation_id'] ?>" class="btn btn-sm btn-danger" title="Reject" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
-                                    <?php elseif($res['status'] == 'Approved'): ?>
-                                        <a href="?action=terminate&id=<?= $res['reservation_id'] ?>" class="btn btn-sm btn-outline-danger" title="End Contract" onclick="confirmAction(event, this.href, 'End this contract?')"><i class="fas fa-ban"></i></a>
                                     <?php endif; ?>
                                     <a href="view_user.php?uid=<?= $res['user_id'] ?>" class="btn btn-sm btn-info text-white" title="View Profile"><i class="fas fa-user"></i></a>
                                 </td>
@@ -380,13 +378,14 @@ $theme = get_theme_colors($conn);
 
     function confirmAction(e, url, msg) {
         e.preventDefault();
+        const isDestructive = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('end') || msg.toLowerCase().includes('delete') || msg.toLowerCase().includes('terminate');
         Swal.fire({
             title: 'Are you sure?',
             text: msg,
-            icon: 'warning',
+            icon: isDestructive ? 'warning' : 'question',
             showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
+            confirmButtonColor: isDestructive ? '#d33' : '#2e7d32',
+            cancelButtonColor: isDestructive ? '#3085d6' : '#d33',
             confirmButtonText: 'Yes, proceed!'
         }).then((result) => {
             if (result.isConfirmed) window.location.href = url;

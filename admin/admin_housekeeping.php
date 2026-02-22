@@ -17,6 +17,7 @@ if(isset($_POST['update_request'])){
     $sched_date = !empty($_POST['scheduled_date']) ? "'".$_POST['scheduled_date']."'" : "NULL";
     
     mysqli_query($conn, "UPDATE housekeeping_requests SET status='$status', scheduled_date=$sched_date WHERE request_id=$req_id");
+    trigger_update($conn);
     header("Location: admin_housekeeping.php");
     exit;
 }
@@ -42,6 +43,7 @@ if(isset($_POST['auto_schedule_weekly'])){
             $count++;
         }
     }
+    trigger_update($conn);
     $message = "Weekly cleaning auto-scheduled for $count rooms.";
 }
 
@@ -58,6 +60,7 @@ if(isset($_POST['schedule_cleaning'])){
         $stmt = mysqli_prepare($conn, "INSERT INTO housekeeping_requests (user_id, room_id, description, status, scheduled_date) VALUES (?, ?, ?, 'Scheduled', ?)");
         mysqli_stmt_bind_param($stmt, "iiss", $uid, $room_id, $desc, $sched_date);
         mysqli_stmt_execute($stmt);
+        trigger_update($conn);
         $message = "Routine cleaning scheduled successfully (Free).";
         send_notification($conn, $uid, "🧹 <strong>Housekeeping Scheduled</strong><br>Admin has scheduled a routine cleaning for your room on " . date('M d, Y', strtotime($sched_date)) . ".", "Housekeeping");
     } else {
@@ -340,6 +343,18 @@ function filterModalRooms() {
     });
     select.value = ""; // Reset selection
 }
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php')
+    .then(r => r.text())
+    .then(t => {
+        if(lastUpdate == 0) lastUpdate = t;
+        else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>
 </body>
 </html>
