@@ -47,6 +47,7 @@ if(isset($_POST['confirm_approve'])){
         send_notification($conn, $target_user_id, "🎉 <strong>Reservation Approved!</strong><br>Your booking has been approved. Please proceed to payment or view details.", "Booking Approved");
     }
     
+    trigger_update($conn);
     $redirect = isset($_POST['redirect_url']) ? $_POST['redirect_url'] : "booking_management.php";
     header("Location: $redirect");
     exit;

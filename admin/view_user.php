@@ -290,6 +290,12 @@ $theme = get_theme_colors($conn);
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid'): ?>
                 <div class="alert alert-success">Selected payments marked as paid successfully.</div>
             <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'extended'): ?>
+                <div class="alert alert-success">Extension request approved successfully.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'approved'): ?>
+                <div class="alert alert-success">Reservation has been successfully approved.</div>
+            <?php endif; ?>
 
             <!-- Expiring Contracts Alert -->
             <?php if(mysqli_num_rows($expiring_query) > 0): ?>
@@ -397,7 +403,7 @@ $theme = get_theme_colors($conn);
                                                     <form method="POST" action="booking_management.php" class="d-inline" onsubmit="confirmForm(event, 'Approve this extension request?')">
                                                         <input type="hidden" name="reservation_id" value="<?= $row['reservation_id'] ?>">
                                                         <input type="hidden" name="room_id" value="<?= $row['room_id'] ?>">
-                                                        <input type="hidden" name="redirect_url" value="booking_management.php?msg=extended">
+                                                        <input type="hidden" name="redirect_url" value="view_user.php?uid=<?= $uid ?>&msg=extended">
                                                         <button type="submit" name="confirm_approve" class="btn btn-sm btn-success" title="Approve Extension"><i class="fas fa-check"></i></button>
                                                     </form>
                                                 <?php else: ?>
@@ -530,10 +536,10 @@ $theme = get_theme_colors($conn);
             <form method="POST" action="booking_management.php">
                 <div class="modal-body">
                     <input type="hidden" name="reservation_id" id="approveResId">
-                    <input type="hidden" name="redirect_url" value="booking_management.php?msg=approved">
+                    <input type="hidden" name="redirect_url" value="view_user.php?uid=<?= $uid ?>&msg=approved">
                     <p>Please confirm the room assignment before approving.</p>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Assign Room / Floor</label>
+                        <label class="form-label fw-bold" for="approveRoomSelect">Assign Room / Floor</label>
                         <select name="room_id" id="approveRoomSelect" class="form-select" required></select>
                     </div>
                 </div>
