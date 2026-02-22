@@ -116,7 +116,7 @@ if($end_date){
 
 // Fetch Payment History
 $pay_query = mysqli_query($conn, "
-    SELECT p.*, r.reservation_id, rm.room_name, rm.room_type 
+    SELECT p.*, r.reservation_id, r.start_date, rm.room_name, rm.room_type 
     FROM payments p 
     JOIN reservations r ON p.reservation_id = r.reservation_id 
     LEFT JOIN rooms rm ON r.room_id = rm.room_id 
@@ -363,7 +363,15 @@ $theme = get_theme_colors($conn);
                                 $total_amount += $pay['amount'];
                             ?>
                             <?php
-                                $is_overdue = ($pay['payment_status'] == 'Unpaid' && strtotime($pay['payment_date']) < strtotime('-5 days'));
+                                // Determine due date: Contract Start Date for Room Payments, Bill Date for others
+                                $desc_val = $pay['description'] ?? '';
+                                $is_room_payment = (stripos($desc_val, 'Room Payment') !== false);
+                                $due_timestamp = ($is_room_payment && !empty($pay['start_date'])) ? strtotime($pay['start_date']) : strtotime($pay['payment_date']);
+                                
+                                // Grace period of 5 days
+                                $overdue_timestamp = $due_timestamp + (5 * 86400);
+                                
+                                $is_overdue = ($pay['payment_status'] == 'Unpaid' && time() > $overdue_timestamp);
                                 $row_class = $is_overdue ? 'table-danger' : '';
                                 $desc = !empty($pay['description']) ? $pay['description'] : 'Room Payment';
                                 $room_info = $pay['room_name'] ? htmlspecialchars($pay['room_name']) . ' <small class="text-muted">('.$pay['room_type'].')</small>' : '<span class="text-muted">Unknown Room</span>';

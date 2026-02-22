@@ -205,7 +205,7 @@ if($expire_soon_query) {
     while($row = mysqli_fetch_assoc($expire_soon_query)) {
         $uid = $row['user_id'];
         // Check if notification sent in last 24 hours to avoid spam
-        $chk_exp = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND type = 'Expiration Alert' AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+        $chk_exp = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND type = 'Expiration Alert' AND created_at > DATE_SUB(NOW(), INTERVAL 6 HOUR)");
         if(mysqli_num_rows($chk_exp) == 0){
             $days_left = ceil((strtotime($row['end_date']) - time()) / (60 * 60 * 24));
             $msg = "⚠️ <strong>Contract Expiring Soon</strong><br>Your stay in <strong>{$row['room_name']}</strong> ends on <strong>{$row['end_date']}</strong> ($days_left days left). Please contact admin to renew.";
@@ -214,41 +214,54 @@ if($expire_soon_query) {
     }
 }
 
-// 5. Auto-apply Late Penalties (5 days after due date, 5% penalty)
+// 5. Auto-apply Late Penalties & Warnings (Accurate to Contract Date)
 $grace_period = 5; // days
 $penalty_rate = 0.05; // 5%
 
-$overdue_query = mysqli_query($conn, "
-    SELECT payment_id, reservation_id, amount, description 
-    FROM payments 
-    WHERE payment_status = 'Unpaid' 
-    AND is_penalized = 0 
-    AND description NOT LIKE 'Late Penalty%' 
-    AND payment_date < (NOW() - INTERVAL $grace_period DAY)
+$pay_query = mysqli_query($conn, "
+    SELECT p.payment_id, p.reservation_id, p.amount, p.description, p.payment_date, r.start_date, r.user_id
+    FROM payments p
+    JOIN reservations r ON p.reservation_id = r.reservation_id
+    WHERE p.payment_status = 'Unpaid' 
+    AND p.is_penalized = 0 
+    AND p.description NOT LIKE 'Late Penalty%' 
 ");
 
-if($overdue_query){
-    while($row = mysqli_fetch_assoc($overdue_query)){
+if($pay_query){
+    while($row = mysqli_fetch_assoc($pay_query)){
         $pid = $row['payment_id'];
         $rid = $row['reservation_id'];
+        $uid = $row['user_id'];
         $amount = $row['amount'];
-        $penalty_amount = $amount * $penalty_rate;
         
-        // Create Penalty Record
-        $desc = "Late Penalty (5%) for Payment #$pid";
-        $ins = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'System', 'Unpaid', NOW(), ?)");
-        mysqli_stmt_bind_param($ins, "ids", $rid, $penalty_amount, $desc);
-        mysqli_stmt_execute($ins);
+        // Determine Due Date (Contract Start Date for Room Payments, Bill Date for others)
+        $is_room_payment = (stripos($row['description'] ?? '', 'Room Payment') !== false);
+        $due_timestamp = ($is_room_payment && !empty($row['start_date'])) ? strtotime($row['start_date']) : strtotime($row['payment_date']);
         
-        // Mark original as penalized
-        mysqli_query($conn, "UPDATE payments SET is_penalized = 1 WHERE payment_id = $pid");
+        $current_time = time();
+        $penalty_timestamp = $due_timestamp + ($grace_period * 86400);
         
-        // Log and Notify
-        $u_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE reservation_id=$rid");
-        if($u_q && $u_row = mysqli_fetch_assoc($u_q)){
-            $uid = $u_row['user_id'];
+        // A. Apply Penalty if grace period passed
+        if($current_time > $penalty_timestamp){
+            $penalty_amount = $amount * $penalty_rate;
+            $desc = "Late Penalty (5%) for Payment #$pid";
+            
+            $ins = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'System', 'Unpaid', NOW(), ?)");
+            mysqli_stmt_bind_param($ins, "ids", $rid, $penalty_amount, $desc);
+            mysqli_stmt_execute($ins);
+            
+            mysqli_query($conn, "UPDATE payments SET is_penalized = 1 WHERE payment_id = $pid");
+            
             log_activity($conn, $uid, "Penalty Applied", "Late fee of ".number_format($penalty_amount,2)." applied for Payment #$pid");
             send_notification($conn, $uid, "⚠️ <strong>Late Payment Penalty</strong><br>A penalty of ₱".number_format($penalty_amount,2)." has been applied to your account due to overdue payment.", "Billing Alert");
+        }
+        // B. Send Warning if Overdue (every 6 hours)
+        elseif($current_time > $due_timestamp){
+             $chk_warn = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND type = 'Payment Warning' AND message LIKE '%#$pid%' AND created_at > DATE_SUB(NOW(), INTERVAL 6 HOUR)");
+             if(mysqli_num_rows($chk_warn) == 0){
+                 $days_over = ceil(($current_time - $due_timestamp) / 86400);
+                 send_notification($conn, $uid, "⚠️ <strong>Payment Overdue</strong><br>Payment #$pid of ₱".number_format($amount,2)." is $days_over days overdue. Please pay immediately to avoid penalties.", "Payment Warning");
+             }
         }
     }
 }
