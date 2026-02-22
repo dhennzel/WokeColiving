@@ -113,9 +113,18 @@ $theme = get_theme_colors($conn);
 
         <!-- Terms -->
         <div class="mb-4 p-3 bg-light rounded border">
-            <div class="label mb-2">Terms & Conditions</div>
-            <p class="small text-muted text-justify mb-0" style="line-height: 1.6;">
-                I, the undersigned, hereby agree to the terms and conditions of Woke Coliving INC. I acknowledge that I am responsible for the room and its amenities during my stay. I understand that utilities (Water & Electric) are charged separately for stays of 6 months or longer. I agree to abide by the house rules regarding noise, cleanliness, and visitors.
+            <div class="label mb-2">House Rules & Regulations</div>
+            <ul class="small text-muted mb-0" style="line-height: 1.6; padding-left: 20px;">
+                <li><strong>Quiet Hours:</strong> Please observe quiet hours from 10:00 PM to 7:00 AM to respect other tenants.</li>
+                <li><strong>Cleanliness:</strong> Clean up after yourself in common areas (kitchen, living room, bathroom). Do not leave personal items in shared spaces.</li>
+                <li><strong>Visitors:</strong> Visitors are allowed until 9:00 PM only. No overnight guests are permitted without prior admin approval.</li>
+                <li><strong>Smoking/Alcohol:</strong> Smoking and drinking alcohol are strictly prohibited inside the premises.</li>
+                <li><strong>Security:</strong> Always lock your room and the main door when leaving. The management is not liable for lost valuables.</li>
+                <li><strong>Utilities:</strong> For stays of 6 months or longer, water and electricity are billed separately based on consumption.</li>
+                <li><strong>Damages:</strong> Any damage to property or furniture caused by the tenant will be charged accordingly.</li>
+            </ul>
+            <p class="small text-muted text-justify mt-3 mb-0">
+                I, the undersigned, hereby agree to the terms and conditions of Woke Coliving INC stated above. I understand that violation of these rules may result in penalties or eviction.
             </p>
         </div>
 
