@@ -97,7 +97,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
             Woke Coliving INC
         </a>
         <div class="d-flex align-items-center gap-3 ms-auto">
-            <!-- Notification Dropdown -->
+            <!-- Notification Dropdown --->
             <div class="dropdown">
                 <a href="#" class="text-white text-decoration-none position-relative me-3" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-bell fa-lg"></i>
