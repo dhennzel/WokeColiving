@@ -477,7 +477,6 @@ if (isset($_POST['submit'])) {
                             <select id="duration_select" class="form-select" onchange="updateCheckoutDate()">
                                 <option value="custom">Custom Dates</option>
                                 <option value="1">1 Month</option>
-                                <option value="3">3 Months</option>
                                 <option value="6">6 Months</option>
                                 <option value="12">1 Year</option>
                             </select>
