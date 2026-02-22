@@ -51,7 +51,7 @@ $total_rooms = mysqli_fetch_assoc($total_rooms_query)['count'];
 // Stats: Occupancy Rate (Active Beds / Total Capacity)
 $today = date('Y-m-d');
 // 1. Total Capacity (Beds in non-maintenance rooms)
-$cap_q = mysqli_query($conn, "SELECT SUM(total_beds) as total FROM rooms WHERE status != 'Maintenance'");
+$cap_q = mysqli_query($conn, "SELECT SUM(total_beds) as total FROM rooms WHERE availability != 'Maintenance' AND is_archived=0");
 $total_capacity = mysqli_fetch_assoc($cap_q)['total'] ?? 0;
 
 // 2. Total Occupied (Active Approved Reservations)

@@ -46,13 +46,24 @@ if($is_bunk){
     $cap_upper = floor($room['total_beds'] / 2);
     $cap_lower = ceil($room['total_beds'] / 2);
     
-    // Distribute 'Any' to Lower first
-    $slots_lower_free = max(0, $cap_lower - $taken_lower);
-    $any_in_lower = min($taken_any, $slots_lower_free);
-    $any_in_upper = $taken_any - $any_in_lower;
+    $avail_upper = max(0, $cap_upper - $taken_upper);
+    $avail_lower = max(0, $cap_lower - $taken_lower);
     
-    $avail_lower = max(0, $cap_lower - ($taken_lower + $any_in_lower));
-    $avail_upper = max(0, $cap_upper - ($taken_upper + $any_in_upper));
+    if($taken_any > 0) {
+        $fill_lower = min($avail_lower, $taken_any);
+        $avail_lower -= $fill_lower;
+        $taken_any -= $fill_lower;
+        
+        $avail_upper -= $taken_any;
+        $avail_upper = max(0, $avail_upper);
+    }
+}
+
+// Override if Maintenance
+if($room['availability'] == 'Maintenance') {
+    $available_beds = 0;
+    $avail_upper = 0;
+    $avail_lower = 0;
 }
 
 // Fetch user name for navbar if logged in

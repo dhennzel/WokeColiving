@@ -176,7 +176,7 @@ if (isset($_POST['confirm_booking'])) {
         
         // Find an available room of the selected type
         $found_room = null;
-        $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower FROM rooms WHERE room_type = ? AND status = 'Available'";
+        $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower FROM rooms WHERE room_type = ? AND availability = 'Available' AND is_archived=0";
         $r_stmt = $conn->prepare($r_sql);
         $r_stmt->bind_param("s", $troom);
         $r_stmt->execute();

@@ -1,8 +1,8 @@
 <?php
 include '../db.php';
 
-$checkin = $_GET['checkin'] ?? '';
-$checkout = $_GET['checkout'] ?? '';
+ $checkin = $_GET['checkin'] ?? date('Y-m-d');
+ $checkout = $_GET['checkout'] ?? date('Y-m-d', strtotime('+1 day'));
 
 // GET SINGLE ROOM BY ID (For Modal)
 if (isset($_GET['id'])) {
@@ -14,7 +14,7 @@ if (isset($_GET['id'])) {
 }
 
 // GET ALL AVAILABLE ROOMS
-$rooms_query = mysqli_query($conn, "SELECT * FROM rooms WHERE status='Available'");
+$rooms_query = mysqli_query($conn, "SELECT * FROM rooms WHERE availability='Available' AND is_archived=0");
 $rooms = [];
 
 while($room = mysqli_fetch_assoc($rooms_query)) {
@@ -22,7 +22,6 @@ while($room = mysqli_fetch_assoc($rooms_query)) {
     $total_beds = $room['total_beds'];
     $room_type = $room['room_type'];
 
-    if($checkin && $checkout) {
         // Detailed occupancy query
         $q_occ = mysqli_query($conn, "
             SELECT bed_preference, COUNT(*) as cnt 
@@ -51,13 +50,17 @@ while($room = mysqli_fetch_assoc($rooms_query)) {
             $cap_upper = floor($total_beds / 2);
             $cap_lower = ceil($total_beds / 2);
             
-            // Logic: Any fills Lower first
-            $slots_lower_free = max(0, $cap_lower - $occ_lower);
-            $any_in_lower = min($occ_any, $slots_lower_free);
-            $any_in_upper = $occ_any - $any_in_lower;
+            $avail_upper = max(0, $cap_upper - $occ_upper);
+            $avail_lower = max(0, $cap_lower - $occ_lower);
             
-            $avail_lower = max(0, $cap_lower - ($occ_lower + $any_in_lower));
-            $avail_upper = max(0, $cap_upper - ($occ_upper + $any_in_upper));
+            if($occ_any > 0) {
+                $fill_lower = min($avail_lower, $occ_any);
+                $avail_lower -= $fill_lower;
+                $occ_any -= $fill_lower;
+                
+                $avail_upper -= $occ_any;
+                $avail_upper = max(0, $avail_upper);
+            }
         } else {
             $avail_lower = $avail_total; // Single room treated as lower/base
         }
@@ -68,12 +71,6 @@ while($room = mysqli_fetch_assoc($rooms_query)) {
             $room['avail_upper'] = $avail_upper;
             $rooms[] = $room;
         }
-    } else {
-        $room['available_beds'] = $room['total_beds'];
-        $room['avail_lower'] = ceil($room['total_beds'] / 2);
-        $room['avail_upper'] = floor($room['total_beds'] / 2);
-        $rooms[] = $room;
-    }
 }
 
 header('Content-Type: application/json');
