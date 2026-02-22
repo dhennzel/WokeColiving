@@ -94,10 +94,12 @@ while($f = mysqli_fetch_assoc($floors_q)){
         $total_beds = $room['total_beds'];
         
         // Get Occupancy for this room
-        $ro_q = mysqli_query($conn, "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id=$rid AND status='Approved' AND start_date <= '$today' AND end_date > '$today' GROUP BY bed_preference");
+        $ro_q = mysqli_query($conn, "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id=$rid AND status IN ('Pending', 'Approved') AND start_date <= '$today' AND end_date > '$today' GROUP BY bed_preference");
         
         $occ_upper = 0; $occ_lower = 0; $occ_any = 0;
+        $total_room_occ = 0;
         while($ro = mysqli_fetch_assoc($ro_q)){
+            $total_room_occ += $ro['cnt'];
             if($ro['bed_preference'] == 'Upper Bunk') $occ_upper += $ro['cnt'];
             elseif($ro['bed_preference'] == 'Lower Bunk') $occ_lower += $ro['cnt'];
             else $occ_any += $ro['cnt'];
@@ -107,17 +109,22 @@ while($f = mysqli_fetch_assoc($floors_q)){
         $cap_upper = floor($total_beds / 2);
         if($rtype == 'Single') { $cap_lower = $total_beds; $cap_upper = 0; }
 
-        $slots_lower_free = max(0, $cap_lower - $occ_lower);
-        $any_in_lower = min($occ_any, $slots_lower_free);
-        $any_in_upper = $occ_any - $any_in_lower;
-        
-        $final_occ_lower = $occ_lower + $any_in_lower;
-        $final_occ_upper = $occ_upper + $any_in_upper;
-        $total_room_occ = $final_occ_lower + $final_occ_upper;
+        // Calculate Availability (Inventory Logic)
+        $avail_upper = max(0, $cap_upper - $occ_upper);
+        $avail_lower = max(0, $cap_lower - $occ_lower);
+
+        if($occ_any > 0) {
+            $fill_lower = min($avail_lower, $occ_any);
+            $avail_lower -= $fill_lower;
+            $occ_any -= $fill_lower;
+            
+            $avail_upper -= $occ_any;
+            $avail_upper = max(0, $avail_upper);
+        }
         
         $rooms_on_floor[] = [
             'name' => $room['room_name'], 'type' => $rtype, 'total' => $total_beds,
-            'occupied' => $total_room_occ, 'occ_lower' => $final_occ_lower, 'occ_upper' => $final_occ_upper,
+            'occupied' => $total_room_occ, 'avail_lower' => $avail_lower, 'avail_upper' => $avail_upper,
             'cap_lower' => $cap_lower, 'cap_upper' => $cap_upper, 'status' => $room['status']
         ];
     }
@@ -408,8 +415,8 @@ $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT
                                                 <span class="text-muted">Occupied:</span>
                                                 <span class="fw-bold <?= $room['occupied'] > 0 ? 'text-success' : 'text-muted' ?>"><?= $room['occupied'] ?>/<?= $room['total'] ?></span>
                                             <?php else: ?>
-                                                <span class="bed-badge bg-lower" title="Lower Bunks">L: <b><?= $room['occ_lower'] ?></b>/<?= $room['cap_lower'] ?></span>
-                                                <span class="bed-badge bg-upper" title="Upper Bunks">U: <b><?= $room['occ_upper'] ?></b>/<?= $room['cap_upper'] ?></span>
+                                                <span class="bed-badge bg-lower" title="Lower Bunks">L: <b><?= $room['avail_lower'] ?></b> left</span>
+                                                <span class="bed-badge bg-upper" title="Upper Bunks">U: <b><?= $room['avail_upper'] ?></b> left</span>
                                             <?php endif; ?>
                                             </div>
                                             <?php if($room['occupied'] < $room['total']): ?>
