@@ -135,6 +135,14 @@ function log_activity($conn, $user_id, $action, $details = "") {
 }
 }
 
+// --- AUTO REFRESH TRIGGER ---
+if (!function_exists('trigger_update')) {
+function trigger_update($conn) {
+    $t = time();
+    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('last_update', '$t') ON DUPLICATE KEY UPDATE setting_value='$t'");
+}
+}
+
 // --- AUTOMATED TASKS (Runs on page load) ---
 
 // Ensure required columns exist to prevent errors in auto-tasks

@@ -724,6 +724,18 @@ function filterOccupancy() {
 document.addEventListener('DOMContentLoaded', function() {
     filterOccupancy();
 });
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php')
+    .then(r => r.text())
+    .then(t => {
+        if(lastUpdate == 0) lastUpdate = t;
+        else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>
 </body>
 </html>
