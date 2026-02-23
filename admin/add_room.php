@@ -203,12 +203,12 @@ $theme = get_theme_colors($conn);
                             <option value="4-Bed">4-Bed</option>
                             <option value="6-Bed">6-Bed</option>
                         </select></div>
-                        <div class="col-md-6 mb-3" id="single_price_div"><label class="form-label fw-bold">Price (₱)</label><input type="number" name="price" class="form-control" step="0.01" required></div>
+                        <div class="col-md-6 mb-3" id="single_price_div"><label class="form-label fw-bold">Price (₱)</label><input type="number" name="price" class="form-control" step="0.01" value="14000" readonly></div>
                         <div class="col-md-3 mb-3" id="upper_price_div" style="display:none;"><label class="form-label fw-bold">Upper Bed Price (₱)</label><input type="number" name="price_upper" class="form-control" step="0.01"></div>
                         <div class="col-md-3 mb-3" id="lower_price_div" style="display:none;"><label class="form-label fw-bold">Lower Bed Price (₱)</label><input type="number" name="price_lower" class="form-control" step="0.01"></div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3"><label class="form-label fw-bold">Total Beds</label><input type="number" name="beds" class="form-control" required></div>
+                        <div class="col-md-6 mb-3"><label class="form-label fw-bold">Total Beds</label><input type="number" name="beds" id="beds" class="form-control" value="1" readonly></div>
                         <div class="col-md-6 mb-3"><label class="form-label fw-bold">Image</label><input type="file" name="image" class="form-control" accept="image/*" required></div>
                     </div>
                     <div class="d-grid gap-2 mt-4"><button type="submit" name="add_room" class="btn btn-custom btn-lg">Add Room</button><a href="admin_rooms.php" class="btn btn-outline-secondary rounded-pill">Cancel</a></div>
@@ -249,6 +249,7 @@ function togglePriceFields() {
     var priceInput = document.querySelector('input[name="price"]');
     var upperInput = document.querySelector('input[name="price_upper"]');
     var lowerInput = document.querySelector('input[name="price_lower"]');
+    var bedsInput = document.getElementById("beds");
 
     if (type === "Single") {
         singleDiv.style.display = "block";
@@ -258,6 +259,9 @@ function togglePriceFields() {
         priceInput.required = true;
         upperInput.required = false;
         lowerInput.required = false;
+        
+        priceInput.value = 14000;
+        bedsInput.value = 1;
     } else {
         singleDiv.style.display = "none";
         upperDiv.style.display = "block";
@@ -266,6 +270,16 @@ function togglePriceFields() {
         priceInput.required = false;
         upperInput.required = true;
         lowerInput.required = true;
+        
+        if(type === "4-Bed") {
+            upperInput.value = 4200;
+            lowerInput.value = 4700;
+            bedsInput.value = 4;
+        } else if(type === "6-Bed") {
+            upperInput.value = 3750;
+            lowerInput.value = 4500;
+            bedsInput.value = 6;
+        }
     }
 }
 // Initialize

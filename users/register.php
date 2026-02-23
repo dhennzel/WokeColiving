@@ -7,14 +7,20 @@ if (isset($_POST['register'])) {
     $name = mysqli_real_escape_string($conn, trim($_POST['name']));
     $email = mysqli_real_escape_string($conn, trim($_POST['email']));
     $phone = mysqli_real_escape_string($conn, trim($_POST['phone']));
+    $emergency_name = mysqli_real_escape_string($conn, trim($_POST['emergency_contact_name']));
+    $emergency_number = mysqli_real_escape_string($conn, trim($_POST['emergency_contact_number']));
     $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
 
-    // Check if email already exists
-    $check = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'");
-    if(mysqli_num_rows($check) > 0){
-        $error = "Email address is already registered.";
+    // Validate Phone Number (Philippines format: 09xxxxxxxxx or +639xxxxxxxxx)
+    if (!preg_match('/^(09|\+639)\d{9}$/', $phone)) {
+        $error = "Invalid phone number. Please use a valid Philippine mobile number (e.g., 09xxxxxxxxx).";
+    } elseif (!empty($emergency_number) && !preg_match('/^(09|\+639)\d{9}$/', $emergency_number)) {
+        $error = "Invalid emergency contact number. Please use a valid Philippine mobile number (e.g., 09xxxxxxxxx).";
+    } elseif (mysqli_num_rows(mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'")) > 0) {
+        // Check if email already exists
+        $error = "Email address is already registered."; 
     } else {
-        $sql = "INSERT INTO users (full_name, email, phone_number, password) VALUES ('$name', '$email', '$phone', '$pass')";
+        $sql = "INSERT INTO users (full_name, email, phone_number, password, emergency_contact_name, emergency_contact_number) VALUES ('$name', '$email', '$phone', '$pass', '$emergency_name', '$emergency_number')";
         
         try {
             if(mysqli_query($conn, $sql)){
@@ -112,7 +118,9 @@ if (isset($_POST['register'])) {
     <form method="POST" class="text-start">
         <input type="text" name="name" class="form-control" placeholder="Full Name" required>
         <input type="email" name="email" class="form-control" placeholder="Email Address" required>
-        <input type="text" name="phone" class="form-control" placeholder="Phone Number" required>
+        <input type="text" name="phone" class="form-control" placeholder="Phone Number (e.g. 09xxxxxxxxx)" pattern="^(09|\+639)\d{9}$" title="Please enter a valid Philippine mobile number (e.g., 09xxxxxxxxx)" required>
+        <input type="text" name="emergency_contact_name" class="form-control" placeholder="Emergency Contact Name">
+        <input type="text" name="emergency_contact_number" class="form-control" placeholder="Emergency Contact Number (e.g. 09xxxxxxxxx)" pattern="^(09|\+639)\d{9}$" title="Please enter a valid Philippine mobile number">
         <input type="password" name="password" class="form-control" placeholder="Password" required>
         <button type="submit" name="register" class="btn btn-custom mt-2 mb-3">Create Account</button>
     </form>

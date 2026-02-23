@@ -17,6 +17,30 @@ if(mysqli_num_rows($check_col) == 0) {
     mysqli_query($conn, "ALTER TABLE users ADD COLUMN gender VARCHAR(20) DEFAULT NULL");
 }
 
+// Ensure occupation column exists in users table
+$check_occ_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'occupation'");
+if(mysqli_num_rows($check_occ_col) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN occupation VARCHAR(50) DEFAULT NULL");
+}
+
+// Ensure company column exists in users table (for employed users)
+$check_company_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'company'");
+if(mysqli_num_rows($check_company_col) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN company VARCHAR(100) DEFAULT NULL");
+}
+
+// Ensure school_id_image column exists in users table (for student verification)
+$check_school_id_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'school_id_image'");
+if(mysqli_num_rows($check_school_id_col) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN school_id_image VARCHAR(255) DEFAULT NULL");
+}
+
+// Ensure address column exists in users table
+$check_addr_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'address'");
+if(mysqli_num_rows($check_addr_col) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN address TEXT DEFAULT NULL");
+}
+
 // --- Check for Extension Request ---
 $is_extension = false;
 $ext_data = [];
@@ -54,11 +78,17 @@ $user_name = '';
 $user_email = '';
 $user_phone = '';
 $user_gender = '';
+$user_occupation = '';
+$user_address = '';
+$user_company = '';
+$user_school_id_image = '';
+$user_emergency_contact_name = '';
+$user_emergency_contact_number = '';
 
-$stmt = $conn->prepare("SELECT full_name, email, phone_number, gender FROM users WHERE user_id = ?");
+$stmt = $conn->prepare("SELECT full_name, email, phone_number, gender, occupation, address, company, school_id_image, emergency_contact_name, emergency_contact_number FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $_SESSION['user_id']);
 $stmt->execute();
-$stmt->bind_result($user_name, $user_email, $user_phone, $user_gender);
+$stmt->bind_result($user_name, $user_email, $user_phone, $user_gender, $user_occupation, $user_address, $user_company, $user_school_id_image, $user_emergency_contact_name, $user_emergency_contact_number);
 $stmt->fetch();
 $stmt->close();
 
@@ -115,9 +145,6 @@ if(isset($_GET['bed_preference'])){
 // Handle Submission
 if (isset($_POST['confirm_booking'])) {
     $error = ""; // Initialize error variable
-    if ($_POST['code1'] != $_POST['code']) {
-        $error = "Invalid verification code.";
-    } else {
         $troom = $_POST['troom'];
         $cin = $_POST['cin'];
         $cout = $_POST['cout'];
@@ -132,6 +159,69 @@ if (isset($_POST['confirm_booking'])) {
             $new_gender = mysqli_real_escape_string($conn, $_POST['gender']);
             mysqli_query($conn, "UPDATE users SET gender='$new_gender' WHERE user_id=$user_id");
             $user_gender = $new_gender; // Update local variable
+        }
+
+        // Update Occupation if not set
+        if(empty($user_occupation) && isset($_POST['occupation'])){
+            $new_occupation = mysqli_real_escape_string($conn, $_POST['occupation']);
+            mysqli_query($conn, "UPDATE users SET occupation='$new_occupation' WHERE user_id=$user_id");
+            $user_occupation = $new_occupation; // Update local variable
+        }
+
+        // Update Company if not set (only if employed)
+        if(isset($_POST['company']) && !empty($_POST['company'])){
+            $new_company = mysqli_real_escape_string($conn, $_POST['company']);
+            mysqli_query($conn, "UPDATE users SET company='$new_company' WHERE user_id=$user_id");
+            $user_company = $new_company; // Update local variable
+        }
+
+        // Update Address if not set
+        if(empty($user_address) && isset($_POST['address'])){
+            $new_address = mysqli_real_escape_string($conn, $_POST['address']);
+            mysqli_query($conn, "UPDATE users SET address='$new_address' WHERE user_id=$user_id");
+            $user_address = $new_address; // Update local variable
+        }
+
+        // Update Emergency Contact if not set
+        if(empty($user_emergency_contact_name) && isset($_POST['emergency_contact_name']) && !empty($_POST['emergency_contact_name'])){
+            $new_emergency_name = mysqli_real_escape_string($conn, $_POST['emergency_contact_name']);
+            mysqli_query($conn, "UPDATE users SET emergency_contact_name='$new_emergency_name' WHERE user_id=$user_id");
+            $user_emergency_contact_name = $new_emergency_name;
+        }
+        if(empty($user_emergency_contact_number) && isset($_POST['emergency_contact_number']) && !empty($_POST['emergency_contact_number'])){
+            $new_emergency_number = mysqli_real_escape_string($conn, $_POST['emergency_contact_number']);
+            mysqli_query($conn, "UPDATE users SET emergency_contact_number='$new_emergency_number' WHERE user_id=$user_id");
+            $user_emergency_contact_number = $new_emergency_number;
+        }
+
+        // Handle School ID upload for students
+        $school_id_filename = $user_school_id_image; // Keep existing by default
+        $is_student = ($user_occupation == 'Student');
+        if(isset($_POST['occupation']) && $_POST['occupation'] == 'Student'){
+            $is_student = true;
+        }
+        
+        if($is_student){
+            // Check if new upload or keep existing
+            if(isset($_FILES['school_id_image']) && $_FILES['school_id_image']['error'] == 0) {
+                $target_dir = "../uploads/proofs/";
+                if (!is_dir($target_dir)) {
+                    mkdir($target_dir, 0777, true);
+                }
+                $school_id_filename = time() . '_school_' . basename($_FILES["school_id_image"]["name"]);
+                $target_file = $target_dir . $school_id_filename;
+                if (!move_uploaded_file($_FILES["school_id_image"]["tmp_name"], $target_file)) {
+                    $error = "Sorry, there was an error uploading your school ID.";
+                }
+            } elseif(empty($user_school_id_image)) {
+                // Student must upload school ID
+                $error = "School ID image is required for students.";
+            }
+            
+            // Save/update school ID if no error
+            if(!$error && $school_id_filename){
+                mysqli_query($conn, "UPDATE users SET school_id_image='$school_id_filename' WHERE user_id=$user_id");
+            }
         }
 
         if (!$agree_rules || !$agree_fees || empty($typed_signature)) {
@@ -348,7 +438,6 @@ if (isset($_POST['confirm_booking'])) {
                 $show_waitlist = true;
             }
         }
-    }
 }
 ?>
 <!DOCTYPE html>
@@ -465,6 +554,67 @@ if (isset($_POST['confirm_booking'])) {
                                     <option value="Male">Male</option>
                                     <option value="Female">Female</option>
                                 </select>
+                            <?php endif; ?>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Occupation Status*</label>
+                            <?php if(!empty($user_occupation)): ?>
+                                <input type="text" class="form-control" value="<?= htmlspecialchars($user_occupation) ?>" readonly>
+                                <input type="hidden" name="occupation" value="<?= htmlspecialchars($user_occupation) ?>">
+                            <?php else: ?>
+                                <select name="occupation" id="occupation" class="form-select" required onchange="toggleCompanyField()">
+                                    <option value="" disabled selected>Select Status</option>
+                                    <option value="Student">Student</option>
+                                    <option value="Employed">Employed</option>
+                                </select>
+                            <?php endif; ?>
+                        </div>
+                        <div class="mb-3" id="company_div" style="display: none;">
+                            <label class="form-label">Company Name*</label>
+                            <?php if(!empty($user_company)): ?>
+                                <input type="text" class="form-control" value="<?= htmlspecialchars($user_company) ?>" readonly>
+                                <input type="hidden" name="company" value="<?= htmlspecialchars($user_company) ?>">
+                            <?php else: ?>
+                                <input type="text" name="company" id="company" class="form-control" placeholder="Enter your company name" required>
+                            <?php endif; ?>
+                        </div>
+                        <!-- School ID Upload for Students -->
+                        <div class="mb-3" id="school_id_div" style="display: none;">
+                            <label class="form-label">School ID*</label>
+                            <?php if(!empty($user_school_id_image)): ?>
+                                <div class="mb-2">
+                                    <img src="../uploads/proofs/<?= htmlspecialchars($user_school_id_image) ?>" alt="School ID" style="max-width: 200px; max-height: 150px;" class="border rounded">
+                                    <div class="small text-success mt-1"><i class="fas fa-check-circle"></i> School ID already uploaded</div>
+                                </div>
+                            <?php endif; ?>
+                            <input type="file" name="school_id_image" id="school_id_image" class="form-control" accept="image/*">
+                            <small class="text-muted">Upload a clear photo of your school ID (Valid ID required)</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Address*</label>
+                            <?php if(!empty($user_address)): ?>
+                                <textarea class="form-control" readonly><?= htmlspecialchars($user_address) ?></textarea>
+                                <input type="hidden" name="address" value="<?= htmlspecialchars($user_address) ?>">
+                            <?php else: ?>
+                                <textarea name="address" class="form-control" rows="3" placeholder="Enter your full permanent address" required></textarea>
+                            <?php endif; ?>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Emergency Contact Name*</label>
+                            <?php if(!empty($user_emergency_contact_name)): ?>
+                                <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_name) ?>" readonly>
+                                <input type="hidden" name="emergency_contact_name" value="<?= htmlspecialchars($user_emergency_contact_name) ?>">
+                            <?php else: ?>
+                                <input type="text" name="emergency_contact_name" class="form-control" placeholder="e.g. Juan Dela Cruz" required>
+                            <?php endif; ?>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Emergency Contact Number*</label>
+                            <?php if(!empty($user_emergency_contact_number)): ?>
+                                <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_number) ?>" readonly>
+                                <input type="hidden" name="emergency_contact_number" value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
+                            <?php else: ?>
+                                <input type="text" name="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" required>
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
@@ -628,17 +778,6 @@ if (isset($_POST['confirm_booking'])) {
                             </div>
                         </div>
 
-                        <!-- Verification -->
-                        <div class="bg-light p-3 rounded mb-3">
-                            <label class="form-label small fw-bold text-muted">Human Verification</label>
-                            <div class="d-flex align-items-center gap-3">
-                                <?php $Random_code = rand(); ?>
-                                <div class="bg-white border px-3 py-2 rounded fw-bold letter-spacing-2"><?= $Random_code ?></div>
-                                <input type="text" name="code1" class="form-control" placeholder="Enter code" required>
-                                <input type="hidden" name="code" value="<?= $Random_code ?>">
-                            </div>
-                        </div>
-
                         <button type="button" onclick="confirmReservation()" class="btn btn-custom w-100 py-2">Confirm Reservation</button>
                     </div>
                 </div>
@@ -662,7 +801,43 @@ if (isset($_POST['confirm_booking'])) {
 
     const roomPrices = <?= json_encode($room_prices_js) ?>;
 
-    function confirmReservation() {
+function toggleCompanyField() {
+    var occupation = document.getElementById('occupation');
+    var companyDiv = document.getElementById('company_div');
+    var schoolIdDiv = document.getElementById('school_id_div');
+    var companyInput = document.getElementById('company');
+    var schoolIdInput = document.getElementById('school_id_image');
+    
+    if (occupation && occupation.value === 'Employed') {
+        companyDiv.style.display = 'block';
+        if(companyInput) companyInput.required = true;
+    } else {
+        companyDiv.style.display = 'none';
+        if(companyInput) companyInput.required = false;
+    }
+    
+    // Toggle School ID field for students
+    if (occupation && occupation.value === 'Student') {
+        schoolIdDiv.style.display = 'block';
+        if(schoolIdInput) schoolIdInput.required = true;
+    } else {
+        schoolIdDiv.style.display = 'none';
+        if(schoolIdInput) schoolIdInput.required = false;
+    }
+}
+
+// Initialize on page load - check if user is already a student
+window.addEventListener('DOMContentLoaded', function() {
+    var occupation = document.getElementById('occupation');
+    var schoolIdDiv = document.getElementById('school_id_div');
+    if (occupation && occupation.value === 'Student') {
+        schoolIdDiv.style.display = 'block';
+        var schoolIdInput = document.getElementById('school_id_image');
+        if(schoolIdInput) schoolIdInput.required = true;
+    }
+});
+
+function confirmReservation() {
         const form = document.getElementById('reservationForm');
         if (!form.checkValidity()) {
             form.reportValidity();

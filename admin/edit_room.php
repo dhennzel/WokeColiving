@@ -246,11 +246,11 @@ $theme = get_theme_colors($conn);
                                 </div>
                                 <div class="col-md-3 mb-3" id="upper_price_div" style="display:none;">
                                     <label class="form-label fw-bold">Upper Bed Price (₱)</label>
-                                    <input type="number" name="price_upper" class="form-control" step="0.01" value="<?= $room['price_upper'] ?? 0 ?>" readonly>
+                                    <input type="number" name="price_upper" class="form-control" step="0.01" value="<?= $room['price_upper'] ?? 0 ?>">
                                 </div>
                                 <div class="col-md-3 mb-3" id="lower_price_div" style="display:none;">
                                     <label class="form-label fw-bold">Lower Bed Price (₱)</label>
-                                    <input type="number" name="price_lower" class="form-control" step="0.01" value="<?= $room['price_lower'] ?? 0 ?>" readonly>
+                                    <input type="number" name="price_lower" class="form-control" step="0.01" value="<?= $room['price_lower'] ?? 0 ?>">
                                 </div>
                             </div>
                             <div class="row">

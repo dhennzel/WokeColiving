@@ -377,7 +377,22 @@ $theme = get_theme_colors($conn);
                         <span><i class="fas fa-phone me-1"></i> <?= htmlspecialchars($user['phone_number']) ?></span>
                         <span><i class="fas fa-calendar me-1"></i> Joined <?= date('M d, Y', strtotime($user['created_at'])) ?></span>
                         <span><i class="fas fa-id-badge me-1"></i> ID: #<?= $user['user_id'] ?></span>
+                        <?php if(!empty($user['occupation'])): ?>
+                            <span><i class="fas fa-briefcase me-1"></i> <?= htmlspecialchars($user['occupation']) ?></span>
+                        <?php endif; ?>
                     </div>
+                    <?php if($user['occupation'] == 'Student' && !empty($user['school_id_image'])): ?>
+                        <div class="mt-2">
+                            <span class="badge bg-info text-dark"><i class="fas fa-user-graduate me-1"></i> Student</span>
+                            <a href="../uploads/proofs/<?= htmlspecialchars($user['school_id_image']) ?>" target="_blank" class="btn btn-sm btn-outline-primary ms-2">
+                                <i class="fas fa-id-card me-1"></i> View School ID
+                            </a>
+                        </div>
+                    <?php elseif($user['occupation'] == 'Student' && empty($user['school_id_image'])): ?>
+                        <div class="mt-2">
+                            <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i> Missing School ID</span>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
                     <a href="booking_management.php" class="btn btn-outline-secondary rounded-pill btn-sm"><i class="fas fa-arrow-left me-1"></i> Back</a>

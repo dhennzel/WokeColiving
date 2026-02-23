@@ -170,6 +170,17 @@ if(mysqli_num_rows($check_col_floor) == 0) {
     mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN floor INT DEFAULT 2");
 }
 
+// Ensure emergency contact columns exist in users table
+$check_emergency_name = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'emergency_contact_name'");
+if(mysqli_num_rows($check_emergency_name) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN emergency_contact_name VARCHAR(100) DEFAULT NULL");
+}
+
+$check_emergency_number = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'emergency_contact_number'");
+if(mysqli_num_rows($check_emergency_number) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN emergency_contact_number VARCHAR(20) DEFAULT NULL");
+}
+
 // Ensure room_number column exists in rooms table
 $check_col_rn = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'room_number'");
 if(mysqli_num_rows($check_col_rn) == 0) {
