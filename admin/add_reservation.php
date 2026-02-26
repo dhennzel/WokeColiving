@@ -122,9 +122,15 @@ if(isset($_POST['add_reservation'])){
                 $cap_upper = floor($total_capacity / 2);
                 $cap_lower = ceil($total_capacity / 2);
                 
+                $avail_upper = max(0, $cap_upper - $occ_upper);
+                $avail_lower = max(0, $cap_lower - $occ_lower);
+
+                if($occ_any > 0) {
                     $fill_lower = min($avail_lower, $occ_any);
-                    $avail_lower -= $fill_lower;    $occ_any -= $fill_lower;
-           
+                    $avail_lower -= $fill_lower;
+                    $occ_any -= $fill_lower;
+                    
+                    $avail_upper -= $occ_any;
                     $avail_upper = max(0, $avail_upper);
                 }
                 
@@ -136,9 +142,7 @@ if(isset($_POST['add_reservation'])){
                     $found_room = $room; break;
                 }
             } else {
-                // Single room or 'Any' preference - just needs space
-                $found_room = $room;
-                break;
+                $found_room = $room; break;
             }
         }
 

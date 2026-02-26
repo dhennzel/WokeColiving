@@ -559,7 +559,7 @@ if (isset($_POST['confirm_booking'])) {
                         <div class="mb-3">
                             <label class="form-label">Occupation Status*</label>
                             <?php if(!empty($user_occupation)): ?>
-                                <input type="text" class="form-control" value="<?= htmlspecialchars($user_occupation) ?>" readonly>
+                                <input type="text" class="form-control" id="occupation" value="<?= htmlspecialchars($user_occupation) ?>" readonly>
                                 <input type="hidden" name="occupation" value="<?= htmlspecialchars($user_occupation) ?>">
                             <?php else: ?>
                                 <select name="occupation" id="occupation" class="form-select" required onchange="toggleCompanyField()">
@@ -600,7 +600,7 @@ if (isset($_POST['confirm_booking'])) {
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Emergency Contact Name*</label>
+                            <label class="form-label" id="label_emergency_name">Emergency Contact Name*</label>
                             <?php if(!empty($user_emergency_contact_name)): ?>
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_name) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_name" value="<?= htmlspecialchars($user_emergency_contact_name) ?>">
@@ -609,7 +609,7 @@ if (isset($_POST['confirm_booking'])) {
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Emergency Contact Number*</label>
+                            <label class="form-label" id="label_emergency_number">Emergency Contact Number*</label>
                             <?php if(!empty($user_emergency_contact_number)): ?>
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_number) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_number" value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
@@ -808,12 +808,25 @@ function toggleCompanyField() {
     var companyInput = document.getElementById('company');
     var schoolIdInput = document.getElementById('school_id_image');
     
+    // Labels
+    var labelName = document.getElementById('label_emergency_name');
+    var labelNumber = document.getElementById('label_emergency_number');
+    
     if (occupation && occupation.value === 'Employed') {
         companyDiv.style.display = 'block';
         if(companyInput) companyInput.required = true;
+        if(labelName) labelName.innerText = "Emergency Contact/Boss Name*";
+        if(labelNumber) labelNumber.innerText = "Emergency Contact/Boss Contact Number*";
     } else {
         companyDiv.style.display = 'none';
         if(companyInput) companyInput.required = false;
+        if (occupation && occupation.value === 'Student') {
+            if(labelName) labelName.innerText = "Guardian Name*";
+            if(labelNumber) labelNumber.innerText = "Guardian Contact Number*";
+        } else {
+            if(labelName) labelName.innerText = "Emergency Contact Name*";
+            if(labelNumber) labelNumber.innerText = "Emergency Contact Number*";
+        }
     }
     
     // Toggle School ID field for students
@@ -828,13 +841,7 @@ function toggleCompanyField() {
 
 // Initialize on page load - check if user is already a student
 window.addEventListener('DOMContentLoaded', function() {
-    var occupation = document.getElementById('occupation');
-    var schoolIdDiv = document.getElementById('school_id_div');
-    if (occupation && occupation.value === 'Student') {
-        schoolIdDiv.style.display = 'block';
-        var schoolIdInput = document.getElementById('school_id_image');
-        if(schoolIdInput) schoolIdInput.required = true;
-    }
+    toggleCompanyField();
 });
 
 function confirmReservation() {
