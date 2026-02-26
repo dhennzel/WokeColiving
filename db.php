@@ -17,11 +17,12 @@ mysqli_select_db($conn, "woke_coliving");
 // Enable error reporting for mysqli to catch exceptions
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
+// Ensure site_settings table exists globally
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS site_settings (id INT AUTO_INCREMENT PRIMARY KEY, setting_key VARCHAR(50) UNIQUE NOT NULL, setting_value TEXT)");
+
 if (!function_exists('get_theme_colors')) {
 function get_theme_colors($conn) {
     $theme = ['primary' => '#2E7D32', 'dark' => '#1B5E20', 'accent' => '#FBC02D'];
-    // Ensure table exists
-    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS site_settings (id INT AUTO_INCREMENT PRIMARY KEY, setting_key VARCHAR(50) UNIQUE NOT NULL, setting_value TEXT)");
     
     $q = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key IN ('theme_primary', 'theme_dark', 'theme_accent')");
     if($q){
@@ -76,7 +77,6 @@ function send_notification($conn, $user_id, $message, $type = 'System') {
         // 1. Download PHPMailer and extract to: c:\xampp\htdocs\WokeColiving\PHPMailer
         // 2. Enable "2-Step Verification" in Google Account -> Security
         // 3. Generate an "App Password" and paste it below
-        
         $phpmailer_path = __DIR__ . '/PHPMailer/src/PHPMailer.php';
         
         if (file_exists($phpmailer_path)) {
@@ -145,6 +145,7 @@ function trigger_update($conn) {
 
 // --- AUTOMATED TASKS (Runs on page load) ---
 
+try {
 // Ensure required columns exist to prevent errors in auto-tasks
 $cols_check = mysqli_query($conn, "SHOW COLUMNS FROM reservations");
 $cols = [];
@@ -219,11 +220,14 @@ $rem_query = mysqli_query($conn, "SELECT r.reservation_id, r.user_id, r.start_da
 if($rem_query) {
     while($row = mysqli_fetch_assoc($rem_query)) {
         $uid = $row['user_id'];
-        $chk_rem = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND type = 'Reminder' AND created_at > DATE_SUB(NOW(), INTERVAL 18 HOUR)");
+        $chk_rem = mysqli_query($conn, "SELECT user_id FROM notifications WHERE user_id='$uid' AND type = 'Reminder' AND created_at > DATE_SUB(NOW(), INTERVAL 18 HOUR)");
         if(mysqli_num_rows($chk_rem) == 0){
             send_notification($conn, $uid, "📅 Reminder: Your stay starts tomorrow (" . $row['start_date'] . "). We look forward to welcoming you!", "Reminder");
         }
     }
+}
+} catch (Exception $e) {
+    // Prevent crash if tables don't exist yet
 }
 
 // 4. Contract Expiration Reminders (7 days before)
@@ -233,7 +237,7 @@ if($expire_soon_query) {
     while($row = mysqli_fetch_assoc($expire_soon_query)) {
         $uid = $row['user_id'];
         // Check if notification sent in last 24 hours to avoid spam
-        $chk_exp = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND type = 'Expiration Alert' AND created_at > DATE_SUB(NOW(), INTERVAL 6 HOUR)");
+        $chk_exp = mysqli_query($conn, "SELECT user_id FROM notifications WHERE user_id='$uid' AND type = 'Expiration Alert' AND created_at > DATE_SUB(NOW(), INTERVAL 6 HOUR)");
         if(mysqli_num_rows($chk_exp) == 0){
             $days_left = ceil((strtotime($row['end_date']) - time()) / (60 * 60 * 24));
             $msg = "⚠️ <strong>Contract Expiring Soon</strong><br>Your stay in <strong>{$row['room_name']}</strong> ends on <strong>{$row['end_date']}</strong> ($days_left days left). Please contact admin to renew.";
@@ -285,7 +289,7 @@ if($pay_query){
         }
         // B. Send Warning if Overdue (every 4 hours)
         elseif($current_time > $due_timestamp){
-             $chk_warn = mysqli_query($conn, "SELECT id FROM notifications WHERE user_id='$uid' AND type = 'Payment Warning' AND created_at > DATE_SUB(NOW(), INTERVAL 4 HOUR)");
+             $chk_warn = mysqli_query($conn, "SELECT user_id FROM notifications WHERE user_id='$uid' AND type = 'Payment Warning' AND created_at > DATE_SUB(NOW(), INTERVAL 4 HOUR)");
              if(mysqli_num_rows($chk_warn) == 0){
                  $msg = "⚠️ <strong>Payment Overdue</strong><br>Your payment of ₱".number_format($amount,2)." was due on ".date('M d, Y', $due_timestamp).". Please pay immediately to avoid penalties.";
                  send_notification($conn, $uid, $msg, "Payment Warning");
