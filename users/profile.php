@@ -39,6 +39,47 @@ if(isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0){
 $u_query = mysqli_query($conn, "SELECT full_name, email, profile_image FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
 
+// Check for Outdated System Data
+$is_outdated = false;
+// 1. Check Name Format (Old: "First Last" vs New: "Last, First")
+if(strpos($user_info['full_name'], ',') === false && strpos(trim($user_info['full_name']), ' ') !== false) $is_outdated = true;
+// 2. Check for NULL in new columns
+try {
+    $chk_cols = mysqli_query($conn, "SELECT is_walkin, role FROM users WHERE user_id=$user_id");
+    if($chk_cols && $cols = mysqli_fetch_assoc($chk_cols)){
+        if(is_null($cols['is_walkin']) || is_null($cols['role'])) $is_outdated = true;
+    }
+} catch(Exception $e) {}
+
+// Handle System Update Action
+if(isset($_GET['action']) && $_GET['action'] == 'system_update'){
+    // 1. Fix Name Format (Old: "First Last" -> New: "Last, First")
+    $current_name = $user_info['full_name'];
+    if(strpos($current_name, ',') === false){
+        $parts = explode(' ', trim($current_name));
+        if(count($parts) > 1){
+            $lname = array_pop($parts);
+            $fname = implode(' ', $parts);
+            $new_name = $lname . ', ' . $fname;
+            mysqli_query($conn, "UPDATE users SET full_name='" . mysqli_real_escape_string($conn, $new_name) . "' WHERE user_id=$user_id");
+        }
+    }
+
+    // 2. Initialize new columns if NULL (Safe Update)
+    try { mysqli_query($conn, "UPDATE users SET is_walkin=0 WHERE user_id=$user_id AND is_walkin IS NULL"); } catch(Exception $e){}
+    try { mysqli_query($conn, "UPDATE users SET role='user' WHERE user_id=$user_id AND role IS NULL"); } catch(Exception $e){}
+    
+    // 3. Fix Profile Picture (Broken Link or Empty -> NULL to show default placeholder)
+    $curr_img = $user_info['profile_image'];
+    if((!empty($curr_img) && !file_exists("../uploads/profiles/" . $curr_img)) || $curr_img === ''){
+        mysqli_query($conn, "UPDATE users SET profile_image=NULL WHERE user_id=$user_id");
+    }
+
+    $_SESSION['swal'] = ['title' => 'System Updated', 'text' => 'Account data synchronized and profile picture fixed.', 'icon' => 'success'];
+    header("Location: profile.php");
+    exit;
+}
+
 // Handle Mark as Read
 if(isset($_GET['read_all'])){
     mysqli_query($conn, "UPDATE notifications SET is_read=1 WHERE user_id=$user_id");
@@ -310,6 +351,20 @@ try {
                     </button>
                 </div>
             </div>
+        </div>
+
+        <!-- System Update -->
+        <div class="col-md-3 reveal delay-5">
+            <a href="profile.php?action=system_update" class="text-decoration-none">
+                <div class="card profile-card h-100 p-5 text-center">
+                    <?php if($is_outdated): ?>
+                        <div class="position-absolute top-0 end-0 m-3 p-2 bg-danger rounded-circle shadow border border-white" title="Update Required"></div>
+                    <?php endif; ?>
+                    <div class="icon-box"><i class="fas fa-sync-alt"></i></div>
+                    <h4 class="fw-bold text-dark mb-3">System Update</h4>
+                    <p class="text-muted small">Update your account to the latest system features.</p>
+                </div>
+            </a>
         </div>
     </div>
 
