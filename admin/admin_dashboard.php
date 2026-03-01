@@ -123,7 +123,7 @@ while($f = mysqli_fetch_assoc($floors_q)){
         }
         
         $rooms_on_floor[] = [
-            'name' => $room['room_name'], 'type' => $rtype, 'total' => $total_beds,
+            'id' => $rid, 'name' => $room['room_name'], 'type' => $rtype, 'total' => $total_beds,
             'occupied' => $total_room_occ, 'avail_lower' => $avail_lower, 'avail_upper' => $avail_upper,
             'cap_lower' => $cap_lower, 'cap_upper' => $cap_upper, 'status' => $room['status']
         ];
@@ -288,6 +288,19 @@ $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT
                 </a>
                 <h2 class="mb-0 fw-bold text-success">Admin Dashboard</h2>
             </div>
+            
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'deleted'): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    Room deleted permanently.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+            <?php if(isset($_GET['error'])): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <?= htmlspecialchars($_GET['error']) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
 
     <!-- Stats Row -->
     <div class="row g-4 mb-5">
@@ -434,9 +447,11 @@ $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT
                                                 <span class="bed-badge bg-upper" title="Upper Bunks">U: <b><?= $room['avail_upper'] ?></b> left</span>
                                             <?php endif; ?>
                                             </div>
-                                            <?php if($room['occupied'] < $room['total']): ?>
-                                                <a href="add_reservation.php?room_type=<?= urlencode($room['type']) ?>" class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" style="font-size: 0.7rem;" title="Quick Book"><i class="fas fa-plus"></i></a>
-                                            <?php endif; ?>
+                                            <div>
+                                                <?php if($room['occupied'] < $room['total']): ?>
+                                                    <a href="add_reservation.php?room_type=<?= urlencode($room['type']) ?>" class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" style="font-size: 0.7rem;" title="Quick Book"><i class="fas fa-plus"></i></a>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                 </div>

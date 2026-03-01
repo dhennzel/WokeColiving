@@ -9,6 +9,7 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 }
 
 $message = "";
+$active_tab = "";
 
 // Handle Archive Actions (Delete/Restore)
 if(isset($_POST['archive_action'])) {
@@ -16,6 +17,10 @@ if(isset($_POST['archive_action'])) {
     $type = $_POST['type']; // 'maintenance' or 'housekeeping'
     $action = $_POST['archive_action']; // 'delete' or 'restore'
     
+    if($type == 'room') $active_tab = 'rooms';
+    elseif($type == 'maintenance') $active_tab = 'maintenance';
+    elseif($type == 'housekeeping') $active_tab = 'housekeeping';
+
     if ($type == 'room') {
         if ($action == 'restore') {
             mysqli_query($conn, "UPDATE rooms SET is_archived='0' WHERE room_id=$id");
@@ -253,12 +258,14 @@ $theme = get_theme_colors($conn);
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this request to Pending?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="maintenance">
-                                                <button type="submit" name="archive_action" value="restore" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                                <input type="hidden" name="archive_action" value="restore">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
                                             </form>
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="maintenance">
-                                                <button type="submit" name="archive_action" value="delete" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                                <input type="hidden" name="archive_action" value="delete">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
                                             </form>
                                         </td>
                                     </tr>
@@ -289,12 +296,14 @@ $theme = get_theme_colors($conn);
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this request to Pending?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="housekeeping">
-                                                <button type="submit" name="archive_action" value="restore" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                                <input type="hidden" name="archive_action" value="restore">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
                                             </form>
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="housekeeping">
-                                                <button type="submit" name="archive_action" value="delete" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                                <input type="hidden" name="archive_action" value="delete">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
                                             </form>
                                         </td>
                                     </tr>
@@ -348,12 +357,14 @@ $theme = get_theme_colors($conn);
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this room?')">
                                                 <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
                                                 <input type="hidden" name="type" value="room">
-                                                <button type="submit" name="archive_action" value="restore" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                                <input type="hidden" name="archive_action" value="restore">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
                                             </form>
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this room?')">
                                                 <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
                                                 <input type="hidden" name="type" value="room">
-                                                <button type="submit" name="archive_action" value="delete" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                                <input type="hidden" name="archive_action" value="delete">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
                                             </form>
                                         </td>
                                     </tr>
@@ -419,7 +430,15 @@ document.addEventListener('click', function(event) {
 
 // Handle URL Hash for Tabs
 var hash = window.location.hash;
-if (hash) {
+var phpActiveTab = "<?= $active_tab ?>";
+
+if (phpActiveTab) {
+    var triggerEl = document.querySelector('button[data-bs-target="#' + phpActiveTab + '"]');
+    if (triggerEl) {
+        var tab = new bootstrap.Tab(triggerEl);
+        tab.show();
+    }
+} else if (hash) {
     var triggerEl = document.querySelector('button[data-bs-target="' + hash + '"]');
     if (triggerEl) {
         var tab = new bootstrap.Tab(triggerEl);
