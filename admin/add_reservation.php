@@ -46,7 +46,10 @@ if(isset($_POST['add_reservation'])){
 
     if($user_type == 'new'){
         // Create New User
-        $name = trim($_POST['new_name']);
+        $lname = trim($_POST['new_lname']);
+        $fname = trim($_POST['new_fname']);
+        $mname = trim($_POST['new_mname']);
+        $name = $lname . ', ' . $fname . ' ' . $mname;
         $email = trim($_POST['new_email']);
         $phone = trim($_POST['new_phone']);
         $gender = $_POST['new_gender'];
@@ -244,7 +247,9 @@ $theme = get_theme_colors($conn);
                     <div id="new_user_section" class="mb-3 p-3 border rounded bg-light" style="display:none;">
                         <h6 class="fw-bold text-success mb-3"><i class="fas fa-user-plus me-2"></i>Guest Details</h6>
                         <div class="row g-2">
-                            <div class="col-md-6"><label class="small fw-bold">Full Name</label><input type="text" name="new_name" class="form-control"></div>
+                            <div class="col-md-4"><label class="small fw-bold">Last Name</label><input type="text" name="new_lname" class="form-control"></div>
+                            <div class="col-md-4"><label class="small fw-bold">First Name</label><input type="text" name="new_fname" class="form-control"></div>
+                            <div class="col-md-4"><label class="small fw-bold">Middle Name</label><input type="text" name="new_mname" class="form-control"></div>
                             <div class="col-md-6"><label class="small fw-bold">Email</label><input type="email" name="new_email" class="form-control"></div>
                             <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control"></div>
                             <div class="col-md-6">
@@ -319,13 +324,15 @@ function toggleUserSection() {
         document.getElementById('existing_user_section').style.display = 'none';
         document.getElementById('new_user_section').style.display = 'block';
         document.querySelector('select[name="user_id"]').required = false;
-        document.querySelector('input[name="new_name"]').required = true;
+        document.querySelector('input[name="new_lname"]').required = true;
+        document.querySelector('input[name="new_fname"]').required = true;
         document.querySelector('input[name="new_email"]').required = true;
     } else {
         document.getElementById('existing_user_section').style.display = 'block';
         document.getElementById('new_user_section').style.display = 'none';
         document.querySelector('select[name="user_id"]').required = true;
-        document.querySelector('input[name="new_name"]').required = false;
+        document.querySelector('input[name="new_lname"]').required = false;
+        document.querySelector('input[name="new_fname"]').required = false;
         document.querySelector('input[name="new_email"]').required = false;
     }
 }

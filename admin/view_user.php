@@ -64,6 +64,43 @@ if(isset($_POST['delete_user'])){
     }
 }
 
+// Handle Update User Info
+if(isset($_POST['update_user_info'])){
+    $lname = trim($_POST['lname']);
+    $fname = trim($_POST['fname']);
+    $mname = trim($_POST['mname']);
+    $u_name = mysqli_real_escape_string($conn, $lname . ', ' . $fname . ' ' . $mname);
+    $u_email = mysqli_real_escape_string($conn, $_POST['email']);
+    $u_phone = mysqli_real_escape_string($conn, $_POST['phone_number']);
+    $u_occ = mysqli_real_escape_string($conn, $_POST['occupation']);
+    $u_addr = mysqli_real_escape_string($conn, $_POST['address']);
+    $u_comp = mysqli_real_escape_string($conn, $_POST['company']);
+    $u_em_name = mysqli_real_escape_string($conn, $_POST['emergency_contact_name']);
+    $u_em_num = mysqli_real_escape_string($conn, $_POST['emergency_contact_number']);
+    $u_gender = mysqli_real_escape_string($conn, $_POST['gender']);
+
+    // Build query dynamically based on existing columns to prevent errors
+    $cols_check = mysqli_query($conn, "SHOW COLUMNS FROM users");
+    $existing_cols = [];
+    while($c = mysqli_fetch_assoc($cols_check)) $existing_cols[] = $c['Field'];
+
+    $set_clause = "full_name='$u_name', email='$u_email', phone_number='$u_phone'";
+    if(in_array('occupation', $existing_cols)) $set_clause .= ", occupation='$u_occ'";
+    if(in_array('address', $existing_cols)) $set_clause .= ", address='$u_addr'";
+    if(in_array('company', $existing_cols)) $set_clause .= ", company='$u_comp'";
+    if(in_array('emergency_contact_name', $existing_cols)) $set_clause .= ", emergency_contact_name='$u_em_name'";
+    if(in_array('emergency_contact_number', $existing_cols)) $set_clause .= ", emergency_contact_number='$u_em_num'";
+    if(in_array('gender', $existing_cols)) $set_clause .= ", gender='$u_gender'";
+
+    if(mysqli_query($conn, "UPDATE users SET $set_clause WHERE user_id=$uid")){
+        log_activity($conn, $uid, "Profile Updated", "Admin updated user details.");
+        echo "<script>window.location.href='view_user.php?uid=$uid&msg=user_updated';</script>";
+        exit;
+    } else {
+        $swal_error = "Failed to update user: " . mysqli_error($conn);
+    }
+}
+
 // Handle Room Assignment (Move Tenant)
 if(isset($_POST['assign_room'])){
     $res_id = (int)$_POST['reservation_id'];
@@ -400,6 +437,7 @@ $theme = get_theme_colors($conn);
                 </div>
                 <div class="d-flex gap-2 align-items-center">
                     <a href="booking_management.php" class="btn btn-outline-secondary rounded-pill btn-sm"><i class="fas fa-arrow-left me-1"></i> Back</a>
+                    <button type="button" class="btn btn-outline-primary rounded-pill btn-sm" data-bs-toggle="modal" data-bs-target="#editUserModal"><i class="fas fa-edit me-1"></i> Edit</button>
                     <form method="POST" id="deleteUserForm" class="d-inline">
                         <input type="hidden" name="user_id" value="<?= $user['user_id'] ?>">
                         <input type="hidden" name="delete_user" value="1">
@@ -410,6 +448,9 @@ $theme = get_theme_colors($conn);
             
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid'): ?>
                 <div class="alert alert-success">Selected payments marked as paid successfully.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'user_updated'): ?>
+                <div class="alert alert-success">User information updated successfully.</div>
             <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'extended'): ?>
                 <div class="alert alert-success">Extension request approved successfully.</div>
@@ -806,6 +847,84 @@ $theme = get_theme_colors($conn);
                         </div>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit User Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="update_user_info" value="1">
+                    <?php
+                        $full_name = $user['full_name'];
+                        $lname = ''; $fname = ''; $mname = '';
+                        if(strpos($full_name, ',') !== false) {
+                            $parts = explode(',', $full_name);
+                            $lname = trim($parts[0]);
+                            $rest = trim($parts[1] ?? '');
+                            $parts2 = explode(' ', $rest);
+                            $fname = $parts2[0] ?? '';
+                            $mname = isset($parts2[1]) ? implode(' ', array_slice($parts2, 1)) : '';
+                        } else {
+                            $fname = $full_name; // Fallback for old data
+                        }
+                    ?>
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label small fw-bold">Last Name</label><input type="text" name="lname" class="form-control" value="<?= htmlspecialchars($lname) ?>" required></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold">First Name</label><input type="text" name="fname" class="form-control" value="<?= htmlspecialchars($fname) ?>" required></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold">Middle Name</label><input type="text" name="mname" class="form-control" value="<?= htmlspecialchars($mname) ?>"></div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Email</label>
+                            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($user['email']) ?>" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Phone Number</label>
+                            <input type="text" name="phone_number" class="form-control" value="<?= htmlspecialchars($user['phone_number']) ?>">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Gender</label>
+                            <select name="gender" class="form-select">
+                                <option value="Male" <?= (isset($user['gender']) && $user['gender'] == 'Male') ? 'selected' : '' ?>>Male</option>
+                                <option value="Female" <?= (isset($user['gender']) && $user['gender'] == 'Female') ? 'selected' : '' ?>>Female</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Occupation</label>
+                            <select name="occupation" class="form-select">
+                                <option value="Student" <?= (isset($user['occupation']) && $user['occupation'] == 'Student') ? 'selected' : '' ?>>Student</option>
+                                <option value="Employed" <?= (isset($user['occupation']) && $user['occupation'] == 'Employed') ? 'selected' : '' ?>>Employed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Company / School</label>
+                            <input type="text" name="company" class="form-control" value="<?= htmlspecialchars($user['company'] ?? '') ?>">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Address</label>
+                            <textarea name="address" class="form-control" rows="2"><?= htmlspecialchars($user['address'] ?? '') ?></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Emergency Contact Name</label>
+                            <input type="text" name="emergency_contact_name" class="form-control" value="<?= htmlspecialchars($user['emergency_contact_name'] ?? '') ?>">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Emergency Contact Number</label>
+                            <input type="text" name="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user['emergency_contact_number'] ?? '') ?>">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

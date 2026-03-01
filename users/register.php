@@ -4,7 +4,10 @@ include '../db.php';
 $error = "";
 
 if (isset($_POST['register'])) {
-    $name = mysqli_real_escape_string($conn, trim($_POST['name']));
+    $lname = trim($_POST['lname']);
+    $fname = trim($_POST['fname']);
+    $mname = trim($_POST['mname']);
+    $name = mysqli_real_escape_string($conn, $lname . ', ' . $fname . ' ' . $mname);
     $email = mysqli_real_escape_string($conn, trim($_POST['email']));
     $phone = mysqli_real_escape_string($conn, trim($_POST['phone']));
     $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
@@ -112,7 +115,11 @@ if (isset($_POST['register'])) {
     <h2 class="mb-4">Join Our Community</h2>
     <?php if ($error) { echo "<div class='alert alert-danger py-2 small'>$error</div>"; } ?>
     <form method="POST" class="text-start">
-        <input type="text" name="name" class="form-control" placeholder="Full Name" required>
+        <div class="row g-2 mb-3">
+            <div class="col-4"><input type="text" name="lname" class="form-control" placeholder="Last Name" required></div>
+            <div class="col-4"><input type="text" name="fname" class="form-control" placeholder="First Name" required></div>
+            <div class="col-4"><input type="text" name="mname" class="form-control" placeholder="Middle Name"></div>
+        </div>
         <input type="email" name="email" class="form-control" placeholder="Email Address" required>
         <input type="text" name="phone" class="form-control" placeholder="Phone Number (e.g. 09xxxxxxxxx)" pattern="^(09|\+639)\d{9}$" title="Please enter a valid Philippine mobile number (e.g., 09xxxxxxxxx)" required>
         <input type="password" name="password" class="form-control" placeholder="Password" required>
