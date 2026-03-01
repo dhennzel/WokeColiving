@@ -410,6 +410,9 @@ $theme = get_theme_colors($conn);
                     <?php if($user['do_not_renew']): ?>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-white">DNR</span>
                     <?php endif; ?>
+                    <?php if(!empty($user['is_walkin'])): ?>
+                        <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-info border border-white text-dark">Walk-in</span>
+                    <?php endif; ?>
                 </div>
                 <div class="flex-grow-1">
                     <h3 class="fw-bold mb-1 text-dark"><?= htmlspecialchars($user['full_name']) ?></h3>
@@ -436,6 +439,7 @@ $theme = get_theme_colors($conn);
                     <?php endif; ?>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
+                    <button onclick="location.reload()" class="btn btn-outline-secondary rounded-pill btn-sm"><i class="fas fa-sync-alt me-1"></i> Refresh</button>
                     <a href="booking_management.php" class="btn btn-outline-secondary rounded-pill btn-sm"><i class="fas fa-arrow-left me-1"></i> Back</a>
                     <button type="button" class="btn btn-outline-primary rounded-pill btn-sm" data-bs-toggle="modal" data-bs-target="#editUserModal"><i class="fas fa-edit me-1"></i> Edit</button>
                     <form method="POST" id="deleteUserForm" class="d-inline">

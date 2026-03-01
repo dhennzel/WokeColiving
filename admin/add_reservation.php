@@ -25,6 +25,12 @@ if(mysqli_num_rows($check_role) == 0) {
     mysqli_query($conn, "ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'");
 }
 
+// Ensure is_walkin column exists
+$check_walkin = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'is_walkin'");
+if(mysqli_num_rows($check_walkin) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN is_walkin TINYINT(1) DEFAULT 0");
+}
+
 // Fetch Room Prices for JS
 $room_prices_js = [];
 $price_query = mysqli_query($conn, "SELECT room_type, total_price, price_upper, price_lower FROM rooms GROUP BY room_type");
@@ -60,7 +66,7 @@ if(isset($_POST['add_reservation'])){
         if(mysqli_num_rows($check) > 0){
             $error = "Email address already registered.";
         } else {
-            $stmt = mysqli_prepare($conn, "INSERT INTO users (full_name, email, phone_number, gender, password, role) VALUES (?, ?, ?, ?, ?, 'user')");
+            $stmt = mysqli_prepare($conn, "INSERT INTO users (full_name, email, phone_number, gender, password, role, is_walkin) VALUES (?, ?, ?, ?, ?, 'user', 1)");
             mysqli_stmt_bind_param($stmt, "sssss", $name, $email, $phone, $gender, $password);
             if(mysqli_stmt_execute($stmt)){
                 $user_id = mysqli_insert_id($conn);
@@ -442,14 +448,14 @@ function checkAvailability() {
 <?php if(isset($new_reservation_id)): ?>
 Swal.fire({
     title: 'Success!',
-    html: '<?= $account_msg ?>Reservation created successfully.<br><br>Do you want to print the registration form?',
+    html: '<?= $account_msg ?>Reservation created successfully.<br><br>Do you want to print the receipt?',
     icon: 'success',
     showCancelButton: true,
-    confirmButtonText: '<i class="fas fa-print"></i> Print Form',
+    confirmButtonText: '<i class="fas fa-print"></i> Print Receipt',
     cancelButtonText: 'Close'
 }).then((result) => {
     if (result.isConfirmed) {
-        window.open('print_registration.php?id=<?= $new_reservation_id ?>', '_blank');
+        window.open('view_receipt.php?id=<?= $new_reservation_id ?>', '_blank');
     }
 });
 <?php endif; ?>

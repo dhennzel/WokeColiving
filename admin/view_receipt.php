@@ -25,7 +25,7 @@ if(isset($_POST['reset_signature'])){
 
 // Fetch Reservation & User & Room Details
 $query = "
-    SELECT r.*, u.full_name, u.email, u.phone_number, rm.room_name, rm.room_type, rm.floor
+    SELECT r.*, u.full_name, u.email, u.phone_number, u.is_walkin, rm.room_name, rm.room_type, rm.floor
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -171,6 +171,9 @@ $theme = get_theme_colors($conn);
             <div class="text-end">
                 <h2 class="fw-bold mb-1">RECEIPT</h2>
                 <div class="opacity-75">#<?= str_pad($data['reservation_id'], 6, '0', STR_PAD_LEFT) ?></div>
+                <?php if(!empty($data['is_walkin'])): ?>
+                    <div class="badge bg-info text-dark mt-1">WALK-IN GUEST</div>
+                <?php endif; ?>
                 <div class="mt-2 badge bg-warning text-dark shadow-sm">
                     <?= ($balance <= 0) ? 'PAID IN FULL' : 'PARTIALLY PAID' ?>
                 </div>

@@ -271,10 +271,17 @@ if(isset($_GET['status']) && !empty($_GET['status'])){
     $params[] = $status_filter;
     $types .= "s";
 }
+if(isset($_GET['type']) && !empty($_GET['type'])){
+    if($_GET['type'] == 'Walkin'){
+        $where_clause .= " AND u.is_walkin = 1";
+    } elseif($_GET['type'] == 'Ordinary'){
+        $where_clause .= " AND u.is_walkin = 0";
+    }
+}
 
 // Fetch Reservations with Filters
 $sql = "
-    SELECT r.*, u.full_name, u.email, u.do_not_renew, u.profile_image, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image
+    SELECT r.*, u.full_name, u.email, u.do_not_renew, u.profile_image, u.is_walkin, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -389,13 +396,21 @@ $theme = get_theme_colors($conn);
             </div>
             <div class="card card-table p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <a href="add_reservation.php" class="btn btn-sm btn-success rounded-pill"><i class="fas fa-plus me-1"></i> New Booking</a>
+                    <div class="d-flex gap-2">
+                        <a href="add_reservation.php" class="btn btn-sm btn-success rounded-pill"><i class="fas fa-plus me-1"></i> New Booking</a>
+                        <button onclick="location.reload()" class="btn btn-sm btn-outline-secondary rounded-pill"><i class="fas fa-sync-alt me-1"></i> Refresh</button>
+                    </div>
                     <form class="d-flex gap-2" method="GET">
                         <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">All Status</option>
                             <option value="Pending" <?= (isset($_GET['status']) && $_GET['status']=='Pending')?'selected':'' ?>>Pending</option>
                             <option value="Approved" <?= (isset($_GET['status']) && $_GET['status']=='Approved')?'selected':'' ?>>Approved</option>
                             <option value="Cancelled" <?= (isset($_GET['status']) && $_GET['status']=='Cancelled')?'selected':'' ?>>Cancelled</option>
+                        </select>
+                        <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            <option value="Ordinary" <?= (isset($_GET['type']) && $_GET['type']=='Ordinary')?'selected':'' ?>>Ordinary</option>
+                            <option value="Walkin" <?= (isset($_GET['type']) && $_GET['type']=='Walkin')?'selected':'' ?>>Walk-in</option>
                         </select>
                         <input type="text" name="search" class="form-control form-control-sm" placeholder="Search..." value="<?= $_GET['search'] ?? '' ?>">
                         <button class="btn btn-sm btn-custom"><i class="fas fa-search"></i></button>
@@ -407,7 +422,17 @@ $theme = get_theme_colors($conn);
                         <tbody>
                             <?php while($res = mysqli_fetch_assoc($reservations)) { ?>
                             <tr>
-                                <td><div class="d-flex align-items-center"><div class="user-avatar"><?php if(!empty($res['profile_image'])): ?><img src="../uploads/profiles/<?= $res['profile_image'] ?>" style="width: 100%; height: 100%; object-fit: cover;"><?php else: ?><?= strtoupper(substr($res['full_name'],0,1)) ?><?php endif; ?></div><div><div class="fw-bold"><?= $res['full_name'] ?> <div class="dropdown d-inline ms-1"><a href="#" class="text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v fa-sm"></i></a><ul class="dropdown-menu"><li><a class="dropdown-item" href="view_user.php?uid=<?= $res['user_id'] ?>"><i class="fas fa-eye me-2"></i>View History</a></li><li><a class="dropdown-item" href="?action=toggle_dnr&uid=<?= $res['user_id'] ?>"><i class="fas fa-flag me-2"></i><?= $res['do_not_renew'] ? 'Unflag DNR' : 'Flag DNR' ?></a></li></ul></div></div><small class="text-muted"><?= $res['email'] ?></small><?php if($res['do_not_renew']): ?><div class="badge bg-danger" style="font-size: 0.6rem;">Do Not Renew</div><?php endif; ?></div></div></td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar"><?php if(!empty($res['profile_image'])): ?><img src="../uploads/profiles/<?= $res['profile_image'] ?>" style="width: 100%; height: 100%; object-fit: cover;"><?php else: ?><?= strtoupper(substr($res['full_name'],0,1)) ?><?php endif; ?></div>
+                                        <div>
+                                            <div class="fw-bold"><?= $res['full_name'] ?> <div class="dropdown d-inline ms-1"><a href="#" class="text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v fa-sm"></i></a><ul class="dropdown-menu"><li><a class="dropdown-item" href="view_user.php?uid=<?= $res['user_id'] ?>"><i class="fas fa-eye me-2"></i>View History</a></li><li><a class="dropdown-item" href="?action=toggle_dnr&uid=<?= $res['user_id'] ?>"><i class="fas fa-flag me-2"></i><?= $res['do_not_renew'] ? 'Unflag DNR' : 'Flag DNR' ?></a></li></ul></div></div>
+                                            <small class="text-muted"><?= $res['email'] ?></small>
+                                            <?php if($res['is_walkin']): ?><span class="badge bg-info text-dark ms-1" style="font-size: 0.6rem;">Walk-in</span><?php endif; ?>
+                                            <?php if($res['do_not_renew']): ?><div class="badge bg-danger" style="font-size: 0.6rem;">Do Not Renew</div><?php endif; ?>
+                                        </div>
+                                    </div>
+                                </td>
                                 <td><div class="d-flex align-items-center"><img src="../assets/images/<?= $res['image'] ?>" class="rounded me-2" style="width:40px;height:40px;object-fit:cover;"><div><div class="fw-bold text-success"><?= $res['room_name'] ?></div><small class="text-muted"><?= $res['room_type'] ?></small></div></div></td>
                                 <td>
                                     <div><i class="fas fa-calendar-alt text-muted me-1"></i> <?= date('M d, Y', strtotime($res['start_date'])) ?> - <?= date('M d, Y', strtotime($res['end_date'])) ?></div>
