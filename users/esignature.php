@@ -47,6 +47,12 @@ if(isset($_POST['signature_data'])){
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         canvas { border: 2px dashed #ccc; cursor: crosshair; background: #fff; }
+
+        /* Night Mode Styles */
+        body.night-mode { background-color: #121212 !important; color: #e0e0e0; }
+        body.night-mode .card { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
+        body.night-mode .text-muted { color: #b0b0b0 !important; }
+        /* Canvas remains white for signature contrast */
     </style>
 </head>
 <body class="bg-light">
@@ -153,6 +159,17 @@ if(isset($_POST['signature_data'])){
             var dataUrl = canvas.toDataURL("image/png");
             document.getElementById("sig-data").value = dataUrl;
             document.getElementById("sig-form").submit();
+        });
+
+        // Night Mode Logic
+        if(localStorage.getItem('nightMode') === 'enabled') {
+            document.body.classList.add('night-mode');
+        }
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'nightMode') {
+                if (e.newValue === 'enabled') document.body.classList.add('night-mode');
+                else document.body.classList.remove('night-mode');
+            }
         });
     </script>
 </body>

@@ -64,7 +64,28 @@ $theme = get_theme_colors($conn);
         .total-row.final { font-size: 1.3rem; font-weight: bold; color: var(--dark-green); border-top: 1px solid #ddd; padding-top: 10px; }
         .sig-box { border: 2px dashed #ddd; padding: 15px; display: inline-block; margin-top: 10px; border-radius: 10px; background: #fafafa; }
         .sig-img { max-height: 60px; }
-        @media print { .no-print { display: none !important; } .receipt-container { box-shadow: none; border: 1px solid #ddd; margin: 0; width: 100%; max-width: 100%; } }
+        /* Print Styles - Forces Light Mode for paper */
+        @media print { 
+            .no-print { display: none !important; } 
+            body, body.night-mode { background: #fff !important; color: #333 !important; }
+            .receipt-container, body.night-mode .receipt-container { box-shadow: none; border: 1px solid #ddd; margin: 0; width: 100%; max-width: 100%; background: #fff !important; } 
+            body.night-mode .table-custom th, body.night-mode .total-section, body.night-mode .sig-box { background-color: #f8f9fa !important; color: #333 !important; }
+            body.night-mode .table-custom td { border-bottom: 1px solid #eee; color: #333 !important;}
+            body.night-mode .total-row.final { color: var(--dark-green) !important; border-top: 1px solid #ddd !important; }
+        }
+        /* Night Mode Styles for Receipt */
+        body.night-mode { background: #121212; color: #e0e0e0; }
+        body.night-mode .receipt-container { background: #1e1e1e; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+        body.night-mode .table-custom th { background-color: #2c2c2c; color: #e0e0e0; border-bottom: 2px solid var(--primary-green); }
+        body.night-mode .table-custom td { border-bottom: 1px solid #333; color: #e0e0e0; }
+        body.night-mode .total-section { background-color: #2c2c2c; }
+        body.night-mode .total-row.final { color: var(--accent-yellow); border-top: 1px solid #444; }
+        body.night-mode .sig-box { background: #2c2c2c; border-color: #444; }
+        body.night-mode .card-footer { background-color: #1f1f1f !important; border-top: 1px solid #333; }
+        body.night-mode .text-muted { color: #b0b0b0 !important; }
+        body.night-mode .text-secondary { color: #e0e0e0 !important; }
+        body.night-mode .info-label { color: #bbb; }
+        body.night-mode .border-dark { border-color: #e0e0e0 !important; } /* Fixes the authorized by underline */
     </style>
 </head>
 <body>
@@ -144,5 +165,19 @@ $theme = get_theme_colors($conn);
         </div>
     </div>
 </div>
+<script>
+    // Check if Night Mode is enabled from the main dashboard
+    if(localStorage.getItem('nightMode') === 'enabled') {
+        document.body.classList.add('night-mode');
+    }
+
+    // Keep it synced if they change it in another tab
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'nightMode') {
+            if (e.newValue === 'enabled') document.body.classList.add('night-mode');
+            else document.body.classList.remove('night-mode');
+        }
+    });
+</script>
 </body>
 </html>

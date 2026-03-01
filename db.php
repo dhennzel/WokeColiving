@@ -156,6 +156,10 @@ if(!in_array('is_archived', $cols)) mysqli_query($conn, "ALTER TABLE reservation
 if(!in_array('created_at', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
 if(!in_array('bed_preference', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN bed_preference VARCHAR(50) DEFAULT 'Any'");
 
+// Ensure status ENUM is up to date and fix any broken statuses
+mysqli_query($conn, "ALTER TABLE reservations MODIFY COLUMN status ENUM('Pending', 'Verifying', 'Approved', 'Cancelled', 'Completed') DEFAULT 'Pending'");
+mysqli_query($conn, "UPDATE reservations SET status='Pending' WHERE status = '' OR status IS NULL");
+
 // Ensure payments table has is_penalized column
 $pay_cols_check = mysqli_query($conn, "SHOW COLUMNS FROM payments");
 $pay_cols = [];
@@ -180,6 +184,12 @@ if(mysqli_num_rows($check_emergency_name) == 0) {
 $check_emergency_number = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'emergency_contact_number'");
 if(mysqli_num_rows($check_emergency_number) == 0) {
     mysqli_query($conn, "ALTER TABLE users ADD COLUMN emergency_contact_number VARCHAR(20) DEFAULT NULL");
+}
+
+// Ensure profile_image column exists in users table
+$check_profile_img = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'profile_image'");
+if(mysqli_num_rows($check_profile_img) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN profile_image VARCHAR(255) DEFAULT NULL");
 }
 
 // Ensure room_number column exists in rooms table

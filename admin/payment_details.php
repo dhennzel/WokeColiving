@@ -271,6 +271,18 @@ if(!empty($payment['user_id'])){
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     document.getElementById("menu-toggle").addEventListener("click", function(e) { e.preventDefault(); document.getElementById("wrapper").classList.toggle("toggled"); });
+
+    // Auto Refresh Logic
+    let lastUpdate = 0;
+    function checkUpdates() {
+        fetch('../check_updates.php')
+        .then(r => r.text())
+        .then(t => {
+            if(lastUpdate == 0) lastUpdate = t;
+            else if (t > lastUpdate) location.reload();
+        });
+    }
+    setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>
 </body>
 </html>

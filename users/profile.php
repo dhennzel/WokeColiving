@@ -8,7 +8,35 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$u_query = mysqli_query($conn, "SELECT full_name, email FROM users WHERE user_id=$user_id");
+
+// Handle Profile Picture Upload
+if(isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0){
+    $target_dir = "../uploads/profiles/";
+    if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+    
+    $file_ext = strtolower(pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION));
+    $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+    
+    if(in_array($file_ext, $allowed)){
+        $new_filename = "user_" . $user_id . "_" . time() . "." . $file_ext;
+        $target_file = $target_dir . $new_filename;
+        
+        if(move_uploaded_file($_FILES["profile_image"]["tmp_name"], $target_file)){
+            // Delete old image if exists
+            $old_q = mysqli_query($conn, "SELECT profile_image FROM users WHERE user_id=$user_id");
+            $old_row = mysqli_fetch_assoc($old_q);
+            if(!empty($old_row['profile_image']) && file_exists($target_dir . $old_row['profile_image'])){
+                unlink($target_dir . $old_row['profile_image']);
+            }
+            
+            mysqli_query($conn, "UPDATE users SET profile_image='$new_filename' WHERE user_id=$user_id");
+            header("Location: profile.php?msg=pic_updated");
+            exit;
+        }
+    }
+}
+
+$u_query = mysqli_query($conn, "SELECT full_name, email, profile_image FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
 
 // Handle Mark as Read
@@ -103,6 +131,20 @@ try {
         .delay-2 { animation-delay: 0.2s; }
         .delay-3 { animation-delay: 0.3s; }
         .delay-4 { animation-delay: 0.4s; }
+        .delay-5 { animation-delay: 0.5s; }
+
+        /* Night Mode Styles */
+        body.night-mode { background-color: #121212; color: #e0e0e0; }
+        body.night-mode .navbar { background: #1f1f1f !important; }
+        body.night-mode .card, body.night-mode .profile-card, body.night-mode .modal-content { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
+        body.night-mode .text-dark { color: #e0e0e0 !important; }
+        body.night-mode .text-muted { color: #b0b0b0 !important; }
+        body.night-mode .bg-light { background-color: #2c2c2c !important; }
+        body.night-mode .dropdown-menu { background-color: #1e1e1e; border-color: #333; }
+        body.night-mode .dropdown-item { color: #e0e0e0; }
+        body.night-mode .dropdown-item:hover { background-color: #333; }
+        body.night-mode .btn-outline-dark { color: #e0e0e0; border-color: #e0e0e0; }
+        body.night-mode .btn-outline-dark:hover { background-color: #e0e0e0; color: #121212; }
 
         .card-badge {
             position: absolute;
@@ -178,7 +220,17 @@ try {
 
 <div class="container" style="margin-top: 100px;">
     <div class="text-center mb-5 reveal">
-        <h2 class="display-5 fw-bold text-success">My Dashboard</h2>
+        <!-- Profile Pic -->
+        <div class="position-relative d-inline-block mb-3">
+            <?php if(!empty($user_info['profile_image'])): ?>
+                <img src="../uploads/profiles/<?= $user_info['profile_image'] ?>" class="rounded-circle shadow" style="width: 120px; height: 120px; object-fit: cover;">
+            <?php else: ?>
+                <div class="rounded-circle shadow d-flex align-items-center justify-content-center bg-success text-white" style="width: 120px; height: 120px; font-size: 3rem;">
+                    <?= strtoupper(substr($user_info['full_name'], 0, 1)) ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        <h2 class="display-5 fw-bold text-success">Hello, <?= htmlspecialchars($user_info['full_name']) ?>!</h2>
         <p class="text-muted lead">Manage your stay, bookings, and account details.</p>
     </div>
 
@@ -242,10 +294,45 @@ try {
                 </div>
             </a>
         </div>
+
+        <!-- User Customization -->
+        <div class="col-md-3 reveal delay-5">
+            <div class="card profile-card h-100 p-5 text-center">
+                <div class="icon-box"><i class="fas fa-sliders-h"></i></div>
+                <h4 class="fw-bold text-dark mb-3">Customization</h4>
+                <p class="text-muted small mb-4">Personalize your profile experience.</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-success rounded-pill btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#uploadPicModal">
+                        <i class="fas fa-camera me-2"></i>Change Picture
+                    </button>
+                    <button class="btn btn-outline-dark rounded-pill btn-sm fw-bold" onclick="toggleNightMode()">
+                        <i class="fas fa-moon me-2"></i>Night Mode
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
 </div>
 <br><br>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadPicModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title small fw-bold">Update Profile Picture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-body text-center">
+                    <input type="file" name="profile_image" class="form-control form-control-sm mb-3" accept="image/*" required>
+                    <button type="submit" class="btn btn-success btn-sm w-100">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <!-- Notification Sound -->
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
@@ -364,6 +451,24 @@ try {
     }
     setInterval(checkUpdates, 3000); // Check every 3 seconds
     document.addEventListener('DOMContentLoaded', checkCardBadges);
+
+    // Night Mode Logic
+    function toggleNightMode() {
+        document.body.classList.toggle('night-mode');
+        const isNight = document.body.classList.contains('night-mode');
+        localStorage.setItem('nightMode', isNight ? 'enabled' : 'disabled');
+    }
+    if(localStorage.getItem('nightMode') === 'enabled') {
+        document.body.classList.add('night-mode');
+    }
+
+    // Sync Night Mode across tabs
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'nightMode') {
+            if (e.newValue === 'enabled') document.body.classList.add('night-mode');
+            else document.body.classList.remove('night-mode');
+        }
+    });
 </script>
 </body>
 </html>

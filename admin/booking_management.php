@@ -183,7 +183,7 @@ if(isset($_GET['action'])){
         $res_q = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
         $res_data = mysqli_fetch_assoc($res_q);
         
-        if($res_data && ($res_data['status'] == 'Pending' || $res_data['status'] == 'Verifying')){
+        if($res_data && $res_data['status'] == 'Verifying'){
             $target_user_id = $res_data['user_id'];
             $current_room_id = $res_data['room_id'];
             $s_date = $res_data['start_date'];
@@ -274,7 +274,7 @@ if(isset($_GET['status']) && !empty($_GET['status'])){
 
 // Fetch Reservations with Filters
 $sql = "
-    SELECT r.*, u.full_name, u.email, u.do_not_renew, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image
+    SELECT r.*, u.full_name, u.email, u.do_not_renew, u.profile_image, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -328,7 +328,7 @@ $theme = get_theme_colors($conn);
         .sidebar-brand { color: var(--accent-yellow); font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.3rem; padding: 25px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
         .card-table { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
         .table th { background-color: var(--primary-green); color: white; font-weight: 500; border: none; }
-        .user-avatar { width: 35px; height: 35px; background: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; }
+        .user-avatar { width: 35px; height: 35px; background: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; overflow: hidden; }
         .badge-pending { background: #fff3cd; color: #856404; }
         .badge-approved { background: #d4edda; color: #155724; }
         .badge-cancelled { background: #f8d7da; color: #721c24; }
@@ -407,7 +407,7 @@ $theme = get_theme_colors($conn);
                         <tbody>
                             <?php while($res = mysqli_fetch_assoc($reservations)) { ?>
                             <tr>
-                                <td><div class="d-flex align-items-center"><div class="user-avatar"><?= strtoupper(substr($res['full_name'],0,1)) ?></div><div><div class="fw-bold"><?= $res['full_name'] ?> <div class="dropdown d-inline ms-1"><a href="#" class="text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v fa-sm"></i></a><ul class="dropdown-menu"><li><a class="dropdown-item" href="view_user.php?uid=<?= $res['user_id'] ?>"><i class="fas fa-eye me-2"></i>View History</a></li><li><a class="dropdown-item" href="?action=toggle_dnr&uid=<?= $res['user_id'] ?>"><i class="fas fa-flag me-2"></i><?= $res['do_not_renew'] ? 'Unflag DNR' : 'Flag DNR' ?></a></li></ul></div></div><small class="text-muted"><?= $res['email'] ?></small><?php if($res['do_not_renew']): ?><div class="badge bg-danger" style="font-size: 0.6rem;">Do Not Renew</div><?php endif; ?></div></div></td>
+                                <td><div class="d-flex align-items-center"><div class="user-avatar"><?php if(!empty($res['profile_image'])): ?><img src="../uploads/profiles/<?= $res['profile_image'] ?>" style="width: 100%; height: 100%; object-fit: cover;"><?php else: ?><?= strtoupper(substr($res['full_name'],0,1)) ?><?php endif; ?></div><div><div class="fw-bold"><?= $res['full_name'] ?> <div class="dropdown d-inline ms-1"><a href="#" class="text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v fa-sm"></i></a><ul class="dropdown-menu"><li><a class="dropdown-item" href="view_user.php?uid=<?= $res['user_id'] ?>"><i class="fas fa-eye me-2"></i>View History</a></li><li><a class="dropdown-item" href="?action=toggle_dnr&uid=<?= $res['user_id'] ?>"><i class="fas fa-flag me-2"></i><?= $res['do_not_renew'] ? 'Unflag DNR' : 'Flag DNR' ?></a></li></ul></div></div><small class="text-muted"><?= $res['email'] ?></small><?php if($res['do_not_renew']): ?><div class="badge bg-danger" style="font-size: 0.6rem;">Do Not Renew</div><?php endif; ?></div></div></td>
                                 <td><div class="d-flex align-items-center"><img src="../assets/images/<?= $res['image'] ?>" class="rounded me-2" style="width:40px;height:40px;object-fit:cover;"><div><div class="fw-bold text-success"><?= $res['room_name'] ?></div><small class="text-muted"><?= $res['room_type'] ?></small></div></div></td>
                                 <td>
                                     <div><i class="fas fa-calendar-alt text-muted me-1"></i> <?= date('M d, Y', strtotime($res['start_date'])) ?> - <?= date('M d, Y', strtotime($res['end_date'])) ?></div>

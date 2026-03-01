@@ -297,7 +297,7 @@ $theme = get_theme_colors($conn);
         .nav-tabs .nav-link.active { color: var(--primary-green); border-bottom: 3px solid var(--primary-green); background: transparent; font-weight: bold; }
         .nav-tabs .nav-link:hover { border-color: transparent; color: var(--primary-green); }
         .profile-header { background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
-        .avatar-circle { width: 80px; height: 80px; font-size: 2rem; background-color: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .avatar-circle { width: 80px; height: 80px; font-size: 2rem; background-color: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
     </style>
 </head>
 <body>
@@ -364,7 +364,11 @@ $theme = get_theme_colors($conn);
             <div class="profile-header p-4 mb-4 d-flex flex-wrap align-items-center gap-4">
                 <div class="position-relative">
                     <div class="avatar-circle">
-                        <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
+                        <?php if(!empty($user['profile_image'])): ?>
+                            <img src="../uploads/profiles/<?= $user['profile_image'] ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                        <?php else: ?>
+                            <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
+                        <?php endif; ?>
                     </div>
                     <?php if($user['do_not_renew']): ?>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-white">DNR</span>
@@ -539,8 +543,8 @@ $theme = get_theme_colors($conn);
                                         <td>₱<?= number_format($row['total_price'], 2) ?></td>
                                         <td class="text-end">
                                             <?php if($row['status'] == 'Pending'): ?>
-                                                <a href="booking_management.php?action=verify&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-info text-white" onclick="confirmAction(event, this.href, 'Move this reservation to Verifying status?')" title="Verify"><i class="fas fa-search"></i> Verify</a>
-                                                <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
+                                                <a href="booking_management.php?action=verify&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-info text-white" onclick="confirmAction(event, this.href, 'Move this reservation to Verifying status?')" title="Verify"><i class="fas fa-search"></i></a>
+                                                <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')" title="Reject"><i class="fas fa-times"></i></a>
                                             <?php elseif($row['status'] == 'Verifying'): ?>
                                                 <?php
                                                     // Check Payment
@@ -549,15 +553,15 @@ $theme = get_theme_colors($conn);
                                                     // Check Signature
                                                     $has_sig = !empty($row['signature_image']);
                                                 ?>
-                                                <?php if($is_paid && $has_sig): ?>
-                                                    <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this reservation?')" title="Approve"><i class="fas fa-check"></i> Approve</a>
-                                                <?php else: ?>
-                                                    <button class="btn btn-sm btn-secondary" disabled title="Requires Payment & Signature">
-                                                        <i class="fas fa-hourglass-half"></i> 
-                                                        <?= !$is_paid ? 'Waiting Payment' : (!$has_sig ? 'Waiting Signature' : '') ?>
-                                                    </button>
+                                                <div class="d-flex justify-content-end gap-1">
+                                                    <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this reservation?')" title="Approve"><i class="fas fa-check"></i></a>
+                                                    <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')" title="Reject"><i class="fas fa-times"></i></a>
+                                                </div>
+                                                <?php if(!$is_paid || !$has_sig): ?>
+                                                    <div class="small text-danger mt-1 text-end" style="font-size: 0.7rem;">
+                                                        <i class="fas fa-exclamation-triangle"></i> <?= !$is_paid ? 'Unpaid' : '' ?> <?= (!$is_paid && !$has_sig) ? '&' : '' ?> <?= !$has_sig ? 'No Sig' : '' ?>
+                                                    </div>
                                                 <?php endif; ?>
-                                                <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
                                             <?php elseif($row['status'] == 'Approved'): ?>
                                                 <button onclick="renewContract(<?= $row['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt"></i></button>
                                                 <a href="booking_management.php?action=terminate&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract?')"><i class="fas fa-ban"></i></a>
