@@ -341,7 +341,7 @@ if(isset($_SESSION['user_id'])){
         body.night-mode .section-title { color: #e0e0e0; }
     </style>
 </head>
-<body>
+<body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
 
 <!-- NAVBAR -->
 <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
@@ -649,9 +649,13 @@ if(isset($_SESSION['user_id'])){
     fetchNotifications(); // Initial load
 
     // Night Mode Logic
-    if(localStorage.getItem('nightMode') === 'enabled') {
-        document.body.classList.add('night-mode');
-    }
+    <?php if(isset($_SESSION['night_mode'])): ?>
+        // Sync LocalStorage with DB preference
+        if(<?= $_SESSION['night_mode'] ?> === 1) localStorage.setItem('nightMode', 'enabled');
+        else localStorage.setItem('nightMode', 'disabled');
+    <?php else: ?>
+        if(localStorage.getItem('nightMode') === 'enabled') document.body.classList.add('night-mode');
+    <?php endif; ?>
 
     // Sync Night Mode across tabs
     window.addEventListener('storage', (e) => {

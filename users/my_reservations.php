@@ -10,8 +10,59 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 
 // Get User Info
-$u_query = mysqli_query($conn, "SELECT full_name FROM users WHERE user_id=$user_id");
+$u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
+
+// Ensure user_update_requests table exists
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS user_update_requests (
+    request_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    gender VARCHAR(20),
+    occupation VARCHAR(50),
+    company VARCHAR(100),
+    address TEXT,
+    emergency_contact_name VARCHAR(100),
+    emergency_contact_number VARCHAR(20),
+    school_id_image VARCHAR(255),
+    status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)");
+
+// Handle Update Info Action
+if(isset($_POST['update_info'])){
+    // Check for existing pending request
+    $check_pending = mysqli_query($conn, "SELECT request_id FROM user_update_requests WHERE user_id=$user_id AND status='Pending'");
+    if(mysqli_num_rows($check_pending) > 0){
+        $_SESSION['swal'] = ['title' => 'Request Pending', 'text' => 'You already have a pending update request. Please wait for admin approval.', 'icon' => 'warning'];
+    } else {
+        $gender = mysqli_real_escape_string($conn, $_POST['gender']);
+        $occupation = mysqli_real_escape_string($conn, $_POST['occupation']);
+        $company = mysqli_real_escape_string($conn, $_POST['company']);
+        $address = mysqli_real_escape_string($conn, $_POST['address']);
+        $ec_name = mysqli_real_escape_string($conn, $_POST['emergency_contact_name']);
+        $ec_number = mysqli_real_escape_string($conn, $_POST['emergency_contact_number']);
+        
+        // Handle File Upload for School ID
+        $school_id_filename = null;
+        if(isset($_FILES['school_id_image']) && $_FILES['school_id_image']['error'] == 0){
+            $target_dir = "../uploads/proofs/";
+            if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+            $filename = time() . '_school_' . basename($_FILES["school_id_image"]["name"]);
+            if(move_uploaded_file($_FILES["school_id_image"]["tmp_name"], $target_dir . $filename)){
+                $school_id_filename = $filename;
+            }
+        }
+
+        $stmt = mysqli_prepare($conn, "INSERT INTO user_update_requests (user_id, gender, occupation, company, address, emergency_contact_name, emergency_contact_number, school_id_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        mysqli_stmt_bind_param($stmt, "isssssss", $user_id, $gender, $occupation, $company, $address, $ec_name, $ec_number, $school_id_filename);
+        
+        if(mysqli_stmt_execute($stmt)){
+            $_SESSION['swal'] = ['title' => 'Request Submitted', 'text' => 'Your profile update has been submitted for admin approval.', 'icon' => 'success'];
+        } else {
+            $_SESSION['swal'] = ['title' => 'Error', 'text' => 'Failed to submit request.', 'icon' => 'error'];
+        }
+    }
+}
 
 // Ensure is_archived column exists
 $check_col = mysqli_query($conn, "SHOW COLUMNS FROM reservations LIKE 'is_archived'");
@@ -112,9 +163,14 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         /* Button Styles */
         body.night-mode .btn-outline-dark { color: #e0e0e0; border-color: #e0e0e0; }
         body.night-mode .btn-outline-dark:hover { background-color: #e0e0e0; color: #121212; }
+
+        /* Form & Table Fixes */
+        body.night-mode .form-control, body.night-mode .form-select { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
+        body.night-mode .form-control:focus, body.night-mode .form-select:focus { background-color: #333; color: #fff; }
+        body.night-mode .table-hover tbody tr:hover > * { background-color: #2c2c2c; color: #fff; }
     </style>
 </head>
-<body>
+<body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
 
 <!-- NAVBAR -->
 <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
@@ -146,6 +202,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         </div>
         <div>
             <button onclick="location.reload()" class="btn btn-outline-primary fw-bold me-2 rounded-pill"><i class="fas fa-sync-alt me-2"></i>Refresh</button>
+            <button type="button" class="btn btn-outline-warning fw-bold me-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#updateInfoModal"><i class="fas fa-user-edit me-2"></i>Update Info</button>
             <button type="button" class="btn btn-outline-success fw-bold me-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#activityLogModal"><i class="fas fa-history me-2"></i>Activity Logs</button>
             <a href="profile.php" class="btn btn-secondary rounded-pill">&larr; Back</a>
         </div>
@@ -338,6 +395,68 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     </div>
 </div>
 
+<!-- Update Info Modal -->
+<div class="modal fade" id="updateInfoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-user-edit me-2"></i>Update Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" name="update_info" value="1">
+                    <div class="mb-3">
+                        <label class="form-label">Gender</label>
+                        <select name="gender" class="form-select" required>
+                            <option value="" disabled <?= empty($user_info['gender']) ? 'selected' : '' ?>>Select Gender</option>
+                            <option value="Male" <?= ($user_info['gender'] ?? '') == 'Male' ? 'selected' : '' ?>>Male</option>
+                            <option value="Female" <?= ($user_info['gender'] ?? '') == 'Female' ? 'selected' : '' ?>>Female</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Occupation</label>
+                        <select name="occupation" id="occupation" class="form-select" required onchange="toggleCompanyField()">
+                            <option value="" disabled <?= empty($user_info['occupation']) ? 'selected' : '' ?>>Select Status</option>
+                            <option value="Student" <?= ($user_info['occupation'] ?? '') == 'Student' ? 'selected' : '' ?>>Student</option>
+                            <option value="Employed" <?= ($user_info['occupation'] ?? '') == 'Employed' ? 'selected' : '' ?>>Employed</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="company_div" style="display: none;">
+                        <label class="form-label">Company Name</label>
+                        <input type="text" name="company" id="company" class="form-control" value="<?= htmlspecialchars($user_info['company'] ?? '') ?>">
+                    </div>
+                    <div class="mb-3" id="school_id_div" style="display: none;">
+                        <label class="form-label">School ID</label>
+                        <?php if(!empty($user_info['school_id_image'])): ?>
+                            <div class="mb-2">
+                                <small class="text-success"><i class="fas fa-check-circle"></i> Current ID Uploaded</small>
+                            </div>
+                        <?php endif; ?>
+                        <input type="file" name="school_id_image" id="school_id_image" class="form-control" accept="image/*">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea name="address" class="form-control" rows="2" required><?= htmlspecialchars($user_info['address'] ?? '') ?></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" id="label_emergency_name">Emergency Contact Name</label>
+                        <input type="text" name="emergency_contact_name" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_name'] ?? '') ?>" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" id="label_emergency_number">Emergency Contact Number</label>
+                        <input type="text" name="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_number'] ?? '') ?>" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Room Details Modal -->
 <div class="modal fade" id="roomDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -396,6 +515,35 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         icon: '<?= $_SESSION['swal']['icon'] ?>'
     });
     <?php unset($_SESSION['swal']); endif; ?>
+
+    function toggleCompanyField() {
+        var occupation = document.getElementById('occupation');
+        var companyDiv = document.getElementById('company_div');
+        var schoolIdDiv = document.getElementById('school_id_div');
+        var companyInput = document.getElementById('company');
+        
+        var labelName = document.getElementById('label_emergency_name');
+        var labelNumber = document.getElementById('label_emergency_number');
+        
+        if (occupation && occupation.value === 'Employed') {
+            companyDiv.style.display = 'block';
+            schoolIdDiv.style.display = 'none';
+            if(labelName) labelName.innerText = "Emergency Contact/Boss Name";
+            if(labelNumber) labelNumber.innerText = "Emergency Contact/Boss Contact Number";
+        } else if (occupation && occupation.value === 'Student') {
+            companyDiv.style.display = 'none';
+            schoolIdDiv.style.display = 'block';
+            if(labelName) labelName.innerText = "Guardian Name";
+            if(labelNumber) labelNumber.innerText = "Guardian Contact Number";
+        } else {
+            companyDiv.style.display = 'none';
+            schoolIdDiv.style.display = 'none';
+            if(labelName) labelName.innerText = "Emergency Contact Name";
+            if(labelNumber) labelNumber.innerText = "Emergency Contact Number";
+        }
+    }
+    // Init on load
+    document.addEventListener('DOMContentLoaded', toggleCompanyField);
 
     function viewRoomDetails(roomId, duration, totalPrice, bedPref) {
         var myModal = new bootstrap.Modal(document.getElementById('roomDetailsModal'));
@@ -459,9 +607,13 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     setInterval(checkUpdates, 3000); // Check every 3 seconds
 
 // Night Mode Logic
-if(localStorage.getItem('nightMode') === 'enabled') {
-    document.body.classList.add('night-mode');
-}
+<?php if(isset($_SESSION['night_mode'])): ?>
+    // Sync LocalStorage with DB preference
+    if(<?= $_SESSION['night_mode'] ?> === 1) localStorage.setItem('nightMode', 'enabled');
+    else localStorage.setItem('nightMode', 'disabled');
+<?php else: ?>
+    if(localStorage.getItem('nightMode') === 'enabled') document.body.classList.add('night-mode');
+<?php endif; ?>
 
 // Sync Night Mode across tabs
 window.addEventListener('storage', (e) => {

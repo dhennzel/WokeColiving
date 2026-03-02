@@ -130,11 +130,7 @@ if(isset($_SESSION['user_id'])){
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto align-items-center gap-3">
-                <li class="nav-item"><a href="index.php" class="nav-link text-white">Home</a></li>
-                <li class="nav-item"><a href="index.php#rooms" class="nav-link text-white">Rooms</a></li>
-            </ul>
-            <div class="d-flex gap-2 ms-3">
+            <div class="d-flex gap-2 ms-auto">
                 <?php if(isset($_SESSION['user_id'])): ?>
                     <a href="profile.php" class="text-white text-decoration-none fw-bold me-3 position-relative">
                         My Profile

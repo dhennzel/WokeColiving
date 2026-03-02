@@ -101,6 +101,43 @@ if(isset($_POST['update_user_info'])){
     }
 }
 
+// Handle Update Request Approval/Rejection
+if(isset($_POST['handle_update_request'])){
+    $req_id = (int)$_POST['request_id'];
+    $action = $_POST['action']; // 'approve' or 'reject'
+    
+    if($action == 'approve'){
+        $req_q = mysqli_query($conn, "SELECT * FROM user_update_requests WHERE request_id=$req_id");
+        if($req = mysqli_fetch_assoc($req_q)){
+            $u_gender = mysqli_real_escape_string($conn, $req['gender']);
+            $u_occ = mysqli_real_escape_string($conn, $req['occupation']);
+            $u_comp = mysqli_real_escape_string($conn, $req['company']);
+            $u_addr = mysqli_real_escape_string($conn, $req['address']);
+            $u_ec_name = mysqli_real_escape_string($conn, $req['emergency_contact_name']);
+            $u_ec_num = mysqli_real_escape_string($conn, $req['emergency_contact_number']);
+            $u_sid = $req['school_id_image'];
+            
+            $sid_sql = "";
+            if(!empty($u_sid)) $sid_sql = ", school_id_image='" . mysqli_real_escape_string($conn, $u_sid) . "'";
+            
+            $upd_sql = "UPDATE users SET gender='$u_gender', occupation='$u_occ', company='$u_comp', address='$u_addr', emergency_contact_name='$u_ec_name', emergency_contact_number='$u_ec_num' $sid_sql WHERE user_id=" . $req['user_id'];
+            
+            if(mysqli_query($conn, $upd_sql)){
+                mysqli_query($conn, "UPDATE user_update_requests SET status='Approved' WHERE request_id=$req_id");
+                log_activity($conn, $req['user_id'], "Profile Update Approved", "Admin approved profile changes.");
+                send_notification($conn, $req['user_id'], "✅ <strong>Profile Update Approved</strong><br>Your profile information has been updated.", "System");
+                echo "<script>window.location.href='view_user.php?uid=$uid&msg=update_approved';</script>";
+                exit;
+            }
+        }
+    } elseif($action == 'reject'){
+        mysqli_query($conn, "UPDATE user_update_requests SET status='Rejected' WHERE request_id=$req_id");
+        send_notification($conn, $uid, "❌ <strong>Profile Update Rejected</strong><br>Your profile update request was rejected by admin.", "System");
+        echo "<script>window.location.href='view_user.php?uid=$uid&msg=update_rejected';</script>";
+        exit;
+    }
+}
+
 // Handle Room Assignment (Move Tenant)
 if(isset($_POST['assign_room'])){
     $res_id = (int)$_POST['reservation_id'];
@@ -261,6 +298,10 @@ $expiring_query = mysqli_query($conn, "
     AND r.end_date <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
     ORDER BY r.end_date ASC
 ");
+
+// Fetch Pending Update Request
+$pending_update_q = mysqli_query($conn, "SELECT * FROM user_update_requests WHERE user_id=$uid AND status='Pending'");
+$pending_update = mysqli_fetch_assoc($pending_update_q);
 
 // Fetch Base Rooms List (Availability calculated dynamically per reservation)
 $base_rooms_list = [];
@@ -465,8 +506,78 @@ $theme = get_theme_colors($conn);
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'room_updated'): ?>
                 <div class="alert alert-success">Room assignment updated successfully.</div>
             <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'update_approved'): ?>
+                <div class="alert alert-success">User profile update approved successfully.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'update_rejected'): ?>
+                <div class="alert alert-warning">User profile update rejected.</div>
+            <?php endif; ?>
             <?php if(isset($_GET['error'])): ?>
                 <div class="alert alert-danger"><?= htmlspecialchars($_GET['error']) ?></div>
+            <?php endif; ?>
+
+            <!-- Pending Update Request Alert -->
+            <?php if($pending_update): ?>
+            <div class="card border-warning mb-4 shadow-sm">
+                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-user-edit me-2"></i> Pending Profile Update Request</span>
+                    <div class="d-flex gap-2">
+                        <form method="POST" class="d-inline">
+                            <input type="hidden" name="request_id" value="<?= $pending_update['request_id'] ?>">
+                            <input type="hidden" name="handle_update_request" value="1">
+                            <button type="submit" name="action" value="approve" class="btn btn-success btn-sm fw-bold"><i class="fas fa-check me-1"></i> Approve</button>
+                            <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm fw-bold"><i class="fas fa-times me-1"></i> Reject</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">The user has requested to update their profile information. Review the changes below:</p>
+                    <div class="row g-3 small">
+                        <div class="col-md-4">
+                            <strong>Gender:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['gender'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['gender'] ?></span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Occupation:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['occupation'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['occupation'] ?></span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Company/School:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['company'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['company'] ?></span>
+                        </div>
+                        <div class="col-md-12">
+                            <strong>Address:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['address'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['address'] ?></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Emergency Contact:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['emergency_contact_name'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['emergency_contact_name'] ?></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Emergency Number:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['emergency_contact_number'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['emergency_contact_number'] ?></span>
+                        </div>
+                        <?php if(!empty($pending_update['school_id_image'])): ?>
+                        <div class="col-md-12 mt-2">
+                            <strong>New School ID:</strong><br>
+                            <a href="../uploads/proofs/<?= $pending_update['school_id_image'] ?>" target="_blank" class="btn btn-sm btn-outline-primary mt-1"><i class="fas fa-image me-1"></i> View New ID</a>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
             <?php endif; ?>
 
             <!-- Expiring Contracts Alert -->

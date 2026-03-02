@@ -36,38 +36,72 @@ if(isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0){
     }
 }
 
-$u_query = mysqli_query($conn, "SELECT full_name, email, profile_image FROM users WHERE user_id=$user_id");
+// Ensure night_mode column exists
+$check_nm = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'night_mode'");
+if(mysqli_num_rows($check_nm) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN night_mode TINYINT(1) DEFAULT 0");
+}
+
+// Ensure is_walkin column exists (Feature: Walk-in Indicator)
+$check_wi = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'is_walkin'");
+if(mysqli_num_rows($check_wi) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN is_walkin TINYINT(1) DEFAULT 0");
+}
+
+// Handle Night Mode Toggle
+if(isset($_POST['toggle_night_mode'])){
+    $mode = $_POST['mode'] === 'true' ? 1 : 0;
+    mysqli_query($conn, "UPDATE users SET night_mode=$mode WHERE user_id=$user_id");
+    $_SESSION['night_mode'] = $mode;
+    exit;
+}
+
+$u_query = mysqli_query($conn, "SELECT full_name, email, phone_number, profile_image, night_mode FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
 
 // Check for Outdated System Data
 $is_outdated = false;
-// 1. Check Name Format (Old: "First Last" vs New: "Last, First")
-if(strpos($user_info['full_name'], ',') === false && strpos(trim($user_info['full_name']), ' ') !== false) $is_outdated = true;
+// 1. Check Name Format (Target: "First Last") - Flag if comma exists
+if(strpos($user_info['full_name'], ',') !== false) $is_outdated = true;
+// 2. Check Email Validity
+if(!filter_var($user_info['email'], FILTER_VALIDATE_EMAIL)) $is_outdated = true;
+// 3. Check Phone Number Format
+if(!preg_match('/^(09|\+639)\d{9}$/', $user_info['phone_number'])) $is_outdated = true;
 // 2. Check for NULL in new columns
-try {
-    $chk_cols = mysqli_query($conn, "SELECT is_walkin, role FROM users WHERE user_id=$user_id");
-    if($chk_cols && $cols = mysqli_fetch_assoc($chk_cols)){
-        if(is_null($cols['is_walkin']) || is_null($cols['role'])) $is_outdated = true;
-    }
-} catch(Exception $e) {}
+$chk_cols = mysqli_query($conn, "SELECT is_walkin, role FROM users WHERE user_id=$user_id");
+if($chk_cols && $cols = mysqli_fetch_assoc($chk_cols)){
+    if(is_null($cols['is_walkin']) || is_null($cols['role'])) $is_outdated = true;
+}
 
 // Handle System Update Action
 if(isset($_GET['action']) && $_GET['action'] == 'system_update'){
-    // 1. Fix Name Format (Old: "First Last" -> New: "Last, First")
+    // 1. Fix Name Format (Current: "Last, First" -> Target: "First Last")
     $current_name = $user_info['full_name'];
-    if(strpos($current_name, ',') === false){
-        $parts = explode(' ', trim($current_name));
-        if(count($parts) > 1){
-            $lname = array_pop($parts);
-            $fname = implode(' ', $parts);
-            $new_name = $lname . ', ' . $fname;
+    if(strpos($current_name, ',') !== false){
+        $parts = explode(',', $current_name);
+        if(count($parts) >= 2){
+            $lname = trim($parts[0]);
+            $fname = trim($parts[1]);
+            $new_name = $fname . ' ' . $lname;
             mysqli_query($conn, "UPDATE users SET full_name='" . mysqli_real_escape_string($conn, $new_name) . "' WHERE user_id=$user_id");
         }
     }
 
-    // 2. Initialize new columns if NULL (Safe Update)
-    try { mysqli_query($conn, "UPDATE users SET is_walkin=0 WHERE user_id=$user_id AND is_walkin IS NULL"); } catch(Exception $e){}
-    try { mysqli_query($conn, "UPDATE users SET role='user' WHERE user_id=$user_id AND role IS NULL"); } catch(Exception $e){}
+    // 2. Fix Email (Sanitize)
+    $sanitized_email = filter_var($user_info['email'], FILTER_SANITIZE_EMAIL);
+    if($sanitized_email !== $user_info['email'] && filter_var($sanitized_email, FILTER_VALIDATE_EMAIL)){
+        mysqli_query($conn, "UPDATE users SET email='" . mysqli_real_escape_string($conn, $sanitized_email) . "' WHERE user_id=$user_id");
+    }
+
+    // 3. Fix Phone Number (Remove non-numeric/plus characters)
+    $clean_phone = preg_replace('/[^0-9+]/', '', $user_info['phone_number']);
+    if($clean_phone !== $user_info['phone_number']){
+        mysqli_query($conn, "UPDATE users SET phone_number='$clean_phone' WHERE user_id=$user_id");
+    }
+
+    // 3. Initialize new columns if NULL (Safe Update)
+    mysqli_query($conn, "UPDATE users SET is_walkin=0 WHERE user_id=$user_id AND is_walkin IS NULL");
+    mysqli_query($conn, "UPDATE users SET role='user' WHERE user_id=$user_id AND role IS NULL");
     
     // 3. Fix Profile Picture (Broken Link or Empty -> NULL to show default placeholder)
     $curr_img = $user_info['profile_image'];
@@ -186,6 +220,13 @@ try {
         body.night-mode .dropdown-item:hover { background-color: #333; }
         body.night-mode .btn-outline-dark { color: #e0e0e0; border-color: #e0e0e0; }
         body.night-mode .btn-outline-dark:hover { background-color: #e0e0e0; color: #121212; }
+        body.night-mode .modal-header { border-bottom-color: #333; }
+        body.night-mode .modal-footer { border-top-color: #333; }
+        body.night-mode .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+        body.night-mode .alert-light { background-color: #2c2c2c; border-color: #333; color: #e0e0e0; }
+        body.night-mode .form-control { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
+        body.night-mode .form-control:focus { background-color: #333; color: #fff; }
+        body.night-mode .progress { background-color: #333; }
 
         .card-badge {
             position: absolute;
@@ -206,7 +247,7 @@ try {
         }
     </style>
 </head>
-<body>
+<body class="<?= ($user_info['night_mode'] == 1) ? 'night-mode' : '' ?>">
 
 <!-- NAVBAR -->
 <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
@@ -355,7 +396,7 @@ try {
 
         <!-- System Update -->
         <div class="col-md-3 reveal delay-5">
-            <a href="profile.php?action=system_update" class="text-decoration-none">
+            <a href="javascript:void(0)" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#systemUpdateModal">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($is_outdated): ?>
                         <div class="position-absolute top-0 end-0 m-3 p-2 bg-danger rounded-circle shadow border border-white" title="Update Required"></div>
@@ -370,6 +411,63 @@ try {
 
 </div>
 <br><br>
+
+<!-- System Update Modal -->
+<div class="modal fade" id="systemUpdateModal" tabindex="-1" data-bs-backdrop="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-sync-alt me-2 text-primary"></i>System Update</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <?php if($is_outdated): ?>
+                <div id="update-content">
+                    <div class="mb-3">
+                        <i class="fas fa-cogs text-muted" style="font-size: 3rem; opacity: 0.5;"></i>
+                    </div>
+                    <h5 class="fw-bold">Synchronize Account Data</h5>
+                    <p class="text-muted small mb-4">This action will standardize your profile information and ensure all system fields are initialized correctly.</p>
+                    
+                    <div class="alert alert-light border text-start small">
+                        <strong>Changes to be applied:</strong>
+                        <ul class="mb-0 ps-3 mt-1">
+                            <li>Name Format Standardization</li>
+                            <li>Email Validation Check</li>
+                            <li>Phone Number Formatting</li>
+                            <li>Feature Sync (Walk-in Status)</li>
+                            <li>Profile Picture Link Repair</li>
+                        </ul>
+                    </div>
+                </div>
+                <div id="update-progress" style="display:none;" class="py-4">
+                    <h5 class="fw-bold text-success mb-3">Updating System...</h5>
+                    <div class="progress" style="height: 20px;">
+                        <div id="sys-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p class="text-muted small mt-2">Please wait while we synchronize your data.</p>
+                </div>
+                <?php else: ?>
+                <div class="py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="fw-bold">System Up to Date</h5>
+                    <p class="text-muted small">Your account data is synchronized with the latest system version.</p>
+                </div>
+                <?php endif; ?>
+            </div>
+            <div class="modal-footer border-0 justify-content-center" id="update-footer">
+                <?php if($is_outdated): ?>
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" onclick="startSystemUpdate()" class="btn btn-primary rounded-pill px-4">Confirm Update</button>
+                <?php else: ?>
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Upload Modal -->
 <div class="modal fade" id="uploadPicModal" tabindex="-1">
@@ -511,10 +609,35 @@ try {
     function toggleNightMode() {
         document.body.classList.toggle('night-mode');
         const isNight = document.body.classList.contains('night-mode');
+        
+        // Update Local Storage
         localStorage.setItem('nightMode', isNight ? 'enabled' : 'disabled');
+        
+        // Update Database
+        fetch('profile.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'toggle_night_mode=1&mode=' + isNight
+        });
     }
-    if(localStorage.getItem('nightMode') === 'enabled') {
-        document.body.classList.add('night-mode');
+
+    function startSystemUpdate() {
+        document.getElementById('update-content').style.display = 'none';
+        document.getElementById('update-footer').style.display = 'none';
+        document.getElementById('update-progress').style.display = 'block';
+        
+        let width = 0;
+        const bar = document.getElementById('sys-progress-bar');
+        const interval = setInterval(() => {
+            width += 2;
+            bar.style.width = width + '%';
+            if(width >= 100) {
+                clearInterval(interval);
+                setTimeout(() => {
+                    window.location.href = 'profile.php?action=system_update';
+                }, 500);
+            }
+        }, 30);
     }
 
     // Sync Night Mode across tabs

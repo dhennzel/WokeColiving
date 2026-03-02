@@ -16,6 +16,7 @@ if (isset($_POST['login'])) {
     if ($user && password_verify($password, $user['password'])) {
         $_SESSION['user_id'] = $user['user_id'];
         $_SESSION['role'] = $user['role'];
+        $_SESSION['night_mode'] = $user['night_mode'] ?? 0;
         header("Location: ../index.php");
         exit;
     } else {
