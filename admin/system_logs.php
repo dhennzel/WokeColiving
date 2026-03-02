@@ -11,7 +11,7 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 $where = "1=1";
 if(isset($_GET['search']) && !empty($_GET['search'])){
     $search = mysqli_real_escape_string($conn, $_GET['search']);
-    $where .= " AND (u.full_name LIKE '%$search%' OR l.action LIKE '%$search%' OR l.details LIKE '%$search%')";
+    $where .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR l.action LIKE '%$search%' OR l.details LIKE '%$search%')";
 }
 if(isset($_GET['action_filter']) && !empty($_GET['action_filter'])){
     $act = mysqli_real_escape_string($conn, $_GET['action_filter']);
@@ -19,7 +19,7 @@ if(isset($_GET['action_filter']) && !empty($_GET['action_filter'])){
 }
 
 // Fetch Logs with Filter
-$logs = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id WHERE $where ORDER BY l.created_at DESC LIMIT 100");
+$logs = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id WHERE $where ORDER BY l.created_at DESC LIMIT 100");
 
 // Get distinct actions for dropdown
 $actions_q = mysqli_query($conn, "SELECT DISTINCT action FROM activity_logs ORDER BY action ASC");

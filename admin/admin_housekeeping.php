@@ -69,7 +69,7 @@ if(isset($_POST['schedule_cleaning'])){
 }
 
 // Fetch All Requests
-$query = "SELECT h.*, u.full_name, r.room_name 
+$query = "SELECT h.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name 
           FROM housekeeping_requests h 
           JOIN users u ON h.user_id = u.user_id 
           LEFT JOIN rooms r ON h.room_id = r.room_id 

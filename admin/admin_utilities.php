@@ -50,14 +50,14 @@ if(isset($_POST['archive_action'])) {
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
 
 // Fetch Maintenance Archive
-$m_sql = "SELECT m.*, u.full_name, r.room_name FROM maintenance_requests m JOIN users u ON m.user_id = u.user_id LEFT JOIN rooms r ON m.room_id = r.room_id WHERE m.status IN ('Completed', 'Cancelled')";
-if($search) $m_sql .= " AND (u.full_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR m.description LIKE '%$search%')";
+$m_sql = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name FROM maintenance_requests m JOIN users u ON m.user_id = u.user_id LEFT JOIN rooms r ON m.room_id = r.room_id WHERE m.status IN ('Completed', 'Cancelled')";
+if($search) $m_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR m.description LIKE '%$search%')";
 $m_sql .= " ORDER BY m.created_at DESC";
 $maintenance_query = mysqli_query($conn, $m_sql);
 
 // Fetch Housekeeping Archive
-$h_sql = "SELECT h.*, u.full_name, r.room_name FROM housekeeping_requests h JOIN users u ON h.user_id = u.user_id LEFT JOIN rooms r ON h.room_id = r.room_id WHERE h.status IN ('Completed', 'Cancelled')";
-if($search) $h_sql .= " AND (u.full_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR h.description LIKE '%$search%')";
+$h_sql = "SELECT h.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name FROM housekeeping_requests h JOIN users u ON h.user_id = u.user_id LEFT JOIN rooms r ON h.room_id = r.room_id WHERE h.status IN ('Completed', 'Cancelled')";
+if($search) $h_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR h.description LIKE '%$search%')";
 $h_sql .= " ORDER BY h.created_at DESC";
 $housekeeping_query = mysqli_query($conn, $h_sql);
 
@@ -68,14 +68,14 @@ $r_sql .= " ORDER BY room_name ASC";
 $archived_rooms_query = mysqli_query($conn, $r_sql);
 
 // Fetch Transaction Reports (All Paid Payments)
-$t_sql = "SELECT p.*, u.full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status='Paid'";
-if($search) $t_sql .= " AND (u.full_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%' OR p.reference_number LIKE '%$search%')";
+$t_sql = "SELECT p.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status='Paid'";
+if($search) $t_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%' OR p.reference_number LIKE '%$search%')";
 $t_sql .= " ORDER BY p.payment_date DESC";
 $transactions_query = mysqli_query($conn, $t_sql);
 
 // Fetch Paid Utility Bills
-$u_sql = "SELECT p.*, u.full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status = 'Paid' AND p.description LIKE 'Utility Bill%'";
-if($search) $u_sql .= " AND (u.full_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%')";
+$u_sql = "SELECT p.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status = 'Paid' AND p.description LIKE 'Utility Bill%'";
+if($search) $u_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%')";
 $u_sql .= " ORDER BY p.payment_date DESC";
 $utility_bills_query = mysqli_query($conn, $u_sql);
 

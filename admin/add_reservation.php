@@ -11,7 +11,7 @@ $error = "";
 $success = "";
 
 // Fetch Users
-$users = mysqli_query($conn, "SELECT user_id, full_name, email FROM users ORDER BY full_name ASC");
+$users = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name, IF(middle_name IS NOT NULL AND middle_name != '', CONCAT(' ', middle_name), '')) as full_name, email FROM users ORDER BY last_name ASC");
 
 // Ensure gender column exists in users table
 $check_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'gender'");
@@ -29,6 +29,17 @@ if(mysqli_num_rows($check_role) == 0) {
 $check_walkin = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'is_walkin'");
 if(mysqli_num_rows($check_walkin) == 0) {
     mysqli_query($conn, "ALTER TABLE users ADD COLUMN is_walkin TINYINT(1) DEFAULT 0");
+}
+
+// Ensure emergency contact columns exist
+$check_em_name = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'emergency_contact_name'");
+if(mysqli_num_rows($check_em_name) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN emergency_contact_name VARCHAR(100) DEFAULT NULL");
+}
+
+$check_em_num = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'emergency_contact_number'");
+if(mysqli_num_rows($check_em_num) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN emergency_contact_number VARCHAR(20) DEFAULT NULL");
 }
 
 // Fetch Room Prices for JS
@@ -59,6 +70,8 @@ if(isset($_POST['add_reservation'])){
         $email = trim($_POST['new_email']);
         $phone = trim($_POST['new_phone']);
         $gender = $_POST['new_gender'];
+        $em_name = trim($_POST['new_em_name']);
+        $em_num = trim($_POST['new_em_num']);
         $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : '123456';
         $password = password_hash($raw_pass, PASSWORD_DEFAULT);
 
@@ -66,8 +79,8 @@ if(isset($_POST['add_reservation'])){
         if(mysqli_num_rows($check) > 0){
             $error = "Email address already registered.";
         } else {
-            $stmt = mysqli_prepare($conn, "INSERT INTO users (full_name, email, phone_number, gender, password, role, is_walkin) VALUES (?, ?, ?, ?, ?, 'user', 1)");
-            mysqli_stmt_bind_param($stmt, "sssss", $name, $email, $phone, $gender, $password);
+            $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, email, phone_number, gender, password, role, is_walkin, emergency_contact_name, emergency_contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?)");
+            mysqli_stmt_bind_param($stmt, "sssssssss", $lname, $fname, $mname, $email, $phone, $gender, $password, $em_name, $em_num);
             if(mysqli_stmt_execute($stmt)){
                 $user_id = mysqli_insert_id($conn);
                 $account_msg = "Account created for $name (Pass: $raw_pass). ";
@@ -265,6 +278,8 @@ $theme = get_theme_colors($conn);
                                     <option value="Female">Female</option>
                                 </select>
                             </div>
+                            <div class="col-md-6"><label class="small fw-bold">Emergency Contact Name</label><input type="text" name="new_em_name" class="form-control"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Emergency Contact Number</label><input type="text" name="new_em_num" class="form-control"></div>
                             <div class="col-md-6"><label class="small fw-bold">Password</label><input type="text" name="new_password" class="form-control" placeholder="Default: 123456"></div>
                         </div>
                         <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>123456</strong>.</small>

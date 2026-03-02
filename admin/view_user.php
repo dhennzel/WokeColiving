@@ -69,7 +69,9 @@ if(isset($_POST['update_user_info'])){
     $lname = trim($_POST['lname']);
     $fname = trim($_POST['fname']);
     $mname = trim($_POST['mname']);
-    $u_name = mysqli_real_escape_string($conn, $lname . ', ' . $fname . ' ' . $mname);
+    $lname = mysqli_real_escape_string($conn, $lname);
+    $fname = mysqli_real_escape_string($conn, $fname);
+    $mname = mysqli_real_escape_string($conn, $mname);
     $u_email = mysqli_real_escape_string($conn, $_POST['email']);
     $u_phone = mysqli_real_escape_string($conn, $_POST['phone_number']);
     $u_occ = mysqli_real_escape_string($conn, $_POST['occupation']);
@@ -84,7 +86,7 @@ if(isset($_POST['update_user_info'])){
     $existing_cols = [];
     while($c = mysqli_fetch_assoc($cols_check)) $existing_cols[] = $c['Field'];
 
-    $set_clause = "full_name='$u_name', email='$u_email', phone_number='$u_phone'";
+    $set_clause = "last_name='$lname', first_name='$fname', middle_name='$mname', email='$u_email', phone_number='$u_phone'";
     if(in_array('occupation', $existing_cols)) $set_clause .= ", occupation='$u_occ'";
     if(in_array('address', $existing_cols)) $set_clause .= ", address='$u_addr'";
     if(in_array('company', $existing_cols)) $set_clause .= ", company='$u_comp'";
@@ -136,6 +138,24 @@ if(isset($_POST['handle_update_request'])){
         echo "<script>window.location.href='view_user.php?uid=$uid&msg=update_rejected';</script>";
         exit;
     }
+}
+
+// Handle Request Signature
+if(isset($_POST['request_signature'])){
+    $res_id = (int)$_POST['reservation_id'];
+    
+    // Ensure column exists
+    $check_sig = mysqli_query($conn, "SHOW COLUMNS FROM reservations LIKE 'signature_required'");
+    if(mysqli_num_rows($check_sig) == 0) {
+        mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN signature_required TINYINT(1) DEFAULT 0");
+    }
+
+    mysqli_query($conn, "UPDATE reservations SET signature_required=1 WHERE reservation_id=$res_id");
+    send_notification($conn, $uid, "✍️ <strong>Signature Required</strong><br>Admin has requested your signature for Reservation #$res_id. Please go to My Reservations to sign.", "Action Required");
+    log_activity($conn, $uid, "Signature Requested", "Admin requested signature for Reservation #$res_id");
+    
+    echo "<script>window.location.href='view_user.php?uid=$uid&msg=sig_requested';</script>";
+    exit;
 }
 
 // Handle Room Assignment (Move Tenant)
@@ -229,7 +249,7 @@ if(isset($_POST['bulk_mark_paid']) && !empty($_POST['payment_ids'])){
 }
 
 // Fetch User Details
-$user_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$uid");
+$user_query = mysqli_query($conn, "SELECT *, CONCAT(last_name, ', ', first_name, IF(middle_name IS NOT NULL AND middle_name != '', CONCAT(' ', middle_name), '')) as full_name FROM users WHERE user_id=$uid");
 $user = mysqli_fetch_assoc($user_query);
 
 if(!$user){
@@ -512,6 +532,9 @@ $theme = get_theme_colors($conn);
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'update_rejected'): ?>
                 <div class="alert alert-warning">User profile update rejected.</div>
             <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'sig_requested'): ?>
+                <div class="alert alert-success">Signature request notification sent to user.</div>
+            <?php endif; ?>
             <?php if(isset($_GET['error'])): ?>
                 <div class="alert alert-danger"><?= htmlspecialchars($_GET['error']) ?></div>
             <?php endif; ?>
@@ -719,6 +742,13 @@ $theme = get_theme_colors($conn);
                                                     </div>
                                                 <?php endif; ?>
                                             <?php elseif($row['status'] == 'Approved'): ?>
+                                                <?php if(empty($row['signature_image'])): ?>
+                                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Request signature from user?')">
+                                                        <input type="hidden" name="reservation_id" value="<?= $row['reservation_id'] ?>">
+                                                        <input type="hidden" name="request_signature" value="1">
+                                                        <button type="submit" class="btn btn-sm btn-warning text-dark me-1" title="Request Signature"><i class="fas fa-file-signature"></i></button>
+                                                    </form>
+                                                <?php endif; ?>
                                                 <button onclick="renewContract(<?= $row['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt"></i></button>
                                                 <a href="booking_management.php?action=terminate&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract?')"><i class="fas fa-ban"></i></a>
                                             <?php else: ?>
@@ -978,18 +1008,9 @@ $theme = get_theme_colors($conn);
                 <div class="modal-body">
                     <input type="hidden" name="update_user_info" value="1">
                     <?php
-                        $full_name = $user['full_name'];
-                        $lname = ''; $fname = ''; $mname = '';
-                        if(strpos($full_name, ',') !== false) {
-                            $parts = explode(',', $full_name);
-                            $lname = trim($parts[0]);
-                            $rest = trim($parts[1] ?? '');
-                            $parts2 = explode(' ', $rest);
-                            $fname = $parts2[0] ?? '';
-                            $mname = isset($parts2[1]) ? implode(' ', array_slice($parts2, 1)) : '';
-                        } else {
-                            $fname = $full_name; // Fallback for old data
-                        }
+                        $lname = $user['last_name'];
+                        $fname = $user['first_name'];
+                        $mname = $user['middle_name'];
                     ?>
                     <div class="row g-3">
                         <div class="col-md-4"><label class="form-label small fw-bold">Last Name</label><input type="text" name="lname" class="form-control" value="<?= htmlspecialchars($lname) ?>" required></div>

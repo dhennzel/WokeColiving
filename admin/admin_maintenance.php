@@ -78,7 +78,7 @@ if(isset($_POST['update_request'])){
 }
 
 // Fetch All Requests
-$query = "SELECT m.*, u.full_name, r.room_name 
+$query = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name 
           FROM maintenance_requests m 
           JOIN users u ON m.user_id = u.user_id 
           LEFT JOIN rooms r ON m.room_id = r.room_id 

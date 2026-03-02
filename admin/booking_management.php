@@ -259,11 +259,12 @@ $types = "";
 
 if(isset($_GET['search']) && !empty($_GET['search'])){
     $search = "%" . $_GET['search'] . "%";
-    $where_clause .= " AND (u.full_name LIKE ? OR u.email LIKE ? OR rm.room_name LIKE ?)";
+    $where_clause .= " AND (u.last_name LIKE ? OR u.first_name LIKE ? OR u.email LIKE ? OR rm.room_name LIKE ?)";
     $params[] = $search;
     $params[] = $search;
     $params[] = $search;
-    $types .= "sss";
+    $params[] = $search;
+    $types .= "ssss";
 }
 if(isset($_GET['status']) && !empty($_GET['status'])){
     $status_filter = $_GET['status'];
@@ -281,7 +282,7 @@ if(isset($_GET['type']) && !empty($_GET['type'])){
 
 // Fetch Reservations with Filters
 $sql = "
-    SELECT r.*, u.full_name, u.email, u.do_not_renew, u.profile_image, u.is_walkin, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.do_not_renew, u.profile_image, u.is_walkin, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -459,7 +460,13 @@ $theme = get_theme_colors($conn);
                                     ?>
                                     <span class="badge <?= $b_class ?> rounded-pill px-3"><?= $s ?></span>
                                 </td>
-                                <td><?php if(!empty($res['signature_image'])) { ?><a href="view_receipt.php?id=<?= $res['reservation_id'] ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-signature"></i> View</a><?php } else { ?>-<?php } ?></td>
+                                <td>
+                                    <?php if(!empty($res['signature_image'])) { ?>
+                                        <a href="view_receipt.php?id=<?= $res['reservation_id'] ?>" target="_blank" class="btn btn-sm btn-outline-success" title="Signed"><i class="fas fa-file-signature"></i> View</a>
+                                    <?php } elseif($res['is_walkin']) { ?>
+                                        <a href="view_receipt.php?id=<?= $res['reservation_id'] ?>" target="_blank" class="btn btn-sm btn-outline-primary" title="Walk-in (Manual)"><i class="fas fa-file-invoice"></i> View</a>
+                                    <?php } else { ?>-<?php } ?>
+                                </td>
                                 <td class="text-end">
                                     <?php if($res['status'] == 'Pending'): ?>
                                         <a href="view_user.php?uid=<?= $res['user_id'] ?>" class="btn btn-sm btn-warning position-relative fw-bold text-dark" title="Action Required">

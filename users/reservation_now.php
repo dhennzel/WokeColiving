@@ -74,7 +74,9 @@ if (!$is_extension) {
 }
 
 // Fetch User Details
-$user_name = '';
+$user_lname = '';
+$user_fname = '';
+$user_mname = '';
 $user_email = '';
 $user_phone = '';
 $user_gender = '';
@@ -85,12 +87,13 @@ $user_school_id_image = '';
 $user_emergency_contact_name = '';
 $user_emergency_contact_number = '';
 
-$stmt = $conn->prepare("SELECT full_name, email, phone_number, gender, occupation, address, company, school_id_image, emergency_contact_name, emergency_contact_number FROM users WHERE user_id = ?");
+$stmt = $conn->prepare("SELECT last_name, first_name, middle_name, email, phone_number, gender, occupation, address, company, school_id_image, emergency_contact_name, emergency_contact_number FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $_SESSION['user_id']);
 $stmt->execute();
-$stmt->bind_result($user_name, $user_email, $user_phone, $user_gender, $user_occupation, $user_address, $user_company, $user_school_id_image, $user_emergency_contact_name, $user_emergency_contact_number);
+$stmt->bind_result($user_lname, $user_fname, $user_mname, $user_email, $user_phone, $user_gender, $user_occupation, $user_address, $user_company, $user_school_id_image, $user_emergency_contact_name, $user_emergency_contact_number);
 $stmt->fetch();
 $stmt->close();
+$user_name = $user_lname . ', ' . $user_fname . (!empty($user_mname) ? ' ' . $user_mname : '');
 
 // Fetch Room Prices dynamically from DB for JS
 $room_prices_js = [];
@@ -505,7 +508,7 @@ if (isset($_POST['confirm_booking'])) {
                     </span>
                 <?php endif; ?>
             </a>
-            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars(explode(' ', $user_name)[0]) ?></span>
+            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_fname) ?></span>
             <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
         </div>
     </div>

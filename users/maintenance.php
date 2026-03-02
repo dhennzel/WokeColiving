@@ -57,8 +57,9 @@ $requests_query = mysqli_query($conn, "SELECT m.*, r.room_name
     ORDER BY m.created_at DESC");
 
 // Get User Name for Navbar
-$u_query = mysqli_query($conn, "SELECT full_name FROM users WHERE user_id=$user_id");
+$u_query = mysqli_query($conn, "SELECT first_name FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
+$user_info['full_name'] = $user_info['first_name'];
 
 // Fetch Unread Count & Notifications
 $unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$user_id AND is_read=0");
@@ -129,7 +130,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                     </span>
                 <?php endif; ?>
             </a>
-            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars(explode(' ', $user_info['full_name'])[0]) ?></span>
+            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
             <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
         </div>
     </div>

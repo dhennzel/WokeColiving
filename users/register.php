@@ -7,7 +7,9 @@ if (isset($_POST['register'])) {
     $lname = trim($_POST['lname']);
     $fname = trim($_POST['fname']);
     $mname = trim($_POST['mname']);
-    $name = mysqli_real_escape_string($conn, $lname . ', ' . $fname . ' ' . $mname);
+    $lname = mysqli_real_escape_string($conn, $lname);
+    $fname = mysqli_real_escape_string($conn, $fname);
+    $mname = mysqli_real_escape_string($conn, $mname);
     $email = mysqli_real_escape_string($conn, trim($_POST['email']));
     $phone = mysqli_real_escape_string($conn, trim($_POST['phone']));
     $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
@@ -19,7 +21,7 @@ if (isset($_POST['register'])) {
         // Check if email already exists
         $error = "Email address is already registered."; 
     } else {
-        $sql = "INSERT INTO users (full_name, email, phone_number, password) VALUES ('$name', '$email', '$phone', '$pass')";
+        $sql = "INSERT INTO users (last_name, first_name, middle_name, email, phone_number, password) VALUES ('$lname', '$fname', '$mname', '$email', '$phone', '$pass')";
         
         try {
             if(mysqli_query($conn, $sql)){

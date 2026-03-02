@@ -11,7 +11,7 @@ if(!isset($_GET['id'])) die("Invalid Request");
 $id = (int)$_GET['id'];
 
 // Fetch Reservation Info
-$query = "SELECT r.*, u.full_name, u.email, u.phone_number, u.gender, rm.room_name, rm.room_type, rm.total_price as room_price 
+$query = "SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, u.gender, u.is_walkin, rm.room_name, rm.room_type, rm.total_price as room_price 
           FROM reservations r 
           JOIN users u ON r.user_id = u.user_id 
           JOIN rooms rm ON r.room_id = rm.room_id 
@@ -53,6 +53,7 @@ $theme = get_theme_colors($conn);
         .label { font-weight: 600; color: #555; font-size: 0.9rem; text-transform: uppercase; }
         .value { font-size: 1.1rem; font-weight: 500; color: #000; }
         .sig-box { border-top: 1px solid #000; padding-top: 10px; display: inline-block; margin-top: 40px; width: 100%; text-align: center; }
+        .sig-img { max-height: 60px; display: block; margin: 0 auto 10px auto; }
         @media print {
             body { background: #fff; }
             .receipt-container { box-shadow: none; border: none; margin: 0; padding: 0; width: 100%; max-width: 100%; }
@@ -131,10 +132,18 @@ $theme = get_theme_colors($conn);
         <!-- Signatures -->
         <div class="row mt-5 pt-4">
             <div class="col-6">
-                <div class="sig-box">
-                    <strong><?= $data['full_name'] ?></strong><br>
-                    Guest Signature
-                </div>
+                <?php if(!empty($data['signature_image'])): ?>
+                    <div class="text-center">
+                        <img src="../assets/signatures/<?= $data['signature_image'] ?>" class="sig-img">
+                        <div style="border-top: 1px solid #000; width: 100%;"></div>
+                        <strong><?= $data['full_name'] ?></strong><br>Guest Signature
+                    </div>
+                <?php else: ?>
+                    <div class="sig-box">
+                        <strong><?= $data['full_name'] ?></strong><br>
+                        Guest Signature
+                    </div>
+                <?php endif; ?>
             </div>
             <div class="col-6">
                 <div class="sig-box">

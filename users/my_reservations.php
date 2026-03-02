@@ -12,6 +12,7 @@ $user_id = $_SESSION['user_id'];
 // Get User Info
 $u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
+$user_info['full_name'] = $user_info['last_name'] . ', ' . $user_info['first_name'] . (!empty($user_info['middle_name']) ? ' ' . $user_info['middle_name'] : '');
 
 // Ensure user_update_requests table exists
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS user_update_requests (
@@ -68,6 +69,12 @@ if(isset($_POST['update_info'])){
 $check_col = mysqli_query($conn, "SHOW COLUMNS FROM reservations LIKE 'is_archived'");
 if(mysqli_num_rows($check_col) == 0) {
     mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
+}
+
+// Ensure signature_required column exists
+$check_sig = mysqli_query($conn, "SHOW COLUMNS FROM reservations LIKE 'signature_required'");
+if(mysqli_num_rows($check_sig) == 0) {
+    mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN signature_required TINYINT(1) DEFAULT 0");
 }
 
 // Handle Archive Action
@@ -188,7 +195,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                     </span>
                 <?php endif; ?>
             </a>
-            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars(explode(' ', $user_info['full_name'])[0]) ?></span>
+            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
             <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
         </div>
     </div>
@@ -300,11 +307,22 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                             <?php endif; ?>
 
                             <?php if($row['status'] == 'Approved' || $row['status'] == 'Verifying') { ?>
-                                <?php if(empty($row['signature_image'] ?? null)) { ?>
+                                <?php 
+                                    $show_sign = false;
+                                    if(empty($row['signature_image'] ?? null)){
+                                        // Logic: Walk-ins only sign if explicitly requested by admin. Regular users always sign.
+                                        if($user_info['is_walkin']){
+                                            if(($row['signature_required'] ?? 0) == 1) $show_sign = true;
+                                        } else {
+                                            $show_sign = true;
+                                        }
+                                    }
+                                ?>
+                                <?php if($show_sign) { ?>
                                     <a href="esignature.php?id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-success rounded-pill">
                                         <i class="fas fa-pen-nib me-1"></i> Sign Lease
                                     </a>
-                                <?php } else { ?>
+                                <?php } elseif(!empty($row['signature_image'])) { ?>
                                     <span class="badge bg-info text-dark"><i class="fas fa-file-signature"></i> Signed</span>
                                 <?php } ?>
                                 

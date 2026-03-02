@@ -70,9 +70,9 @@ if($room['availability'] == 'Maintenance') {
 $user_name = "";
 if(isset($_SESSION['user_id'])){
     $uid = $_SESSION['user_id'];
-    $u_q = mysqli_query($conn, "SELECT full_name FROM users WHERE user_id=$uid");
+    $u_q = mysqli_query($conn, "SELECT first_name FROM users WHERE user_id=$uid");
     if($u_row = mysqli_fetch_assoc($u_q)){
-        $user_name = $u_row['full_name'];
+        $user_name = $u_row['first_name'];
         
         // Fetch Unread Count & Notifications
         $unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$uid AND is_read=0");
@@ -140,7 +140,7 @@ if(isset($_SESSION['user_id'])){
                             </span>
                         <?php endif; ?>
                     </a>
-                    <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars(explode(' ', $user_name)[0]) ?></span>
+                    <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_name) ?></span>
                     <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
                 <?php else: ?>
                     <a href="login.php" class="btn btn-outline-light rounded-pill px-4">Login</a>

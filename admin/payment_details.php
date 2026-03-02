@@ -16,7 +16,7 @@ $payment_id = (int)$_GET['id'];
 
 // Fetch Payment Details
 $query = "
-    SELECT p.*, r.start_date, r.end_date, r.user_id, u.full_name, u.email, u.phone_number, rm.room_name, rm.room_type
+    SELECT p.*, r.start_date, r.end_date, r.user_id, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, rm.room_name, rm.room_type
     FROM payments p
     LEFT JOIN reservations r ON p.reservation_id = r.reservation_id
     LEFT JOIN users u ON r.user_id = u.user_id

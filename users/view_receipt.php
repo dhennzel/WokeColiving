@@ -10,7 +10,7 @@ $user_id = $_SESSION['user_id'];
 
 // Fetch Reservation & User & Room Details (Verify ownership)
 $query = "
-    SELECT r.*, u.full_name, u.email, u.phone_number, rm.room_name, rm.room_type, rm.floor
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, u.is_walkin, u.emergency_contact_name, u.emergency_contact_number, rm.room_name, rm.room_type, rm.floor
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -150,7 +150,13 @@ $theme = get_theme_colors($conn);
                 <div class="col-6">
                     <div class="info-label mb-2">Guest Signature</div>
                     <?php if(!empty($data['signature_image'])): ?>
-                        <div class="sig-box"><img src="../assets/signatures/<?= $data['signature_image'] ?>" class="sig-img"></div>
+                        <div class="sig-box">
+                            <img src="../assets/signatures/<?= $data['signature_image'] ?>?v=<?= time() ?>" class="sig-img">
+                        </div>
+                    <?php elseif(!empty($data['is_walkin'])): ?>
+                        <div style="border-bottom: 1px solid #333; width: 200px; margin-top: 40px;"></div>
+                        <div class="small text-muted mt-1">Signature over Printed Name</div>
+                        <div class="small text-muted fst-italic">(Walk-in Guest)</div>
                     <?php else: ?><div class="text-muted fst-italic">Not signed yet</div><?php endif; ?>
                 </div>
                 <div class="col-6 text-end">

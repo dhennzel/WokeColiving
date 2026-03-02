@@ -10,7 +10,7 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 
 // AJAX: Fetch Recent Activity
 if(isset($_GET['fetch_activity'])){
-    $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
+    $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_name) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
     if(mysqli_num_rows($logs_q) > 0){
         while($log = mysqli_fetch_assoc($logs_q)){
             echo '<div class="list-group-item">
@@ -62,7 +62,7 @@ $occupancy_rate = ($total_capacity > 0) ? round(($total_occupied / $total_capaci
 
 // Fetch Expiring Contracts (Approved and ending within 7 days or already ended)
 $expiring_query = mysqli_query($conn, "
-    SELECT r.*, u.full_name, u.do_not_renew, rm.room_name 
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, u.do_not_renew, rm.room_name 
     FROM reservations r 
     JOIN users u ON r.user_id = u.user_id 
     JOIN rooms rm ON r.room_id = rm.room_id 
@@ -147,7 +147,7 @@ while($row = mysqli_fetch_assoc($book_q)){
 }
 
 // Stats: Recent Activity
-$logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
+$logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_name) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
 
 ?>
 <!DOCTYPE html>

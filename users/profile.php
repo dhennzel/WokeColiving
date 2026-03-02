@@ -56,13 +56,12 @@ if(isset($_POST['toggle_night_mode'])){
     exit;
 }
 
-$u_query = mysqli_query($conn, "SELECT full_name, email, phone_number, profile_image, night_mode FROM users WHERE user_id=$user_id");
+$u_query = mysqli_query($conn, "SELECT last_name, first_name, middle_name, email, phone_number, profile_image, night_mode FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
+$user_info['full_name'] = $user_info['last_name'] . ', ' . $user_info['first_name'] . (!empty($user_info['middle_name']) ? ' ' . $user_info['middle_name'] : '');
 
 // Check for Outdated System Data
 $is_outdated = false;
-// 1. Check Name Format (Target: "First Last") - Flag if comma exists
-if(strpos($user_info['full_name'], ',') !== false) $is_outdated = true;
 // 2. Check Email Validity
 if(!filter_var($user_info['email'], FILTER_VALIDATE_EMAIL)) $is_outdated = true;
 // 3. Check Phone Number Format
@@ -75,18 +74,6 @@ if($chk_cols && $cols = mysqli_fetch_assoc($chk_cols)){
 
 // Handle System Update Action
 if(isset($_GET['action']) && $_GET['action'] == 'system_update'){
-    // 1. Fix Name Format (Current: "Last, First" -> Target: "First Last")
-    $current_name = $user_info['full_name'];
-    if(strpos($current_name, ',') !== false){
-        $parts = explode(',', $current_name);
-        if(count($parts) >= 2){
-            $lname = trim($parts[0]);
-            $fname = trim($parts[1]);
-            $new_name = $fname . ' ' . $lname;
-            mysqli_query($conn, "UPDATE users SET full_name='" . mysqli_real_escape_string($conn, $new_name) . "' WHERE user_id=$user_id");
-        }
-    }
-
     // 2. Fix Email (Sanitize)
     $sanitized_email = filter_var($user_info['email'], FILTER_SANITIZE_EMAIL);
     if($sanitized_email !== $user_info['email'] && filter_var($sanitized_email, FILTER_VALIDATE_EMAIL)){
@@ -294,7 +281,7 @@ try {
             </ul>
         </div>
 
-        <span class="text-white fw-bold d-none d-md-block">Hello, <?= htmlspecialchars(explode(' ', $user_info['full_name'])[0]) ?></span>
+        <span class="text-white fw-bold d-none d-md-block">Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
         <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
         </div>
     </div>
@@ -432,7 +419,6 @@ try {
                     <div class="alert alert-light border text-start small">
                         <strong>Changes to be applied:</strong>
                         <ul class="mb-0 ps-3 mt-1">
-                            <li>Name Format Standardization</li>
                             <li>Email Validation Check</li>
                             <li>Phone Number Formatting</li>
                             <li>Feature Sync (Walk-in Status)</li>

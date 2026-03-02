@@ -10,8 +10,9 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 
 // Get User Info
-$u_query = mysqli_query($conn, "SELECT full_name FROM users WHERE user_id=$user_id");
+$u_query = mysqli_query($conn, "SELECT first_name FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
+$user_info['full_name'] = $user_info['first_name'];
 
 // Handle Restore Action
 if(isset($_GET['restore_id'])){
@@ -120,7 +121,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                 </ul>
             </div>
             <a href="profile.php" class="text-white text-decoration-none fw-bold">My Profile</a>
-            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars(explode(' ', $user_info['full_name'])[0]) ?></span>
+            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
             <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
         </div>
     </div>

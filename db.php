@@ -68,7 +68,7 @@ function send_notification($conn, $user_id, $message, $type = 'System') {
 
     // 2. Send Email (Simulated/Actual)
     // Fetch user email
-    $u_res = mysqli_query($conn, "SELECT email, full_name, phone_number FROM users WHERE user_id='$user_id'");
+    $u_res = mysqli_query($conn, "SELECT email, CONCAT(last_name, ', ', first_name) as full_name, phone_number FROM users WHERE user_id='$user_id'");
     if($u_row = mysqli_fetch_assoc($u_res)){
         $to = $u_row['email'];
         $subject = "Woke Coliving Notification: $type";
