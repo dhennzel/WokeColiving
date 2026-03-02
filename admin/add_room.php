@@ -187,7 +187,7 @@ $theme = get_theme_colors($conn);
                 </div>
                 <?php if($error){ echo "<div class='alert alert-danger'>$error</div>"; } ?>
                 <form method="POST" enctype="multipart/form-data">
-                    <div class="mb-3"><label class="form-label fw-bold">Room Name</label><input type="text" name="room_name" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Room Number</label><input type="text" name="room_name" class="form-control" required></div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">Floor Level</label>
