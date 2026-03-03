@@ -139,8 +139,13 @@ if(isset($_POST['delete_account'])){
     } else {
         // Check active reservations
         $chk_res = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id=$user_id AND status IN ('Pending', 'Approved', 'Verifying')");
+        // Check unpaid payments
+        $chk_pay = mysqli_query($conn, "SELECT payment_id FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$user_id AND p.payment_status='Unpaid'");
+
         if(mysqli_num_rows($chk_res) > 0){
             $_SESSION['swal'] = ['title' => 'Cannot Delete', 'text' => 'You have active reservations. Please complete or cancel them first.', 'icon' => 'warning'];
+        } elseif(mysqli_num_rows($chk_pay) > 0){
+            $_SESSION['swal'] = ['title' => 'Cannot Delete', 'text' => 'You have unpaid bills. Please settle them first.', 'icon' => 'warning'];
         } else {
             // Check if request already exists
             $chk_req = mysqli_query($conn, "SELECT request_id FROM account_deletion_requests WHERE user_id=$user_id AND status='Pending'");
@@ -836,6 +841,14 @@ if($su_q){
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script>
+    <?php if(isset($_SESSION['swal'])): ?>
+    Swal.fire({
+        title: '<?= $_SESSION['swal']['title'] ?>',
+        text: '<?= $_SESSION['swal']['text'] ?>',
+        icon: '<?= $_SESSION['swal']['icon'] ?>'
+    });
+    <?php unset($_SESSION['swal']); endif; ?>
+
     const currentUserId = "<?= $user_id ?>";
     let lastUnreadCount = <?= (int)$unread_count ?>;
 
