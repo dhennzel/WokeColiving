@@ -132,7 +132,7 @@ foreach ($user_schema as $column => $details) {
     if (!in_array($column, $existing_user_columns)) {
         // If column doesn't even exist, it's definitely outdated.
         $update_reasons[] = $details['reason'];
-    } elseif (is_null($user_info[$column])) {
+    } elseif (is_null($user_info[$column]) && $details['default'] !== "NULL") {
         // Add the reason if it's not already in the list (to avoid duplicates)
         if (!in_array($details['reason'], $update_reasons)) {
             $update_reasons[] = $details['reason'];
