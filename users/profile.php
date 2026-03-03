@@ -813,7 +813,7 @@ if($su_q){
             </div>
             <div class="modal-body">
                 <div class="text-center mb-3">
-                    <input type="file" id="profile_image_input" class="d-none" accept="image/png, image/jpeg, image/gif">
+                    <input type="file" id="profile_image_input" class="d-none" accept="image/png, image/jpeg, image/gif, image/webp">
                     <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('profile_image_input').click();">
                         <i class="fas fa-folder-open me-2"></i>Choose Image
                     </button>
