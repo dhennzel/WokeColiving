@@ -84,6 +84,7 @@ $rooms_q = mysqli_query($conn, "SELECT DISTINCT r.room_id, r.room_name, r.floor 
 $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
+$waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
 
 $theme = get_theme_colors($conn);
 ?>
@@ -145,6 +146,12 @@ $theme = get_theme_colors($conn);
                 <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
                 <?php if($pending_res > 0): ?>
                     <span class="badge bg-danger rounded-pill"><?= $pending_res ?></span>
+                <?php endif; ?>
+            </a>
+            <a href="admin_waitlist.php" class="sidebar-link d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
+                <?php if($waitlist_count > 0): ?>
+                    <span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span>
                 <?php endif; ?>
             </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>

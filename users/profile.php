@@ -9,43 +9,73 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Handle Profile Picture Upload
-if(isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0){
-    $target_dir = "../uploads/profiles/";
-    if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+// Handle Profile Picture Deletion
+if (isset($_POST['delete_profile_image'])) {
+    header('Content-Type: application/json');
+
+    $old_q = mysqli_query($conn, "SELECT profile_image FROM users WHERE user_id=$user_id");
+    $old_row = mysqli_fetch_assoc($old_q);
     
-    $file_ext = strtolower(pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION));
-    $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-    
-    if(in_array($file_ext, $allowed)){
-        $new_filename = "user_" . $user_id . "_" . time() . "." . $file_ext;
-        $target_file = $target_dir . $new_filename;
+    if (!empty($old_row['profile_image'])) {
+        $target_dir = "../uploads/profiles/";
+        $file_to_delete = $target_dir . $old_row['profile_image'];
         
-        if(move_uploaded_file($_FILES["profile_image"]["tmp_name"], $target_file)){
-            // Delete old image if exists
-            $old_q = mysqli_query($conn, "SELECT profile_image FROM users WHERE user_id=$user_id");
-            $old_row = mysqli_fetch_assoc($old_q);
-            if(!empty($old_row['profile_image']) && file_exists($target_dir . $old_row['profile_image'])){
-                unlink($target_dir . $old_row['profile_image']);
+        if (file_exists($file_to_delete)) {
+            @unlink($file_to_delete);
+        }
+        
+        mysqli_query($conn, "UPDATE users SET profile_image=NULL WHERE user_id=$user_id");
+        
+        echo json_encode(['success' => true]);
+        exit;
+    }
+    
+    echo json_encode(['success' => true, 'message' => 'No image to delete.']);
+    exit;
+}
+// Handle Profile Picture Upload
+if (isset($_POST['cropped_image_data'])) {
+    header('Content-Type: application/json'); // Set header early
+
+    $data = $_POST['cropped_image_data'];
+
+    if (strpos($data, 'data:image/png;base64,') === 0) {
+        $data = str_replace('data:image/png;base64,', '', $data);
+        $data = str_replace(' ', '+', $data);
+        $img_data = base64_decode($data);
+
+        if ($img_data) {
+            $target_dir = "../uploads/profiles/";
+            if (!is_dir($target_dir)) {
+                if (!mkdir($target_dir, 0777, true) && !is_dir($target_dir)) {
+                    echo json_encode(['success' => false, 'message' => 'Failed to create upload directory.']);
+                    exit;
+                }
             }
-            
-            mysqli_query($conn, "UPDATE users SET profile_image='$new_filename' WHERE user_id=$user_id");
-            header("Location: profile.php?msg=pic_updated");
-            exit;
+
+            $new_filename = "user_" . $user_id . "_" . time() . ".png";
+            $target_file = $target_dir . $new_filename;
+
+            if (file_put_contents($target_file, $img_data)) {
+                // Delete old image if exists
+                $old_q = mysqli_query($conn, "SELECT profile_image FROM users WHERE user_id=$user_id");
+                $old_row = mysqli_fetch_assoc($old_q);
+                if (!empty($old_row['profile_image']) && file_exists($target_dir . $old_row['profile_image'])) {
+                    @unlink($target_dir . $old_row['profile_image']);
+                }
+
+                // Update database
+                $stmt = mysqli_prepare($conn, "UPDATE users SET profile_image=? WHERE user_id=?");
+                mysqli_stmt_bind_param($stmt, "si", $new_filename, $user_id);
+                mysqli_stmt_execute($stmt);
+                
+                echo json_encode(['success' => true, 'file' => $new_filename]);
+                exit;
+            }
         }
     }
-}
-
-// Ensure night_mode column exists
-$check_nm = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'night_mode'");
-if(mysqli_num_rows($check_nm) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN night_mode TINYINT(1) DEFAULT 0");
-}
-
-// Ensure is_walkin column exists (Feature: Walk-in Indicator)
-$check_wi = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'is_walkin'");
-if(mysqli_num_rows($check_wi) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN is_walkin TINYINT(1) DEFAULT 0");
+    echo json_encode(['success' => false, 'message' => 'Invalid image data.']);
+    exit;
 }
 
 // Handle Night Mode Toggle
@@ -56,39 +86,106 @@ if(isset($_POST['toggle_night_mode'])){
     exit;
 }
 
-$u_query = mysqli_query($conn, "SELECT last_name, first_name, middle_name, email, phone_number, profile_image, night_mode FROM users WHERE user_id=$user_id");
+// Fetch ALL user info to check against schema
+$u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
 $user_info['full_name'] = $user_info['last_name'] . ', ' . $user_info['first_name'] . (!empty($user_info['middle_name']) ? ' ' . $user_info['middle_name'] : '');
 
 // Check for Outdated System Data
-$is_outdated = false;
-// 2. Check Email Validity
-if(!filter_var($user_info['email'], FILTER_VALIDATE_EMAIL)) $is_outdated = true;
-// 3. Check Phone Number Format
-if(!preg_match('/^(09|\+639)\d{9}$/', $user_info['phone_number'])) $is_outdated = true;
-// 2. Check for NULL in new columns
-$chk_cols = mysqli_query($conn, "SELECT is_walkin, role FROM users WHERE user_id=$user_id");
-if($chk_cols && $cols = mysqli_fetch_assoc($chk_cols)){
-    if(is_null($cols['is_walkin']) || is_null($cols['role'])) $is_outdated = true;
+$update_reasons = [];
+// 1. Check data integrity and format
+if(!filter_var($user_info['email'], FILTER_VALIDATE_EMAIL)) {
+    $update_reasons[] = "Invalid email format needs to be fixed.";
 }
+if(!preg_match('/^(09|\+639)\d{9}$/', $user_info['phone_number'])) {
+    $update_reasons[] = "Phone number requires re-formatting for system compatibility.";
+}
+
+// 2. Check for uninitialized columns based on a developer-defined schema
+// Developer: Add new columns here to have the system check and initialize them for existing users.
+// The 'type' is the full SQL column definition. The 'default' is the value for the UPDATE statement.
+$user_schema = [
+    'is_walkin'  => ['type' => 'TINYINT(1) DEFAULT 0', 'default' => 0, 'reason' => 'Account needs walk-in status synchronization.'],
+    'role'       => ['type' => "VARCHAR(20) DEFAULT 'user'", 'default' => "'user'", 'reason' => 'User role needs to be defined for system access.'],
+    'night_mode' => ['type' => 'TINYINT(1) DEFAULT 0', 'default' => 0, 'reason' => 'Night mode preference needs to be initialized.'],
+    'gender'     => ['type' => 'VARCHAR(20) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Gender information is missing and required for booking.'],
+    'occupation' => ['type' => 'VARCHAR(50) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Occupation status is missing.'],
+    'company'    => ['type' => 'VARCHAR(100) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Company or school information needs to be updated.'],
+    'address'    => ['type' => 'TEXT DEFAULT NULL', 'default' => "NULL", 'reason' => 'Address information is missing.'],
+    'school_id_image' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Student verification data needs to be updated.'],
+    'emergency_contact_name' => ['type' => 'VARCHAR(100) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Emergency contact details are missing.'],
+    'emergency_contact_number' => ['type' => 'VARCHAR(20) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Emergency contact details are missing.'],
+    'reset_token' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Password reset feature needs to be enabled.'],
+    'reset_expiry' => ['type' => 'DATETIME DEFAULT NULL', 'default' => "NULL", 'reason' => 'Password reset feature needs to be enabled.'],
+    'do_not_renew' => ['type' => 'TINYINT(1) DEFAULT 0', 'default' => 0, 'reason' => 'Account renewal status needs to be initialized.']
+];
+
+// Get the actual columns from the users table to avoid errors if a column doesn't exist yet
+$user_columns_q = mysqli_query($conn, "SHOW COLUMNS FROM users");
+$existing_user_columns = [];
+while($col = mysqli_fetch_assoc($user_columns_q)) {
+    $existing_user_columns[] = $col['Field'];
+}
+
+foreach ($user_schema as $column => $details) {
+    // Check if the column exists in the DB and if the user's value for it is NULL
+    if (!in_array($column, $existing_user_columns)) {
+        // If column doesn't even exist, it's definitely outdated.
+        $update_reasons[] = $details['reason'];
+    } elseif (is_null($user_info[$column])) {
+        // Add the reason if it's not already in the list (to avoid duplicates)
+        if (!in_array($details['reason'], $update_reasons)) {
+            $update_reasons[] = $details['reason'];
+        }
+    }
+}
+
+// 3. Check for broken profile picture link
+$curr_img = $user_info['profile_image'];
+if((!empty($curr_img) && !file_exists("../uploads/profiles/" . $curr_img)) || $curr_img === ''){
+    $update_reasons[] = "Profile picture link is broken and needs to be reset.";
+}
+$is_outdated = !empty($update_reasons);
 
 // Handle System Update Action
 if(isset($_GET['action']) && $_GET['action'] == 'system_update'){
-    // 2. Fix Email (Sanitize)
+    // 0. Add missing columns to the database if they don't exist
+    // This ensures that new features defined in the schema are added to the DB.
+    // Note: The database user needs ALTER privileges for this to work.
+    foreach ($user_schema as $column => $details) {
+        if (!in_array($column, $existing_user_columns)) {
+            mysqli_query($conn, "ALTER TABLE users ADD COLUMN `$column` " . $details['type']);
+        }
+    }
+    // Re-fetch user info and existing columns after potential schema changes
+    $u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
+    $user_info = mysqli_fetch_assoc($u_query);
+    
+    $user_columns_q = mysqli_query($conn, "SHOW COLUMNS FROM users");
+    $existing_user_columns = [];
+    while($col = mysqli_fetch_assoc($user_columns_q)) {
+        $existing_user_columns[] = $col['Field'];
+    }
+
+
+    // 1. Fix Data Integrity (Email, Phone)
     $sanitized_email = filter_var($user_info['email'], FILTER_SANITIZE_EMAIL);
     if($sanitized_email !== $user_info['email'] && filter_var($sanitized_email, FILTER_VALIDATE_EMAIL)){
         mysqli_query($conn, "UPDATE users SET email='" . mysqli_real_escape_string($conn, $sanitized_email) . "' WHERE user_id=$user_id");
     }
 
-    // 3. Fix Phone Number (Remove non-numeric/plus characters)
+    // 2. Fix Phone Number (Remove non-numeric/plus characters)
     $clean_phone = preg_replace('/[^0-9+]/', '', $user_info['phone_number']);
     if($clean_phone !== $user_info['phone_number']){
         mysqli_query($conn, "UPDATE users SET phone_number='$clean_phone' WHERE user_id=$user_id");
     }
 
-    // 3. Initialize new columns if NULL (Safe Update)
-    mysqli_query($conn, "UPDATE users SET is_walkin=0 WHERE user_id=$user_id AND is_walkin IS NULL");
-    mysqli_query($conn, "UPDATE users SET role='user' WHERE user_id=$user_id AND role IS NULL");
+    // 2. Initialize new/NULL columns based on schema
+    foreach ($user_schema as $column => $details) {
+        if (in_array($column, $existing_user_columns) && is_null($user_info[$column])) {
+            mysqli_query($conn, "UPDATE users SET `$column` = " . $details['default'] . " WHERE user_id=$user_id AND `$column` IS NULL");
+        }
+    }
     
     // 3. Fix Profile Picture (Broken Link or Empty -> NULL to show default placeholder)
     $curr_img = $user_info['profile_image'];
@@ -96,7 +193,7 @@ if(isset($_GET['action']) && $_GET['action'] == 'system_update'){
         mysqli_query($conn, "UPDATE users SET profile_image=NULL WHERE user_id=$user_id");
     }
 
-    $_SESSION['swal'] = ['title' => 'System Updated', 'text' => 'Account data synchronized and profile picture fixed.', 'icon' => 'success'];
+    $_SESSION['swal'] = ['title' => 'System Updated', 'text' => 'Account data synchronized successfully.', 'icon' => 'success'];
     header("Location: profile.php");
     exit;
 }
@@ -137,6 +234,8 @@ try {
     <title>My Profile | Woke Coliving INC</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -201,6 +300,7 @@ try {
         body.night-mode .card, body.night-mode .profile-card, body.night-mode .modal-content { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
         body.night-mode .text-dark { color: #e0e0e0 !important; }
         body.night-mode .text-muted { color: #b0b0b0 !important; }
+        body.night-mode .bg-white { background-color: #1e1e1e !important; }
         body.night-mode .bg-light { background-color: #2c2c2c !important; }
         body.night-mode .dropdown-menu { background-color: #1e1e1e; border-color: #333; }
         body.night-mode .dropdown-item { color: #e0e0e0; }
@@ -214,6 +314,15 @@ try {
         body.night-mode .form-control { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
         body.night-mode .form-control:focus { background-color: #333; color: #fff; }
         body.night-mode .progress { background-color: #333; }
+        body.night-mode .list-group-item {
+            background-color: #2c2c2c;
+            border-color: #444;
+            color: #e0e0e0;
+        }
+        body.night-mode .list-group-item-action:hover, body.night-mode .list-group-item-action:focus {
+            background-color: #333;
+            color: #fff;
+        }
 
         .card-badge {
             position: absolute;
@@ -232,6 +341,10 @@ try {
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             z-index: 10;
         }
+    </style>
+    <style>
+        /* CropperJS Modal styles */
+        .img-container { max-height: 400px; overflow: hidden; background: #f7f7f7; }
     </style>
 </head>
 <body class="<?= ($user_info['night_mode'] == 1) ? 'night-mode' : '' ?>">
@@ -306,18 +419,29 @@ try {
     <div class="row g-4 justify-content-center">
         <!-- Book a Room -->
         <div class="col-md-3 reveal delay-1">
-            <a href="reservation_now.php" class="text-decoration-none" onclick="markAsRead('waitlist', <?= $c_wait ?>)">
+            <a href="reservation_now.php" class="text-decoration-none">
                 <div class="card profile-card h-100 p-5 text-center">
-                    <?php if($c_wait > 0): ?><div class="card-badge" id="badge-waitlist" data-count="<?= $c_wait ?>" title="Waitlisted Rooms"><?= $c_wait ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-calendar-plus"></i></div>
                     <h4 class="fw-bold text-dark mb-3">Book a Room</h4>
-                    <p class="text-muted small">Find and book your next stay with us.</p>
+                    <p class="text-muted small">Find and book your next stay.</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- My Waitlist -->
+        <div class="col-md-3 reveal delay-2">
+            <a href="my_waitlist.php" class="text-decoration-none" onclick="markAsRead('waitlist', <?= $c_wait ?>)">
+                <div class="card profile-card h-100 p-5 text-center">
+                    <?php if($c_wait > 0): ?><div class="card-badge" id="badge-waitlist" data-count="<?= $c_wait ?>" title="Waitlisted Rooms"><?= $c_wait ?></div><?php endif; ?>
+                    <div class="icon-box"><i class="fas fa-list-ol"></i></div>
+                    <h4 class="fw-bold text-dark mb-3">My Waitlist</h4>
+                    <p class="text-muted small">View rooms you are waiting for.</p>
                 </div>
             </a>
         </div>
 
         <!-- My Reservations -->
-        <div class="col-md-3 reveal delay-2">
+        <div class="col-md-3 reveal delay-3">
             <a href="my_reservations.php" class="text-decoration-none" onclick="markAsRead('reservations', <?= $c_res ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_res > 0): ?><div class="card-badge" id="badge-reservations" data-count="<?= $c_res ?>" title="Active Reservations"><?= $c_res ?></div><?php endif; ?>
@@ -329,7 +453,7 @@ try {
         </div>
 
         <!-- Maintenance -->
-        <div class="col-md-3 reveal delay-3">
+        <div class="col-md-3 reveal delay-4">
             <a href="maintenance.php" class="text-decoration-none" onclick="markAsRead('maintenance', <?= $c_maint ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_maint > 0): ?><div class="card-badge" id="badge-maintenance" data-count="<?= $c_maint ?>" title="Active Requests"><?= $c_maint ?></div><?php endif; ?>
@@ -341,7 +465,7 @@ try {
         </div>
 
         <!-- Housekeeping -->
-        <div class="col-md-3 reveal delay-4">
+        <div class="col-md-3 reveal delay-5">
             <a href="housekeeping.php" class="text-decoration-none" onclick="markAsRead('housekeeping', <?= $c_house ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_house > 0): ?><div class="card-badge" id="badge-housekeeping" data-count="<?= $c_house ?>" title="Active Requests"><?= $c_house ?></div><?php endif; ?>
@@ -353,7 +477,7 @@ try {
         </div>
 
         <!-- Archived History -->
-        <div class="col-md-3 reveal delay-4">
+        <div class="col-md-3 reveal delay-6">
             <a href="my_archives.php" class="text-decoration-none" onclick="markAsRead('archives', <?= $c_arch ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_arch > 0): ?><div class="card-badge" id="badge-archives" data-count="<?= $c_arch ?>" title="Archived Items"><?= $c_arch ?></div><?php endif; ?>
@@ -365,24 +489,18 @@ try {
         </div>
 
         <!-- User Customization -->
-        <div class="col-md-3 reveal delay-5">
-            <div class="card profile-card h-100 p-5 text-center">
-                <div class="icon-box"><i class="fas fa-sliders-h"></i></div>
-                <h4 class="fw-bold text-dark mb-3">Customization</h4>
-                <p class="text-muted small mb-4">Personalize your profile experience.</p>
-                <div class="d-grid gap-2">
-                    <button class="btn btn-outline-success rounded-pill btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#uploadPicModal">
-                        <i class="fas fa-camera me-2"></i>Change Picture
-                    </button>
-                    <button class="btn btn-outline-dark rounded-pill btn-sm fw-bold" onclick="toggleNightMode()">
-                        <i class="fas fa-moon me-2"></i>Night Mode
-                    </button>
+        <div class="col-md-3 reveal delay-7">
+            <a href="javascript:void(0)" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#customizationModal">
+                <div class="card profile-card h-100 p-5 text-center">
+                    <div class="icon-box"><i class="fas fa-sliders-h"></i></div>
+                    <h4 class="fw-bold text-dark mb-3">Customization</h4>
+                    <p class="text-muted small">Personalize your profile experience.</p>
                 </div>
-            </div>
+            </a>
         </div>
 
         <!-- System Update -->
-        <div class="col-md-3 reveal delay-5">
+        <div class="col-md-3 reveal delay-8">
             <a href="javascript:void(0)" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#systemUpdateModal">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($is_outdated): ?>
@@ -419,10 +537,9 @@ try {
                     <div class="alert alert-light border text-start small">
                         <strong>Changes to be applied:</strong>
                         <ul class="mb-0 ps-3 mt-1">
-                            <li>Email Validation Check</li>
-                            <li>Phone Number Formatting</li>
-                            <li>Feature Sync (Walk-in Status)</li>
-                            <li>Profile Picture Link Repair</li>
+                            <?php foreach($update_reasons as $reason): ?>
+                                <li><?= htmlspecialchars($reason) ?></li>
+                            <?php endforeach; ?>
                         </ul>
                     </div>
                 </div>
@@ -455,20 +572,63 @@ try {
     </div>
 </div>
 
-<!-- Upload Modal -->
-<div class="modal fade" id="uploadPicModal" tabindex="-1">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
+<!-- Customization Modal -->
+<div class="modal fade" id="customizationModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title small fw-bold">Update Profile Picture</h5>
+                <h5 class="modal-title fw-bold"><i class="fas fa-sliders-h me-2"></i>Customization</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" enctype="multipart/form-data">
-                <div class="modal-body text-center">
-                    <input type="file" name="profile_image" class="form-control form-control-sm mb-3" accept="image/*" required>
-                    <button type="submit" class="btn btn-success btn-sm w-100">Upload</button>
+            <div class="modal-body">
+                <p class="text-muted small">Personalize your profile experience and account settings.</p>
+                <div class="list-group">
+                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#uploadPicModal">
+                        <span><i class="fas fa-camera fa-fw me-3 text-success"></i>Change Profile Picture</span>
+                        <i class="fas fa-chevron-right text-muted"></i>
+                    </button>
+                    <?php if(!empty($user_info['profile_image'])): ?>
+                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" onclick="deleteProfilePicture()">
+                        <span><i class="fas fa-trash-alt fa-fw me-3 text-danger"></i>Delete Profile Picture</span>
+                        <i class="fas fa-chevron-right text-muted"></i>
+                    </button>
+                    <?php endif; ?>
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-moon fa-fw me-3 text-primary"></i>Night Mode</span>
+                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="nightModeSwitch" <?= ($user_info['night_mode'] == 1) ? 'checked' : '' ?> onchange="toggleNightMode()"></div>
+                    </div>
                 </div>
-            </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadPicModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Update Profile Picture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <input type="file" id="profile_image_input" class="d-none" accept="image/png, image/jpeg, image/gif">
+                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('profile_image_input').click();">
+                        <i class="fas fa-folder-open me-2"></i>Choose Image
+                    </button>
+                </div>
+                <div class="img-container">
+                    <img id="image_to_crop" style="max-width: 100%;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="crop_and_upload_btn" disabled>Crop & Upload</button>
+            </div>
         </div>
     </div>
 </div>
@@ -477,6 +637,7 @@ try {
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script>
     let lastUnreadCount = <?= (int)$unread_count ?>;
 
@@ -596,6 +757,12 @@ try {
         document.body.classList.toggle('night-mode');
         const isNight = document.body.classList.contains('night-mode');
         
+        // Sync switch if it exists
+        const nightModeSwitch = document.getElementById('nightModeSwitch');
+        if (nightModeSwitch) {
+            nightModeSwitch.checked = isNight;
+        }
+
         // Update Local Storage
         localStorage.setItem('nightMode', isNight ? 'enabled' : 'disabled');
         
@@ -604,6 +771,37 @@ try {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: 'toggle_night_mode=1&mode=' + isNight
+        });
+    }
+
+    function deleteProfilePicture() {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "This will remove your profile picture and revert to the default avatar.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch('profile.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: 'delete_profile_image=1'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        Swal.fire('Error', 'Could not delete profile picture.', 'error');
+                    }
+                }).catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire('Error', 'An error occurred.', 'error');
+                });
+            }
         });
     }
 
@@ -632,6 +830,91 @@ try {
             if (e.newValue === 'enabled') document.body.classList.add('night-mode');
             else document.body.classList.remove('night-mode');
         }
+    });
+
+    // CropperJS Logic
+    document.addEventListener('DOMContentLoaded', function () {
+        const uploadModalEl = document.getElementById('uploadPicModal');
+        if (!uploadModalEl) return;
+
+        const uploadModal = new bootstrap.Modal(uploadModalEl);
+        const image = document.getElementById('image_to_crop');
+        const fileInput = document.getElementById('profile_image_input');
+        const cropBtn = document.getElementById('crop_and_upload_btn');
+        let cropper;
+
+        fileInput.addEventListener('change', function (e) {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    image.src = event.target.result;
+                    if (cropper) {
+                        cropper.destroy();
+                    }
+                    cropper = new Cropper(image, {
+                        aspectRatio: 1,
+                        viewMode: 1,
+                        background: false,
+                        autoCropArea: 1,
+                        ready: function () {
+                            // This makes the crop box appear circular
+                            document.querySelector('.cropper-view-box').style.borderRadius = '50%';
+                            document.querySelector('.cropper-face').style.borderRadius = '50%';
+                        }
+                    });
+                    cropBtn.disabled = false;
+                };
+                reader.readAsDataURL(files[0]);
+            }
+        });
+
+        cropBtn.addEventListener('click', function () {
+            if (!cropper) {
+                return;
+            }
+
+            const canvas = cropper.getCroppedCanvas({
+                width: 500,
+                height: 500,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            });
+
+            cropBtn.disabled = true;
+            cropBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+            const base64data = canvas.toDataURL('image/png');
+            
+            fetch('profile.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'cropped_image_data=' + encodeURIComponent(base64data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    Swal.fire('Upload Failed', data.message || 'Unknown error', 'error');
+                    cropBtn.disabled = false;
+                    cropBtn.innerHTML = 'Crop & Upload';
+                }
+            }).catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error', 'An error occurred during upload.', 'error');
+                cropBtn.disabled = false;
+                cropBtn.innerHTML = 'Crop & Upload';
+            });
+        });
+
+        uploadModalEl.addEventListener('hidden.bs.modal', function () {
+            if (cropper) cropper.destroy();
+            image.src = '';
+            fileInput.value = '';
+            cropBtn.disabled = true;
+            cropBtn.innerHTML = 'Crop & Upload';
+        });
     });
 </script>
 </body>

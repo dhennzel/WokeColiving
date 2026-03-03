@@ -79,6 +79,10 @@ $pending_maint = ($pending_maint_query) ? mysqli_fetch_assoc($pending_maint_quer
 $pending_house_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM housekeeping_requests WHERE status='Pending'");
 $pending_house = ($pending_house_query) ? mysqli_fetch_assoc($pending_house_query)['count'] : 0;
 
+// Stats: Waitlist Count
+$waitlist_count_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM waitlist WHERE notified_at IS NULL");
+$waitlist_count = ($waitlist_count_query) ? mysqli_fetch_assoc($waitlist_count_query)['count'] : 0;
+
 // Detailed Occupancy by Floor
 $floors_data = [];
 $floors_q = mysqli_query($conn, "SELECT DISTINCT floor FROM rooms ORDER BY floor ASC");
@@ -237,6 +241,12 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                 <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
                 <?php if($pending_count > 0): ?>
                     <span class="badge bg-danger rounded-pill"><?= $pending_count ?></span>
+                <?php endif; ?>
+            </a>
+            <a href="admin_waitlist.php" class="sidebar-link d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
+                <?php if($waitlist_count > 0): ?>
+                    <span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span>
                 <?php endif; ?>
             </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>

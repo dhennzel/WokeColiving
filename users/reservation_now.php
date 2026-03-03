@@ -11,36 +11,6 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Ensure gender column exists in users table
-$check_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'gender'");
-if(mysqli_num_rows($check_col) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN gender VARCHAR(20) DEFAULT NULL");
-}
-
-// Ensure occupation column exists in users table
-$check_occ_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'occupation'");
-if(mysqli_num_rows($check_occ_col) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN occupation VARCHAR(50) DEFAULT NULL");
-}
-
-// Ensure company column exists in users table (for employed users)
-$check_company_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'company'");
-if(mysqli_num_rows($check_company_col) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN company VARCHAR(100) DEFAULT NULL");
-}
-
-// Ensure school_id_image column exists in users table (for student verification)
-$check_school_id_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'school_id_image'");
-if(mysqli_num_rows($check_school_id_col) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN school_id_image VARCHAR(255) DEFAULT NULL");
-}
-
-// Ensure address column exists in users table
-$check_addr_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'address'");
-if(mysqli_num_rows($check_addr_col) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN address TEXT DEFAULT NULL");
-}
-
 // --- Check for Extension Request ---
 $is_extension = false;
 $ext_data = [];
@@ -109,12 +79,8 @@ while($row = mysqli_fetch_assoc($price_query)){
 // Handle Waitlist Join
 if (isset($_POST['join_waitlist'])) {
     $wl_room = $_POST['wl_room'];
-    try {
-        $check_wl = mysqli_query($conn, "SELECT * FROM waitlist WHERE user_id=$user_id AND room_type='$wl_room'");
-    } catch (Exception $e) {
-        $check_wl = false;
-    }
-    if($check_wl && mysqli_num_rows($check_wl) == 0){
+    $check_wl = mysqli_query($conn, "SELECT * FROM waitlist WHERE user_id=$user_id AND room_type='$wl_room'");
+    if(mysqli_num_rows($check_wl) == 0){
         mysqli_query($conn, "INSERT INTO waitlist (user_id, room_type) VALUES ($user_id, '$wl_room')");
         $_SESSION['swal'] = ['title' => 'Waitlist Joined', 'text' => "You have been added to the waitlist for $wl_room. We will notify you when it becomes available.", 'icon' => 'success'];
         header("Location: reservation_now.php");
@@ -656,7 +622,7 @@ if (isset($_POST['confirm_booking'])) {
                         <div class="mb-3" id="bed_pref_div" style="display:none;">
                             <label class="form-label">Bed Preference</label>
                             <?php if(isset($_GET['bed_preference']) && in_array($_GET['bed_preference'], ['Lower Bunk', 'Upper Bunk'])): ?>
-                                <input type="text" class="form-control bg-white" value="<?= htmlspecialchars($_GET['bed_preference']) ?>" readonly>
+                                <input type="text" class="form-control" value="<?= htmlspecialchars($_GET['bed_preference']) ?>" readonly>
                                 <input type="hidden" name="bed_preference" value="<?= htmlspecialchars($_GET['bed_preference']) ?>">
                                 <small class="text-success"><i class="fas fa-lock me-1"></i> Preference locked from selection</small>
                             <?php else: ?>
@@ -778,7 +744,7 @@ if (isset($_POST['confirm_booking'])) {
                             
                             <div class="mb-1">
                                 <label class="form-label small fw-bold">Date Submitted</label>
-                                <input type="text" class="form-control bg-white" value="<?= date('F d, Y') ?>" readonly>
+                                <input type="text" class="form-control" value="<?= date('F d, Y') ?>" readonly>
                             </div>
                         </div>
 

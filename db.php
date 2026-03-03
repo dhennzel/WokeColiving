@@ -135,6 +135,21 @@ function log_activity($conn, $user_id, $action, $details = "") {
 }
 }
 
+// --- WAITLIST TABLE ---
+if (!function_exists('setup_waitlist_table')) {
+function setup_waitlist_table($conn) {
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS waitlist (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        room_type VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        notified_at TIMESTAMP NULL DEFAULT NULL,
+        UNIQUE KEY `user_room` (`user_id`,`room_type`)
+    )");
+}
+setup_waitlist_table($conn);
+}
+
 // --- AUTO REFRESH TRIGGER ---
 if (!function_exists('trigger_update')) {
 function trigger_update($conn) {
@@ -173,23 +188,6 @@ if(!in_array('description', $pay_cols)) mysqli_query($conn, "ALTER TABLE payment
 $check_col_floor = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'floor'");
 if(mysqli_num_rows($check_col_floor) == 0) {
     mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN floor INT DEFAULT 2");
-}
-
-// Ensure emergency contact columns exist in users table
-$check_emergency_name = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'emergency_contact_name'");
-if(mysqli_num_rows($check_emergency_name) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN emergency_contact_name VARCHAR(100) DEFAULT NULL");
-}
-
-$check_emergency_number = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'emergency_contact_number'");
-if(mysqli_num_rows($check_emergency_number) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN emergency_contact_number VARCHAR(20) DEFAULT NULL");
-}
-
-// Ensure profile_image column exists in users table
-$check_profile_img = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'profile_image'");
-if(mysqli_num_rows($check_profile_img) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN profile_image VARCHAR(255) DEFAULT NULL");
 }
 
 // Ensure room_number column exists in rooms table

@@ -188,7 +188,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                             <a href="room_details.php?id=<?= $row['room_id'] ?>" class="btn btn-sm btn-outline-primary rounded-pill">
                                 <i class="fas fa-eye"></i> View Room
                             </a>
-                            <a href="my_archives.php?restore_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-success rounded-pill ms-1" onclick="return confirm('Restore this reservation?')">
+                            <a href="my_archives.php?restore_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-success rounded-pill ms-1" onclick="confirmRestore(event, this.href)">
                                 <i class="fas fa-trash-restore"></i> Restore
                             </a>
                         </td>
@@ -211,6 +211,21 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+function confirmRestore(e, url) {
+    e.preventDefault();
+    Swal.fire({
+        title: 'Restore Reservation?',
+        text: "This will move the reservation back to your active list.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2E7D32',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, restore it!'
+    }).then((result) => {
+        if (result.isConfirmed) window.location.href = url;
+    });
+}
+
 // Notification Logic
 let lastUnreadCount = <?= (int)$unread_count ?>;
 function fetchNotifications() {

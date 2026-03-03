@@ -14,21 +14,6 @@ $u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
 $user_info['full_name'] = $user_info['last_name'] . ', ' . $user_info['first_name'] . (!empty($user_info['middle_name']) ? ' ' . $user_info['middle_name'] : '');
 
-// Ensure user_update_requests table exists
-mysqli_query($conn, "CREATE TABLE IF NOT EXISTS user_update_requests (
-    request_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    gender VARCHAR(20),
-    occupation VARCHAR(50),
-    company VARCHAR(100),
-    address TEXT,
-    emergency_contact_name VARCHAR(100),
-    emergency_contact_number VARCHAR(20),
-    school_id_image VARCHAR(255),
-    status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)");
-
 // Handle Update Info Action
 if(isset($_POST['update_info'])){
     // Check for existing pending request
@@ -65,18 +50,6 @@ if(isset($_POST['update_info'])){
     }
 }
 
-// Ensure is_archived column exists
-$check_col = mysqli_query($conn, "SHOW COLUMNS FROM reservations LIKE 'is_archived'");
-if(mysqli_num_rows($check_col) == 0) {
-    mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
-}
-
-// Ensure signature_required column exists
-$check_sig = mysqli_query($conn, "SHOW COLUMNS FROM reservations LIKE 'signature_required'");
-if(mysqli_num_rows($check_sig) == 0) {
-    mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN signature_required TINYINT(1) DEFAULT 0");
-}
-
 // Handle Archive Action
 if(isset($_GET['archive_id'])){
     $aid = (int)$_GET['archive_id'];
@@ -92,15 +65,6 @@ JOIN rooms rm ON r.room_id = rm.room_id
 WHERE r.user_id = $user_id AND r.is_archived = 0 ORDER BY r.reservation_id DESC");
 
 // Fetch Activity Logs
-// Ensure table exists to prevent errors
-mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (
-    log_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    action VARCHAR(100) NOT NULL,
-    details TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)");
-
 $logs_query = mysqli_query($conn, "SELECT * FROM activity_logs WHERE user_id=$user_id ORDER BY created_at DESC");
 
 // Fetch Unread Count & Notifications
@@ -341,7 +305,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                             <?php // Show Remove button for Cancelled or Past End Date (Completed)
                                 $is_past = (strtotime($end_date) < time());
                                 if($row['status'] == 'Cancelled' || ($row['status'] == 'Approved' && $is_past)) { ?>
-                                <a href="my_reservations.php?archive_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-danger rounded-pill ms-1" onclick="return confirm('Remove this reservation to archives?')">
+                                <a href="my_reservations.php?archive_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-danger rounded-pill ms-1" onclick="confirmArchive(event, this.href)">
                                     <i class="fas fa-archive"></i> Remove
                                 </a>
                             <?php } ?>
@@ -533,6 +497,21 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         icon: '<?= $_SESSION['swal']['icon'] ?>'
     });
     <?php unset($_SESSION['swal']); endif; ?>
+
+    function confirmArchive(e, url) {
+        e.preventDefault();
+        Swal.fire({
+            title: 'Archive Reservation?',
+            text: "This will move the reservation to your archives.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, archive it!'
+        }).then((result) => {
+            if (result.isConfirmed) window.location.href = url;
+        });
+    }
 
     function toggleCompanyField() {
         var occupation = document.getElementById('occupation');
