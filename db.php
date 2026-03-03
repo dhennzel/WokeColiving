@@ -150,6 +150,29 @@ function setup_waitlist_table($conn) {
 setup_waitlist_table($conn);
 }
 
+// --- SYSTEM UPDATES TABLE ---
+if (!function_exists('setup_updates_table')) {
+function setup_updates_table($conn) {
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS system_updates (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        version VARCHAR(20) NOT NULL,
+        title VARCHAR(100) NOT NULL,
+        description TEXT,
+        release_date DATE DEFAULT CURRENT_DATE
+    )");
+    
+    // Seed data if empty for testing
+    $chk = mysqli_query($conn, "SELECT COUNT(*) as c FROM system_updates");
+    if(mysqli_fetch_assoc($chk)['c'] == 0){
+        mysqli_query($conn, "INSERT INTO system_updates (version, title, description, release_date) VALUES 
+        ('1.2.0', 'Profile Enhancements', 'Added Bio, Social Links, and Newsletter subscription options.', NOW()),
+        ('1.1.0', 'Waitlist Feature', 'Introduced room waitlists and automated notifications.', DATE_SUB(NOW(), INTERVAL 7 DAY)),
+        ('1.0.0', 'Initial Release', 'Core booking and management system launch.', DATE_SUB(NOW(), INTERVAL 30 DAY))");
+    }
+}
+setup_updates_table($conn);
+}
+
 // --- AUTO REFRESH TRIGGER ---
 if (!function_exists('trigger_update')) {
 function trigger_update($conn) {

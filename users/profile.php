@@ -117,7 +117,10 @@ $user_schema = [
     'emergency_contact_number' => ['type' => 'VARCHAR(20) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Emergency contact details are missing.'],
     'reset_token' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Password reset feature needs to be enabled.'],
     'reset_expiry' => ['type' => 'DATETIME DEFAULT NULL', 'default' => "NULL", 'reason' => 'Password reset feature needs to be enabled.'],
-    'do_not_renew' => ['type' => 'TINYINT(1) DEFAULT 0', 'default' => 0, 'reason' => 'Account renewal status needs to be initialized.']
+    'do_not_renew' => ['type' => 'TINYINT(1) DEFAULT 0', 'default' => 0, 'reason' => 'Account renewal status needs to be initialized.'],
+    'newsletter' => ['type' => 'TINYINT(1) DEFAULT 1', 'default' => 1, 'reason' => 'New Feature: Community Newsletter subscription.'],
+    'bio' => ['type' => 'TEXT DEFAULT NULL', 'default' => "NULL", 'reason' => 'New Feature: User Bio for community profile.'],
+    'social_link' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'New Feature: Social Media link field.']
 ];
 
 // Get the actual columns from the users table to avoid errors if a column doesn't exist yet
@@ -227,6 +230,15 @@ try {
     $w_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE user_id=$user_id");
     if($w_q) $c_wait = mysqli_fetch_assoc($w_q)['c'];
 } catch(Exception $e){}
+
+// Fetch System Updates History
+$sys_updates = [];
+$su_q = mysqli_query($conn, "SELECT * FROM system_updates ORDER BY release_date DESC LIMIT 10");
+if($su_q){
+    while($row = mysqli_fetch_assoc($su_q)){
+        $sys_updates[] = $row;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -535,7 +547,7 @@ try {
                     <p class="text-muted small mb-4">This action will standardize your profile information and ensure all system fields are initialized correctly.</p>
                     
                     <div class="alert alert-light border text-start small">
-                        <strong>Changes to be applied:</strong>
+                        <strong><i class="fas fa-star text-warning me-1"></i> What's New & Updates:</strong>
                         <ul class="mb-0 ps-3 mt-1">
                             <?php foreach($update_reasons as $reason): ?>
                                 <li><?= htmlspecialchars($reason) ?></li>
@@ -557,6 +569,24 @@ try {
                     </div>
                     <h5 class="fw-bold">System Up to Date</h5>
                     <p class="text-muted small">Your account data is synchronized with the latest system version.</p>
+                    
+                    <?php if(!empty($sys_updates)): ?>
+                    <div class="text-start border-top pt-3 mt-3">
+                        <h6 class="fw-bold text-primary mb-3"><i class="fas fa-bullhorn me-2"></i>What's New & Version History</h6>
+                        <div class="list-group list-group-flush small" style="max-height: 250px; overflow-y: auto;">
+                            <?php foreach($sys_updates as $update): ?>
+                            <div class="list-group-item px-0 bg-transparent">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <strong class="mb-1 text-dark"><?= htmlspecialchars($update['title']) ?></strong>
+                                    <span class="badge bg-light text-dark border">v<?= htmlspecialchars($update['version']) ?></span>
+                                </div>
+                                <p class="mb-1 text-muted"><?= htmlspecialchars($update['description']) ?></p>
+                                <small class="text-secondary"><i class="far fa-calendar-alt me-1"></i> <?= date('M d, Y', strtotime($update['release_date'])) ?></small>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
                 <?php endif; ?>
             </div>
