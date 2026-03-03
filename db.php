@@ -135,6 +135,60 @@ function log_activity($conn, $user_id, $action, $details = "") {
 }
 }
 
+// --- RESERVATIONS TABLE ---
+if (!function_exists('setup_reservations_table')) {
+function setup_reservations_table($conn) {
+    $check = mysqli_query($conn, "SHOW TABLES LIKE 'reservations'");
+    if(mysqli_num_rows($check) == 0) {
+        $sql = "CREATE TABLE reservations (
+            reservation_id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            room_id INT NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            months INT NOT NULL,
+            total_price DECIMAL(10,2) NOT NULL,
+            status ENUM('Pending','Verifying','Approved','Cancelled','Completed') DEFAULT 'Pending',
+            bed_preference VARCHAR(50) DEFAULT 'Any',
+            signature_image VARCHAR(255) DEFAULT NULL,
+            signature_required TINYINT(1) DEFAULT 0,
+            cancellation_reason VARCHAR(255) DEFAULT NULL,
+            is_archived TINYINT(1) DEFAULT 0,
+            extended_from INT DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+            FOREIGN KEY (room_id) REFERENCES rooms(room_id)
+        )";
+        mysqli_query($conn, $sql);
+    }
+}
+setup_reservations_table($conn);
+}
+
+// --- PAYMENTS TABLE ---
+if (!function_exists('setup_payments_table')) {
+function setup_payments_table($conn) {
+    $check = mysqli_query($conn, "SHOW TABLES LIKE 'payments'");
+    if(mysqli_num_rows($check) == 0) {
+        $sql = "CREATE TABLE payments (
+            payment_id INT AUTO_INCREMENT PRIMARY KEY,
+            reservation_id INT NOT NULL,
+            amount DECIMAL(10,2) NOT NULL,
+            payment_method VARCHAR(50) NOT NULL,
+            payment_status ENUM('Paid','Unpaid') DEFAULT 'Unpaid',
+            payment_date DATETIME DEFAULT NULL,
+            reference_number VARCHAR(100) DEFAULT NULL,
+            proof_image VARCHAR(255) DEFAULT NULL,
+            description VARCHAR(255) DEFAULT 'Room Payment',
+            is_penalized TINYINT(1) DEFAULT 0,
+            FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE CASCADE
+        )";
+        mysqli_query($conn, $sql);
+    }
+}
+setup_payments_table($conn);
+}
+
 // --- WAITLIST TABLE ---
 if (!function_exists('setup_waitlist_table')) {
 function setup_waitlist_table($conn) {
@@ -150,6 +204,20 @@ function setup_waitlist_table($conn) {
 setup_waitlist_table($conn);
 }
 
+// --- ACCOUNT DELETION REQUESTS TABLE ---
+if (!function_exists('setup_deletion_requests_table')) {
+function setup_deletion_requests_table($conn) {
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS account_deletion_requests (
+        request_id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    )");
+}
+setup_deletion_requests_table($conn);
+}
+
 // --- SYSTEM UPDATES TABLE ---
 if (!function_exists('setup_updates_table')) {
 function setup_updates_table($conn) {
@@ -161,16 +229,80 @@ function setup_updates_table($conn) {
         release_date DATE DEFAULT CURRENT_DATE
     )");
     
-    // Seed data if empty for testing
-    $chk = mysqli_query($conn, "SELECT COUNT(*) as c FROM system_updates");
-    if(mysqli_fetch_assoc($chk)['c'] == 0){
-        mysqli_query($conn, "INSERT INTO system_updates (version, title, description, release_date) VALUES 
-        ('1.2.0', 'Profile Enhancements', 'Added Bio, Social Links, and Newsletter subscription options.', NOW()),
-        ('1.1.0', 'Waitlist Feature', 'Introduced room waitlists and automated notifications.', DATE_SUB(NOW(), INTERVAL 7 DAY)),
-        ('1.0.0', 'Initial Release', 'Core booking and management system launch.', DATE_SUB(NOW(), INTERVAL 30 DAY))");
+    // List of all updates to ensure they exist in DB
+    $updates = [
+        ['1.3.6', 'User Control', 'Added option for users to permanently delete their account (requires no active bookings).', 'NOW()'],
+        ['1.3.5', 'Account Management', 'Added ability for users to update their email address securely.', 'NOW()'],
+        ['1.3.4', 'Bug Fixes & UI Polish', 'Fixed night mode styling issues. Improved responsive layout for mobile devices.', 'NOW()'],
+        ['1.3.3', 'Security Update', 'Added Change Password feature for enhanced account security.', 'DATE_SUB(NOW(), INTERVAL 1 DAY)'],
+        ['1.3.2', 'Support Features', 'Added "Other Request" option to contact support directly via Messenger.', 'DATE_SUB(NOW(), INTERVAL 2 DAY)'],
+        ['1.3.1', 'System Integrity', 'Implemented strict feature access control based on system version.', 'DATE_SUB(NOW(), INTERVAL 3 DAY)'],
+        ['1.3.0', 'Dashboard Customization', 'Added ability to hide and reorder dashboard cards. Preferences are saved automatically.', 'DATE_SUB(NOW(), INTERVAL 4 DAY)'],
+        ['1.2.0', 'Profile Enhancements', 'Added Bio, Social Links, and Newsletter subscription options.', 'DATE_SUB(NOW(), INTERVAL 7 DAY)'],
+        ['1.1.0', 'Waitlist Feature', 'Introduced room waitlists and automated notifications.', 'DATE_SUB(NOW(), INTERVAL 14 DAY)'],
+        ['1.0.0', 'Initial Release', 'Core booking and management system launch.', 'DATE_SUB(NOW(), INTERVAL 30 DAY)']
+    ];
+
+    foreach ($updates as $upd) {
+        $ver = $upd[0];
+        $check = mysqli_query($conn, "SELECT id FROM system_updates WHERE version='$ver'");
+        if (mysqli_num_rows($check) == 0) {
+            $title = mysqli_real_escape_string($conn, $upd[1]);
+            $desc = mysqli_real_escape_string($conn, $upd[2]);
+            $date_sql = $upd[3]; 
+            mysqli_query($conn, "INSERT INTO system_updates (version, title, description, release_date) VALUES ('$ver', '$title', '$desc', $date_sql)");
+        }
     }
 }
 setup_updates_table($conn);
+}
+
+// --- SYSTEM COMPLIANCE CHECK ---
+if (!function_exists('check_system_compliance')) {
+function check_system_compliance($conn, $user_id) {
+    // Centralized Schema Definition
+    $user_schema = [
+        'is_walkin'  => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 0, 'reason' => 'Account needs walk-in status synchronization.'],
+        'role'       => ['type' => "VARCHAR(20) DEFAULT 'user'", 'default' => "'user'", 'reason' => 'User role needs to be defined for system access.'],
+        'night_mode' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 0, 'reason' => 'Night mode preference needs to be initialized.'],
+        'gender'     => ['type' => 'VARCHAR(20) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Gender information is missing and required for booking.'],
+        'occupation' => ['type' => 'VARCHAR(50) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Occupation status is missing.'],
+        'company'    => ['type' => 'VARCHAR(100) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Company or school information needs to be updated.'],
+        'address'    => ['type' => 'TEXT DEFAULT NULL', 'default' => "NULL", 'reason' => 'Address information is missing.'],
+        'school_id_image' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Student verification data needs to be updated.'],
+        'emergency_contact_name' => ['type' => 'VARCHAR(100) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Emergency contact details are missing.'],
+        'emergency_contact_number' => ['type' => 'VARCHAR(20) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Emergency contact details are missing.'],
+        'reset_token' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Password reset feature needs to be enabled.'],
+        'reset_expiry' => ['type' => 'DATETIME DEFAULT NULL', 'default' => "NULL", 'reason' => 'Password reset feature needs to be enabled.'],
+        'do_not_renew' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 0, 'reason' => 'Account renewal status needs to be initialized.'],
+        'newsletter' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 1, 'reason' => 'New Feature: Community Newsletter subscription.'],
+        'bio' => ['type' => 'TEXT DEFAULT NULL', 'default' => "NULL", 'reason' => 'New Feature: User Bio for community profile.'],
+        'social_link' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'New Feature: Social Media link field.'],
+        'other_request_feature' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 1, 'reason' => 'New Feature: Other Request (Contact Support) option.'],
+        'change_password_feature' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 1, 'reason' => 'New Feature: Change Password option.'],
+        'change_email_feature' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 1, 'reason' => 'New Feature: Change Email option.'],
+        'delete_account_feature' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 1, 'reason' => 'New Feature: Delete Account option.']
+    ];
+
+    $update_reasons = [];
+    $u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
+    if(!$u_query) return ['is_outdated' => false, 'reasons' => [], 'schema' => $user_schema];
+    $user_info = mysqli_fetch_assoc($u_query);
+
+    $user_columns_q = mysqli_query($conn, "SHOW COLUMNS FROM users");
+    $existing_user_columns = [];
+    while($col = mysqli_fetch_assoc($user_columns_q)) $existing_user_columns[] = $col['Field'];
+
+    foreach ($user_schema as $column => $details) {
+        if (!in_array($column, $existing_user_columns)) {
+            $update_reasons[] = $details['reason'];
+        } elseif (array_key_exists($column, $user_info) && is_null($user_info[$column]) && $details['default'] !== "NULL") {
+            if (!in_array($details['reason'], $update_reasons)) $update_reasons[] = $details['reason'];
+        }
+    }
+
+    return ['is_outdated' => !empty($update_reasons), 'reasons' => $update_reasons, 'schema' => $user_schema];
+}
 }
 
 // --- AUTO REFRESH TRIGGER ---

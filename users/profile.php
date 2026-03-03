@@ -78,6 +78,84 @@ if (isset($_POST['cropped_image_data'])) {
     exit;
 }
 
+// Handle Password Change
+if(isset($_POST['change_password'])){
+    $current_pass = $_POST['current_password'];
+    $new_pass = $_POST['new_password'];
+    $confirm_pass = $_POST['confirm_password'];
+
+    $u_q = mysqli_query($conn, "SELECT password FROM users WHERE user_id=$user_id");
+    $user_data = mysqli_fetch_assoc($u_q);
+
+    if(!password_verify($current_pass, $user_data['password'])){
+        $_SESSION['swal'] = ['title' => 'Error', 'text' => 'Incorrect current password.', 'icon' => 'error'];
+    } elseif($new_pass !== $confirm_pass){
+        $_SESSION['swal'] = ['title' => 'Error', 'text' => 'New passwords do not match.', 'icon' => 'error'];
+    } elseif(strlen($new_pass) < 6){
+        $_SESSION['swal'] = ['title' => 'Error', 'text' => 'Password must be at least 6 characters.', 'icon' => 'error'];
+    } else {
+        $new_hash = password_hash($new_pass, PASSWORD_DEFAULT);
+        mysqli_query($conn, "UPDATE users SET password='$new_hash' WHERE user_id=$user_id");
+        $_SESSION['swal'] = ['title' => 'Success', 'text' => 'Password updated successfully.', 'icon' => 'success'];
+    }
+    header("Location: profile.php");
+    exit;
+}
+
+// Handle Email Change
+if(isset($_POST['change_email'])){
+    $new_email = mysqli_real_escape_string($conn, trim($_POST['new_email']));
+    $current_pass = $_POST['current_password'];
+
+    $u_q = mysqli_query($conn, "SELECT password FROM users WHERE user_id=$user_id");
+    $user_data = mysqli_fetch_assoc($u_q);
+
+    if(!password_verify($current_pass, $user_data['password'])){
+        $_SESSION['swal'] = ['title' => 'Error', 'text' => 'Incorrect password.', 'icon' => 'error'];
+    } elseif(!filter_var($new_email, FILTER_VALIDATE_EMAIL)){
+        $_SESSION['swal'] = ['title' => 'Error', 'text' => 'Invalid email format.', 'icon' => 'error'];
+    } else {
+        $check_email = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$new_email' AND user_id != $user_id");
+        if(mysqli_num_rows($check_email) > 0){
+            $_SESSION['swal'] = ['title' => 'Error', 'text' => 'Email address is already in use.', 'icon' => 'error'];
+        } else {
+            mysqli_query($conn, "UPDATE users SET email='$new_email' WHERE user_id=$user_id");
+            $_SESSION['swal'] = ['title' => 'Success', 'text' => 'Email updated successfully.', 'icon' => 'success'];
+        }
+    }
+    header("Location: profile.php");
+    exit;
+}
+
+// Handle Delete Account
+if(isset($_POST['delete_account'])){
+    $current_pass = $_POST['current_password'];
+    
+    $u_q = mysqli_query($conn, "SELECT password FROM users WHERE user_id=$user_id");
+    $user_data = mysqli_fetch_assoc($u_q);
+
+    if(!password_verify($current_pass, $user_data['password'])){
+        $_SESSION['swal'] = ['title' => 'Error', 'text' => 'Incorrect password.', 'icon' => 'error'];
+    } else {
+        // Check active reservations
+        $chk_res = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id=$user_id AND status IN ('Pending', 'Approved', 'Verifying')");
+        if(mysqli_num_rows($chk_res) > 0){
+            $_SESSION['swal'] = ['title' => 'Cannot Delete', 'text' => 'You have active reservations. Please complete or cancel them first.', 'icon' => 'warning'];
+        } else {
+            // Check if request already exists
+            $chk_req = mysqli_query($conn, "SELECT request_id FROM account_deletion_requests WHERE user_id=$user_id AND status='Pending'");
+            if(mysqli_num_rows($chk_req) > 0){
+                $_SESSION['swal'] = ['title' => 'Request Pending', 'text' => 'You already have a pending deletion request.', 'icon' => 'info'];
+            } else {
+                mysqli_query($conn, "INSERT INTO account_deletion_requests (user_id) VALUES ($user_id)");
+                $_SESSION['swal'] = ['title' => 'Request Submitted', 'text' => 'Your account deletion request has been submitted for admin approval.', 'icon' => 'success'];
+            }
+        }
+    }
+    header("Location: profile.php");
+    exit;
+}
+
 // Handle Night Mode Toggle
 if(isset($_POST['toggle_night_mode'])){
     $mode = $_POST['mode'] === 'true' ? 1 : 0;
@@ -91,67 +169,21 @@ $u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
 $user_info['full_name'] = $user_info['last_name'] . ', ' . $user_info['first_name'] . (!empty($user_info['middle_name']) ? ' ' . $user_info['middle_name'] : '');
 
-// Check for Outdated System Data
-$update_reasons = [];
-// 1. Check data integrity and format
-if(!filter_var($user_info['email'], FILTER_VALIDATE_EMAIL)) {
-    $update_reasons[] = "Invalid email format needs to be fixed.";
-}
-if(!preg_match('/^(09|\+639)\d{9}$/', $user_info['phone_number'])) {
-    $update_reasons[] = "Phone number requires re-formatting for system compatibility.";
-}
-
-// 2. Check for uninitialized columns based on a developer-defined schema
-// Developer: Add new columns here to have the system check and initialize them for existing users.
-// The 'type' is the full SQL column definition. The 'default' is the value for the UPDATE statement.
-$user_schema = [
-    'is_walkin'  => ['type' => 'TINYINT(1) DEFAULT 0', 'default' => 0, 'reason' => 'Account needs walk-in status synchronization.'],
-    'role'       => ['type' => "VARCHAR(20) DEFAULT 'user'", 'default' => "'user'", 'reason' => 'User role needs to be defined for system access.'],
-    'night_mode' => ['type' => 'TINYINT(1) DEFAULT 0', 'default' => 0, 'reason' => 'Night mode preference needs to be initialized.'],
-    'gender'     => ['type' => 'VARCHAR(20) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Gender information is missing and required for booking.'],
-    'occupation' => ['type' => 'VARCHAR(50) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Occupation status is missing.'],
-    'company'    => ['type' => 'VARCHAR(100) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Company or school information needs to be updated.'],
-    'address'    => ['type' => 'TEXT DEFAULT NULL', 'default' => "NULL", 'reason' => 'Address information is missing.'],
-    'school_id_image' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Student verification data needs to be updated.'],
-    'emergency_contact_name' => ['type' => 'VARCHAR(100) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Emergency contact details are missing.'],
-    'emergency_contact_number' => ['type' => 'VARCHAR(20) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Emergency contact details are missing.'],
-    'reset_token' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Password reset feature needs to be enabled.'],
-    'reset_expiry' => ['type' => 'DATETIME DEFAULT NULL', 'default' => "NULL", 'reason' => 'Password reset feature needs to be enabled.'],
-    'do_not_renew' => ['type' => 'TINYINT(1) DEFAULT 0', 'default' => 0, 'reason' => 'Account renewal status needs to be initialized.'],
-    'newsletter' => ['type' => 'TINYINT(1) DEFAULT 1', 'default' => 1, 'reason' => 'New Feature: Community Newsletter subscription.'],
-    'bio' => ['type' => 'TEXT DEFAULT NULL', 'default' => "NULL", 'reason' => 'New Feature: User Bio for community profile.'],
-    'social_link' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'New Feature: Social Media link field.']
-];
-
-// Get the actual columns from the users table to avoid errors if a column doesn't exist yet
-$user_columns_q = mysqli_query($conn, "SHOW COLUMNS FROM users");
-$existing_user_columns = [];
-while($col = mysqli_fetch_assoc($user_columns_q)) {
-    $existing_user_columns[] = $col['Field'];
-}
-
-foreach ($user_schema as $column => $details) {
-    // Check if the column exists in the DB and if the user's value for it is NULL
-    if (!in_array($column, $existing_user_columns)) {
-        // If column doesn't even exist, it's definitely outdated.
-        $update_reasons[] = $details['reason'];
-    } elseif (is_null($user_info[$column]) && $details['default'] !== "NULL") {
-        // Add the reason if it's not already in the list (to avoid duplicates)
-        if (!in_array($details['reason'], $update_reasons)) {
-            $update_reasons[] = $details['reason'];
-        }
-    }
-}
-
-// 3. Check for broken profile picture link
-$curr_img = $user_info['profile_image'];
-if((!empty($curr_img) && !file_exists("../uploads/profiles/" . $curr_img)) || $curr_img === ''){
-    $update_reasons[] = "Profile picture link is broken and needs to be reset.";
-}
-$is_outdated = !empty($update_reasons);
+// Check for Outdated System Data using centralized function
+$compliance = check_system_compliance($conn, $user_id);
+$is_outdated = $compliance['is_outdated'];
+$update_reasons = $compliance['reasons'];
+$user_schema = $compliance['schema'];
 
 // Handle System Update Action
 if(isset($_GET['action']) && $_GET['action'] == 'system_update'){
+    // Fetch existing columns first
+    $user_columns_q = mysqli_query($conn, "SHOW COLUMNS FROM users");
+    $existing_user_columns = [];
+    while($col = mysqli_fetch_assoc($user_columns_q)) {
+        $existing_user_columns[] = $col['Field'];
+    }
+
     // 0. Add missing columns to the database if they don't exist
     // This ensures that new features defined in the schema are added to the DB.
     // Note: The database user needs ALTER privileges for this to work.
@@ -171,18 +203,6 @@ if(isset($_GET['action']) && $_GET['action'] == 'system_update'){
     }
 
 
-    // 1. Fix Data Integrity (Email, Phone)
-    $sanitized_email = filter_var($user_info['email'], FILTER_SANITIZE_EMAIL);
-    if($sanitized_email !== $user_info['email'] && filter_var($sanitized_email, FILTER_VALIDATE_EMAIL)){
-        mysqli_query($conn, "UPDATE users SET email='" . mysqli_real_escape_string($conn, $sanitized_email) . "' WHERE user_id=$user_id");
-    }
-
-    // 2. Fix Phone Number (Remove non-numeric/plus characters)
-    $clean_phone = preg_replace('/[^0-9+]/', '', $user_info['phone_number']);
-    if($clean_phone !== $user_info['phone_number']){
-        mysqli_query($conn, "UPDATE users SET phone_number='$clean_phone' WHERE user_id=$user_id");
-    }
-
     // 2. Initialize new/NULL columns based on schema
     foreach ($user_schema as $column => $details) {
         if (in_array($column, $existing_user_columns) && is_null($user_info[$column])) {
@@ -190,12 +210,6 @@ if(isset($_GET['action']) && $_GET['action'] == 'system_update'){
         }
     }
     
-    // 3. Fix Profile Picture (Broken Link or Empty -> NULL to show default placeholder)
-    $curr_img = $user_info['profile_image'];
-    if((!empty($curr_img) && !file_exists("../uploads/profiles/" . $curr_img)) || $curr_img === ''){
-        mysqli_query($conn, "UPDATE users SET profile_image=NULL WHERE user_id=$user_id");
-    }
-
     $_SESSION['swal'] = ['title' => 'System Updated', 'text' => 'Account data synchronized successfully.', 'icon' => 'success'];
     header("Location: profile.php");
     exit;
@@ -247,6 +261,7 @@ if($su_q){
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -335,6 +350,7 @@ if($su_q){
             background-color: #333;
             color: #fff;
         }
+        body.night-mode .img-container { background-color: #2c2c2c; }
 
         .card-badge {
             position: absolute;
@@ -428,9 +444,9 @@ if($su_q){
         <p class="text-muted lead">Manage your stay, bookings, and account details.</p>
     </div>
 
-    <div class="row g-4 justify-content-center">
+    <div class="row g-4 justify-content-center" id="dashboard-cards">
         <!-- Book a Room -->
-        <div class="col-md-3 reveal delay-1">
+        <div class="col-md-3 reveal delay-1" data-card-id="book">
             <a href="reservation_now.php" class="text-decoration-none">
                 <div class="card profile-card h-100 p-5 text-center">
                     <div class="icon-box"><i class="fas fa-calendar-plus"></i></div>
@@ -441,7 +457,7 @@ if($su_q){
         </div>
 
         <!-- My Waitlist -->
-        <div class="col-md-3 reveal delay-2">
+        <div class="col-md-3 reveal delay-2" data-card-id="waitlist">
             <a href="my_waitlist.php" class="text-decoration-none" onclick="markAsRead('waitlist', <?= $c_wait ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_wait > 0): ?><div class="card-badge" id="badge-waitlist" data-count="<?= $c_wait ?>" title="Waitlisted Rooms"><?= $c_wait ?></div><?php endif; ?>
@@ -453,7 +469,7 @@ if($su_q){
         </div>
 
         <!-- My Reservations -->
-        <div class="col-md-3 reveal delay-3">
+        <div class="col-md-3 reveal delay-3" data-card-id="reservations">
             <a href="my_reservations.php" class="text-decoration-none" onclick="markAsRead('reservations', <?= $c_res ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_res > 0): ?><div class="card-badge" id="badge-reservations" data-count="<?= $c_res ?>" title="Active Reservations"><?= $c_res ?></div><?php endif; ?>
@@ -465,7 +481,7 @@ if($su_q){
         </div>
 
         <!-- Maintenance -->
-        <div class="col-md-3 reveal delay-4">
+        <div class="col-md-3 reveal delay-4" data-card-id="maintenance">
             <a href="maintenance.php" class="text-decoration-none" onclick="markAsRead('maintenance', <?= $c_maint ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_maint > 0): ?><div class="card-badge" id="badge-maintenance" data-count="<?= $c_maint ?>" title="Active Requests"><?= $c_maint ?></div><?php endif; ?>
@@ -477,7 +493,7 @@ if($su_q){
         </div>
 
         <!-- Housekeeping -->
-        <div class="col-md-3 reveal delay-5">
+        <div class="col-md-3 reveal delay-5" data-card-id="housekeeping">
             <a href="housekeeping.php" class="text-decoration-none" onclick="markAsRead('housekeeping', <?= $c_house ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_house > 0): ?><div class="card-badge" id="badge-housekeeping" data-count="<?= $c_house ?>" title="Active Requests"><?= $c_house ?></div><?php endif; ?>
@@ -489,7 +505,7 @@ if($su_q){
         </div>
 
         <!-- Archived History -->
-        <div class="col-md-3 reveal delay-6">
+        <div class="col-md-3 reveal delay-6" data-card-id="archives">
             <a href="my_archives.php" class="text-decoration-none" onclick="markAsRead('archives', <?= $c_arch ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_arch > 0): ?><div class="card-badge" id="badge-archives" data-count="<?= $c_arch ?>" title="Archived Items"><?= $c_arch ?></div><?php endif; ?>
@@ -500,8 +516,21 @@ if($su_q){
             </a>
         </div>
 
+        <!-- Other Request -->
+        <?php if(isset($user_info['other_request_feature']) && $user_info['other_request_feature'] == 1): ?>
+        <div class="col-md-3 reveal delay-6" data-card-id="other_request">
+            <a href="https://www.facebook.com/WOKEES/" target="_blank" class="text-decoration-none">
+                <div class="card profile-card h-100 p-5 text-center">
+                    <div class="icon-box"><i class="fab fa-facebook-messenger"></i></div>
+                    <h4 class="fw-bold text-dark mb-3">Other Request</h4>
+                    <p class="text-muted small">Contact us via Messenger for other concerns.</p>
+                </div>
+            </a>
+        </div>
+        <?php endif; ?>
+
         <!-- User Customization -->
-        <div class="col-md-3 reveal delay-7">
+        <div class="col-md-3 reveal delay-7" data-card-id="customization">
             <a href="javascript:void(0)" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#customizationModal">
                 <div class="card profile-card h-100 p-5 text-center">
                     <div class="icon-box"><i class="fas fa-sliders-h"></i></div>
@@ -512,7 +541,7 @@ if($su_q){
         </div>
 
         <!-- System Update -->
-        <div class="col-md-3 reveal delay-8">
+        <div class="col-md-3 reveal delay-8" data-card-id="update">
             <a href="javascript:void(0)" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#systemUpdateModal">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($is_outdated): ?>
@@ -623,15 +652,153 @@ if($su_q){
                         <i class="fas fa-chevron-right text-muted"></i>
                     </button>
                     <?php endif; ?>
+                    <?php if(!$is_outdated): ?>
+                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                        <span><i class="fas fa-key fa-fw me-3 text-warning"></i>Change Password</span>
+                        <i class="fas fa-chevron-right text-muted"></i>
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#changeEmailModal">
+                        <span><i class="fas fa-envelope fa-fw me-3 text-info"></i>Change Email</span>
+                        <i class="fas fa-chevron-right text-muted"></i>
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                        <span><i class="fas fa-user-times fa-fw me-3 text-danger"></i>Delete Account</span>
+                        <i class="fas fa-chevron-right text-muted"></i>
+                    </button>
+                    <?php endif; ?>
                     <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                         <span><i class="fas fa-moon fa-fw me-3 text-primary"></i>Night Mode</span>
                         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="nightModeSwitch" <?= ($user_info['night_mode'] == 1) ? 'checked' : '' ?> onchange="toggleNightMode()"></div>
+                    </div>
+                    
+                    <div class="list-group-item bg-light mt-2">
+                        <h6 class="fw-bold small mb-2 text-muted text-uppercase">Dashboard Layout</h6>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="show-book" checked onchange="toggleCard('book')">
+                            <label class="form-check-label small" for="show-book">Book a Room</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="show-waitlist" checked onchange="toggleCard('waitlist')">
+                            <label class="form-check-label small" for="show-waitlist">My Waitlist</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="show-reservations" checked onchange="toggleCard('reservations')">
+                            <label class="form-check-label small" for="show-reservations">My Reservations</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="show-maintenance" checked onchange="toggleCard('maintenance')">
+                            <label class="form-check-label small" for="show-maintenance">Maintenance</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="show-housekeeping" checked onchange="toggleCard('housekeeping')">
+                            <label class="form-check-label small" for="show-housekeeping">Housekeeping</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="show-archives" checked onchange="toggleCard('archives')">
+                            <label class="form-check-label small" for="show-archives">Archives</label>
+                        </div>
+                        <?php if(isset($user_info['other_request_feature']) && $user_info['other_request_feature'] == 1): ?>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="show-other_request" checked onchange="toggleCard('other_request')">
+                            <label class="form-check-label small" for="show-other_request">Other Request</label>
+                        </div>
+                        <?php endif; ?>
+                        <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="resetDashboardLayout()">Reset Layout</button>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-key me-2"></i>Change Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="change_password" value="1">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Current Password</label>
+                        <input type="password" name="current_password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">New Password</label>
+                        <input type="password" name="new_password" class="form-control" required minlength="6">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Confirm New Password</label>
+                        <input type="password" name="confirm_password" class="form-control" required minlength="6">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-target="#customizationModal" data-bs-toggle="modal">Back</button>
+                    <button type="submit" class="btn btn-primary">Update Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Change Email Modal -->
+<div class="modal fade" id="changeEmailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-envelope me-2"></i>Change Email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="change_email" value="1">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">New Email Address</label>
+                        <input type="email" name="new_email" class="form-control" required value="<?= htmlspecialchars($user_info['email']) ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Current Password</label>
+                        <input type="password" name="current_password" class="form-control" required placeholder="Verify it's you">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-target="#customizationModal" data-bs-toggle="modal">Back</button>
+                    <button type="submit" class="btn btn-primary">Update Email</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Account Modal -->
+<div class="modal fade" id="deleteAccountModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Delete Account</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <p class="text-danger fw-bold">Warning: This action is permanent and cannot be undone.</p>
+                    <p class="small">All your data, including reservation history and logs, will be permanently removed. You cannot delete your account if you have active bookings.</p>
+                    <input type="hidden" name="delete_account" value="1">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Enter Password to Confirm</label>
+                        <input type="password" name="current_password" class="form-control" required placeholder="Password">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-target="#customizationModal" data-bs-toggle="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Permanently Delete</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -669,6 +836,7 @@ if($su_q){
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script>
+    const currentUserId = "<?= $user_id ?>";
     let lastUnreadCount = <?= (int)$unread_count ?>;
 
     function fetchNotifications() {
@@ -756,7 +924,7 @@ if($su_q){
             const badge = document.getElementById('badge-' + type);
             if(badge) {
                 const currentCount = parseInt(badge.getAttribute('data-count'));
-                const seenCount = parseInt(localStorage.getItem('seen_count_' + type) || 0);
+                const seenCount = parseInt(localStorage.getItem('seen_count_' + type + '_' + currentUserId) || 0);
                 
                 if(seenCount >= currentCount) {
                     badge.style.display = 'none';
@@ -766,7 +934,7 @@ if($su_q){
     }
 
     function markAsRead(type, count) {
-        localStorage.setItem('seen_count_' + type, count);
+        localStorage.setItem('seen_count_' + type + '_' + currentUserId, count);
     }
 
     // Auto Refresh Logic (Global)
@@ -794,7 +962,7 @@ if($su_q){
         }
 
         // Update Local Storage
-        localStorage.setItem('nightMode', isNight ? 'enabled' : 'disabled');
+        localStorage.setItem('nightMode_' + currentUserId, isNight ? 'enabled' : 'disabled');
         
         // Update Database
         fetch('profile.php', {
@@ -856,7 +1024,7 @@ if($su_q){
 
     // Sync Night Mode across tabs
     window.addEventListener('storage', (e) => {
-        if (e.key === 'nightMode') {
+        if (e.key === 'nightMode_' + currentUserId) {
             if (e.newValue === 'enabled') document.body.classList.add('night-mode');
             else document.body.classList.remove('night-mode');
         }
@@ -946,6 +1114,98 @@ if($su_q){
             cropBtn.innerHTML = 'Crop & Upload';
         });
     });
+
+    // Dashboard Customization Logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('dashboard-cards');
+        
+        // Load State
+        loadDashboardState();
+
+        // Init Sortable
+        new Sortable(container, {
+            animation: 150,
+            ghostClass: 'opacity-50',
+            handle: '.card', // Drag by card
+            onEnd: function() {
+                saveDashboardState();
+            }
+        });
+    });
+
+    function saveDashboardState() {
+        const order = [];
+        const hidden = [];
+        
+        document.querySelectorAll('#dashboard-cards > div').forEach(el => {
+            const id = el.getAttribute('data-card-id');
+            if(id) {
+                order.push(id);
+                if(el.classList.contains('d-none')) hidden.push(id);
+            }
+        });
+        
+        localStorage.setItem('dashboard_order_' + currentUserId, JSON.stringify(order));
+        localStorage.setItem('dashboard_hidden_' + currentUserId, JSON.stringify(hidden));
+    }
+
+    function loadDashboardState() {
+        const order = JSON.parse(localStorage.getItem('dashboard_order_' + currentUserId));
+        const hidden = JSON.parse(localStorage.getItem('dashboard_hidden_' + currentUserId)) || [];
+        const container = document.getElementById('dashboard-cards');
+        
+        // Apply Visibility
+        document.querySelectorAll('[data-card-id]').forEach(el => {
+            const id = el.getAttribute('data-card-id');
+            const switchEl = document.getElementById('show-' + id);
+            
+            if(hidden.includes(id)) {
+                el.classList.add('d-none');
+                if(switchEl) switchEl.checked = false;
+            } else {
+                el.classList.remove('d-none');
+                if(switchEl) switchEl.checked = true;
+            }
+        });
+
+        // Apply Order
+        if(order && order.length > 0) {
+            const currentCards = Array.from(container.children);
+            const cardMap = {};
+            currentCards.forEach(el => {
+                const id = el.getAttribute('data-card-id');
+                if(id) cardMap[id] = el;
+            });
+            
+            order.forEach(id => {
+                if(cardMap[id]) {
+                    container.appendChild(cardMap[id]);
+                }
+            });
+            
+            // Append any remaining (new) cards
+            currentCards.forEach(el => {
+                const id = el.getAttribute('data-card-id');
+                if(id && !order.includes(id)) {
+                    container.appendChild(el);
+                }
+            });
+        }
+    }
+
+    function toggleCard(id) {
+        const el = document.querySelector(`[data-card-id="${id}"]`);
+        if(el) {
+            el.classList.toggle('d-none');
+            saveDashboardState();
+        }
+    }
+
+    function resetDashboardLayout() {
+        localStorage.removeItem('dashboard_order_' + currentUserId);
+        localStorage.removeItem('dashboard_hidden_' + currentUserId);
+        location.reload();
+    }
 </script>
 </body>
 </html>

@@ -83,6 +83,10 @@ $pending_house = ($pending_house_query) ? mysqli_fetch_assoc($pending_house_quer
 $waitlist_count_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM waitlist WHERE notified_at IS NULL");
 $waitlist_count = ($waitlist_count_query) ? mysqli_fetch_assoc($waitlist_count_query)['count'] : 0;
 
+// Stats: Deletion Requests Count
+$del_req_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM account_deletion_requests WHERE status='Pending'");
+$del_req_count = ($del_req_query) ? mysqli_fetch_assoc($del_req_query)['count'] : 0;
+
 // Detailed Occupancy by Floor
 $floors_data = [];
 $floors_q = mysqli_query($conn, "SELECT DISTINCT floor FROM rooms ORDER BY floor ASC");
@@ -247,6 +251,12 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                 <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
                 <?php if($waitlist_count > 0): ?>
                     <span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span>
+                <?php endif; ?>
+            </a>
+            <a href="admin_deletion_requests.php" class="sidebar-link d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-user-times me-2"></i>Deletion Req</span>
+                <?php if($del_req_count > 0): ?>
+                    <span class="badge bg-danger rounded-pill"><?= $del_req_count ?></span>
                 <?php endif; ?>
             </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>

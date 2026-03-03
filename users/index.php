@@ -63,6 +63,13 @@ if(isset($_SESSION['user_id'])){
     $unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$uid AND is_read=0");
     $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
     $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$uid ORDER BY created_at DESC LIMIT 10");
+
+    // Enforce System Update
+    $compliance = check_system_compliance($conn, $uid);
+    if($compliance['is_outdated']){
+        header("Location: profile.php?prompt_update=1");
+        exit;
+    }
 }
 ?>
 <!DOCTYPE html>
