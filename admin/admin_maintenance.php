@@ -179,6 +179,7 @@ $theme = get_theme_colors($conn);
                 <?php endif; ?>
             </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
+            <a href="admin_keys.php" class="sidebar-link"><i class="fas fa-key me-2"></i>Key Monitoring</a>
             
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="true" aria-controls="utilitiesSubmenu">
                 <span><i class="fas fa-tools me-2"></i>Utilities</span>

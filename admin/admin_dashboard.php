@@ -260,6 +260,9 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                 <?php endif; ?>
             </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
+            <a href="admin_room_occupancy.php" class="sidebar-link"><i class="fas fa-users me-2"></i>Room Occupancy</a>
+            <a href="admin_parking.php" class="sidebar-link"><i class="fas fa-parking me-2"></i>Parking</a>
+          
             
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="false" aria-controls="utilitiesSubmenu">
                 <span><i class="fas fa-tools me-2"></i>Utilities</span>

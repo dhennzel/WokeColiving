@@ -239,6 +239,12 @@ $c_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM mai
 $c_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE user_id=$user_id AND status IN ('Pending', 'Scheduled')"))['c'];
 $c_arch = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE user_id=$user_id AND is_archived=1"))['c'];
 
+$c_park = 0;
+try {
+    $p_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM parking_reservations WHERE user_id=$user_id AND status = 'Active'");
+    if($p_q) $c_park = mysqli_fetch_assoc($p_q)['c'];
+} catch(Exception $e){}
+
 $c_wait = 0;
 try {
     $w_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE user_id=$user_id");
@@ -480,8 +486,20 @@ if($su_q){
             </a>
         </div>
 
+        <!-- My Parking -->
+        <div class="col-md-3 reveal delay-4" data-card-id="parking">
+            <a href="my_parking.php" class="text-decoration-none" onclick="markAsRead('parking', <?= $c_park ?>)">
+                <div class="card profile-card h-100 p-5 text-center">
+                    <?php if($c_park > 0): ?><div class="card-badge" id="badge-parking" data-count="<?= $c_park ?>" title="Active Parking"><?= $c_park ?></div><?php endif; ?>
+                    <div class="icon-box"><i class="fas fa-parking"></i></div>
+                    <h4 class="fw-bold text-dark mb-3">My Parking</h4>
+                    <p class="text-muted small">View your assigned parking slots.</p>
+                </div>
+            </a>
+        </div>
+
         <!-- Maintenance -->
-        <div class="col-md-3 reveal delay-4" data-card-id="maintenance">
+        <div class="col-md-3 reveal delay-5" data-card-id="maintenance">
             <a href="maintenance.php" class="text-decoration-none" onclick="markAsRead('maintenance', <?= $c_maint ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_maint > 0): ?><div class="card-badge" id="badge-maintenance" data-count="<?= $c_maint ?>" title="Active Requests"><?= $c_maint ?></div><?php endif; ?>
@@ -493,7 +511,7 @@ if($su_q){
         </div>
 
         <!-- Housekeeping -->
-        <div class="col-md-3 reveal delay-5" data-card-id="housekeeping">
+        <div class="col-md-3 reveal delay-6" data-card-id="housekeeping">
             <a href="housekeeping.php" class="text-decoration-none" onclick="markAsRead('housekeeping', <?= $c_house ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_house > 0): ?><div class="card-badge" id="badge-housekeeping" data-count="<?= $c_house ?>" title="Active Requests"><?= $c_house ?></div><?php endif; ?>
@@ -505,7 +523,7 @@ if($su_q){
         </div>
 
         <!-- Archived History -->
-        <div class="col-md-3 reveal delay-6" data-card-id="archives">
+        <div class="col-md-3 reveal delay-7" data-card-id="archives">
             <a href="my_archives.php" class="text-decoration-none" onclick="markAsRead('archives', <?= $c_arch ?>)">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($c_arch > 0): ?><div class="card-badge" id="badge-archives" data-count="<?= $c_arch ?>" title="Archived Items"><?= $c_arch ?></div><?php endif; ?>
@@ -518,7 +536,7 @@ if($su_q){
 
         <!-- Other Request -->
         <?php if(isset($user_info['other_request_feature']) && $user_info['other_request_feature'] == 1): ?>
-        <div class="col-md-3 reveal delay-6" data-card-id="other_request">
+        <div class="col-md-3 reveal delay-8" data-card-id="other_request">
             <a href="https://www.facebook.com/WOKEES/" target="_blank" class="text-decoration-none">
                 <div class="card profile-card h-100 p-5 text-center">
                     <div class="icon-box"><i class="fab fa-facebook-messenger"></i></div>
@@ -530,7 +548,7 @@ if($su_q){
         <?php endif; ?>
 
         <!-- User Customization -->
-        <div class="col-md-3 reveal delay-7" data-card-id="customization">
+        <div class="col-md-3 reveal delay-9" data-card-id="customization">
             <a href="javascript:void(0)" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#customizationModal">
                 <div class="card profile-card h-100 p-5 text-center">
                     <div class="icon-box"><i class="fas fa-sliders-h"></i></div>
@@ -541,7 +559,7 @@ if($su_q){
         </div>
 
         <!-- System Update -->
-        <div class="col-md-3 reveal delay-8" data-card-id="update">
+        <div class="col-md-3 reveal delay-10" data-card-id="update">
             <a href="javascript:void(0)" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#systemUpdateModal">
                 <div class="card profile-card h-100 p-5 text-center">
                     <?php if($is_outdated): ?>
@@ -684,6 +702,10 @@ if($su_q){
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" id="show-reservations" checked onchange="toggleCard('reservations')">
                             <label class="form-check-label small" for="show-reservations">My Reservations</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="show-parking" checked onchange="toggleCard('parking')">
+                            <label class="form-check-label small" for="show-parking">My Parking</label>
                         </div>
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" id="show-maintenance" checked onchange="toggleCard('maintenance')">
@@ -919,7 +941,7 @@ if($su_q){
 
     // Card Badge Logic (Hide if seen)
     function checkCardBadges() {
-        const types = ['waitlist', 'reservations', 'maintenance', 'housekeeping', 'archives'];
+        const types = ['waitlist', 'reservations', 'maintenance', 'housekeeping', 'archives', 'parking'];
         types.forEach(type => {
             const badge = document.getElementById('badge-' + type);
             if(badge) {

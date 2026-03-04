@@ -218,6 +218,81 @@ function setup_deletion_requests_table($conn) {
 setup_deletion_requests_table($conn);
 }
 
+// --- PARKING MODULE TABLES ---
+if (!function_exists('setup_parking_tables')) {
+function setup_parking_tables($conn) {
+    // 1. Parking Slots Table
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS parking_slots (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        slot_name VARCHAR(50) NOT NULL,
+        slot_type ENUM('Car', 'Motorcycle') NOT NULL,
+        status ENUM('Available', 'Occupied') DEFAULT 'Available',
+        monthly_rate DECIMAL(10,2) NOT NULL,
+        daily_rate DECIMAL(10,2) NOT NULL,
+        is_archived TINYINT(1) DEFAULT 0
+    )");
+
+    // 2. Parking Reservations Table
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS parking_reservations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        slot_id INT NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE,
+        total_cost DECIMAL(10,2) NOT NULL,
+        billing_type ENUM('Monthly', 'Daily') NOT NULL,
+        status ENUM('Active', 'Completed') DEFAULT 'Active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+        FOREIGN KEY (slot_id) REFERENCES parking_slots(id)
+    )");
+
+    // 3. Pre-populate slots if table is empty
+    $check_slots = mysqli_query($conn, "SELECT id FROM parking_slots LIMIT 1");
+    if(mysqli_num_rows($check_slots) == 0){
+        for($i = 1; $i <= 5; $i++) mysqli_query($conn, "INSERT INTO parking_slots (slot_name, slot_type, monthly_rate, daily_rate) VALUES ('Car Slot $i', 'Car', 600.00, 200.00)");
+        for($i = 1; $i <= 5; $i++) mysqli_query($conn, "INSERT INTO parking_slots (slot_name, slot_type, monthly_rate, daily_rate) VALUES ('Motorcycle Slot $i', 'Motorcycle', 1500.00, 50.00)");
+    }
+}
+setup_parking_tables($conn);
+}
+
+// --- KEY MONITORING TABLES ---
+if (!function_exists('setup_key_tables')) {
+function setup_key_tables($conn) {
+    // 1. Keys Table
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS `keys` (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        key_name VARCHAR(100) NOT NULL,
+        type ENUM('Room', 'Parking') NOT NULL,
+        reference_id INT NOT NULL,
+        status ENUM('Available', 'Released') DEFAULT 'Available'
+    )");
+
+    // 2. Key Transactions Table
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS key_transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        key_id INT NOT NULL,
+        user_id INT NOT NULL,
+        released_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        returned_at DATETIME DEFAULT NULL,
+        status ENUM('Active', 'Returned') DEFAULT 'Active',
+        FOREIGN KEY (key_id) REFERENCES `keys`(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    )");
+
+    // 3. Sync Keys with Rooms
+    $rooms = mysqli_query($conn, "SELECT room_id, room_name, room_number FROM rooms");
+    while($r = mysqli_fetch_assoc($rooms)){
+        $name = "Room " . ($r['room_number'] ? $r['room_number'] : $r['room_name']) . " Key";
+        $rid = $r['room_id'];
+        $chk = mysqli_query($conn, "SELECT id FROM `keys` WHERE type='Room' AND reference_id=$rid");
+        if(mysqli_num_rows($chk) == 0) mysqli_query($conn, "INSERT INTO `keys` (key_name, type, reference_id) VALUES ('$name', 'Room', $rid)");
+    }
+}
+setup_key_tables($conn);
+}
+
 // --- SYSTEM UPDATES TABLE ---
 if (!function_exists('setup_updates_table')) {
 function setup_updates_table($conn) {
@@ -459,4 +534,141 @@ if($pay_query){
              }
         }
     }
+}
+
+// --- ROOM OCCUPANCY FUNCTIONS ---
+
+// Get room occupancy status (Fully Occupied / Partially Occupied / Vacant)
+if (!function_exists('get_room_occupancy_status')) {
+function get_room_occupancy_status($conn, $room_id) {
+    // Get room details
+    $room_q = mysqli_query($conn, "SELECT total_beds, availability FROM rooms WHERE room_id=$room_id");
+    $room = mysqli_fetch_assoc($room_q);
+    
+    if (!$room) return 'Unknown';
+    
+    // Check if room is under maintenance
+    if ($room['availability'] == 'Maintenance') {
+        return 'Maintenance';
+    }
+    
+    // Count current occupants (Approved or Pending reservations that overlap with current date)
+    $occ_q = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM reservations 
+        WHERE room_id=$room_id AND status IN ('Approved', 'Pending') 
+        AND start_date <= CURDATE() AND end_date > CURDATE()");
+    $occupied = mysqli_fetch_assoc($occ_q)['cnt'];
+    
+    $total_beds = $room['total_beds'];
+    
+    if ($occupied == 0) {
+        return 'Vacant';
+    } elseif ($occupied >= $total_beds) {
+        return 'Fully Occupied';
+    } else {
+        return 'Partially Occupied';
+    }
+}
+}
+
+// Get current occupants for a room
+if (!function_exists('get_room_occupants')) {
+function get_room_occupants($conn, $room_id) {
+    $query = mysqli_query($conn, "
+        SELECT r.reservation_id, r.start_date, r.end_date, r.bed_preference, r.status,
+               u.user_id, u.first_name, u.last_name, u.middle_name, u.profile_image,
+               CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name
+        FROM reservations r
+        JOIN users u ON r.user_id = u.user_id
+        WHERE r.room_id = $room_id 
+        AND r.status IN ('Approved', 'Pending')
+        AND r.start_date <= CURDATE() 
+        AND r.end_date > CURDATE()
+        ORDER BY r.bed_preference, u.last_name
+    ");
+    
+    $occupants = [];
+    while ($row = mysqli_fetch_assoc($query)) {
+        $occupants[] = $row;
+    }
+    return $occupants;
+}
+}
+
+// Get room key information
+if (!function_exists('get_room_key_info')) {
+function get_room_key_info($conn, $room_id) {
+    $query = mysqli_query($conn, "
+        SELECT k.id as key_id, k.key_name, k.status as key_status,
+               kt.id as trans_id, kt.user_id as key_holder_id, kt.released_at,
+               CONCAT(u.last_name, ', ', u.first_name) as key_holder_name
+        FROM `keys` k
+        LEFT JOIN key_transactions kt ON k.id = kt.key_id AND kt.status = 'Active'
+        LEFT JOIN users u ON kt.user_id = u.user_id
+        WHERE k.type = 'Room' AND k.reference_id = $room_id
+    ");
+    
+    return mysqli_fetch_assoc($query);
+}
+}
+
+// Get all rooms with occupancy information
+if (!function_exists('get_all_rooms_with_occupancy')) {
+function get_all_rooms_with_occupancy($conn) {
+    $query = mysqli_query($conn, "
+        SELECT r.*, 
+               r.room_number, r.room_type, r.total_beds, r.floor, r.room_name, r.availability
+        FROM rooms r
+        ORDER BY r.room_type, r.floor, r.room_number
+    ");
+    
+    $rooms = [];
+    while ($row = mysqli_fetch_assoc($query)) {
+        $room_id = $row['room_id'];
+        $row['occupancy_status'] = get_room_occupancy_status($conn, $room_id);
+        $row['occupants'] = get_room_occupants($conn, $room_id);
+        $row['key_info'] = get_room_key_info($conn, $room_id);
+        $row['occupied_count'] = count($row['occupants']);
+        
+        // Calculate available beds
+        $row['available_beds'] = max(0, $row['total_beds'] - $row['occupied_count']);
+        
+        $rooms[] = $row;
+    }
+    return $rooms;
+}
+}
+
+// Handle key release from room occupancy page
+if (!function_exists('release_room_key')) {
+function release_room_key($conn, $key_id, $user_id) {
+    $chk = mysqli_query($conn, "SELECT status FROM `keys` WHERE id=$key_id");
+    $k = mysqli_fetch_assoc($chk);
+    
+    if ($k['status'] == 'Available') {
+        mysqli_query($conn, "INSERT INTO key_transactions (key_id, user_id) VALUES ($key_id, $user_id)");
+        mysqli_query($conn, "UPDATE `keys` SET status='Released' WHERE id=$key_id");
+        
+        send_notification($conn, $user_id, "🔑 <strong>Key Assigned</strong><br>You have been assigned a key. Please keep it safe.", "Key System");
+        trigger_update($conn);
+        return true;
+    }
+    return false;
+}
+}
+
+// Handle key return from room occupancy page
+if (!function_exists('return_room_key')) {
+function return_room_key($conn, $trans_id) {
+    $t_q = mysqli_query($conn, "SELECT key_id, user_id FROM key_transactions WHERE id=$trans_id");
+    if ($t = mysqli_fetch_assoc($t_q)) {
+        $key_id = $t['key_id'];
+        mysqli_query($conn, "UPDATE key_transactions SET status='Returned', returned_at=NOW() WHERE id=$trans_id");
+        mysqli_query($conn, "UPDATE `keys` SET status='Available' WHERE id=$key_id");
+        
+        send_notification($conn, $t['user_id'], "🔑 <strong>Key Returned</strong><br>Key has been marked as returned.", "Key System");
+        trigger_update($conn);
+        return true;
+    }
+    return false;
+}
 }
