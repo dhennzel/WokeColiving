@@ -9,6 +9,7 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 }
 
 $message = "";
+$active_tab = "";
 
 // Handle Archive Actions (Delete/Restore)
 if(isset($_POST['archive_action'])) {
@@ -16,6 +17,10 @@ if(isset($_POST['archive_action'])) {
     $type = $_POST['type']; // 'maintenance' or 'housekeeping'
     $action = $_POST['archive_action']; // 'delete' or 'restore'
     
+    if($type == 'room') $active_tab = 'rooms';
+    elseif($type == 'maintenance') $active_tab = 'maintenance';
+    elseif($type == 'housekeeping') $active_tab = 'housekeeping';
+
     if ($type == 'room') {
         if ($action == 'restore') {
             mysqli_query($conn, "UPDATE rooms SET is_archived='0' WHERE room_id=$id");
@@ -45,14 +50,14 @@ if(isset($_POST['archive_action'])) {
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
 
 // Fetch Maintenance Archive
-$m_sql = "SELECT m.*, u.full_name, r.room_name FROM maintenance_requests m JOIN users u ON m.user_id = u.user_id LEFT JOIN rooms r ON m.room_id = r.room_id WHERE m.status IN ('Completed', 'Cancelled')";
-if($search) $m_sql .= " AND (u.full_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR m.description LIKE '%$search%')";
+$m_sql = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name FROM maintenance_requests m JOIN users u ON m.user_id = u.user_id LEFT JOIN rooms r ON m.room_id = r.room_id WHERE m.status IN ('Completed', 'Cancelled')";
+if($search) $m_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR m.description LIKE '%$search%')";
 $m_sql .= " ORDER BY m.created_at DESC";
 $maintenance_query = mysqli_query($conn, $m_sql);
 
 // Fetch Housekeeping Archive
-$h_sql = "SELECT h.*, u.full_name, r.room_name FROM housekeeping_requests h JOIN users u ON h.user_id = u.user_id LEFT JOIN rooms r ON h.room_id = r.room_id WHERE h.status IN ('Completed', 'Cancelled')";
-if($search) $h_sql .= " AND (u.full_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR h.description LIKE '%$search%')";
+$h_sql = "SELECT h.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name FROM housekeeping_requests h JOIN users u ON h.user_id = u.user_id LEFT JOIN rooms r ON h.room_id = r.room_id WHERE h.status IN ('Completed', 'Cancelled')";
+if($search) $h_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR h.description LIKE '%$search%')";
 $h_sql .= " ORDER BY h.created_at DESC";
 $housekeeping_query = mysqli_query($conn, $h_sql);
 
@@ -63,14 +68,14 @@ $r_sql .= " ORDER BY room_name ASC";
 $archived_rooms_query = mysqli_query($conn, $r_sql);
 
 // Fetch Transaction Reports (All Paid Payments)
-$t_sql = "SELECT p.*, u.full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status='Paid'";
-if($search) $t_sql .= " AND (u.full_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%' OR p.reference_number LIKE '%$search%')";
+$t_sql = "SELECT p.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status='Paid'";
+if($search) $t_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%' OR p.reference_number LIKE '%$search%')";
 $t_sql .= " ORDER BY p.payment_date DESC";
 $transactions_query = mysqli_query($conn, $t_sql);
 
 // Fetch Paid Utility Bills
-$u_sql = "SELECT p.*, u.full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status = 'Paid' AND p.description LIKE 'Utility Bill%'";
-if($search) $u_sql .= " AND (u.full_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%')";
+$u_sql = "SELECT p.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status = 'Paid' AND p.description LIKE 'Utility Bill%'";
+if($search) $u_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%')";
 $u_sql .= " ORDER BY p.payment_date DESC";
 $utility_bills_query = mysqli_query($conn, $u_sql);
 
@@ -78,6 +83,8 @@ $utility_bills_query = mysqli_query($conn, $u_sql);
 $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
+$waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
+$del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 
 $theme = get_theme_colors($conn);
 ?>
@@ -150,7 +157,14 @@ $theme = get_theme_colors($conn);
                     <span class="badge bg-danger rounded-pill"><?= $pending_res ?></span>
                 <?php endif; ?>
             </a>
+            <a href="admin_waitlist.php" class="sidebar-link d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
+                <?php if($waitlist_count > 0): ?>
+                    <span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span>
+                <?php endif; ?>
+            </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
+            <a href="admin_keys.php" class="sidebar-link"><i class="fas fa-key me-2"></i>Key Monitoring</a>
             
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="true" aria-controls="utilitiesSubmenu">
                 <span><i class="fas fa-tools me-2"></i>Utilities</span>
@@ -253,12 +267,14 @@ $theme = get_theme_colors($conn);
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this request to Pending?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="maintenance">
-                                                <button type="submit" name="archive_action" value="restore" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                                <input type="hidden" name="archive_action" value="restore">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
                                             </form>
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="maintenance">
-                                                <button type="submit" name="archive_action" value="delete" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                                <input type="hidden" name="archive_action" value="delete">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
                                             </form>
                                         </td>
                                     </tr>
@@ -289,12 +305,14 @@ $theme = get_theme_colors($conn);
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this request to Pending?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="housekeeping">
-                                                <button type="submit" name="archive_action" value="restore" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                                <input type="hidden" name="archive_action" value="restore">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
                                             </form>
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
                                                 <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                                 <input type="hidden" name="type" value="housekeeping">
-                                                <button type="submit" name="archive_action" value="delete" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                                <input type="hidden" name="archive_action" value="delete">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
                                             </form>
                                         </td>
                                     </tr>
@@ -348,12 +366,14 @@ $theme = get_theme_colors($conn);
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this room?')">
                                                 <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
                                                 <input type="hidden" name="type" value="room">
-                                                <button type="submit" name="archive_action" value="restore" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                                <input type="hidden" name="archive_action" value="restore">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
                                             </form>
                                             <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this room?')">
                                                 <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
                                                 <input type="hidden" name="type" value="room">
-                                                <button type="submit" name="archive_action" value="delete" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                                <input type="hidden" name="archive_action" value="delete">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
                                             </form>
                                         </td>
                                     </tr>
@@ -419,7 +439,15 @@ document.addEventListener('click', function(event) {
 
 // Handle URL Hash for Tabs
 var hash = window.location.hash;
-if (hash) {
+var phpActiveTab = "<?= $active_tab ?>";
+
+if (phpActiveTab) {
+    var triggerEl = document.querySelector('button[data-bs-target="#' + phpActiveTab + '"]');
+    if (triggerEl) {
+        var tab = new bootstrap.Tab(triggerEl);
+        tab.show();
+    }
+} else if (hash) {
     var triggerEl = document.querySelector('button[data-bs-target="' + hash + '"]');
     if (triggerEl) {
         var tab = new bootstrap.Tab(triggerEl);

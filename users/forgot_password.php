@@ -2,13 +2,6 @@
 session_start();
 include('../db.php');
 
-// Ensure reset columns exist
-$check_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'reset_token'");
-if(mysqli_num_rows($check_col) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN reset_token VARCHAR(255) DEFAULT NULL");
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN reset_expiry DATETIME DEFAULT NULL");
-}
-
 $error = "";
 
 if (isset($_POST['reset_request'])) {

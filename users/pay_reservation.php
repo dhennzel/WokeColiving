@@ -65,6 +65,15 @@ if(isset($_POST['submit_payment'])){
         body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
         .navbar { background: var(--dark-green); padding: 15px 0; }
         .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
+
+        /* Night Mode Styles */
+        body.night-mode { background-color: #121212; color: #e0e0e0; }
+        body.night-mode .navbar { background: #1f1f1f !important; }
+        body.night-mode .card-custom { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
+        body.night-mode .alert-info { background-color: #2c2c2c; border-color: #333; color: #e0e0e0; }
+        body.night-mode .form-control, body.night-mode .form-select { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
+        body.night-mode .form-control:focus, body.night-mode .form-select:focus { background-color: #333; color: #fff; }
+        body.night-mode .bg-light { background-color: #2c2c2c !important; }
     </style>
 </head>
 <body>
@@ -126,6 +135,17 @@ function togglePaymentDetails() {
     let method = document.getElementById('payment_method').value;
     document.getElementById('gcash_div').style.display = (method === 'GCash') ? 'block' : 'none';
 }
+
+// Night Mode Logic
+if(localStorage.getItem('nightMode') === 'enabled') {
+    document.body.classList.add('night-mode');
+}
+window.addEventListener('storage', (e) => {
+    if (e.key === 'nightMode') {
+        if (e.newValue === 'enabled') document.body.classList.add('night-mode');
+        else document.body.classList.remove('night-mode');
+    }
+});
 </script>
 </body>
 </html>

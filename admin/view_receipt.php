@@ -23,9 +23,29 @@ if(isset($_POST['reset_signature'])){
     exit;
 }
 
+// Handle Request Signature
+if(isset($_POST['request_signature'])){
+    $res_id = $id; // from $_GET['id']
+    $user_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE reservation_id=$res_id");
+    $uid = mysqli_fetch_assoc($user_q)['user_id'];
+    
+    // Ensure column exists
+    $check_sig = mysqli_query($conn, "SHOW COLUMNS FROM reservations LIKE 'signature_required'");
+    if(mysqli_num_rows($check_sig) == 0) {
+        mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN signature_required TINYINT(1) DEFAULT 0");
+    }
+
+    mysqli_query($conn, "UPDATE reservations SET signature_required=1 WHERE reservation_id=$res_id");
+    send_notification($conn, $uid, "✍️ <strong>Signature Required</strong><br>Admin has requested your signature for Reservation #$res_id. Please go to My Reservations to sign.", "Action Required");
+    log_activity($conn, $uid, "Signature Requested", "Admin requested signature for Reservation #$res_id from receipt view.");
+    
+    header("Location: view_receipt.php?id=$id&msg=sig_requested");
+    exit;
+}
+
 // Fetch Reservation & User & Room Details
 $query = "
-    SELECT r.*, u.full_name, u.email, u.phone_number, rm.room_name, rm.room_type, rm.floor
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, u.is_walkin, u.emergency_contact_name, u.emergency_contact_number, rm.room_name, rm.room_type, rm.floor
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -157,6 +177,9 @@ $theme = get_theme_colors($conn);
 <body>
 
 <div class="receipt-wrapper">
+    <?php if(isset($_GET['msg']) && $_GET['msg'] == 'sig_requested'): ?>
+        <div class="alert alert-success text-center no-print" style="position:absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 10;">Signature request sent to user.</div>
+    <?php endif; ?>
     <div class="receipt-container">
         <!-- Header -->
         <div class="receipt-header d-flex justify-content-between align-items-center">
@@ -171,6 +194,9 @@ $theme = get_theme_colors($conn);
             <div class="text-end">
                 <h2 class="fw-bold mb-1">RECEIPT</h2>
                 <div class="opacity-75">#<?= str_pad($data['reservation_id'], 6, '0', STR_PAD_LEFT) ?></div>
+                <?php if(!empty($data['is_walkin'])): ?>
+                    <div class="badge bg-info text-dark mt-1">WALK-IN GUEST</div>
+                <?php endif; ?>
                 <div class="mt-2 badge bg-warning text-dark shadow-sm">
                     <?= ($balance <= 0) ? 'PAID IN FULL' : 'PARTIALLY PAID' ?>
                 </div>
@@ -185,6 +211,9 @@ $theme = get_theme_colors($conn);
                     <div class="info-value fw-bold"><?= $data['full_name'] ?></div>
                     <div class="small text-muted"><?= $data['email'] ?></div>
                     <div class="small text-muted"><?= $data['phone_number'] ?></div>
+                    <?php if(!empty($data['emergency_contact_name'])): ?>
+                        <div class="small text-muted mt-1">ICE: <?= $data['emergency_contact_name'] ?> (<?= $data['emergency_contact_number'] ?>)</div>
+                    <?php endif; ?>
                 </div>
                 <div class="col-md-4">
                     <div class="info-label">Room Details</div>
@@ -255,7 +284,7 @@ $theme = get_theme_colors($conn);
                     <div class="info-label mb-2">Guest Signature</div>
                 <?php if(!empty($data['signature_image'])): ?>
                     <div class="sig-box">
-                        <img src="../assets/signatures/<?= $data['signature_image'] ?>" class="sig-img">
+                        <img src="../assets/signatures/<?= $data['signature_image'] ?>?v=<?= time() ?>" class="sig-img">
                     </div>
                     <div class="small text-muted mt-1">Signed Electronically</div>
                     <form method="POST" class="mt-2 no-print" id="resetSigForm">
@@ -265,7 +294,17 @@ $theme = get_theme_colors($conn);
                         </button>
                     </form>
                 <?php else: ?>
+                    <?php if(!empty($data['is_walkin'])): ?>
+                        <div style="border-bottom: 1px solid #333; width: 200px; margin-top: 40px;"></div>
+                        <div class="small text-muted mt-1">Signature over Printed Name</div>
+                        <div class="small text-muted fst-italic">(Walk-in Guest)</div>
+                    <?php else: ?>
                         <div class="text-muted fst-italic mt-3">Not signed yet</div>
+                    <?php endif; ?>
+                    <form method="POST" class="mt-2 no-print">
+                        <input type="hidden" name="request_signature" value="1">
+                        <button type="submit" class="btn btn-sm btn-warning text-dark"><i class="fas fa-paper-plane me-1"></i> Request E-Signature</button>
+                    </form>
                 <?php endif; ?>
             </div>
             <div class="col-6 text-end">

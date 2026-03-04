@@ -70,9 +70,9 @@ if($room['availability'] == 'Maintenance') {
 $user_name = "";
 if(isset($_SESSION['user_id'])){
     $uid = $_SESSION['user_id'];
-    $u_q = mysqli_query($conn, "SELECT full_name FROM users WHERE user_id=$uid");
+    $u_q = mysqli_query($conn, "SELECT first_name FROM users WHERE user_id=$uid");
     if($u_row = mysqli_fetch_assoc($u_q)){
-        $user_name = $u_row['full_name'];
+        $user_name = $u_row['first_name'];
         
         // Fetch Unread Count & Notifications
         $unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$uid AND is_read=0");
@@ -104,6 +104,17 @@ if(isset($_SESSION['user_id'])){
         .room-img { width: 100%; height: 350px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         @keyframes shake { 0% { transform: rotate(0deg); } 20% { transform: rotate(15deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(5deg); } 80% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
         .shake-animation { animation: shake 0.5s; }
+
+        /* Night Mode Styles */
+        body.night-mode { background-color: #121212; color: #e0e0e0; }
+        body.night-mode .navbar { background: #1f1f1f !important; }
+        body.night-mode .bg-white { background-color: #1e1e1e !important; color: #e0e0e0; border-color: #333 !important; }
+        body.night-mode .text-dark { color: #e0e0e0 !important; }
+        body.night-mode .text-muted { color: #b0b0b0 !important; }
+        body.night-mode .btn-light { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
+        body.night-mode .border { border-color: #333 !important; }
+        body.night-mode .btn-outline-secondary { color: #e0e0e0; border-color: #6c757d; }
+        body.night-mode .btn-outline-secondary:hover { background-color: #6c757d; color: #fff; }
     </style>
 </head>
 <body>
@@ -119,35 +130,17 @@ if(isset($_SESSION['user_id'])){
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto align-items-center gap-3">
-                <li class="nav-item"><a href="index.php" class="nav-link text-white">Home</a></li>
-                <li class="nav-item"><a href="index.php#rooms" class="nav-link text-white">Rooms</a></li>
-            </ul>
-            <div class="d-flex gap-2 ms-3">
+            <div class="d-flex gap-2 ms-auto">
                 <?php if(isset($_SESSION['user_id'])): ?>
-                    <!-- Notification Dropdown -->
-                    <div class="dropdown">
-                        <a href="#" class="text-white text-decoration-none position-relative me-3" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-bell fa-lg"></i>
-                            <?php if($unread_count > 0): ?>
-                                <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;">
-                                    <?= $unread_count ?>
-                                    <span class="visually-hidden">unread messages</span>
-                                </span>
-                            <?php endif; ?>
-                        </a>
-                        <ul id="notifList" class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="notifDropdown" style="width: 320px; max-height: 400px; overflow-y: auto;">
-                            <li class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
-                                <span class="fw-bold small text-uppercase text-muted">Notifications</span>
-                                <?php if($unread_count > 0): ?>
-                                    <a href="profile.php?read_all=1" class="small text-decoration-none">Mark all read</a>
-                                <?php endif; ?>
-                            </li>
-                            <!-- Notifications will be loaded via JS -->
-                        </ul>
-                    </div>
-                    <a href="profile.php" class="text-white text-decoration-none fw-bold me-3">My Profile</a>
-                    <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars(explode(' ', $user_name)[0]) ?></span>
+                    <a href="profile.php" class="text-white text-decoration-none fw-bold me-3 position-relative">
+                        My Profile
+                        <?php if($unread_count > 0): ?>
+                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                <span class="visually-hidden">New alerts</span>
+                            </span>
+                        <?php endif; ?>
+                    </a>
+                    <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_name) ?></span>
                     <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
                 <?php else: ?>
                     <a href="login.php" class="btn btn-outline-light rounded-pill px-4">Login</a>
@@ -234,5 +227,19 @@ if(isset($_SESSION['user_id'])){
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Night Mode Logic
+    if(localStorage.getItem('nightMode') === 'enabled') {
+        document.body.classList.add('night-mode');
+    }
+
+    // Sync Night Mode across tabs
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'nightMode') {
+            if (e.newValue === 'enabled') document.body.classList.add('night-mode');
+            else document.body.classList.remove('night-mode');
+        }
+    });
+</script>
 </body>
 </html>

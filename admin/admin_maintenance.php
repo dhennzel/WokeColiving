@@ -78,7 +78,7 @@ if(isset($_POST['update_request'])){
 }
 
 // Fetch All Requests
-$query = "SELECT m.*, u.full_name, r.room_name 
+$query = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name 
           FROM maintenance_requests m 
           JOIN users u ON m.user_id = u.user_id 
           LEFT JOIN rooms r ON m.room_id = r.room_id 
@@ -105,6 +105,8 @@ while($ar = mysqli_fetch_assoc($avail_rooms_q)){
 $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
+$waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
+$del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 
 $theme = get_theme_colors($conn);
 ?>
@@ -171,7 +173,14 @@ $theme = get_theme_colors($conn);
                     <span class="badge bg-danger rounded-pill"><?= $pending_res ?></span>
                 <?php endif; ?>
             </a>
+            <a href="admin_waitlist.php" class="sidebar-link d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
+                <?php if($waitlist_count > 0): ?>
+                    <span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span>
+                <?php endif; ?>
+            </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
+            <a href="admin_keys.php" class="sidebar-link"><i class="fas fa-key me-2"></i>Key Monitoring</a>
             
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="true" aria-controls="utilitiesSubmenu">
                 <span><i class="fas fa-tools me-2"></i>Utilities</span>

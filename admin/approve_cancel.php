@@ -9,7 +9,7 @@ if (isset($_GET['approve'])) {
     mysqli_query($conn, "UPDATE reservations SET status='Approved' WHERE reservation_id=$id");
 }
 
-$query = mysqli_query($conn, "SELECT r.*, u.full_name, rm.room_name 
+$query = mysqli_query($conn, "SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, rm.room_name 
 FROM reservations r
 JOIN users u ON r.user_id=u.user_id
 JOIN rooms rm ON r.room_id=rm.room_id");

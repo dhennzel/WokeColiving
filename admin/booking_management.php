@@ -183,7 +183,7 @@ if(isset($_GET['action'])){
         $res_q = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
         $res_data = mysqli_fetch_assoc($res_q);
         
-        if($res_data && ($res_data['status'] == 'Pending' || $res_data['status'] == 'Verifying')){
+        if($res_data && $res_data['status'] == 'Verifying'){
             $target_user_id = $res_data['user_id'];
             $current_room_id = $res_data['room_id'];
             $s_date = $res_data['start_date'];
@@ -259,11 +259,12 @@ $types = "";
 
 if(isset($_GET['search']) && !empty($_GET['search'])){
     $search = "%" . $_GET['search'] . "%";
-    $where_clause .= " AND (u.full_name LIKE ? OR u.email LIKE ? OR rm.room_name LIKE ?)";
+    $where_clause .= " AND (u.last_name LIKE ? OR u.first_name LIKE ? OR u.email LIKE ? OR rm.room_name LIKE ?)";
     $params[] = $search;
     $params[] = $search;
     $params[] = $search;
-    $types .= "sss";
+    $params[] = $search;
+    $types .= "ssss";
 }
 if(isset($_GET['status']) && !empty($_GET['status'])){
     $status_filter = $_GET['status'];
@@ -271,10 +272,17 @@ if(isset($_GET['status']) && !empty($_GET['status'])){
     $params[] = $status_filter;
     $types .= "s";
 }
+if(isset($_GET['type']) && !empty($_GET['type'])){
+    if($_GET['type'] == 'Walkin'){
+        $where_clause .= " AND u.is_walkin = 1";
+    } elseif($_GET['type'] == 'Ordinary'){
+        $where_clause .= " AND u.is_walkin = 0";
+    }
+}
 
 // Fetch Reservations with Filters
 $sql = "
-    SELECT r.*, u.full_name, u.email, u.do_not_renew, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.do_not_renew, u.profile_image, u.is_walkin, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -298,6 +306,8 @@ if (!empty($params)) {
 $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
+$waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
+$del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 
 $theme = get_theme_colors($conn);
 ?>
@@ -328,7 +338,7 @@ $theme = get_theme_colors($conn);
         .sidebar-brand { color: var(--accent-yellow); font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.3rem; padding: 25px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
         .card-table { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
         .table th { background-color: var(--primary-green); color: white; font-weight: 500; border: none; }
-        .user-avatar { width: 35px; height: 35px; background: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; }
+        .user-avatar { width: 35px; height: 35px; background: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; overflow: hidden; }
         .badge-pending { background: #fff3cd; color: #856404; }
         .badge-approved { background: #d4edda; color: #155724; }
         .badge-cancelled { background: #f8d7da; color: #721c24; }
@@ -352,7 +362,14 @@ $theme = get_theme_colors($conn);
                     <span class="badge bg-danger rounded-pill"><?= $pending_res ?></span>
                 <?php endif; ?>
             </a>
+            <a href="admin_waitlist.php" class="sidebar-link d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
+                <?php if($waitlist_count > 0): ?>
+                    <span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span>
+                <?php endif; ?>
+            </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
+            <a href="admin_room_occupancy.php" class="sidebar-link"><i class="fas fa-users me-2"></i>Room Occupancy</a>
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center"><span><i class="fas fa-tools me-2"></i>Utilities</span><i class="fas fa-chevron-down small"></i></a>
             <div class="collapse" id="utilitiesSubmenu">
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-file-invoice-dollar me-2"></i>Billing</a>
@@ -389,13 +406,21 @@ $theme = get_theme_colors($conn);
             </div>
             <div class="card card-table p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <a href="add_reservation.php" class="btn btn-sm btn-success rounded-pill"><i class="fas fa-plus me-1"></i> New Booking</a>
+                    <div class="d-flex gap-2">
+                        <a href="add_reservation.php" class="btn btn-sm btn-success rounded-pill"><i class="fas fa-plus me-1"></i> New Booking</a>
+                        <button onclick="location.reload()" class="btn btn-sm btn-outline-secondary rounded-pill"><i class="fas fa-sync-alt me-1"></i> Refresh</button>
+                    </div>
                     <form class="d-flex gap-2" method="GET">
                         <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">All Status</option>
                             <option value="Pending" <?= (isset($_GET['status']) && $_GET['status']=='Pending')?'selected':'' ?>>Pending</option>
                             <option value="Approved" <?= (isset($_GET['status']) && $_GET['status']=='Approved')?'selected':'' ?>>Approved</option>
                             <option value="Cancelled" <?= (isset($_GET['status']) && $_GET['status']=='Cancelled')?'selected':'' ?>>Cancelled</option>
+                        </select>
+                        <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            <option value="Ordinary" <?= (isset($_GET['type']) && $_GET['type']=='Ordinary')?'selected':'' ?>>Ordinary</option>
+                            <option value="Walkin" <?= (isset($_GET['type']) && $_GET['type']=='Walkin')?'selected':'' ?>>Walk-in</option>
                         </select>
                         <input type="text" name="search" class="form-control form-control-sm" placeholder="Search..." value="<?= $_GET['search'] ?? '' ?>">
                         <button class="btn btn-sm btn-custom"><i class="fas fa-search"></i></button>
@@ -407,7 +432,17 @@ $theme = get_theme_colors($conn);
                         <tbody>
                             <?php while($res = mysqli_fetch_assoc($reservations)) { ?>
                             <tr>
-                                <td><div class="d-flex align-items-center"><div class="user-avatar"><?= strtoupper(substr($res['full_name'],0,1)) ?></div><div><div class="fw-bold"><?= $res['full_name'] ?> <div class="dropdown d-inline ms-1"><a href="#" class="text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v fa-sm"></i></a><ul class="dropdown-menu"><li><a class="dropdown-item" href="view_user.php?uid=<?= $res['user_id'] ?>"><i class="fas fa-eye me-2"></i>View History</a></li><li><a class="dropdown-item" href="?action=toggle_dnr&uid=<?= $res['user_id'] ?>"><i class="fas fa-flag me-2"></i><?= $res['do_not_renew'] ? 'Unflag DNR' : 'Flag DNR' ?></a></li></ul></div></div><small class="text-muted"><?= $res['email'] ?></small><?php if($res['do_not_renew']): ?><div class="badge bg-danger" style="font-size: 0.6rem;">Do Not Renew</div><?php endif; ?></div></div></td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar"><?php if(!empty($res['profile_image'])): ?><img src="../uploads/profiles/<?= $res['profile_image'] ?>" style="width: 100%; height: 100%; object-fit: cover;"><?php else: ?><?= strtoupper(substr($res['full_name'],0,1)) ?><?php endif; ?></div>
+                                        <div>
+                                            <div class="fw-bold"><?= $res['full_name'] ?> <div class="dropdown d-inline ms-1"><a href="#" class="text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v fa-sm"></i></a><ul class="dropdown-menu"><li><a class="dropdown-item" href="view_user.php?uid=<?= $res['user_id'] ?>"><i class="fas fa-eye me-2"></i>View History</a></li><li><a class="dropdown-item" href="?action=toggle_dnr&uid=<?= $res['user_id'] ?>"><i class="fas fa-flag me-2"></i><?= $res['do_not_renew'] ? 'Unflag DNR' : 'Flag DNR' ?></a></li></ul></div></div>
+                                            <small class="text-muted"><?= $res['email'] ?></small>
+                                            <?php if($res['is_walkin']): ?><span class="badge bg-info text-dark ms-1" style="font-size: 0.6rem;">Walk-in</span><?php endif; ?>
+                                            <?php if($res['do_not_renew']): ?><div class="badge bg-danger" style="font-size: 0.6rem;">Do Not Renew</div><?php endif; ?>
+                                        </div>
+                                    </div>
+                                </td>
                                 <td><div class="d-flex align-items-center"><img src="../assets/images/<?= $res['image'] ?>" class="rounded me-2" style="width:40px;height:40px;object-fit:cover;"><div><div class="fw-bold text-success"><?= $res['room_name'] ?></div><small class="text-muted"><?= $res['room_type'] ?></small></div></div></td>
                                 <td>
                                     <div><i class="fas fa-calendar-alt text-muted me-1"></i> <?= date('M d, Y', strtotime($res['start_date'])) ?> - <?= date('M d, Y', strtotime($res['end_date'])) ?></div>
@@ -434,7 +469,13 @@ $theme = get_theme_colors($conn);
                                     ?>
                                     <span class="badge <?= $b_class ?> rounded-pill px-3"><?= $s ?></span>
                                 </td>
-                                <td><?php if(!empty($res['signature_image'])) { ?><a href="view_receipt.php?id=<?= $res['reservation_id'] ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-signature"></i> View</a><?php } else { ?>-<?php } ?></td>
+                                <td>
+                                    <?php if(!empty($res['signature_image'])) { ?>
+                                        <a href="view_receipt.php?id=<?= $res['reservation_id'] ?>" target="_blank" class="btn btn-sm btn-outline-success" title="Signed"><i class="fas fa-file-signature"></i> View</a>
+                                    <?php } elseif($res['is_walkin']) { ?>
+                                        <a href="view_receipt.php?id=<?= $res['reservation_id'] ?>" target="_blank" class="btn btn-sm btn-outline-primary" title="Walk-in (Manual)"><i class="fas fa-file-invoice"></i> View</a>
+                                    <?php } else { ?>-<?php } ?>
+                                </td>
                                 <td class="text-end">
                                     <?php if($res['status'] == 'Pending'): ?>
                                         <a href="view_user.php?uid=<?= $res['user_id'] ?>" class="btn btn-sm btn-warning position-relative fw-bold text-dark" title="Action Required">

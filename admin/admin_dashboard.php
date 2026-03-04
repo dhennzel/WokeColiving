@@ -10,7 +10,7 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 
 // AJAX: Fetch Recent Activity
 if(isset($_GET['fetch_activity'])){
-    $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
+    $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_name) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
     if(mysqli_num_rows($logs_q) > 0){
         while($log = mysqli_fetch_assoc($logs_q)){
             echo '<div class="list-group-item">
@@ -62,7 +62,7 @@ $occupancy_rate = ($total_capacity > 0) ? round(($total_occupied / $total_capaci
 
 // Fetch Expiring Contracts (Approved and ending within 7 days or already ended)
 $expiring_query = mysqli_query($conn, "
-    SELECT r.*, u.full_name, u.do_not_renew, rm.room_name 
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, u.do_not_renew, rm.room_name 
     FROM reservations r 
     JOIN users u ON r.user_id = u.user_id 
     JOIN rooms rm ON r.room_id = rm.room_id 
@@ -78,6 +78,14 @@ $pending_maint = ($pending_maint_query) ? mysqli_fetch_assoc($pending_maint_quer
 // Stats: Pending Housekeeping
 $pending_house_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM housekeeping_requests WHERE status='Pending'");
 $pending_house = ($pending_house_query) ? mysqli_fetch_assoc($pending_house_query)['count'] : 0;
+
+// Stats: Waitlist Count
+$waitlist_count_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM waitlist WHERE notified_at IS NULL");
+$waitlist_count = ($waitlist_count_query) ? mysqli_fetch_assoc($waitlist_count_query)['count'] : 0;
+
+// Stats: Deletion Requests Count
+$del_req_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM account_deletion_requests WHERE status='Pending'");
+$del_req_count = ($del_req_query) ? mysqli_fetch_assoc($del_req_query)['count'] : 0;
 
 // Detailed Occupancy by Floor
 $floors_data = [];
@@ -123,7 +131,7 @@ while($f = mysqli_fetch_assoc($floors_q)){
         }
         
         $rooms_on_floor[] = [
-            'name' => $room['room_name'], 'type' => $rtype, 'total' => $total_beds,
+            'id' => $rid, 'name' => $room['room_name'], 'type' => $rtype, 'total' => $total_beds,
             'occupied' => $total_room_occ, 'avail_lower' => $avail_lower, 'avail_upper' => $avail_upper,
             'cap_lower' => $cap_lower, 'cap_upper' => $cap_upper, 'status' => $room['status']
         ];
@@ -147,7 +155,7 @@ while($row = mysqli_fetch_assoc($book_q)){
 }
 
 // Stats: Recent Activity
-$logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
+$logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_name) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
 
 ?>
 <!DOCTYPE html>
@@ -239,7 +247,16 @@ $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT
                     <span class="badge bg-danger rounded-pill"><?= $pending_count ?></span>
                 <?php endif; ?>
             </a>
+            <a href="admin_waitlist.php" class="sidebar-link d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
+                <?php if($waitlist_count > 0): ?>
+                    <span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span>
+                <?php endif; ?>
+            </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
+            <a href="admin_room_occupancy.php" class="sidebar-link"><i class="fas fa-users me-2"></i>Room Occupancy</a>
+            <a href="admin_parking.php" class="sidebar-link"><i class="fas fa-parking me-2"></i>Parking</a>
+          
             
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="false" aria-controls="utilitiesSubmenu">
                 <span><i class="fas fa-tools me-2"></i>Utilities</span>
@@ -288,6 +305,19 @@ $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT
                 </a>
                 <h2 class="mb-0 fw-bold text-success">Admin Dashboard</h2>
             </div>
+            
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'deleted'): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    Room deleted permanently.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+            <?php if(isset($_GET['error'])): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <?= htmlspecialchars($_GET['error']) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
 
     <!-- Stats Row -->
     <div class="row g-4 mb-5">
@@ -434,9 +464,11 @@ $logs_q = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT
                                                 <span class="bed-badge bg-upper" title="Upper Bunks">U: <b><?= $room['avail_upper'] ?></b> left</span>
                                             <?php endif; ?>
                                             </div>
-                                            <?php if($room['occupied'] < $room['total']): ?>
-                                                <a href="add_reservation.php?room_type=<?= urlencode($room['type']) ?>" class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" style="font-size: 0.7rem;" title="Quick Book"><i class="fas fa-plus"></i></a>
-                                            <?php endif; ?>
+                                            <div>
+                                                <?php if($room['occupied'] < $room['total']): ?>
+                                                    <a href="add_reservation.php?room_type=<?= urlencode($room['type']) ?>" class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" style="font-size: 0.7rem;" title="Quick Book"><i class="fas fa-plus"></i></a>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                 </div>

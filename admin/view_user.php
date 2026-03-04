@@ -64,6 +64,111 @@ if(isset($_POST['delete_user'])){
     }
 }
 
+// Handle Update User Info
+if(isset($_POST['update_user_info'])){
+    $lname = trim($_POST['lname']);
+    $fname = trim($_POST['fname']);
+    $mname = trim($_POST['mname']);
+    $lname = mysqli_real_escape_string($conn, $lname);
+    $fname = mysqli_real_escape_string($conn, $fname);
+    $mname = mysqli_real_escape_string($conn, $mname);
+    $u_email = mysqli_real_escape_string($conn, $_POST['email']);
+    $u_phone = mysqli_real_escape_string($conn, $_POST['phone_number']);
+    $u_occ = mysqli_real_escape_string($conn, $_POST['occupation']);
+    $u_addr = mysqli_real_escape_string($conn, $_POST['address']);
+    $u_comp = mysqli_real_escape_string($conn, $_POST['company']);
+    $u_em_name = mysqli_real_escape_string($conn, $_POST['emergency_contact_name']);
+    $u_em_num = mysqli_real_escape_string($conn, $_POST['emergency_contact_number']);
+    $u_gender = mysqli_real_escape_string($conn, $_POST['gender']);
+
+    // Build query dynamically based on existing columns to prevent errors
+    $cols_check = mysqli_query($conn, "SHOW COLUMNS FROM users");
+    $existing_cols = [];
+    while($c = mysqli_fetch_assoc($cols_check)) $existing_cols[] = $c['Field'];
+
+    $set_clause = "last_name='$lname', first_name='$fname', middle_name='$mname', email='$u_email', phone_number='$u_phone'";
+    if(in_array('occupation', $existing_cols)) $set_clause .= ", occupation='$u_occ'";
+    if(in_array('address', $existing_cols)) $set_clause .= ", address='$u_addr'";
+    if(in_array('company', $existing_cols)) $set_clause .= ", company='$u_comp'";
+    if(in_array('emergency_contact_name', $existing_cols)) $set_clause .= ", emergency_contact_name='$u_em_name'";
+    if(in_array('emergency_contact_number', $existing_cols)) $set_clause .= ", emergency_contact_number='$u_em_num'";
+    if(in_array('gender', $existing_cols)) $set_clause .= ", gender='$u_gender'";
+
+    if(mysqli_query($conn, "UPDATE users SET $set_clause WHERE user_id=$uid")){
+        log_activity($conn, $uid, "Profile Updated", "Admin updated user details.");
+        echo "<script>window.location.href='view_user.php?uid=$uid&msg=user_updated';</script>";
+        exit;
+    } else {
+        $swal_error = "Failed to update user: " . mysqli_error($conn);
+    }
+}
+
+// Handle Update Request Approval/Rejection
+if(isset($_POST['handle_update_request'])){
+    $req_id = (int)$_POST['request_id'];
+    $action = $_POST['action']; // 'approve' or 'reject'
+    
+    if($action == 'approve'){
+        $req_q = mysqli_query($conn, "SELECT * FROM user_update_requests WHERE request_id=$req_id");
+        if($req = mysqli_fetch_assoc($req_q)){
+            $u_gender = mysqli_real_escape_string($conn, $req['gender']);
+            $u_occ = mysqli_real_escape_string($conn, $req['occupation']);
+            $u_comp = mysqli_real_escape_string($conn, $req['company']);
+            $u_addr = mysqli_real_escape_string($conn, $req['address']);
+            $u_ec_name = mysqli_real_escape_string($conn, $req['emergency_contact_name']);
+            $u_ec_num = mysqli_real_escape_string($conn, $req['emergency_contact_number']);
+            $u_sid = $req['school_id_image'];
+            
+            $sid_sql = "";
+            if(!empty($u_sid)) $sid_sql = ", school_id_image='" . mysqli_real_escape_string($conn, $u_sid) . "'";
+            
+            $upd_sql = "UPDATE users SET gender='$u_gender', occupation='$u_occ', company='$u_comp', address='$u_addr', emergency_contact_name='$u_ec_name', emergency_contact_number='$u_ec_num' $sid_sql WHERE user_id=" . $req['user_id'];
+            
+            if(mysqli_query($conn, $upd_sql)){
+                mysqli_query($conn, "UPDATE user_update_requests SET status='Approved' WHERE request_id=$req_id");
+                log_activity($conn, $req['user_id'], "Profile Update Approved", "Admin approved profile changes.");
+                send_notification($conn, $req['user_id'], "✅ <strong>Profile Update Approved</strong><br>Your profile information has been updated.", "System");
+                echo "<script>window.location.href='view_user.php?uid=$uid&msg=update_approved';</script>";
+                exit;
+            }
+        }
+    } elseif($action == 'reject'){
+        mysqli_query($conn, "UPDATE user_update_requests SET status='Rejected' WHERE request_id=$req_id");
+        send_notification($conn, $uid, "❌ <strong>Profile Update Rejected</strong><br>Your profile update request was rejected by admin.", "System");
+        echo "<script>window.location.href='view_user.php?uid=$uid&msg=update_rejected';</script>";
+        exit;
+    }
+}
+
+// Handle Deletion Request Rejection
+if(isset($_POST['reject_deletion_request'])){
+    $req_id = (int)$_POST['request_id'];
+    mysqli_query($conn, "UPDATE account_deletion_requests SET status='Rejected' WHERE request_id=$req_id");
+    send_notification($conn, $uid, "❌ <strong>Deletion Request Rejected</strong><br>Your request to delete your account has been rejected by the admin.", "System");
+    log_activity($conn, $uid, "Deletion Request Rejected", "Admin rejected account deletion request.");
+    
+    echo "<script>window.location.href='view_user.php?uid=$uid&msg=del_req_rejected';</script>";
+    exit;
+}
+
+// Handle Request Signature
+if(isset($_POST['request_signature'])){
+    $res_id = (int)$_POST['reservation_id'];
+    
+    // Ensure column exists
+    $check_sig = mysqli_query($conn, "SHOW COLUMNS FROM reservations LIKE 'signature_required'");
+    if(mysqli_num_rows($check_sig) == 0) {
+        mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN signature_required TINYINT(1) DEFAULT 0");
+    }
+
+    mysqli_query($conn, "UPDATE reservations SET signature_required=1 WHERE reservation_id=$res_id");
+    send_notification($conn, $uid, "✍️ <strong>Signature Required</strong><br>Admin has requested your signature for Reservation #$res_id. Please go to My Reservations to sign.", "Action Required");
+    log_activity($conn, $uid, "Signature Requested", "Admin requested signature for Reservation #$res_id");
+    
+    echo "<script>window.location.href='view_user.php?uid=$uid&msg=sig_requested';</script>";
+    exit;
+}
+
 // Handle Room Assignment (Move Tenant)
 if(isset($_POST['assign_room'])){
     $res_id = (int)$_POST['reservation_id'];
@@ -155,7 +260,7 @@ if(isset($_POST['bulk_mark_paid']) && !empty($_POST['payment_ids'])){
 }
 
 // Fetch User Details
-$user_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$uid");
+$user_query = mysqli_query($conn, "SELECT *, CONCAT(last_name, ', ', first_name, IF(middle_name IS NOT NULL AND middle_name != '', CONCAT(' ', middle_name), '')) as full_name FROM users WHERE user_id=$uid");
 $user = mysqli_fetch_assoc($user_query);
 
 if(!$user){
@@ -225,6 +330,13 @@ $expiring_query = mysqli_query($conn, "
     ORDER BY r.end_date ASC
 ");
 
+// Fetch Pending Update Request
+$pending_update_q = mysqli_query($conn, "SELECT * FROM user_update_requests WHERE user_id=$uid AND status='Pending'");
+$pending_update = mysqli_fetch_assoc($pending_update_q);
+
+// Fetch Pending Deletion Request
+$pending_del_req = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM account_deletion_requests WHERE user_id=$uid AND status='Pending'"));
+
 // Fetch Base Rooms List (Availability calculated dynamically per reservation)
 $base_rooms_list = [];
 $rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor, total_beds, availability FROM rooms WHERE is_archived=0 ORDER BY floor ASC, room_type ASC, room_number ASC");
@@ -248,6 +360,7 @@ $user_pending_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c
 $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
+$waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
 
 $theme = get_theme_colors($conn);
 ?>
@@ -297,7 +410,7 @@ $theme = get_theme_colors($conn);
         .nav-tabs .nav-link.active { color: var(--primary-green); border-bottom: 3px solid var(--primary-green); background: transparent; font-weight: bold; }
         .nav-tabs .nav-link:hover { border-color: transparent; color: var(--primary-green); }
         .profile-header { background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
-        .avatar-circle { width: 80px; height: 80px; font-size: 2rem; background-color: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .avatar-circle { width: 80px; height: 80px; font-size: 2rem; background-color: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
     </style>
 </head>
 <body>
@@ -316,7 +429,14 @@ $theme = get_theme_colors($conn);
                     <span class="badge bg-danger rounded-pill"><?= $pending_res ?></span>
                 <?php endif; ?>
             </a>
+            <a href="admin_waitlist.php" class="sidebar-link d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
+                <?php if($waitlist_count > 0): ?>
+                    <span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span>
+                <?php endif; ?>
+            </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
+            <a href="admin_keys.php" class="sidebar-link"><i class="fas fa-key me-2"></i>Key Monitoring</a>
             
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="false" aria-controls="utilitiesSubmenu">
                 <span><i class="fas fa-tools me-2"></i>Utilities</span>
@@ -364,10 +484,17 @@ $theme = get_theme_colors($conn);
             <div class="profile-header p-4 mb-4 d-flex flex-wrap align-items-center gap-4">
                 <div class="position-relative">
                     <div class="avatar-circle">
-                        <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
+                        <?php if(!empty($user['profile_image'])): ?>
+                            <img src="../uploads/profiles/<?= $user['profile_image'] ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                        <?php else: ?>
+                            <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
+                        <?php endif; ?>
                     </div>
                     <?php if($user['do_not_renew']): ?>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-white">DNR</span>
+                    <?php endif; ?>
+                    <?php if(!empty($user['is_walkin'])): ?>
+                        <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-info border border-white text-dark">Walk-in</span>
                     <?php endif; ?>
                 </div>
                 <div class="flex-grow-1">
@@ -395,7 +522,9 @@ $theme = get_theme_colors($conn);
                     <?php endif; ?>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
+                    <button onclick="location.reload()" class="btn btn-outline-secondary rounded-pill btn-sm"><i class="fas fa-sync-alt me-1"></i> Refresh</button>
                     <a href="booking_management.php" class="btn btn-outline-secondary rounded-pill btn-sm"><i class="fas fa-arrow-left me-1"></i> Back</a>
+                    <button type="button" class="btn btn-outline-primary rounded-pill btn-sm" data-bs-toggle="modal" data-bs-target="#editUserModal"><i class="fas fa-edit me-1"></i> Edit</button>
                     <form method="POST" id="deleteUserForm" class="d-inline">
                         <input type="hidden" name="user_id" value="<?= $user['user_id'] ?>">
                         <input type="hidden" name="delete_user" value="1">
@@ -407,6 +536,9 @@ $theme = get_theme_colors($conn);
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid'): ?>
                 <div class="alert alert-success">Selected payments marked as paid successfully.</div>
             <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'user_updated'): ?>
+                <div class="alert alert-success">User information updated successfully.</div>
+            <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'extended'): ?>
                 <div class="alert alert-success">Extension request approved successfully.</div>
             <?php endif; ?>
@@ -416,8 +548,108 @@ $theme = get_theme_colors($conn);
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'room_updated'): ?>
                 <div class="alert alert-success">Room assignment updated successfully.</div>
             <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'update_approved'): ?>
+                <div class="alert alert-success">User profile update approved successfully.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'update_rejected'): ?>
+                <div class="alert alert-warning">User profile update rejected.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'del_req_rejected'): ?>
+                <div class="alert alert-warning">Account deletion request rejected.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'sig_requested'): ?>
+                <div class="alert alert-success">Signature request notification sent to user.</div>
+            <?php endif; ?>
             <?php if(isset($_GET['error'])): ?>
                 <div class="alert alert-danger"><?= htmlspecialchars($_GET['error']) ?></div>
+            <?php endif; ?>
+
+            <!-- Pending Deletion Request Alert -->
+            <?php if($pending_del_req): ?>
+            <div class="card border-danger mb-4 shadow-sm">
+                <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-user-times me-2"></i> Account Deletion Request</span>
+                    <div class="d-flex gap-2">
+                        <form method="POST" class="d-inline" onsubmit="return confirm('Approve deletion? This will permanently delete the user and all data.');">
+                            <input type="hidden" name="user_id" value="<?= $uid ?>">
+                            <input type="hidden" name="delete_user" value="1">
+                            <button type="submit" class="btn btn-light btn-sm fw-bold text-danger"><i class="fas fa-check me-1"></i> Approve & Delete</button>
+                        </form>
+                        <form method="POST" class="d-inline">
+                            <input type="hidden" name="request_id" value="<?= $pending_del_req['request_id'] ?>">
+                            <input type="hidden" name="reject_deletion_request" value="1">
+                            <button type="submit" class="btn btn-outline-light btn-sm fw-bold"><i class="fas fa-times me-1"></i> Reject</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card-body bg-light text-danger">
+                    <p class="mb-0 small"><i class="fas fa-exclamation-circle me-1"></i> This user has requested to permanently delete their account. Please review any outstanding balances or issues before approving.</p>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Pending Update Request Alert -->
+            <?php if($pending_update): ?>
+            <div class="card border-warning mb-4 shadow-sm">
+                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-user-edit me-2"></i> Pending Profile Update Request</span>
+                    <div class="d-flex gap-2">
+                        <form method="POST" class="d-inline">
+                            <input type="hidden" name="request_id" value="<?= $pending_update['request_id'] ?>">
+                            <input type="hidden" name="handle_update_request" value="1">
+                            <button type="submit" name="action" value="approve" class="btn btn-success btn-sm fw-bold"><i class="fas fa-check me-1"></i> Approve</button>
+                            <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm fw-bold"><i class="fas fa-times me-1"></i> Reject</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">The user has requested to update their profile information. Review the changes below:</p>
+                    <div class="row g-3 small">
+                        <div class="col-md-4">
+                            <strong>Gender:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['gender'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['gender'] ?></span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Occupation:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['occupation'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['occupation'] ?></span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Company/School:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['company'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['company'] ?></span>
+                        </div>
+                        <div class="col-md-12">
+                            <strong>Address:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['address'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['address'] ?></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Emergency Contact:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['emergency_contact_name'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['emergency_contact_name'] ?></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Emergency Number:</strong><br>
+                            <span class="text-muted text-decoration-line-through me-1"><?= $user['emergency_contact_number'] ?? '-' ?></span> 
+                            <i class="fas fa-arrow-right text-muted mx-1"></i>
+                            <span class="text-success fw-bold"><?= $pending_update['emergency_contact_number'] ?></span>
+                        </div>
+                        <?php if(!empty($pending_update['school_id_image'])): ?>
+                        <div class="col-md-12 mt-2">
+                            <strong>New School ID:</strong><br>
+                            <a href="../uploads/proofs/<?= $pending_update['school_id_image'] ?>" target="_blank" class="btn btn-sm btn-outline-primary mt-1"><i class="fas fa-image me-1"></i> View New ID</a>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
             <?php endif; ?>
 
             <!-- Expiring Contracts Alert -->
@@ -539,8 +771,8 @@ $theme = get_theme_colors($conn);
                                         <td>₱<?= number_format($row['total_price'], 2) ?></td>
                                         <td class="text-end">
                                             <?php if($row['status'] == 'Pending'): ?>
-                                                <a href="booking_management.php?action=verify&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-info text-white" onclick="confirmAction(event, this.href, 'Move this reservation to Verifying status?')" title="Verify"><i class="fas fa-search"></i> Verify</a>
-                                                <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
+                                                <a href="booking_management.php?action=verify&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-info text-white" onclick="confirmAction(event, this.href, 'Move this reservation to Verifying status?')" title="Verify"><i class="fas fa-search"></i></a>
+                                                <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')" title="Reject"><i class="fas fa-times"></i></a>
                                             <?php elseif($row['status'] == 'Verifying'): ?>
                                                 <?php
                                                     // Check Payment
@@ -549,16 +781,23 @@ $theme = get_theme_colors($conn);
                                                     // Check Signature
                                                     $has_sig = !empty($row['signature_image']);
                                                 ?>
-                                                <?php if($is_paid && $has_sig): ?>
-                                                    <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this reservation?')" title="Approve"><i class="fas fa-check"></i> Approve</a>
-                                                <?php else: ?>
-                                                    <button class="btn btn-sm btn-secondary" disabled title="Requires Payment & Signature">
-                                                        <i class="fas fa-hourglass-half"></i> 
-                                                        <?= !$is_paid ? 'Waiting Payment' : (!$has_sig ? 'Waiting Signature' : '') ?>
-                                                    </button>
+                                                <div class="d-flex justify-content-end gap-1">
+                                                    <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this reservation?')" title="Approve"><i class="fas fa-check"></i></a>
+                                                    <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')" title="Reject"><i class="fas fa-times"></i></a>
+                                                </div>
+                                                <?php if(!$is_paid || !$has_sig): ?>
+                                                    <div class="small text-danger mt-1 text-end" style="font-size: 0.7rem;">
+                                                        <i class="fas fa-exclamation-triangle"></i> <?= !$is_paid ? 'Unpaid' : '' ?> <?= (!$is_paid && !$has_sig) ? '&' : '' ?> <?= !$has_sig ? 'No Sig' : '' ?>
+                                                    </div>
                                                 <?php endif; ?>
-                                                <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')"><i class="fas fa-times"></i></a>
                                             <?php elseif($row['status'] == 'Approved'): ?>
+                                                <?php if(empty($row['signature_image'])): ?>
+                                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Request signature from user?')">
+                                                        <input type="hidden" name="reservation_id" value="<?= $row['reservation_id'] ?>">
+                                                        <input type="hidden" name="request_signature" value="1">
+                                                        <button type="submit" class="btn btn-sm btn-warning text-dark me-1" title="Request Signature"><i class="fas fa-file-signature"></i></button>
+                                                    </form>
+                                                <?php endif; ?>
                                                 <button onclick="renewContract(<?= $row['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt"></i></button>
                                                 <a href="booking_management.php?action=terminate&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract?')"><i class="fas fa-ban"></i></a>
                                             <?php else: ?>
@@ -802,6 +1041,75 @@ $theme = get_theme_colors($conn);
                         </div>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit User Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="update_user_info" value="1">
+                    <?php
+                        $lname = $user['last_name'];
+                        $fname = $user['first_name'];
+                        $mname = $user['middle_name'];
+                    ?>
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label small fw-bold">Last Name</label><input type="text" name="lname" class="form-control" value="<?= htmlspecialchars($lname) ?>" required></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold">First Name</label><input type="text" name="fname" class="form-control" value="<?= htmlspecialchars($fname) ?>" required></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold">Middle Name</label><input type="text" name="mname" class="form-control" value="<?= htmlspecialchars($mname) ?>"></div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Email</label>
+                            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($user['email']) ?>" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Phone Number</label>
+                            <input type="text" name="phone_number" class="form-control" value="<?= htmlspecialchars($user['phone_number']) ?>">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Gender</label>
+                            <select name="gender" class="form-select">
+                                <option value="Male" <?= (isset($user['gender']) && $user['gender'] == 'Male') ? 'selected' : '' ?>>Male</option>
+                                <option value="Female" <?= (isset($user['gender']) && $user['gender'] == 'Female') ? 'selected' : '' ?>>Female</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Occupation</label>
+                            <select name="occupation" class="form-select">
+                                <option value="Student" <?= (isset($user['occupation']) && $user['occupation'] == 'Student') ? 'selected' : '' ?>>Student</option>
+                                <option value="Employed" <?= (isset($user['occupation']) && $user['occupation'] == 'Employed') ? 'selected' : '' ?>>Employed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Company / School</label>
+                            <input type="text" name="company" class="form-control" value="<?= htmlspecialchars($user['company'] ?? '') ?>">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Address</label>
+                            <textarea name="address" class="form-control" rows="2"><?= htmlspecialchars($user['address'] ?? '') ?></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Emergency Contact Name</label>
+                            <input type="text" name="emergency_contact_name" class="form-control" value="<?= htmlspecialchars($user['emergency_contact_name'] ?? '') ?>">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Emergency Contact Number</label>
+                            <input type="text" name="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user['emergency_contact_number'] ?? '') ?>">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

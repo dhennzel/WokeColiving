@@ -10,7 +10,7 @@ $user_id = $_SESSION['user_id'];
 
 // Fetch Reservation & User & Room Details (Verify ownership)
 $query = "
-    SELECT r.*, u.full_name, u.email, u.phone_number, rm.room_name, rm.room_type, rm.floor
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, u.is_walkin, u.emergency_contact_name, u.emergency_contact_number, rm.room_name, rm.room_type, rm.floor
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -64,7 +64,28 @@ $theme = get_theme_colors($conn);
         .total-row.final { font-size: 1.3rem; font-weight: bold; color: var(--dark-green); border-top: 1px solid #ddd; padding-top: 10px; }
         .sig-box { border: 2px dashed #ddd; padding: 15px; display: inline-block; margin-top: 10px; border-radius: 10px; background: #fafafa; }
         .sig-img { max-height: 60px; }
-        @media print { .no-print { display: none !important; } .receipt-container { box-shadow: none; border: 1px solid #ddd; margin: 0; width: 100%; max-width: 100%; } }
+        /* Print Styles - Forces Light Mode for paper */
+        @media print { 
+            .no-print { display: none !important; } 
+            body, body.night-mode { background: #fff !important; color: #333 !important; }
+            .receipt-container, body.night-mode .receipt-container { box-shadow: none; border: 1px solid #ddd; margin: 0; width: 100%; max-width: 100%; background: #fff !important; } 
+            body.night-mode .table-custom th, body.night-mode .total-section, body.night-mode .sig-box { background-color: #f8f9fa !important; color: #333 !important; }
+            body.night-mode .table-custom td { border-bottom: 1px solid #eee; color: #333 !important;}
+            body.night-mode .total-row.final { color: var(--dark-green) !important; border-top: 1px solid #ddd !important; }
+        }
+        /* Night Mode Styles for Receipt */
+        body.night-mode { background: #121212; color: #e0e0e0; }
+        body.night-mode .receipt-container { background: #1e1e1e; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+        body.night-mode .table-custom th { background-color: #2c2c2c; color: #e0e0e0; border-bottom: 2px solid var(--primary-green); }
+        body.night-mode .table-custom td { border-bottom: 1px solid #333; color: #e0e0e0; }
+        body.night-mode .total-section { background-color: #2c2c2c; }
+        body.night-mode .total-row.final { color: var(--accent-yellow); border-top: 1px solid #444; }
+        body.night-mode .sig-box { background: #2c2c2c; border-color: #444; }
+        body.night-mode .card-footer { background-color: #1f1f1f !important; border-top: 1px solid #333; }
+        body.night-mode .text-muted { color: #b0b0b0 !important; }
+        body.night-mode .text-secondary { color: #e0e0e0 !important; }
+        body.night-mode .info-label { color: #bbb; }
+        body.night-mode .border-dark { border-color: #e0e0e0 !important; } /* Fixes the authorized by underline */
     </style>
 </head>
 <body>
@@ -129,7 +150,13 @@ $theme = get_theme_colors($conn);
                 <div class="col-6">
                     <div class="info-label mb-2">Guest Signature</div>
                     <?php if(!empty($data['signature_image'])): ?>
-                        <div class="sig-box"><img src="../assets/signatures/<?= $data['signature_image'] ?>" class="sig-img"></div>
+                        <div class="sig-box">
+                            <img src="../assets/signatures/<?= $data['signature_image'] ?>?v=<?= time() ?>" class="sig-img">
+                        </div>
+                    <?php elseif(!empty($data['is_walkin'])): ?>
+                        <div style="border-bottom: 1px solid #333; width: 200px; margin-top: 40px;"></div>
+                        <div class="small text-muted mt-1">Signature over Printed Name</div>
+                        <div class="small text-muted fst-italic">(Walk-in Guest)</div>
                     <?php else: ?><div class="text-muted fst-italic">Not signed yet</div><?php endif; ?>
                 </div>
                 <div class="col-6 text-end">
@@ -144,5 +171,19 @@ $theme = get_theme_colors($conn);
         </div>
     </div>
 </div>
+<script>
+    // Check if Night Mode is enabled from the main dashboard
+    if(localStorage.getItem('nightMode') === 'enabled') {
+        document.body.classList.add('night-mode');
+    }
+
+    // Keep it synced if they change it in another tab
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'nightMode') {
+            if (e.newValue === 'enabled') document.body.classList.add('night-mode');
+            else document.body.classList.remove('night-mode');
+        }
+    });
+</script>
 </body>
 </html>

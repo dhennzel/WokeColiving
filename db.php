@@ -70,7 +70,7 @@ function send_notification($conn, $user_id, $message, $type = 'System') {
 
     // 2. Send Email (Simulated/Actual)
     // Fetch user email
-    $u_res = mysqli_query($conn, "SELECT email, full_name, phone_number FROM users WHERE user_id='$user_id'");
+    $u_res = mysqli_query($conn, "SELECT email, CONCAT(last_name, ', ', first_name) as full_name, phone_number FROM users WHERE user_id='$user_id'");
     if($u_row = mysqli_fetch_assoc($u_res)){
         $to = $u_row['email'];
         $subject = "Woke Coliving Notification: $type";
@@ -139,6 +139,251 @@ function log_activity($conn, $user_id, $action, $details = "") {
 }
 }
 
+// --- RESERVATIONS TABLE ---
+if (!function_exists('setup_reservations_table')) {
+function setup_reservations_table($conn) {
+    $check = mysqli_query($conn, "SHOW TABLES LIKE 'reservations'");
+    if(mysqli_num_rows($check) == 0) {
+        $sql = "CREATE TABLE reservations (
+            reservation_id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            room_id INT NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            months INT NOT NULL,
+            total_price DECIMAL(10,2) NOT NULL,
+            status ENUM('Pending','Verifying','Approved','Cancelled','Completed') DEFAULT 'Pending',
+            bed_preference VARCHAR(50) DEFAULT 'Any',
+            signature_image VARCHAR(255) DEFAULT NULL,
+            signature_required TINYINT(1) DEFAULT 0,
+            cancellation_reason VARCHAR(255) DEFAULT NULL,
+            is_archived TINYINT(1) DEFAULT 0,
+            extended_from INT DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+            FOREIGN KEY (room_id) REFERENCES rooms(room_id)
+        )";
+        mysqli_query($conn, $sql);
+    }
+}
+setup_reservations_table($conn);
+}
+
+// --- PAYMENTS TABLE ---
+if (!function_exists('setup_payments_table')) {
+function setup_payments_table($conn) {
+    $check = mysqli_query($conn, "SHOW TABLES LIKE 'payments'");
+    if(mysqli_num_rows($check) == 0) {
+        $sql = "CREATE TABLE payments (
+            payment_id INT AUTO_INCREMENT PRIMARY KEY,
+            reservation_id INT NOT NULL,
+            amount DECIMAL(10,2) NOT NULL,
+            payment_method VARCHAR(50) NOT NULL,
+            payment_status ENUM('Paid','Unpaid') DEFAULT 'Unpaid',
+            payment_date DATETIME DEFAULT NULL,
+            reference_number VARCHAR(100) DEFAULT NULL,
+            proof_image VARCHAR(255) DEFAULT NULL,
+            description VARCHAR(255) DEFAULT 'Room Payment',
+            is_penalized TINYINT(1) DEFAULT 0,
+            FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE CASCADE
+        )";
+        mysqli_query($conn, $sql);
+    }
+}
+setup_payments_table($conn);
+}
+
+// --- WAITLIST TABLE ---
+if (!function_exists('setup_waitlist_table')) {
+function setup_waitlist_table($conn) {
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS waitlist (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        room_type VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        notified_at TIMESTAMP NULL DEFAULT NULL,
+        UNIQUE KEY `user_room` (`user_id`,`room_type`)
+    )");
+}
+setup_waitlist_table($conn);
+}
+
+// --- ACCOUNT DELETION REQUESTS TABLE ---
+if (!function_exists('setup_deletion_requests_table')) {
+function setup_deletion_requests_table($conn) {
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS account_deletion_requests (
+        request_id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    )");
+}
+setup_deletion_requests_table($conn);
+}
+
+// --- PARKING MODULE TABLES ---
+if (!function_exists('setup_parking_tables')) {
+function setup_parking_tables($conn) {
+    // 1. Parking Slots Table
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS parking_slots (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        slot_name VARCHAR(50) NOT NULL,
+        slot_type ENUM('Car', 'Motorcycle') NOT NULL,
+        status ENUM('Available', 'Occupied') DEFAULT 'Available',
+        monthly_rate DECIMAL(10,2) NOT NULL,
+        daily_rate DECIMAL(10,2) NOT NULL,
+        is_archived TINYINT(1) DEFAULT 0
+    )");
+
+    // 2. Parking Reservations Table
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS parking_reservations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        slot_id INT NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE,
+        total_cost DECIMAL(10,2) NOT NULL,
+        billing_type ENUM('Monthly', 'Daily') NOT NULL,
+        status ENUM('Active', 'Completed') DEFAULT 'Active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+        FOREIGN KEY (slot_id) REFERENCES parking_slots(id)
+    )");
+
+    // 3. Pre-populate slots if table is empty
+    $check_slots = mysqli_query($conn, "SELECT id FROM parking_slots LIMIT 1");
+    if(mysqli_num_rows($check_slots) == 0){
+        for($i = 1; $i <= 5; $i++) mysqli_query($conn, "INSERT INTO parking_slots (slot_name, slot_type, monthly_rate, daily_rate) VALUES ('Car Slot $i', 'Car', 600.00, 200.00)");
+        for($i = 1; $i <= 5; $i++) mysqli_query($conn, "INSERT INTO parking_slots (slot_name, slot_type, monthly_rate, daily_rate) VALUES ('Motorcycle Slot $i', 'Motorcycle', 1500.00, 50.00)");
+    }
+}
+setup_parking_tables($conn);
+}
+
+// --- KEY MONITORING TABLES ---
+if (!function_exists('setup_key_tables')) {
+function setup_key_tables($conn) {
+    // 1. Keys Table
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS `keys` (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        key_name VARCHAR(100) NOT NULL,
+        type ENUM('Room', 'Parking') NOT NULL,
+        reference_id INT NOT NULL,
+        status ENUM('Available', 'Released') DEFAULT 'Available'
+    )");
+
+    // 2. Key Transactions Table
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS key_transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        key_id INT NOT NULL,
+        user_id INT NOT NULL,
+        released_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        returned_at DATETIME DEFAULT NULL,
+        status ENUM('Active', 'Returned') DEFAULT 'Active',
+        FOREIGN KEY (key_id) REFERENCES `keys`(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    )");
+
+    // 3. Sync Keys with Rooms
+    $rooms = mysqli_query($conn, "SELECT room_id, room_name, room_number FROM rooms");
+    while($r = mysqli_fetch_assoc($rooms)){
+        $name = "Room " . ($r['room_number'] ? $r['room_number'] : $r['room_name']) . " Key";
+        $rid = $r['room_id'];
+        $chk = mysqli_query($conn, "SELECT id FROM `keys` WHERE type='Room' AND reference_id=$rid");
+        if(mysqli_num_rows($chk) == 0) mysqli_query($conn, "INSERT INTO `keys` (key_name, type, reference_id) VALUES ('$name', 'Room', $rid)");
+    }
+}
+setup_key_tables($conn);
+}
+
+// --- SYSTEM UPDATES TABLE ---
+if (!function_exists('setup_updates_table')) {
+function setup_updates_table($conn) {
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS system_updates (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        version VARCHAR(20) NOT NULL,
+        title VARCHAR(100) NOT NULL,
+        description TEXT,
+        release_date DATE DEFAULT CURRENT_DATE
+    )");
+    
+    // List of all updates to ensure they exist in DB
+    $updates = [
+        ['1.3.6', 'User Control', 'Added option for users to permanently delete their account (requires no active bookings).', 'NOW()'],
+        ['1.3.5', 'Account Management', 'Added ability for users to update their email address securely.', 'NOW()'],
+        ['1.3.4', 'Bug Fixes & UI Polish', 'Fixed night mode styling issues. Improved responsive layout for mobile devices.', 'NOW()'],
+        ['1.3.3', 'Security Update', 'Added Change Password feature for enhanced account security.', 'DATE_SUB(NOW(), INTERVAL 1 DAY)'],
+        ['1.3.2', 'Support Features', 'Added "Other Request" option to contact support directly via Messenger.', 'DATE_SUB(NOW(), INTERVAL 2 DAY)'],
+        ['1.3.1', 'System Integrity', 'Implemented strict feature access control based on system version.', 'DATE_SUB(NOW(), INTERVAL 3 DAY)'],
+        ['1.3.0', 'Dashboard Customization', 'Added ability to hide and reorder dashboard cards. Preferences are saved automatically.', 'DATE_SUB(NOW(), INTERVAL 4 DAY)'],
+        ['1.2.0', 'Profile Enhancements', 'Added Bio, Social Links, and Newsletter subscription options.', 'DATE_SUB(NOW(), INTERVAL 7 DAY)'],
+        ['1.1.0', 'Waitlist Feature', 'Introduced room waitlists and automated notifications.', 'DATE_SUB(NOW(), INTERVAL 14 DAY)'],
+        ['1.0.0', 'Initial Release', 'Core booking and management system launch.', 'DATE_SUB(NOW(), INTERVAL 30 DAY)']
+    ];
+
+    foreach ($updates as $upd) {
+        $ver = $upd[0];
+        $check = mysqli_query($conn, "SELECT id FROM system_updates WHERE version='$ver'");
+        if (mysqli_num_rows($check) == 0) {
+            $title = mysqli_real_escape_string($conn, $upd[1]);
+            $desc = mysqli_real_escape_string($conn, $upd[2]);
+            $date_sql = $upd[3]; 
+            mysqli_query($conn, "INSERT INTO system_updates (version, title, description, release_date) VALUES ('$ver', '$title', '$desc', $date_sql)");
+        }
+    }
+}
+setup_updates_table($conn);
+}
+
+// --- SYSTEM COMPLIANCE CHECK ---
+if (!function_exists('check_system_compliance')) {
+function check_system_compliance($conn, $user_id) {
+    // Centralized Schema Definition
+    $user_schema = [
+        'is_walkin'  => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 0, 'reason' => 'Account needs walk-in status synchronization.'],
+        'role'       => ['type' => "VARCHAR(20) DEFAULT 'user'", 'default' => "'user'", 'reason' => 'User role needs to be defined for system access.'],
+        'night_mode' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 0, 'reason' => 'Night mode preference needs to be initialized.'],
+        'gender'     => ['type' => 'VARCHAR(20) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Gender information is missing and required for booking.'],
+        'occupation' => ['type' => 'VARCHAR(50) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Occupation status is missing.'],
+        'company'    => ['type' => 'VARCHAR(100) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Company or school information needs to be updated.'],
+        'address'    => ['type' => 'TEXT DEFAULT NULL', 'default' => "NULL", 'reason' => 'Address information is missing.'],
+        'school_id_image' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Student verification data needs to be updated.'],
+        'emergency_contact_name' => ['type' => 'VARCHAR(100) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Emergency contact details are missing.'],
+        'emergency_contact_number' => ['type' => 'VARCHAR(20) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Emergency contact details are missing.'],
+        'reset_token' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'Password reset feature needs to be enabled.'],
+        'reset_expiry' => ['type' => 'DATETIME DEFAULT NULL', 'default' => "NULL", 'reason' => 'Password reset feature needs to be enabled.'],
+        'do_not_renew' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 0, 'reason' => 'Account renewal status needs to be initialized.'],
+        'newsletter' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 1, 'reason' => 'New Feature: Community Newsletter subscription.'],
+        'bio' => ['type' => 'TEXT DEFAULT NULL', 'default' => "NULL", 'reason' => 'New Feature: User Bio for community profile.'],
+        'social_link' => ['type' => 'VARCHAR(255) DEFAULT NULL', 'default' => "NULL", 'reason' => 'New Feature: Social Media link field.'],
+        'other_request_feature' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 1, 'reason' => 'New Feature: Other Request (Contact Support) option.'],
+        'change_password_feature' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 1, 'reason' => 'New Feature: Change Password option.'],
+        'change_email_feature' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 1, 'reason' => 'New Feature: Change Email option.'],
+        'delete_account_feature' => ['type' => 'TINYINT(1) DEFAULT NULL', 'default' => 1, 'reason' => 'New Feature: Delete Account option.']
+    ];
+
+    $update_reasons = [];
+    $u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
+    if(!$u_query) return ['is_outdated' => false, 'reasons' => [], 'schema' => $user_schema];
+    $user_info = mysqli_fetch_assoc($u_query);
+
+    $user_columns_q = mysqli_query($conn, "SHOW COLUMNS FROM users");
+    $existing_user_columns = [];
+    while($col = mysqli_fetch_assoc($user_columns_q)) $existing_user_columns[] = $col['Field'];
+
+    foreach ($user_schema as $column => $details) {
+        if (!in_array($column, $existing_user_columns)) {
+            $update_reasons[] = $details['reason'];
+        } elseif (array_key_exists($column, $user_info) && is_null($user_info[$column]) && $details['default'] !== "NULL") {
+            if (!in_array($details['reason'], $update_reasons)) $update_reasons[] = $details['reason'];
+        }
+    }
+
+    return ['is_outdated' => !empty($update_reasons), 'reasons' => $update_reasons, 'schema' => $user_schema];
+}
+}
+
 // --- AUTO REFRESH TRIGGER ---
 if (!function_exists('trigger_update')) {
 function trigger_update($conn) {
@@ -162,6 +407,10 @@ if(!in_array('is_archived', $cols)) mysqli_query($conn, "ALTER TABLE reservation
 if(!in_array('created_at', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
 if(!in_array('bed_preference', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN bed_preference VARCHAR(50) DEFAULT 'Any'");
 
+// Ensure status ENUM is up to date and fix any broken statuses
+mysqli_query($conn, "ALTER TABLE reservations MODIFY COLUMN status ENUM('Pending', 'Verifying', 'Approved', 'Cancelled', 'Completed') DEFAULT 'Pending'");
+mysqli_query($conn, "UPDATE reservations SET status='Pending' WHERE status = '' OR status IS NULL");
+
 // Ensure payments table has is_penalized column
 $pay_cols_check = mysqli_query($conn, "SHOW COLUMNS FROM payments");
 $pay_cols = [];
@@ -175,17 +424,6 @@ if(!in_array('description', $pay_cols)) mysqli_query($conn, "ALTER TABLE payment
 $check_col_floor = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'floor'");
 if(mysqli_num_rows($check_col_floor) == 0) {
     mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN floor INT DEFAULT 2");
-}
-
-// Ensure emergency contact columns exist in users table
-$check_emergency_name = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'emergency_contact_name'");
-if(mysqli_num_rows($check_emergency_name) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN emergency_contact_name VARCHAR(100) DEFAULT NULL");
-}
-
-$check_emergency_number = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'emergency_contact_number'");
-if(mysqli_num_rows($check_emergency_number) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN emergency_contact_number VARCHAR(20) DEFAULT NULL");
 }
 
 // Ensure room_number column exists in rooms table
@@ -305,4 +543,141 @@ if($pay_query){
              }
         }
     }
+}
+
+// --- ROOM OCCUPANCY FUNCTIONS ---
+
+// Get room occupancy status (Fully Occupied / Partially Occupied / Vacant)
+if (!function_exists('get_room_occupancy_status')) {
+function get_room_occupancy_status($conn, $room_id) {
+    // Get room details
+    $room_q = mysqli_query($conn, "SELECT total_beds, availability FROM rooms WHERE room_id=$room_id");
+    $room = mysqli_fetch_assoc($room_q);
+    
+    if (!$room) return 'Unknown';
+    
+    // Check if room is under maintenance
+    if ($room['availability'] == 'Maintenance') {
+        return 'Maintenance';
+    }
+    
+    // Count current occupants (Approved or Pending reservations that overlap with current date)
+    $occ_q = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM reservations 
+        WHERE room_id=$room_id AND status IN ('Approved', 'Pending') 
+        AND start_date <= CURDATE() AND end_date > CURDATE()");
+    $occupied = mysqli_fetch_assoc($occ_q)['cnt'];
+    
+    $total_beds = $room['total_beds'];
+    
+    if ($occupied == 0) {
+        return 'Vacant';
+    } elseif ($occupied >= $total_beds) {
+        return 'Fully Occupied';
+    } else {
+        return 'Partially Occupied';
+    }
+}
+}
+
+// Get current occupants for a room
+if (!function_exists('get_room_occupants')) {
+function get_room_occupants($conn, $room_id) {
+    $query = mysqli_query($conn, "
+        SELECT r.reservation_id, r.start_date, r.end_date, r.bed_preference, r.status,
+               u.user_id, u.first_name, u.last_name, u.middle_name, u.profile_image,
+               CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name
+        FROM reservations r
+        JOIN users u ON r.user_id = u.user_id
+        WHERE r.room_id = $room_id 
+        AND r.status IN ('Approved', 'Pending')
+        AND r.start_date <= CURDATE() 
+        AND r.end_date > CURDATE()
+        ORDER BY r.bed_preference, u.last_name
+    ");
+    
+    $occupants = [];
+    while ($row = mysqli_fetch_assoc($query)) {
+        $occupants[] = $row;
+    }
+    return $occupants;
+}
+}
+
+// Get room key information
+if (!function_exists('get_room_key_info')) {
+function get_room_key_info($conn, $room_id) {
+    $query = mysqli_query($conn, "
+        SELECT k.id as key_id, k.key_name, k.status as key_status,
+               kt.id as trans_id, kt.user_id as key_holder_id, kt.released_at,
+               CONCAT(u.last_name, ', ', u.first_name) as key_holder_name
+        FROM `keys` k
+        LEFT JOIN key_transactions kt ON k.id = kt.key_id AND kt.status = 'Active'
+        LEFT JOIN users u ON kt.user_id = u.user_id
+        WHERE k.type = 'Room' AND k.reference_id = $room_id
+    ");
+    
+    return mysqli_fetch_assoc($query);
+}
+}
+
+// Get all rooms with occupancy information
+if (!function_exists('get_all_rooms_with_occupancy')) {
+function get_all_rooms_with_occupancy($conn) {
+    $query = mysqli_query($conn, "
+        SELECT r.*, 
+               r.room_number, r.room_type, r.total_beds, r.floor, r.room_name, r.availability
+        FROM rooms r
+        ORDER BY r.room_type, r.floor, r.room_number
+    ");
+    
+    $rooms = [];
+    while ($row = mysqli_fetch_assoc($query)) {
+        $room_id = $row['room_id'];
+        $row['occupancy_status'] = get_room_occupancy_status($conn, $room_id);
+        $row['occupants'] = get_room_occupants($conn, $room_id);
+        $row['key_info'] = get_room_key_info($conn, $room_id);
+        $row['occupied_count'] = count($row['occupants']);
+        
+        // Calculate available beds
+        $row['available_beds'] = max(0, $row['total_beds'] - $row['occupied_count']);
+        
+        $rooms[] = $row;
+    }
+    return $rooms;
+}
+}
+
+// Handle key release from room occupancy page
+if (!function_exists('release_room_key')) {
+function release_room_key($conn, $key_id, $user_id) {
+    $chk = mysqli_query($conn, "SELECT status FROM `keys` WHERE id=$key_id");
+    $k = mysqli_fetch_assoc($chk);
+    
+    if ($k['status'] == 'Available') {
+        mysqli_query($conn, "INSERT INTO key_transactions (key_id, user_id) VALUES ($key_id, $user_id)");
+        mysqli_query($conn, "UPDATE `keys` SET status='Released' WHERE id=$key_id");
+        
+        send_notification($conn, $user_id, "🔑 <strong>Key Assigned</strong><br>You have been assigned a key. Please keep it safe.", "Key System");
+        trigger_update($conn);
+        return true;
+    }
+    return false;
+}
+}
+
+// Handle key return from room occupancy page
+if (!function_exists('return_room_key')) {
+function return_room_key($conn, $trans_id) {
+    $t_q = mysqli_query($conn, "SELECT key_id, user_id FROM key_transactions WHERE id=$trans_id");
+    if ($t = mysqli_fetch_assoc($t_q)) {
+        $key_id = $t['key_id'];
+        mysqli_query($conn, "UPDATE key_transactions SET status='Returned', returned_at=NOW() WHERE id=$trans_id");
+        mysqli_query($conn, "UPDATE `keys` SET status='Available' WHERE id=$key_id");
+        
+        send_notification($conn, $t['user_id'], "🔑 <strong>Key Returned</strong><br>Key has been marked as returned.", "Key System");
+        trigger_update($conn);
+        return true;
+    }
+    return false;
+}
 }

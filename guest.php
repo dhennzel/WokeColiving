@@ -58,6 +58,10 @@ if(isset($_SESSION['user_id'])){
     if(mysqli_num_rows($check_active) > 0) {
         $has_active_booking = true;
     }
+    
+    // Fetch Unread Count for Badge
+    $unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$uid AND is_read=0");
+    $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
 }
 ?>
 <!DOCTYPE html>
@@ -338,7 +342,14 @@ if(isset($_SESSION['user_id'])){
             </ul>
         <div class="d-flex gap-2">
             <?php if(isset($_SESSION['user_id'])): ?>
-                <a href="users/profile.php" class="btn btn-outline-light rounded-pill px-4">My Profile</a>
+                <a href="users/profile.php" class="btn btn-outline-light rounded-pill px-4 position-relative">
+                    My Profile
+                    <?php if($unread_count > 0): ?>
+                        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                            <span class="visually-hidden">New alerts</span>
+                        </span>
+                    <?php endif; ?>
+                </a>
                 <a href="users/logout.php" class="btn btn-custom text-dark fw-bold">Logout</a>
             <?php else: ?>
                 <a href="users/login.php" class="btn btn-outline-light rounded-pill px-4">Login</a>
@@ -595,6 +606,31 @@ if(isset($_SESSION['user_id'])){
         icon: '<?= $_SESSION['swal']['icon'] ?>'
     });
     <?php unset($_SESSION['swal']); endif; ?>
+
+  // Auto Refresh Logic
+  let lastUpdate = 0;
+  function checkUpdates() {
+      fetch('check_updates.php')
+      .then(r => r.text())
+      .then(t => {
+          if(lastUpdate == 0) lastUpdate = t;
+          else if (t > lastUpdate) location.reload();
+      });
+  }
+  setInterval(checkUpdates, 3000); // Check every 3 seconds
+
+  // Night Mode Logic
+  if(localStorage.getItem('nightMode') === 'enabled') {
+      document.body.classList.add('night-mode');
+  }
+
+  // Sync Night Mode across tabs
+  window.addEventListener('storage', (e) => {
+      if (e.key === 'nightMode') {
+          if (e.newValue === 'enabled') document.body.classList.add('night-mode');
+          else document.body.classList.remove('night-mode');
+      }
+  });
 </script>
 </body>
 </html>

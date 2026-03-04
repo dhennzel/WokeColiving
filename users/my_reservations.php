@@ -10,13 +10,44 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 
 // Get User Info
-$u_query = mysqli_query($conn, "SELECT full_name FROM users WHERE user_id=$user_id");
+$u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
+$user_info['full_name'] = $user_info['last_name'] . ', ' . $user_info['first_name'] . (!empty($user_info['middle_name']) ? ' ' . $user_info['middle_name'] : '');
 
-// Ensure is_archived column exists
-$check_col = mysqli_query($conn, "SHOW COLUMNS FROM reservations LIKE 'is_archived'");
-if(mysqli_num_rows($check_col) == 0) {
-    mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
+// Handle Update Info Action
+if(isset($_POST['update_info'])){
+    // Check for existing pending request
+    $check_pending = mysqli_query($conn, "SELECT request_id FROM user_update_requests WHERE user_id=$user_id AND status='Pending'");
+    if(mysqli_num_rows($check_pending) > 0){
+        $_SESSION['swal'] = ['title' => 'Request Pending', 'text' => 'You already have a pending update request. Please wait for admin approval.', 'icon' => 'warning'];
+    } else {
+        $gender = mysqli_real_escape_string($conn, $_POST['gender']);
+        $occupation = mysqli_real_escape_string($conn, $_POST['occupation']);
+        $company = mysqli_real_escape_string($conn, $_POST['company']);
+        $address = mysqli_real_escape_string($conn, $_POST['address']);
+        $ec_name = mysqli_real_escape_string($conn, $_POST['emergency_contact_name']);
+        $ec_number = mysqli_real_escape_string($conn, $_POST['emergency_contact_number']);
+        
+        // Handle File Upload for School ID
+        $school_id_filename = null;
+        if(isset($_FILES['school_id_image']) && $_FILES['school_id_image']['error'] == 0){
+            $target_dir = "../uploads/proofs/";
+            if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+            $filename = time() . '_school_' . basename($_FILES["school_id_image"]["name"]);
+            if(move_uploaded_file($_FILES["school_id_image"]["tmp_name"], $target_dir . $filename)){
+                $school_id_filename = $filename;
+            }
+        }
+
+        $stmt = mysqli_prepare($conn, "INSERT INTO user_update_requests (user_id, gender, occupation, company, address, emergency_contact_name, emergency_contact_number, school_id_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        mysqli_stmt_bind_param($stmt, "isssssss", $user_id, $gender, $occupation, $company, $address, $ec_name, $ec_number, $school_id_filename);
+        
+        if(mysqli_stmt_execute($stmt)){
+            $_SESSION['swal'] = ['title' => 'Request Submitted', 'text' => 'Your profile update has been submitted for admin approval.', 'icon' => 'success'];
+        } else {
+            $_SESSION['swal'] = ['title' => 'Error', 'text' => 'Failed to submit request.', 'icon' => 'error'];
+        }
+    }
 }
 
 // Handle Archive Action
@@ -34,15 +65,6 @@ JOIN rooms rm ON r.room_id = rm.room_id
 WHERE r.user_id = $user_id AND r.is_archived = 0 ORDER BY r.reservation_id DESC");
 
 // Fetch Activity Logs
-// Ensure table exists to prevent errors
-mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (
-    log_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    action VARCHAR(100) NOT NULL,
-    details TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)");
-
 $logs_query = mysqli_query($conn, "SELECT * FROM activity_logs WHERE user_id=$user_id ORDER BY created_at DESC");
 
 // Fetch Unread Count & Notifications
@@ -85,9 +107,41 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
             .modal-content { border: none; box-shadow: none; }
             .no-print { display: none !important; }
         }
+
+        /* Night Mode Styles */
+        body.night-mode { background-color: #121212; color: #e0e0e0; }
+        body.night-mode .navbar { background: #1f1f1f !important; }
+        body.night-mode .card, body.night-mode .card-custom { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
+        body.night-mode .text-dark { color: #e0e0e0 !important; }
+        body.night-mode .text-muted { color: #b0b0b0 !important; }
+        body.night-mode .bg-light { background-color: #2c2c2c !important; }
+        body.night-mode .dropdown-menu { background-color: #1e1e1e; border-color: #333; }
+        body.night-mode .dropdown-item { color: #e0e0e0; }
+        body.night-mode .dropdown-item:hover { background-color: #333; }
+        
+        /* Updated Table Styles Below */
+        body.night-mode .table { color: #e0e0e0; background-color: transparent; } 
+        body.night-mode .table thead th { background-color: #1f1f1f; border-color: #333; color: #e0e0e0; }
+        body.night-mode .table td, body.night-mode .table th { background-color: #1e1e1e; border-color: #333; color: #e0e0e0; } 
+        
+        /* Modal Night Mode Styles */
+        body.night-mode .modal-content { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
+        body.night-mode .modal-header { border-bottom-color: #333; }
+        body.night-mode .modal-footer { border-top-color: #333; }
+        body.night-mode .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+        body.night-mode button.close { color: #e0e0e0; text-shadow: none; }
+        
+        /* Button Styles */
+        body.night-mode .btn-outline-dark { color: #e0e0e0; border-color: #e0e0e0; }
+        body.night-mode .btn-outline-dark:hover { background-color: #e0e0e0; color: #121212; }
+
+        /* Form & Table Fixes */
+        body.night-mode .form-control, body.night-mode .form-select { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
+        body.night-mode .form-control:focus, body.night-mode .form-select:focus { background-color: #333; color: #fff; }
+        body.night-mode .table-hover tbody tr:hover > * { background-color: #2c2c2c; color: #fff; }
     </style>
 </head>
-<body>
+<body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
 
 <!-- NAVBAR -->
 <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
@@ -97,29 +151,15 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
             Woke Coliving INC
         </a>
         <div class="d-flex align-items-center gap-3 ms-auto">
-            <!-- Notification Dropdown --->
-            <div class="dropdown">
-                <a href="#" class="text-white text-decoration-none position-relative me-3" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-bell fa-lg"></i>
-                    <?php if($unread_count > 0): ?>
-                        <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;">
-                            <?= $unread_count ?>
-                            <span class="visually-hidden">unread messages</span>
-                        </span>
-                    <?php endif; ?>
-                </a>
-                <ul id="notifList" class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="notifDropdown" style="width: 320px; max-height: 400px; overflow-y: auto;">
-                    <li class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
-                        <span class="fw-bold small text-uppercase text-muted">Notifications</span>
-                        <?php if($unread_count > 0): ?>
-                            <a href="profile.php?read_all=1" class="small text-decoration-none">Mark all read</a>
-                        <?php endif; ?>
-                    </li>
-                    <!-- Notifications will be loaded via JS -->
-                </ul>
-            </div>
-            <a href="profile.php" class="text-white text-decoration-none fw-bold">My Profile</a>
-            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars(explode(' ', $user_info['full_name'])[0]) ?></span>
+            <a href="profile.php" class="text-white text-decoration-none fw-bold position-relative">
+                My Profile
+                <?php if($unread_count > 0): ?>
+                    <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                        <span class="visually-hidden">New alerts</span>
+                    </span>
+                <?php endif; ?>
+            </a>
+            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
             <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
         </div>
     </div>
@@ -132,6 +172,8 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
             <p class="text-muted mb-0">Welcome back, <strong><?= htmlspecialchars($user_info['full_name']) ?></strong>!</p>
         </div>
         <div>
+            <button onclick="location.reload()" class="btn btn-outline-primary fw-bold me-2 rounded-pill"><i class="fas fa-sync-alt me-2"></i>Refresh</button>
+            <button type="button" class="btn btn-outline-warning fw-bold me-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#updateInfoModal"><i class="fas fa-user-edit me-2"></i>Update Info</button>
             <button type="button" class="btn btn-outline-success fw-bold me-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#activityLogModal"><i class="fas fa-history me-2"></i>Activity Logs</button>
             <a href="profile.php" class="btn btn-secondary rounded-pill">&larr; Back</a>
         </div>
@@ -229,11 +271,22 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                             <?php endif; ?>
 
                             <?php if($row['status'] == 'Approved' || $row['status'] == 'Verifying') { ?>
-                                <?php if(empty($row['signature_image'] ?? null)) { ?>
+                                <?php 
+                                    $show_sign = false;
+                                    if(empty($row['signature_image'] ?? null)){
+                                        // Logic: Walk-ins only sign if explicitly requested by admin. Regular users always sign.
+                                        if($user_info['is_walkin']){
+                                            if(($row['signature_required'] ?? 0) == 1) $show_sign = true;
+                                        } else {
+                                            $show_sign = true;
+                                        }
+                                    }
+                                ?>
+                                <?php if($show_sign) { ?>
                                     <a href="esignature.php?id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-success rounded-pill">
                                         <i class="fas fa-pen-nib me-1"></i> Sign Lease
                                     </a>
-                                <?php } else { ?>
+                                <?php } elseif(!empty($row['signature_image'])) { ?>
                                     <span class="badge bg-info text-dark"><i class="fas fa-file-signature"></i> Signed</span>
                                 <?php } ?>
                                 
@@ -252,7 +305,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                             <?php // Show Remove button for Cancelled or Past End Date (Completed)
                                 $is_past = (strtotime($end_date) < time());
                                 if($row['status'] == 'Cancelled' || ($row['status'] == 'Approved' && $is_past)) { ?>
-                                <a href="my_reservations.php?archive_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-danger rounded-pill ms-1" onclick="return confirm('Remove this reservation to archives?')">
+                                <a href="my_reservations.php?archive_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-danger rounded-pill ms-1" onclick="confirmArchive(event, this.href)">
                                     <i class="fas fa-archive"></i> Remove
                                 </a>
                             <?php } ?>
@@ -324,6 +377,68 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     </div>
 </div>
 
+<!-- Update Info Modal -->
+<div class="modal fade" id="updateInfoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-user-edit me-2"></i>Update Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" name="update_info" value="1">
+                    <div class="mb-3">
+                        <label class="form-label">Gender</label>
+                        <select name="gender" class="form-select" required>
+                            <option value="" disabled <?= empty($user_info['gender']) ? 'selected' : '' ?>>Select Gender</option>
+                            <option value="Male" <?= ($user_info['gender'] ?? '') == 'Male' ? 'selected' : '' ?>>Male</option>
+                            <option value="Female" <?= ($user_info['gender'] ?? '') == 'Female' ? 'selected' : '' ?>>Female</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Occupation</label>
+                        <select name="occupation" id="occupation" class="form-select" required onchange="toggleCompanyField()">
+                            <option value="" disabled <?= empty($user_info['occupation']) ? 'selected' : '' ?>>Select Status</option>
+                            <option value="Student" <?= ($user_info['occupation'] ?? '') == 'Student' ? 'selected' : '' ?>>Student</option>
+                            <option value="Employed" <?= ($user_info['occupation'] ?? '') == 'Employed' ? 'selected' : '' ?>>Employed</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="company_div" style="display: none;">
+                        <label class="form-label">Company Name</label>
+                        <input type="text" name="company" id="company" class="form-control" value="<?= htmlspecialchars($user_info['company'] ?? '') ?>">
+                    </div>
+                    <div class="mb-3" id="school_id_div" style="display: none;">
+                        <label class="form-label">School ID</label>
+                        <?php if(!empty($user_info['school_id_image'])): ?>
+                            <div class="mb-2">
+                                <small class="text-success"><i class="fas fa-check-circle"></i> Current ID Uploaded</small>
+                            </div>
+                        <?php endif; ?>
+                        <input type="file" name="school_id_image" id="school_id_image" class="form-control" accept="image/*">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea name="address" class="form-control" rows="2" required><?= htmlspecialchars($user_info['address'] ?? '') ?></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" id="label_emergency_name">Emergency Contact Name</label>
+                        <input type="text" name="emergency_contact_name" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_name'] ?? '') ?>" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" id="label_emergency_number">Emergency Contact Number</label>
+                        <input type="text" name="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_number'] ?? '') ?>" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Room Details Modal -->
 <div class="modal fade" id="roomDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -383,6 +498,50 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     });
     <?php unset($_SESSION['swal']); endif; ?>
 
+    function confirmArchive(e, url) {
+        e.preventDefault();
+        Swal.fire({
+            title: 'Archive Reservation?',
+            text: "This will move the reservation to your archives.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, archive it!'
+        }).then((result) => {
+            if (result.isConfirmed) window.location.href = url;
+        });
+    }
+
+    function toggleCompanyField() {
+        var occupation = document.getElementById('occupation');
+        var companyDiv = document.getElementById('company_div');
+        var schoolIdDiv = document.getElementById('school_id_div');
+        var companyInput = document.getElementById('company');
+        
+        var labelName = document.getElementById('label_emergency_name');
+        var labelNumber = document.getElementById('label_emergency_number');
+        
+        if (occupation && occupation.value === 'Employed') {
+            companyDiv.style.display = 'block';
+            schoolIdDiv.style.display = 'none';
+            if(labelName) labelName.innerText = "Emergency Contact/Boss Name";
+            if(labelNumber) labelNumber.innerText = "Emergency Contact/Boss Contact Number";
+        } else if (occupation && occupation.value === 'Student') {
+            companyDiv.style.display = 'none';
+            schoolIdDiv.style.display = 'block';
+            if(labelName) labelName.innerText = "Guardian Name";
+            if(labelNumber) labelNumber.innerText = "Guardian Contact Number";
+        } else {
+            companyDiv.style.display = 'none';
+            schoolIdDiv.style.display = 'none';
+            if(labelName) labelName.innerText = "Emergency Contact Name";
+            if(labelNumber) labelNumber.innerText = "Emergency Contact Number";
+        }
+    }
+    // Init on load
+    document.addEventListener('DOMContentLoaded', toggleCompanyField);
+
     function viewRoomDetails(roomId, duration, totalPrice, bedPref) {
         var myModal = new bootstrap.Modal(document.getElementById('roomDetailsModal'));
         document.getElementById('roomLoading').style.display = 'block';
@@ -421,47 +580,14 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         fetch('get_notifications.php')
             .then(response => response.json())
             .then(data => {
-                const bell = document.getElementById('notifDropdown');
-                let badge = document.getElementById('notifBadge');
-                if(data.unread_count > 0) {
-                    if(!badge) {
-                        badge = document.createElement('span');
-                        badge.id = 'notifBadge';
-                        badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
-                        badge.style.fontSize = '0.6rem';
-                        bell.appendChild(badge);
-                    }
-                    badge.innerHTML = `${data.unread_count} <span class="visually-hidden">unread messages</span>`;
-                } else if(badge) badge.remove();
-
                 if(data.unread_count > lastUnreadCount) {
                     const audio = document.getElementById('notifSound');
                     if(audio) audio.play().catch(e => {});
-                    const bellIcon = document.querySelector('#notifDropdown i');
-                    if(bellIcon) { bellIcon.classList.add('shake-animation'); setTimeout(() => bellIcon.classList.remove('shake-animation'), 500); }
                 }
                 lastUnreadCount = data.unread_count;
-
-                const list = document.getElementById('notifList');
-                let html = `<li class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light"><span class="fw-bold small text-uppercase text-muted">Notifications</span>${data.unread_count > 0 ? '<a href="profile.php?read_all=1" class="small text-decoration-none">Mark all read</a>' : ''}</li>`;
-                if(data.notifications.length > 0) {
-                    data.notifications.forEach(notif => {
-                        html += `<li><div class="dropdown-item p-3 border-bottom ${notif.is_read == 0 ? 'bg-white' : 'bg-light text-muted'}" style="white-space: normal;"><div class="d-flex justify-content-between mb-1"><strong class="small ${notif.is_read == 0 ? 'text-success' : ''}">${notif.type}</strong><small class="text-muted" style="font-size: 0.7rem;">${notif.created_at}</small></div><p class="mb-0 small">${notif.message}</p></div></li>`;
-                    });
-                } else { html += '<li class="p-3 text-center text-muted small">No notifications found.</li>'; }
-                list.innerHTML = html;
             });
     }
     
-    document.getElementById('notifDropdown').addEventListener('click', function() {
-        const badge = document.getElementById('notifBadge');
-        if(badge) badge.remove();
-        fetch('get_notifications.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'mark_read=1'
-        });
-    });
     setInterval(fetchNotifications, 5000);
     fetchNotifications(); // Initial load
 
@@ -476,6 +602,23 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         });
     }
     setInterval(checkUpdates, 3000); // Check every 3 seconds
+
+// Night Mode Logic
+<?php if(isset($_SESSION['night_mode'])): ?>
+    // Sync LocalStorage with DB preference
+    if(<?= $_SESSION['night_mode'] ?> === 1) localStorage.setItem('nightMode', 'enabled');
+    else localStorage.setItem('nightMode', 'disabled');
+<?php else: ?>
+    if(localStorage.getItem('nightMode') === 'enabled') document.body.classList.add('night-mode');
+<?php endif; ?>
+
+// Sync Night Mode across tabs
+window.addEventListener('storage', (e) => {
+    if (e.key === 'nightMode') {
+        if (e.newValue === 'enabled') document.body.classList.add('night-mode');
+        else document.body.classList.remove('night-mode');
+    }
+});
 </script>
 </body>
 </html>

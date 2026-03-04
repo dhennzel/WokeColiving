@@ -11,7 +11,7 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 $where = "1=1";
 if(isset($_GET['search']) && !empty($_GET['search'])){
     $search = mysqli_real_escape_string($conn, $_GET['search']);
-    $where .= " AND (u.full_name LIKE '%$search%' OR l.action LIKE '%$search%' OR l.details LIKE '%$search%')";
+    $where .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR l.action LIKE '%$search%' OR l.details LIKE '%$search%')";
 }
 if(isset($_GET['action_filter']) && !empty($_GET['action_filter'])){
     $act = mysqli_real_escape_string($conn, $_GET['action_filter']);
@@ -19,7 +19,7 @@ if(isset($_GET['action_filter']) && !empty($_GET['action_filter'])){
 }
 
 // Fetch Logs with Filter
-$logs = mysqli_query($conn, "SELECT l.*, u.full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id WHERE $where ORDER BY l.created_at DESC LIMIT 100");
+$logs = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id WHERE $where ORDER BY l.created_at DESC LIMIT 100");
 
 // Get distinct actions for dropdown
 $actions_q = mysqli_query($conn, "SELECT DISTINCT action FROM activity_logs ORDER BY action ASC");
@@ -28,6 +28,8 @@ $actions_q = mysqli_query($conn, "SELECT DISTINCT action FROM activity_logs ORDE
 $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
+$waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
+$del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 
 $theme = get_theme_colors($conn);
 ?>
@@ -78,7 +80,14 @@ $theme = get_theme_colors($conn);
                     <span class="badge bg-danger rounded-pill"><?= $pending_res ?></span>
                 <?php endif; ?>
             </a>
+            <a href="admin_waitlist.php" class="sidebar-link d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
+                <?php if($waitlist_count > 0): ?>
+                    <span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span>
+                <?php endif; ?>
+            </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
+            <a href="admin_keys.php" class="sidebar-link"><i class="fas fa-key me-2"></i>Key Monitoring</a>
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center"><span><i class="fas fa-tools me-2"></i>Utilities</span><i class="fas fa-chevron-down small"></i></a>
             <div class="collapse" id="utilitiesSubmenu">
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-file-invoice-dollar me-2"></i>Billing</a>
@@ -157,6 +166,18 @@ $theme = get_theme_colors($conn);
 <script>
     document.getElementById("menu-toggle").addEventListener("click", function(e) { e.preventDefault(); document.getElementById("wrapper").classList.toggle("toggled"); });
     document.getElementById("sidebar-toggle").addEventListener("click", function(e) { e.preventDefault(); document.getElementById("wrapper").classList.toggle("toggled"); });
+
+    // Auto Refresh Logic
+    let lastUpdate = 0;
+    function checkUpdates() {
+        fetch('../check_updates.php')
+        .then(r => r.text())
+        .then(t => {
+            if(lastUpdate == 0) lastUpdate = t;
+            else if (t > lastUpdate) location.reload();
+        });
+    }
+    setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>
 </body>
 </html>
