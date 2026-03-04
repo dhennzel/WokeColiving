@@ -140,6 +140,17 @@ if(isset($_POST['handle_update_request'])){
     }
 }
 
+// Handle Deletion Request Rejection
+if(isset($_POST['reject_deletion_request'])){
+    $req_id = (int)$_POST['request_id'];
+    mysqli_query($conn, "UPDATE account_deletion_requests SET status='Rejected' WHERE request_id=$req_id");
+    send_notification($conn, $uid, "❌ <strong>Deletion Request Rejected</strong><br>Your request to delete your account has been rejected by the admin.", "System");
+    log_activity($conn, $uid, "Deletion Request Rejected", "Admin rejected account deletion request.");
+    
+    echo "<script>window.location.href='view_user.php?uid=$uid&msg=del_req_rejected';</script>";
+    exit;
+}
+
 // Handle Request Signature
 if(isset($_POST['request_signature'])){
     $res_id = (int)$_POST['reservation_id'];
@@ -322,6 +333,9 @@ $expiring_query = mysqli_query($conn, "
 // Fetch Pending Update Request
 $pending_update_q = mysqli_query($conn, "SELECT * FROM user_update_requests WHERE user_id=$uid AND status='Pending'");
 $pending_update = mysqli_fetch_assoc($pending_update_q);
+
+// Fetch Pending Deletion Request
+$pending_del_req = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM account_deletion_requests WHERE user_id=$uid AND status='Pending'"));
 
 // Fetch Base Rooms List (Availability calculated dynamically per reservation)
 $base_rooms_list = [];
@@ -540,11 +554,38 @@ $theme = get_theme_colors($conn);
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'update_rejected'): ?>
                 <div class="alert alert-warning">User profile update rejected.</div>
             <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'del_req_rejected'): ?>
+                <div class="alert alert-warning">Account deletion request rejected.</div>
+            <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'sig_requested'): ?>
                 <div class="alert alert-success">Signature request notification sent to user.</div>
             <?php endif; ?>
             <?php if(isset($_GET['error'])): ?>
                 <div class="alert alert-danger"><?= htmlspecialchars($_GET['error']) ?></div>
+            <?php endif; ?>
+
+            <!-- Pending Deletion Request Alert -->
+            <?php if($pending_del_req): ?>
+            <div class="card border-danger mb-4 shadow-sm">
+                <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-user-times me-2"></i> Account Deletion Request</span>
+                    <div class="d-flex gap-2">
+                        <form method="POST" class="d-inline" onsubmit="return confirm('Approve deletion? This will permanently delete the user and all data.');">
+                            <input type="hidden" name="user_id" value="<?= $uid ?>">
+                            <input type="hidden" name="delete_user" value="1">
+                            <button type="submit" class="btn btn-light btn-sm fw-bold text-danger"><i class="fas fa-check me-1"></i> Approve & Delete</button>
+                        </form>
+                        <form method="POST" class="d-inline">
+                            <input type="hidden" name="request_id" value="<?= $pending_del_req['request_id'] ?>">
+                            <input type="hidden" name="reject_deletion_request" value="1">
+                            <button type="submit" class="btn btn-outline-light btn-sm fw-bold"><i class="fas fa-times me-1"></i> Reject</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card-body bg-light text-danger">
+                    <p class="mb-0 small"><i class="fas fa-exclamation-circle me-1"></i> This user has requested to permanently delete their account. Please review any outstanding balances or issues before approving.</p>
+                </div>
+            </div>
             <?php endif; ?>
 
             <!-- Pending Update Request Alert -->
