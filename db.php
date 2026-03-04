@@ -24,14 +24,16 @@ if (!function_exists('get_theme_colors')) {
 function get_theme_colors($conn) {
     $theme = ['primary' => '#2E7D32', 'dark' => '#1B5E20', 'accent' => '#FBC02D'];
     
-    $q = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key IN ('theme_primary', 'theme_dark', 'theme_accent')");
-    if($q){
-        while($row = mysqli_fetch_assoc($q)){
-            if($row['setting_key'] == 'theme_primary') $theme['primary'] = $row['setting_value'];
-            if($row['setting_key'] == 'theme_dark') $theme['dark'] = $row['setting_value'];
-            if($row['setting_key'] == 'theme_accent') $theme['accent'] = $row['setting_value'];
+    try {
+        $q = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key IN ('theme_primary', 'theme_dark', 'theme_accent')");
+        if($q){
+            while($row = mysqli_fetch_assoc($q)){
+                if($row['setting_key'] == 'theme_primary') $theme['primary'] = $row['setting_value'];
+                if($row['setting_key'] == 'theme_dark') $theme['dark'] = $row['setting_value'];
+                if($row['setting_key'] == 'theme_accent') $theme['accent'] = $row['setting_value'];
+            }
         }
-    }
+    } catch (Exception $e) {}
     return $theme;
 }
 }
@@ -120,26 +122,30 @@ function send_notification($conn, $user_id, $message, $type = 'System') {
 // --- ACTIVITY LOGGING ---
 if (!function_exists('log_activity')) {
 function log_activity($conn, $user_id, $action, $details = "") {
-    // Ensure table exists
-    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (
-        log_id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        action VARCHAR(100) NOT NULL,
-        details TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )");
+    try {
+        // Ensure table exists
+        mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (
+            log_id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            action VARCHAR(100) NOT NULL,
+            details TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
 
-    $act = mysqli_real_escape_string($conn, $action);
-    $det = mysqli_real_escape_string($conn, $details);
-    mysqli_query($conn, "INSERT INTO activity_logs (user_id, action, details) VALUES ('$user_id', '$act', '$det')");
+        $act = mysqli_real_escape_string($conn, $action);
+        $det = mysqli_real_escape_string($conn, $details);
+        mysqli_query($conn, "INSERT INTO activity_logs (user_id, action, details) VALUES ('$user_id', '$act', '$det')");
+    } catch (Exception $e) {}
 }
 }
 
 // --- AUTO REFRESH TRIGGER ---
 if (!function_exists('trigger_update')) {
 function trigger_update($conn) {
-    $t = time();
-    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('last_update', '$t') ON DUPLICATE KEY UPDATE setting_value='$t'");
+    try {
+        $t = time();
+        mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('last_update', '$t') ON DUPLICATE KEY UPDATE setting_value='$t'");
+    } catch (Exception $e) {}
 }
 }
 
@@ -225,6 +231,8 @@ if($rem_query) {
             send_notification($conn, $uid, "📅 Reminder: Your stay starts tomorrow (" . $row['start_date'] . "). We look forward to welcoming you!", "Reminder");
         }
     }
+} catch (Exception $e) {
+    // Prevent crash if tables don't exist yet
 }
 } catch (Exception $e) {
     // Prevent crash if tables don't exist yet
@@ -290,6 +298,7 @@ if($pay_query){
         // B. Send Warning if Overdue (every 4 hours)
         elseif($current_time > $due_timestamp){
              $chk_warn = mysqli_query($conn, "SELECT user_id FROM notifications WHERE user_id='$uid' AND type = 'Payment Warning' AND created_at > DATE_SUB(NOW(), INTERVAL 4 HOUR)");
+             if(mysqli_num_rows(result: $chk_warn) == 0){
              if(mysqli_num_rows($chk_warn) == 0){
                  $msg = "⚠️ <strong>Payment Overdue</strong><br>Your payment of ₱".number_format($amount,2)." was due on ".date('M d, Y', $due_timestamp).". Please pay immediately to avoid penalties.";
                  send_notification($conn, $uid, $msg, "Payment Warning");
