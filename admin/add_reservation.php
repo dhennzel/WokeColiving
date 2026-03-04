@@ -161,7 +161,7 @@ if(isset($_POST['add_reservation'])){
                 } elseif($bed_preference == 'Lower Bunk'){
                     if($avail_lower > 0) { $found_room = $room; break; }
                 } else {
-                    $found_room = $room; break;
+                    if($avail_upper > 0 || $avail_lower > 0) { $found_room = $room; break; }
                 }
             } else {
                 $found_room = $room; break;
