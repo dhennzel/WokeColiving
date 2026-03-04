@@ -23,17 +23,15 @@ mysqli_query($conn, "CREATE TABLE IF NOT EXISTS site_settings (id INT AUTO_INCRE
 if (!function_exists('get_theme_colors')) {
 function get_theme_colors($conn) {
     $theme = ['primary' => '#2E7D32', 'dark' => '#1B5E20', 'accent' => '#FBC02D'];
-    
-    try {
-        $q = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key IN ('theme_primary', 'theme_dark', 'theme_accent')");
-        if($q){
-            while($row = mysqli_fetch_assoc($q)){
-                if($row['setting_key'] == 'theme_primary') $theme['primary'] = $row['setting_value'];
-                if($row['setting_key'] == 'theme_dark') $theme['dark'] = $row['setting_value'];
-                if($row['setting_key'] == 'theme_accent') $theme['accent'] = $row['setting_value'];
-            }
+
+    $q = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key IN ('theme_primary', 'theme_dark', 'theme_accent')");
+    if($q){
+        while($row = mysqli_fetch_assoc($q)){
+            if($row['setting_key'] == 'theme_primary') $theme['primary'] = $row['setting_value'];
+            if($row['setting_key'] == 'theme_dark') $theme['dark'] = $row['setting_value'];
+            if($row['setting_key'] == 'theme_accent') $theme['accent'] = $row['setting_value'];
         }
-    } catch (Exception $e) {}
+    }
     return $theme;
 }
 }
@@ -74,13 +72,13 @@ function send_notification($conn, $user_id, $message, $type = 'System') {
     if($u_row = mysqli_fetch_assoc($u_res)){
         $to = $u_row['email'];
         $subject = "Woke Coliving Notification: $type";
-        
+
         // --- GMAIL SMTP CONFIGURATION (Requires PHPMailer) ---
         // 1. Download PHPMailer and extract to: c:\xampp\htdocs\WokeColiving\PHPMailer
         // 2. Enable "2-Step Verification" in Google Account -> Security
         // 3. Generate an "App Password" and paste it below
         $phpmailer_path = __DIR__ . '/PHPMailer/src/PHPMailer.php';
-        
+
         if (file_exists($phpmailer_path)) {
             require_once __DIR__ . '/PHPMailer/src/Exception.php';
             require_once __DIR__ . '/PHPMailer/src/PHPMailer.php';
@@ -122,20 +120,18 @@ function send_notification($conn, $user_id, $message, $type = 'System') {
 // --- ACTIVITY LOGGING ---
 if (!function_exists('log_activity')) {
 function log_activity($conn, $user_id, $action, $details = "") {
-    try {
-        // Ensure table exists
-        mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (
-            log_id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            action VARCHAR(100) NOT NULL,
-            details TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )");
+    // Ensure table exists
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (
+        log_id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        action VARCHAR(100) NOT NULL,
+        details TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )");
 
-        $act = mysqli_real_escape_string($conn, $action);
-        $det = mysqli_real_escape_string($conn, $details);
-        mysqli_query($conn, "INSERT INTO activity_logs (user_id, action, details) VALUES ('$user_id', '$act', '$det')");
-    } catch (Exception $e) {}
+    $act = mysqli_real_escape_string($conn, $action);
+    $det = mysqli_real_escape_string($conn, $details);
+    mysqli_query($conn, "INSERT INTO activity_logs (user_id, action, details) VALUES ('$user_id', '$act', '$det')");
 }
 }
 
@@ -204,6 +200,12 @@ function setup_waitlist_table($conn) {
         notified_at TIMESTAMP NULL DEFAULT NULL,
         UNIQUE KEY `user_room` (`user_id`,`room_type`)
     )");
+
+    // Ensure notified_at column exists if table was created previously without it
+    $check_col = mysqli_query($conn, "SHOW COLUMNS FROM waitlist LIKE 'notified_at'");
+    if(mysqli_num_rows($check_col) == 0) {
+        mysqli_query($conn, "ALTER TABLE waitlist ADD COLUMN notified_at TIMESTAMP NULL DEFAULT NULL");
+    }
 }
 setup_waitlist_table($conn);
 }
@@ -307,7 +309,7 @@ function setup_updates_table($conn) {
         description TEXT,
         release_date DATE DEFAULT CURRENT_DATE
     )");
-    
+
     // List of all updates to ensure they exist in DB
     $updates = [
         ['1.3.6', 'User Control', 'Added option for users to permanently delete their account (requires no active bookings).', 'NOW()'],
@@ -387,10 +389,8 @@ function check_system_compliance($conn, $user_id) {
 // --- AUTO REFRESH TRIGGER ---
 if (!function_exists('trigger_update')) {
 function trigger_update($conn) {
-    try {
-        $t = time();
-        mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('last_update', '$t') ON DUPLICATE KEY UPDATE setting_value='$t'");
-    } catch (Exception $e) {}
+    $t = time();
+    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('last_update', '$t') ON DUPLICATE KEY UPDATE setting_value='$t'");
 }
 }
 
@@ -432,6 +432,33 @@ if(mysqli_num_rows($check_col_rn) == 0) {
     mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN room_number VARCHAR(50) DEFAULT NULL AFTER room_name");
 }
 
+// Ensure users table has split name columns (Migration from full_name)
+$check_user_cols = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'last_name'");
+if(mysqli_num_rows($check_user_cols) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN last_name VARCHAR(50) DEFAULT ''");
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN first_name VARCHAR(50) DEFAULT ''");
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN middle_name VARCHAR(50) DEFAULT NULL");
+    
+    // Migrate existing data
+    $all_users = mysqli_query($conn, "SELECT user_id, full_name FROM users");
+    if($all_users){
+        while($u = mysqli_fetch_assoc($all_users)){
+            $parts = explode(' ', trim($u['full_name']));
+            $lname = (count($parts) > 0) ? array_pop($parts) : '';
+            $fname = implode(' ', $parts);
+            $lname = mysqli_real_escape_string($conn, $lname);
+            $fname = mysqli_real_escape_string($conn, $fname);
+            mysqli_query($conn, "UPDATE users SET last_name='$lname', first_name='$fname' WHERE user_id=".$u['user_id']);
+        }
+    }
+}
+
+// Ensure profile_image column exists in users table
+$check_profile_image_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'profile_image'");
+if(mysqli_num_rows($check_profile_image_col) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN profile_image VARCHAR(255) DEFAULT NULL");
+}
+
 // Ensure notifications table exists and is correct before use in automated tasks
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -469,8 +496,6 @@ if($rem_query) {
             send_notification($conn, $uid, "📅 Reminder: Your stay starts tomorrow (" . $row['start_date'] . "). We look forward to welcoming you!", "Reminder");
         }
     }
-} catch (Exception $e) {
-    // Prevent crash if tables don't exist yet
 }
 } catch (Exception $e) {
     // Prevent crash if tables don't exist yet
@@ -511,32 +536,31 @@ if($pay_query){
         $rid = $row['reservation_id'];
         $uid = $row['user_id'];
         $amount = $row['amount'];
-        
+
         // Determine Due Date (Contract Start Date for Room Payments, Bill Date for others)
         $is_room_payment = (stripos($row['description'] ?? '', 'Room Payment') !== false);
         $due_timestamp = ($is_room_payment && !empty($row['start_date'])) ? strtotime($row['start_date']) : strtotime($row['payment_date']);
-        
+
         $current_time = time();
         $penalty_timestamp = $due_timestamp + ($grace_period * 86400);
-        
+
         // A. Apply Penalty if grace period passed
         if($current_time > $penalty_timestamp){
             $penalty_amount = $amount * $penalty_rate;
             $desc = "Late Penalty (5%) for Payment #$pid";
-            
+
             $ins = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'System', 'Unpaid', NOW(), ?)");
             mysqli_stmt_bind_param($ins, "ids", $rid, $penalty_amount, $desc);
             mysqli_stmt_execute($ins);
-            
+
             mysqli_query($conn, "UPDATE payments SET is_penalized = 1 WHERE payment_id = $pid");
-            
+
             log_activity($conn, $uid, "Penalty Applied", "Late fee of ".number_format($penalty_amount,2)." applied for Payment #$pid");
             send_notification($conn, $uid, "⚠️ <strong>Late Payment Penalty</strong><br>A penalty of ₱".number_format($penalty_amount,2)." has been applied to your account due to overdue payment.", "Billing Alert");
         }
         // B. Send Warning if Overdue (every 4 hours)
         elseif($current_time > $due_timestamp){
              $chk_warn = mysqli_query($conn, "SELECT user_id FROM notifications WHERE user_id='$uid' AND type = 'Payment Warning' AND created_at > DATE_SUB(NOW(), INTERVAL 4 HOUR)");
-             if(mysqli_num_rows(result: $chk_warn) == 0){
              if(mysqli_num_rows($chk_warn) == 0){
                  $msg = "⚠️ <strong>Payment Overdue</strong><br>Your payment of ₱".number_format($amount,2)." was due on ".date('M d, Y', $due_timestamp).". Please pay immediately to avoid penalties.";
                  send_notification($conn, $uid, $msg, "Payment Warning");
@@ -544,6 +568,7 @@ if($pay_query){
         }
     }
 }
+
 
 // --- ROOM OCCUPANCY FUNCTIONS ---
 
