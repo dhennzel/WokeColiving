@@ -25,27 +25,14 @@ $cols = mysqli_query($conn, "SHOW COLUMNS FROM rooms");
 $existing_cols = [];
 while($c = mysqli_fetch_assoc($cols)) $existing_cols[] = $c['Field'];
 
+if(!in_array('price_upper', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN price_upper DECIMAL(10,2) DEFAULT 0.00");
+if(!in_array('price_lower', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN price_lower DECIMAL(10,2) DEFAULT 0.00");
 if(!in_array('price_whole', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN price_whole DECIMAL(10,2) DEFAULT 0.00");
 if(!in_array('long_term_price_upper', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN long_term_price_upper DECIMAL(10,2) DEFAULT 0.00");
 if(!in_array('long_term_price_lower', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN long_term_price_lower DECIMAL(10,2) DEFAULT 0.00");
 if(!in_array('long_term_price_whole', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN long_term_price_whole DECIMAL(10,2) DEFAULT 0.00");
 if(!in_array('daily_price_bed', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN daily_price_bed DECIMAL(10,2) DEFAULT 0.00");
 if(!in_array('daily_price_room', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN daily_price_room DECIMAL(10,2) DEFAULT 0.00");
-
-// Update Rates
-mysqli_query($conn, "UPDATE rooms SET 
-    price_upper=5999.00, price_lower=6600.00, price_whole=37797.00,
-    long_term_price_upper=3999.00, long_term_price_lower=4500.00, long_term_price_whole=25497.00,
-    daily_price_bed=700.00
-    WHERE room_type='6-Bed'");
-
-mysqli_query($conn, "UPDATE rooms SET 
-    price_upper=6300.00, price_lower=6900.00, price_whole=26400.00,
-    long_term_price_upper=4200.00, long_term_price_lower=4700.00, long_term_price_whole=17800.00,
-    daily_price_bed=700.00
-    WHERE room_type='4-Bed'");
-
-mysqli_query($conn, "UPDATE rooms SET daily_price_room=1200.00 WHERE room_type='Single'");
 
 if (!function_exists('get_theme_colors')) {
 function get_theme_colors($conn) {

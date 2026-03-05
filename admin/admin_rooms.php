@@ -59,6 +59,26 @@ if(isset($_POST['update_prices'])){
         $val = (float)$val;
         mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('$key', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
     }
+
+    // Bulk Update Existing Rooms to reflect new default prices
+    // Single Room
+    mysqli_query($conn, "UPDATE rooms SET total_price='{$prices['price_single']}', long_term_price_whole='{$prices['price_single_long']}' WHERE room_type='Single'");
+    
+    // 4-Bed Dorm
+    mysqli_query($conn, "UPDATE rooms SET 
+        price_upper='{$prices['price_4bed_upper']}', price_lower='{$prices['price_4bed_lower']}', price_whole='{$prices['price_4bed_whole']}',
+        long_term_price_upper='{$prices['price_4bed_upper_long']}', long_term_price_lower='{$prices['price_4bed_lower_long']}', long_term_price_whole='{$prices['price_4bed_whole_long']}',
+        total_price='{$prices['price_4bed_lower']}'
+        WHERE room_type='4-Bed'");
+
+    // 6-Bed Dorm
+    mysqli_query($conn, "UPDATE rooms SET 
+        price_upper='{$prices['price_6bed_upper']}', price_lower='{$prices['price_6bed_lower']}', price_whole='{$prices['price_6bed_whole']}',
+        long_term_price_upper='{$prices['price_6bed_upper_long']}', long_term_price_lower='{$prices['price_6bed_lower_long']}', long_term_price_whole='{$prices['price_6bed_whole_long']}',
+        total_price='{$prices['price_6bed_lower']}'
+        WHERE room_type='6-Bed'");
+
+    trigger_update($conn);
     header("Location: admin_rooms.php?msg=prices_updated");
     exit;
 }
@@ -280,7 +300,6 @@ $theme = get_theme_colors($conn);
         <?php endforeach; ?>
     </div>
         </div>
-        <?php if(isset($_GET['msg']) && $_GET['msg'] == 'prices_updated') echo "<div class='alert alert-success mt-3'>Default room prices updated successfully.</div>"; ?>
     </div>
 </div>
 
@@ -471,6 +490,20 @@ $theme = get_theme_colors($conn);
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+<?php if(isset($_GET['msg']) && $_GET['msg'] == 'prices_updated'): ?>
+Swal.fire({
+    icon: 'success',
+    title: 'Updated!',
+    text: 'Default room prices updated successfully.',
+    timer: 2500,
+    showConfirmButton: false
+});
+// Clean up the URL so the message doesn't persist
+const url = new URL(window.location);
+url.searchParams.delete('msg');
+window.history.replaceState({}, document.title, url);
+<?php endif; ?>
+
 function togglePriceSections() {
     const val = document.getElementById('priceFilter').value;
     document.getElementById('sec_single').style.display = (val === 'single') ? 'block' : 'none';

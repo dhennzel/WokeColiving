@@ -32,6 +32,17 @@ if(mysqli_num_rows($query) == 0){
 }
 $room = mysqli_fetch_assoc($query);
 
+// Fetch default prices
+$default_prices = [
+    'price_single' => 14000, 'price_single_long' => 13000,
+    'price_4bed_upper' => 4200, 'price_4bed_lower' => 4700, 'price_4bed_whole' => 18000,
+    'price_4bed_upper_long' => 4000, 'price_4bed_lower_long' => 4500, 'price_4bed_whole_long' => 17000,
+    'price_6bed_upper' => 3750, 'price_6bed_lower' => 4500, 'price_6bed_whole' => 25000,
+    'price_6bed_upper_long' => 3500, 'price_6bed_lower_long' => 4200, 'price_6bed_whole_long' => 24000
+];
+$q_prices = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key LIKE 'price_%'");
+while($row = mysqli_fetch_assoc($q_prices)){ $default_prices[$row['setting_key']] = (float)$row['setting_value']; }
+
 if(isset($_POST['update_room'])){
     $room_number = trim($_POST['room_number']);
     $room_type = trim($_POST['room_type']);
@@ -41,6 +52,10 @@ if(isset($_POST['update_room'])){
     $price = isset($_POST['price']) ? (float) $_POST['price'] : 0;
     $price_upper = isset($_POST['price_upper']) ? (float) $_POST['price_upper'] : 0;
     $price_lower = isset($_POST['price_lower']) ? (float) $_POST['price_lower'] : 0;
+    $price_whole = isset($_POST['price_whole']) ? (float) $_POST['price_whole'] : 0;
+    $lt_upper = isset($_POST['long_term_price_upper']) ? (float) $_POST['long_term_price_upper'] : 0;
+    $lt_lower = isset($_POST['long_term_price_lower']) ? (float) $_POST['long_term_price_lower'] : 0;
+    $lt_whole = isset($_POST['long_term_price_whole']) ? (float) $_POST['long_term_price_whole'] : 0;
     $beds = (int) $_POST['beds'];
     $availability = $_POST['availability'];
     
@@ -69,8 +84,8 @@ if(isset($_POST['update_room'])){
             $price = $price_lower;
         }
 
-        $stmt = mysqli_prepare($conn, "UPDATE rooms SET room_name=?, room_number=?, room_type=?, floor=?, total_price=?, price_upper=?, price_lower=?, total_beds=?, availability=?, image=? WHERE room_id=?");
-        mysqli_stmt_bind_param($stmt, "sssidddissi", $room_name, $room_number, $room_type, $floor, $price, $price_upper, $price_lower, $beds, $availability, $image, $room_id);
+        $stmt = mysqli_prepare($conn, "UPDATE rooms SET room_name=?, room_number=?, room_type=?, floor=?, total_price=?, price_upper=?, price_lower=?, price_whole=?, long_term_price_upper=?, long_term_price_lower=?, long_term_price_whole=?, total_beds=?, availability=?, image=? WHERE room_id=?");
+        mysqli_stmt_bind_param($stmt, "sssidddddddissi", $room_name, $room_number, $room_type, $floor, $price, $price_upper, $price_lower, $price_whole, $lt_upper, $lt_lower, $lt_whole, $beds, $availability, $image, $room_id);
         
         try {
             if(mysqli_stmt_execute($stmt)){
@@ -250,17 +265,17 @@ $theme = get_theme_colors($conn);
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3" id="single_price_div">
-                                    <label class="form-label fw-bold">Price (₱)</label>
+                                    <label class="form-label fw-bold">Short Term Price (₱)</label>
                                     <input type="number" name="price" class="form-control" step="0.01" value="<?= $room['total_price'] ?>" readonly>
                                 </div>
-                                <div class="col-md-3 mb-3" id="upper_price_div" style="display:none;">
-                                    <label class="form-label fw-bold">Upper Bed Price (₱)</label>
-                                    <input type="number" name="price_upper" class="form-control" step="0.01" value="<?= $room['price_upper'] ?? 0 ?>">
-                                </div>
-                                <div class="col-md-3 mb-3" id="lower_price_div" style="display:none;">
-                                    <label class="form-label fw-bold">Lower Bed Price (₱)</label>
-                                    <input type="number" name="price_lower" class="form-control" step="0.01" value="<?= $room['price_lower'] ?? 0 ?>">
-                                </div>
+                                <div class="col-md-6 mb-3" id="single_price_long_div" style="display:none;"><label class="form-label fw-bold">Long Term Price (₱)</label><input type="number" name="long_term_price_whole" id="lt_whole" class="form-control" step="0.01" value="<?= $room['long_term_price_whole'] ?>" readonly></div>
+                                
+                                <div class="col-md-3 mb-3" id="upper_price_div" style="display:none;"><label class="form-label fw-bold">ST Upper Bed (₱)</label><input type="number" name="price_upper" class="form-control" step="0.01" value="<?= $room['price_upper'] ?>" readonly></div>
+                                <div class="col-md-3 mb-3" id="lower_price_div" style="display:none;"><label class="form-label fw-bold">ST Lower Bed (₱)</label><input type="number" name="price_lower" class="form-control" step="0.01" value="<?= $room['price_lower'] ?>" readonly></div>
+                                <div class="col-md-3 mb-3" id="upper_price_long_div" style="display:none;"><label class="form-label fw-bold">LT Upper Bed (₱)</label><input type="number" name="long_term_price_upper" class="form-control" step="0.01" value="<?= $room['long_term_price_upper'] ?>" readonly></div>
+                                <div class="col-md-3 mb-3" id="lower_price_long_div" style="display:none;"><label class="form-label fw-bold">LT Lower Bed (₱)</label><input type="number" name="long_term_price_lower" class="form-control" step="0.01" value="<?= $room['long_term_price_lower'] ?>" readonly></div>
+                                
+                                <div class="col-md-6 mb-3" id="whole_price_div" style="display:none;"><label class="form-label fw-bold">Whole Room Price (ST)</label><input type="number" name="price_whole" class="form-control" step="0.01" value="<?= $room['price_whole'] ?>" readonly></div>
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
@@ -300,47 +315,78 @@ $theme = get_theme_colors($conn);
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+let isFirstRun = true;
 function togglePriceFields() {
     var type = document.getElementById("room_type").value;
     var singleDiv = document.getElementById("single_price_div");
+    var singleLongDiv = document.getElementById("single_price_long_div");
     var upperDiv = document.getElementById("upper_price_div");
     var lowerDiv = document.getElementById("lower_price_div");
+    var upperLongDiv = document.getElementById("upper_price_long_div");
+    var lowerLongDiv = document.getElementById("lower_price_long_div");
+    var wholeDiv = document.getElementById("whole_price_div");
     
     var priceInput = document.querySelector('input[name="price"]');
+    var ltWholeInput = document.querySelector('input[name="long_term_price_whole"]');
     var upperInput = document.querySelector('input[name="price_upper"]');
     var lowerInput = document.querySelector('input[name="price_lower"]');
+    var wholeInput = document.querySelector('input[name="price_whole"]');
+    var ltUpperInput = document.querySelector('input[name="long_term_price_upper"]');
+    var ltLowerInput = document.querySelector('input[name="long_term_price_lower"]');
     var bedsInput = document.getElementById("beds");
 
     if (type === "Single") {
         singleDiv.style.display = "block";
+        singleLongDiv.style.display = "block";
         upperDiv.style.display = "none";
         lowerDiv.style.display = "none";
+        upperLongDiv.style.display = "none";
+        lowerLongDiv.style.display = "none";
+        wholeDiv.style.display = "none";
         
         priceInput.required = true;
         upperInput.required = false;
         lowerInput.required = false;
         
-        priceInput.value = 14000;
-        bedsInput.value = 1;
+        if(!isFirstRun) {
+            priceInput.value = <?= $default_prices['price_single'] ?>;
+            ltWholeInput.value = <?= $default_prices['price_single_long'] ?>;
+            bedsInput.value = 1;
+        }
     } else {
         singleDiv.style.display = "none";
+        singleLongDiv.style.display = "none";
         upperDiv.style.display = "block";
         lowerDiv.style.display = "block";
+        upperLongDiv.style.display = "block";
+        lowerLongDiv.style.display = "block";
+        wholeDiv.style.display = "block";
         
         priceInput.required = false;
         upperInput.required = true;
         lowerInput.required = true;
         
-        if(type === "4-Bed") {
-            upperInput.value = 4200;
-            lowerInput.value = 4700;
-            bedsInput.value = 4;
-        } else if(type === "6-Bed") {
-            upperInput.value = 3750;
-            lowerInput.value = 4500;
-            bedsInput.value = 6;
+        if(!isFirstRun) {
+            if(type === "4-Bed") {
+                upperInput.value = <?= $default_prices['price_4bed_upper'] ?>;
+                lowerInput.value = <?= $default_prices['price_4bed_lower'] ?>;
+                wholeInput.value = <?= $default_prices['price_4bed_whole'] ?>;
+                ltUpperInput.value = <?= $default_prices['price_4bed_upper_long'] ?>;
+                ltLowerInput.value = <?= $default_prices['price_4bed_lower_long'] ?>;
+                ltWholeInput.value = <?= $default_prices['price_4bed_whole_long'] ?>;
+                bedsInput.value = 4;
+            } else if(type === "6-Bed") {
+                upperInput.value = <?= $default_prices['price_6bed_upper'] ?>;
+                lowerInput.value = <?= $default_prices['price_6bed_lower'] ?>;
+                wholeInput.value = <?= $default_prices['price_6bed_whole'] ?>;
+                ltUpperInput.value = <?= $default_prices['price_6bed_upper_long'] ?>;
+                ltLowerInput.value = <?= $default_prices['price_6bed_lower_long'] ?>;
+                ltWholeInput.value = <?= $default_prices['price_6bed_whole_long'] ?>;
+                bedsInput.value = 6;
+            }
         }
     }
+    isFirstRun = false;
 }
 // Initialize
 togglePriceFields();
