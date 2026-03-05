@@ -267,6 +267,8 @@ $theme = get_theme_colors($conn);
             $first_room = $rooms_in_type[0];
             $image = $first_room['image'];
             $price = $first_room['total_price'];
+            $p_upper = $first_room['price_upper'];
+            $p_lower = $first_room['price_lower'];
             
             // Pre-calculate availability for all rooms in this type
             foreach($rooms_in_type as $key => $room) {
@@ -286,7 +288,14 @@ $theme = get_theme_colors($conn);
                 <img src="../assets/images/<?= $image ?>" alt="<?= $type ?>">
                 <div class="card-body text-center">
                     <h3 class="fw-bold text-dark mb-2"><?= $type ?></h3>
-                    <p class="price-tag mb-2">₱<?= number_format($price, 2) ?> <small class="text-muted fs-6">/mo</small></p>
+                    <?php if($type != 'Single'): ?>
+                        <div class="mb-2">
+                            <span class="text-primary fw-bold small">Upper: ₱<?= number_format($p_upper, 2) ?></span><br>
+                            <span class="text-success fw-bold small">Lower: ₱<?= number_format($p_lower, 2) ?></span>
+                        </div>
+                    <?php else: ?>
+                        <p class="price-tag mb-2">₱<?= number_format($price, 2) ?> <small class="text-muted fs-6">/mo</small></p>
+                    <?php endif; ?>
                     <div class="d-flex justify-content-center gap-3 text-muted small mb-3">
                         <span><i class="fas fa-door-open me-1"></i> <?= count($rooms_in_type) ?> Rooms</span>
                         <span><i class="fas fa-bed me-1"></i> <?= $type_total_beds ?> Beds</span>
@@ -382,7 +391,14 @@ $theme = get_theme_colors($conn);
                 <h5 class="card-title fw-bold text-dark"><?= $room_display_name ?></h5>
                 <span class="badge bg-light text-dark border"><?= $floor ?>F</span>
             </div>
-        <p class="price-tag mb-1">₱<?= number_format($room['total_price'],2) ?> <small class="text-muted fs-6">/mo</small></p>
+            <?php if($is_shared): ?>
+                <div class="mb-2">
+                    <div class="small fw-bold text-primary">Upper: ₱<?= number_format($room['price_upper'], 2) ?></div>
+                    <div class="small fw-bold text-success">Lower: ₱<?= number_format($room['price_lower'], 2) ?></div>
+                </div>
+            <?php else: ?>
+                <p class="price-tag mb-1">₱<?= number_format($room['total_price'],2) ?> <small class="text-muted fs-6">/mo</small></p>
+            <?php endif; ?>
             <div class="mb-3">
                 <div class="d-flex justify-content-between small text-muted mb-1">
                     <span><i class="fas fa-bed me-1"></i> Total Beds: <?= $room['total_beds'] ?></span>
