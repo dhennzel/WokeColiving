@@ -482,7 +482,16 @@ $theme = get_theme_colors($conn);
                                         <div>
                                             <div class="fw-bold"><?= $res['full_name'] ?> <div class="dropdown d-inline ms-1"><a href="#" class="text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v fa-sm"></i></a><ul class="dropdown-menu"><li><a class="dropdown-item" href="view_user.php?uid=<?= $res['user_id'] ?>"><i class="fas fa-eye me-2"></i>View History</a></li><li><a class="dropdown-item" href="?action=toggle_dnr&uid=<?= $res['user_id'] ?>"><i class="fas fa-flag me-2"></i><?= $res['do_not_renew'] ? 'Unflag DNR' : 'Flag DNR' ?></a></li></ul></div></div>
                                             <small class="text-muted"><?= $res['email'] ?></small>
-                                            <?php if($res['is_walkin']): ?><span class="badge bg-info text-dark ms-1" style="font-size: 0.6rem;">Walk-in</span><?php endif; ?>
+                                            <?php 
+                                                $m = $res['months'];
+                                                $d = (strtotime($res['end_date']) - strtotime($res['start_date'])) / (60 * 60 * 24);
+                                                $lbl = 'Registered'; $cls = 'bg-secondary';
+                                                if($m >= 6) { $lbl = 'Long-Term'; $cls = 'bg-primary'; }
+                                                elseif($d < 28) { $lbl = 'Daily'; $cls = 'bg-warning text-dark'; }
+                                                else { $lbl = 'Short-Term'; $cls = 'bg-success'; }
+                                                if($res['is_walkin']) { if($lbl == 'Registered') { $lbl = 'Walk-in'; $cls = 'bg-info text-dark'; } else { $lbl .= '/Walk-in'; } }
+                                                echo "<span class='badge $cls ms-1' style='font-size: 0.6rem;'>$lbl</span>";
+                                            ?>
                                             <?php if($res['do_not_renew']): ?><div class="badge bg-danger" style="font-size: 0.6rem;">Do Not Renew</div><?php endif; ?>
                                         </div>
                                     </div>
