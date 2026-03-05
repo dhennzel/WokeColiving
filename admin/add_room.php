@@ -8,6 +8,8 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
     exit;
 }
 
+$is_super = ($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin';
+
 // Ensure new price columns exist
 $check_cols = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'price_upper'");
 if(mysqli_num_rows($check_cols) == 0) {
@@ -186,7 +188,9 @@ $locked_type = (isset($_GET['type']) && in_array($_GET['type'], $allowed_types))
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse" id="financeSubmenu">
+                <?php if($is_super): ?>
                 <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
+                <?php endif; ?>
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a>
             </div>
 
@@ -218,9 +222,12 @@ $locked_type = (isset($_GET['type']) && in_array($_GET['type'], $allowed_types))
             </a>
             <div class="collapse" id="settingsSubmenu">
                 <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
+                <?php if($is_super): ?>
+                <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
                 <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
                 <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
                 <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
+                <?php endif; ?>
             </div>
 
             <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>

@@ -190,7 +190,9 @@ $theme = get_theme_colors($conn);
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse" id="financeSubmenu">
+                <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
                 <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
+                <?php endif; ?>
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a>
             </div>
 
@@ -200,7 +202,6 @@ $theme = get_theme_colors($conn);
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse show" id="operationsSubmenu">
-                <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-file-invoice-dollar me-2"></i>Billing</a>
                 <a href="admin_maintenance.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-wrench me-2"></i>Maintenance</span>
                     <?php if($pending_maint > 0): ?>
@@ -223,9 +224,12 @@ $theme = get_theme_colors($conn);
             </a>
             <div class="collapse" id="settingsSubmenu">
                 <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
+                <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
+                <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
                 <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
                 <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
                 <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
+                <?php endif; ?>
             </div>
 
             <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>

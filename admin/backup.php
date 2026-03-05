@@ -8,6 +8,12 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
     exit;
 }
 
+// Super Admin only
+if(($_SESSION['admin_role'] ?? 'Admin') != 'Super Admin'){
+    header("Location: admin_dashboard.php?error=access_denied");
+    exit;
+}
+
 // --- CONFIGURATION ---
 $db_host = "localhost";
 $db_user = "root";

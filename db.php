@@ -20,6 +20,13 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 // Ensure site_settings table exists globally
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS site_settings (id INT AUTO_INCREMENT PRIMARY KEY, setting_key VARCHAR(50) UNIQUE NOT NULL, setting_value TEXT)");
 
+// Ensure admin table has role column
+$check_admin_role = mysqli_query($conn, "SHOW COLUMNS FROM admin LIKE 'role'");
+if(mysqli_num_rows($check_admin_role) == 0) {
+    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN role ENUM('Super Admin', 'Admin') DEFAULT 'Admin'");
+    mysqli_query($conn, "UPDATE admin SET role='Super Admin' LIMIT 1"); // Default first admin to Super Admin
+}
+
 // Ensure room pricing columns exist
 $cols = mysqli_query($conn, "SHOW COLUMNS FROM rooms");
 $existing_cols = [];

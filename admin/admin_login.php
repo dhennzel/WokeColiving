@@ -15,6 +15,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($result && mysqli_num_rows($result) == 1) {
         $admin = mysqli_fetch_assoc($result);
         $_SESSION['admin_username'] = $admin['username'];
+        $_SESSION['admin_role'] = $admin['role'];
         $_SESSION['admin_logged_in'] = true; // session flag
         header("Location: admin_dashboard.php");
         exit();

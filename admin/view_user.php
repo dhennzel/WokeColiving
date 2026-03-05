@@ -51,6 +51,10 @@ if(isset($_POST['delete_user'])){
             try { mysqli_query($conn, "DELETE FROM housekeeping_requests WHERE user_id=$del_uid"); } catch(Exception $e){}
             try { mysqli_query($conn, "DELETE FROM notifications WHERE user_id=$del_uid"); } catch(Exception $e){}
             try { mysqli_query($conn, "DELETE FROM waitlist WHERE user_id=$del_uid"); } catch(Exception $e){}
+            try { mysqli_query($conn, "DELETE FROM user_update_requests WHERE user_id=$del_uid"); } catch(Exception $e){}
+            try { mysqli_query($conn, "DELETE FROM account_deletion_requests WHERE user_id=$del_uid"); } catch(Exception $e){}
+            try { mysqli_query($conn, "DELETE FROM parking_reservations WHERE user_id=$del_uid"); } catch(Exception $e){}
+            try { mysqli_query($conn, "DELETE FROM key_transactions WHERE user_id=$del_uid"); } catch(Exception $e){}
 
             mysqli_query($conn, "DELETE FROM users WHERE user_id=$del_uid");
             trigger_update($conn);
@@ -361,6 +365,7 @@ $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
+$del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 
 $theme = get_theme_colors($conn);
 ?>
@@ -462,7 +467,9 @@ $theme = get_theme_colors($conn);
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse" id="financeSubmenu">
+                <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
                 <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
+                <?php endif; ?>
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a>
             </div>
 
@@ -494,9 +501,12 @@ $theme = get_theme_colors($conn);
             </a>
             <div class="collapse" id="settingsSubmenu">
                 <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
+                <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
+                <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
                 <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
                 <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
                 <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
+                <?php endif; ?>
             </div>
 
             <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
