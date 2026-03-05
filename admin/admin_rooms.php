@@ -94,18 +94,17 @@ $default_prices = [
 $q_prices = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key LIKE 'price_%'");
 while($row = mysqli_fetch_assoc($q_prices)){ $default_prices[$row['setting_key']] = (float)$row['setting_value']; }
 
-// Filter Logic
-$floor_filter = isset($_GET['floor']) ? (int)$_GET['floor'] : 0;
-$sql = "SELECT * FROM rooms WHERE is_archived='0'";
-if($floor_filter > 0){
-    $sql .= " AND floor = $floor_filter";
-}
-$sql .= " ORDER BY room_type ASC, floor ASC, room_number ASC";
-$rooms = mysqli_query($conn, $sql);
+// Fetch all rooms using centralized function for accurate occupancy data
+$rooms = get_all_rooms_with_occupancy($conn);
 
+// Group rooms by type
 $grouped_rooms = [];
-while($row = mysqli_fetch_assoc($rooms)){
-    $grouped_rooms[$row['room_type']][] = $row;
+foreach ($rooms as $room) {
+    $type = $room['room_type'];
+    if (!isset($grouped_rooms[$type])) {
+        $grouped_rooms[$type] = [];
+    }
+    $grouped_rooms[$type][] = $room;
 }
 
 // Fetch Pending Counts for Sidebar
@@ -269,20 +268,11 @@ $theme = get_theme_colors($conn);
         <div class="container-fluid px-4 py-4 reveal">
     <?php if($error){ echo "<div class='alert alert-danger'>$error</div>"; } ?>
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div class="d-flex align-items-center">
+    <div class="d-flex align-items-center">
             <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
                 <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
             </a>
-            <h4 class="fw-bold mb-0 me-3" style="color: var(--dark-green);">Room Inventory</h4>
-            <form method="GET" class="d-inline-block">
-                <select name="floor" class="form-select form-select-sm border-success text-success fw-bold" onchange="this.form.submit()" style="width: auto;">
-                    <option value="0">All Floors</option>
-                    <?php for($i=2; $i<=7; $i++): 
-                        $suffix = ($i == 2) ? 'nd' : (($i == 3) ? 'rd' : 'th'); ?>
-                        <option value="<?= $i ?>" <?= ($floor_filter == $i) ? 'selected' : '' ?>><?= $i . $suffix ?> Floor</option>
-                    <?php endfor; ?>
-                </select>
-            </form>
+            <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Room Inventory</h4>
         </div>
         <div>
             <a href="admin_utilities.php#rooms" class="btn btn-outline-secondary me-2"><i class="fas fa-archive me-2"></i>View Archive</a>
@@ -301,16 +291,10 @@ $theme = get_theme_colors($conn);
             $p_upper = $first_room['price_upper'];
             $p_lower = $first_room['price_lower'];
             
-            // Pre-calculate availability for all rooms in this type
+            // Use centralized data for accurate occupancy
             foreach($rooms_in_type as $key => $room) {
-                $room_id = $room['room_id'];
-                $occ_q = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM reservations WHERE room_id=$room_id AND status IN ('Pending','Approved') AND start_date <= CURDATE() AND end_date > CURDATE()");
-                $occ = mysqli_fetch_assoc($occ_q);
-                $avail = max(0, $room['total_beds'] - $occ['cnt']);
-                if($room['availability'] == 'Maintenance') $avail = 0;
-                
                 $type_total_beds += $room['total_beds'];
-                $type_avail_beds += $avail;
+                $type_avail_beds += $room['available_beds'];
             }
         ?>
         <!-- Summary Card -->
