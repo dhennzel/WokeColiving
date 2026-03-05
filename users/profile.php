@@ -170,7 +170,12 @@ if(isset($_POST['toggle_night_mode'])){
 }
 
 // Fetch ALL user info to check against schema
-$u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
+$u_query = mysqli_query($conn, "
+    SELECT u.*, 
+    (SELECT months FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_months,
+    (SELECT DATEDIFF(end_date, start_date) FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_days
+    FROM users u WHERE u.user_id=$user_id
+");
 $user_info = mysqli_fetch_assoc($u_query);
 $user_info['full_name'] = $user_info['last_name'] . ', ' . $user_info['first_name'] . (!empty($user_info['middle_name']) ? ' ' . $user_info['middle_name'] : '');
 
@@ -452,6 +457,17 @@ if($su_q){
             <?php endif; ?>
         </div>
         <h2 class="display-5 fw-bold text-success">Hello, <?= htmlspecialchars($user_info['full_name']) ?>!</h2>
+        <div class="mb-2">
+            <?php 
+                $m = $user_info['res_months']; $d = $user_info['res_days'];
+                $lbl = 'Registered'; $cls = 'bg-secondary';
+                if($m >= 6) { $lbl = 'Long-Term Resident'; $cls = 'bg-primary'; }
+                elseif($d !== null && $d < 28) { $lbl = 'Daily Guest'; $cls = 'bg-warning text-dark'; }
+                elseif($d !== null) { $lbl = 'Short-Term Resident'; $cls = 'bg-success'; }
+                if($user_info['is_walkin']) { if($lbl == 'Registered') { $lbl = 'Walk-in Guest'; $cls = 'bg-info text-dark'; } else { $lbl .= ' (Walk-in)'; } }
+                echo "<span class='badge $cls'>$lbl</span>";
+            ?>
+        </div>
         <p class="text-muted lead">Manage your stay, bookings, and account details.</p>
     </div>
 

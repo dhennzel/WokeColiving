@@ -269,7 +269,12 @@ if(isset($_POST['bulk_mark_paid']) && !empty($_POST['payment_ids'])){
 }
 
 // Fetch User Details
-$user_query = mysqli_query($conn, "SELECT *, CONCAT(last_name, ', ', first_name, IF(middle_name IS NOT NULL AND middle_name != '', CONCAT(' ', middle_name), '')) as full_name FROM users WHERE user_id=$uid");
+$user_query = mysqli_query($conn, "
+    SELECT u.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name,
+    (SELECT months FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_months,
+    (SELECT DATEDIFF(end_date, start_date) FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_days
+    FROM users u WHERE u.user_id=$uid
+");
 $user = mysqli_fetch_assoc($user_query);
 
 if(!$user){
@@ -538,9 +543,6 @@ $theme = get_theme_colors($conn);
                     <?php if($user['do_not_renew']): ?>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-white">DNR</span>
                     <?php endif; ?>
-                    <?php if(!empty($user['is_walkin'])): ?>
-                        <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-info border border-white text-dark">Walk-in</span>
-                    <?php endif; ?>
                 </div>
                 <div class="flex-grow-1">
                     <h3 class="fw-bold mb-1 text-dark"><?= htmlspecialchars($user['full_name']) ?></h3>
@@ -552,6 +554,17 @@ $theme = get_theme_colors($conn);
                         <?php if(!empty($user['occupation'])): ?>
                             <span><i class="fas fa-briefcase me-1"></i> <?= htmlspecialchars($user['occupation']) ?></span>
                         <?php endif; ?>
+                    </div>
+                    <div class="mt-2">
+                        <?php 
+                            $m = $user['res_months']; $d = $user['res_days'];
+                            $lbl = 'Registered'; $cls = 'bg-secondary';
+                            if($m >= 6) { $lbl = 'Long-Term'; $cls = 'bg-primary'; }
+                            elseif($d !== null && $d < 28) { $lbl = 'Daily'; $cls = 'bg-warning text-dark'; }
+                            elseif($d !== null) { $lbl = 'Short-Term'; $cls = 'bg-success'; }
+                            if($user['is_walkin']) { if($lbl == 'Registered') { $lbl = 'Walk-in'; $cls = 'bg-info text-dark'; } else { $lbl .= '/Walk-in'; } }
+                            echo "<span class='badge $cls'>$lbl</span>";
+                        ?>
                     </div>
                     <?php if($user['occupation'] == 'Student' && !empty($user['school_id_image'])): ?>
                         <div class="mt-2">

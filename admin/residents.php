@@ -72,7 +72,12 @@ if($search){
     $where .= " AND (last_name LIKE '%$search%' OR first_name LIKE '%$search%' OR email LIKE '%$search%')";
 }
 
-$query = mysqli_query($conn, "SELECT *, CONCAT(last_name, ', ', first_name, IF(middle_name IS NOT NULL AND middle_name != '', CONCAT(' ', middle_name), '')) as full_name FROM users WHERE $where ORDER BY last_name ASC");
+$query = mysqli_query($conn, "
+    SELECT u.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name,
+    (SELECT months FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_months,
+    (SELECT DATEDIFF(end_date, start_date) FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_days
+    FROM users u WHERE $where ORDER BY u.last_name ASC
+");
 
 // Sidebar Counts
 $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
@@ -180,8 +185,18 @@ $theme = get_theme_colors($conn);
                                 <td><?= $row['phone_number'] ?></td>
                                 <td>
                                     <?php if($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
-                                    <?php elseif($row['is_walkin']): ?><span class="badge bg-info text-dark">Walk-in</span>
-                                    <?php else: ?><span class="badge bg-success">Active</span><?php endif; ?>
+                                    <?php else: 
+                                        $m = $row['res_months'];
+                                        $d = $row['res_days'];
+                                        $lbl = 'Registered'; $cls = 'bg-secondary';
+
+                                        if($m >= 6) { $lbl = 'Long-Term'; $cls = 'bg-primary'; }
+                                        elseif($d !== null && $d < 28) { $lbl = 'Daily'; $cls = 'bg-warning text-dark'; }
+                                        elseif($d !== null) { $lbl = 'Short-Term'; $cls = 'bg-success'; }
+
+                                        if($row['is_walkin']) { if($lbl == 'Registered') { $lbl = 'Walk-in'; $cls = 'bg-info text-dark'; } else { $lbl .= '/Walk-in'; } }
+                                        echo "<span class='badge $cls'>$lbl</span>";
+                                    endif; ?>
                                 </td>
                                 <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
                                 <td class="text-end">
