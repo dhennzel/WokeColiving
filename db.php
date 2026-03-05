@@ -369,6 +369,9 @@ function check_system_compliance($conn, $user_id) {
     $u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
     if(!$u_query) return ['is_outdated' => false, 'reasons' => [], 'schema' => $user_schema];
     $user_info = mysqli_fetch_assoc($u_query);
+    if(!$user_info) {
+        return ['is_outdated' => false, 'reasons' => [], 'schema' => $user_schema];
+    }
 
     $user_columns_q = mysqli_query($conn, "SHOW COLUMNS FROM users");
     $existing_user_columns = [];
@@ -431,31 +434,6 @@ $check_col_rn = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'room_number'"
 if(mysqli_num_rows($check_col_rn) == 0) {
     mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN room_number VARCHAR(50) DEFAULT NULL AFTER room_name");
 }
-
-// Ensure long-term price columns exist in rooms table
-$check_lt_cols = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'long_term_price_upper'");
-if(mysqli_num_rows($check_lt_cols) == 0) {
-    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN long_term_price_upper DECIMAL(10,2) DEFAULT 0.00");
-    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN long_term_price_lower DECIMAL(10,2) DEFAULT 0.00");
-    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN long_term_price_whole DECIMAL(10,2) DEFAULT 0.00");
-}
-
-// Always update rates to ensure accuracy
-mysqli_query($conn, "UPDATE rooms SET long_term_price_upper=3999.00, long_term_price_lower=4500.00, long_term_price_whole=25497.00 WHERE room_type='6-Bed'");
-mysqli_query($conn, "UPDATE rooms SET long_term_price_upper=4200.00, long_term_price_lower=4700.00, long_term_price_whole=17800.00 WHERE room_type='4-Bed'");
-
-// Ensure short-term whole room and daily rate columns exist
-$check_st_cols = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'price_whole'");
-if(mysqli_num_rows($check_st_cols) == 0) {
-    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN price_whole DECIMAL(10,2) DEFAULT 0.00");
-    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN daily_price_bed DECIMAL(10,2) DEFAULT 0.00");
-    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN daily_price_room DECIMAL(10,2) DEFAULT 0.00");
-}
-
-// Always update Short Term Rates & Daily Rates to ensure accuracy
-mysqli_query($conn, "UPDATE rooms SET total_price=6600.00, price_upper=5999.00, price_lower=6600.00, price_whole=37797.00, daily_price_bed=700.00 WHERE room_type='6-Bed'");
-mysqli_query($conn, "UPDATE rooms SET total_price=6900.00, price_upper=6300.00, price_lower=6900.00, price_whole=26400.00, daily_price_bed=700.00 WHERE room_type='4-Bed'");
-mysqli_query($conn, "UPDATE rooms SET daily_price_room=1200.00 WHERE room_type='Single'");
 
 // Ensure users table has split name columns (Migration from full_name)
 $check_user_cols = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'last_name'");
