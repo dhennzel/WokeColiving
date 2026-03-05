@@ -109,7 +109,7 @@ $theme = get_theme_colors($conn);
             <a href="admin_deletion_requests.php" class="sidebar-link d-flex justify-content-between align-items-center"><span><i class="fas fa-user-times me-2"></i>Deletion Req</span><?php if($del_req_count > 0): ?><span class="badge bg-danger rounded-pill"><?= $del_req_count ?></span><?php endif; ?></a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
             <a href="admin_room_occupancy.php" class="sidebar-link"><i class="fas fa-users me-2"></i>Room Occupancy</a>
-            <a href="admin_parking.php" class="sidebar-link"><i class="fas fa-parking me-2"></i>Parking</a>
+            <a href="admin_parking.php" class="sidebar-link"><i class="fas fa-parking me-2"></i>Parkings</a>
             <a href="admin_keys.php" class="sidebar-link active"><i class="fas fa-key me-2"></i>Key Monitoring</a>
             <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center"><span><i class="fas fa-tools me-2"></i>Utilities</span><i class="fas fa-chevron-down small"></i></a>
             <div class="collapse" id="utilitiesSubmenu">
