@@ -452,7 +452,7 @@ $theme = get_theme_colors($conn);
                                         $interval = $d1->diff($d2);
                                         $duration_text = "";
                                         if($interval->y > 0) $duration_text .= $interval->y . " Yr ";
-                                        if($interval->m > 0) $duration_text .= $interval->m . " Mo ";
+                                        if($interval->m > 0) $duration_text .= $interval->m . " Months ";
                                         if($interval->d > 0) $duration_text .= $interval->d . " Days";
                                         if(empty($duration_text)) $duration_text = "0 Days";
                                     ?>
