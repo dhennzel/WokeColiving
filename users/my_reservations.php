@@ -427,7 +427,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                     </div>
                     <div class="mb-3">
                         <label class="form-label" id="label_emergency_number">Emergency Contact Number</label>
-                        <input type="text" name="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_number'] ?? '') ?>" required>
+                        <input type="text" name="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_number'] ?? '') ?>" pattern="^09\d{9}$" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11);" title="Please enter a valid 11-digit Philippine mobile number (e.g., 09xxxxxxxxx)" required>
                     </div>
                 </div>
                 <div class="modal-footer">
