@@ -250,6 +250,9 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse" id="frontDeskSubmenu">
+                <a href="residents.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-users me-2"></i>Residents</span>
+                </a>
                 <a href="booking_management.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
                     <?php if($pending_count > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_count ?></span><?php endif; ?>
