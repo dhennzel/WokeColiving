@@ -175,10 +175,10 @@ if(isset($_SESSION['user_id'])){
                 </div>
                 <div class="btn-group w-100" role="group">
                     <input type="radio" class="btn-check" name="rate_type" id="short_term_rate" autocomplete="off" checked onchange="updatePrices('short')">
-                    <label class="btn btn-outline-success flex-fill" for="short_term_rate">Short Term</label>
+                    <label class="btn btn-outline-success flex-fill" for="short_term_rate">Short Term (1 Mo)</label>
 
                     <input type="radio" class="btn-check" name="rate_type" id="long_term_rate" autocomplete="off" onchange="updatePrices('long')">
-                    <label class="btn btn-outline-success flex-fill" for="long_term_rate">Long Term</label>
+                    <label class="btn btn-outline-success flex-fill" for="long_term_rate">Long Term (6 Mo)</label>
 
                     <input type="radio" class="btn-check" name="rate_type" id="daily_rate" autocomplete="off" onchange="updatePrices('daily')">
                     <label class="btn btn-outline-success flex-fill" for="daily_rate">Daily</label>

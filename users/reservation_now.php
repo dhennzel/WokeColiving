@@ -313,6 +313,7 @@ if (isset($_POST['confirm_booking'])) {
                 if ($term_type === 'Daily') {
                     // Daily Rate Calculation
                     $nights = $d1->diff($d2)->days;
+                    if($nights < 1) $nights = 1;
                     $daily_rate = $found_room['daily_price_bed'] > 0 ? $found_room['daily_price_bed'] : 700; // Fallback
                     if($troom == 'Single') $daily_rate = $found_room['daily_price_room'] > 0 ? $found_room['daily_price_room'] : 1200;
                     
@@ -343,7 +344,13 @@ if (isset($_POST['confirm_booking'])) {
                 } else {
                     // Short Term (1 Month) Logic
                     // Fixed 30 days usually, but price is 1 Month + SD
-                    $totalAmount = $monthly_price + $security_deposit;
+                    // Recalculate monthly price for Short Term specifically to ensure correct rate is used
+                    $st_price = $monthly_price;
+                    if ($troom != 'Single') {
+                        if ($bed_preference == 'Upper Bunk' && $found_room['price_upper'] > 0) $st_price = $found_room['price_upper'];
+                        elseif ($bed_preference == 'Lower Bunk' && $found_room['price_lower'] > 0) $st_price = $found_room['price_lower'];
+                    }
+                    $totalAmount = $st_price + $security_deposit;
                 }
 
                 $status = "Pending";
@@ -682,8 +689,8 @@ if (isset($_POST['confirm_booking'])) {
                         <div class="mb-3">
                             <label class="form-label">Duration</label>
                             <select id="duration_select" class="form-select" onchange="updateCheckoutDate()">
-                                <option value="1">1 Month (Short Term)</option>
-                                <option value="6">6 Months (Long Term)</option>
+                                <option value="1">Short Term (1 Month)</option>
+                                <option value="6">Long Term (6 Months Contract)</option>
                                 <option value="Daily">Daily</option>
                             </select>
                         </div>
@@ -1048,7 +1055,7 @@ function confirmReservation() {
             
             let days = Math.ceil((d2 - d1) / (1000 * 3600 * 24)); // Total days for display
             
-            if(days < 1) days = 0;
+            if(days < 1) days = 1;
             document.getElementById('duration_display').innerText = days + " days";
 
             if (room) {

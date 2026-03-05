@@ -190,6 +190,7 @@ if(isset($_POST['add_reservation'])){
 
             if ($term_type === 'Daily') {
                 $nights = $d1->diff($d2)->days;
+                if($nights < 1) $nights = 1;
                 $daily_rate = $found_room['daily_price_bed'] > 0 ? $found_room['daily_price_bed'] : 700;
                 if($room_type == 'Single') $daily_rate = $found_room['daily_price_room'] > 0 ? $found_room['daily_price_room'] : 1200;
                 $totalAmount = $nights * $daily_rate;
@@ -215,7 +216,13 @@ if(isset($_POST['add_reservation'])){
                     $totalAmount += $lt_price; // Add 1 Month Advance
                 }
             } else {
-                $totalAmount = $monthly_price + $security_deposit;
+                // Short Term
+                $st_price = $monthly_price;
+                if ($room_type != 'Single') {
+                    if ($bed_preference == 'Upper Bunk' && $found_room['price_upper'] > 0) $st_price = $found_room['price_upper'];
+                    elseif ($bed_preference == 'Lower Bunk' && $found_room['price_lower'] > 0) $st_price = $found_room['price_lower'];
+                }
+                $totalAmount = $st_price + $security_deposit;
             }
 
             // Insert
@@ -346,8 +353,8 @@ $theme = get_theme_colors($conn);
                     <div class="mb-3">
                         <label class="form-label fw-bold">Duration</label>
                         <select id="duration_select" class="form-select" onchange="updateCheckoutDate()">
-                            <option value="1">1 Month (Short Term)</option>
-                            <option value="6">6 Months (Long Term)</option>
+                            <option value="1">Short Term (1 Month)</option>
+                            <option value="6">Long Term (6 Months Contract)</option>
                             <option value="Daily">Daily</option>
                         </select>
                     </div>
