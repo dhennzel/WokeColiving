@@ -40,10 +40,19 @@ if(isset($_GET['archive_id'])){
 if(isset($_POST['update_prices'])){
     $prices = [
         'price_single' => $_POST['price_single'],
+        'price_single_long' => $_POST['price_single_long'],
         'price_4bed_upper' => $_POST['price_4bed_upper'],
         'price_4bed_lower' => $_POST['price_4bed_lower'],
+        'price_4bed_whole' => $_POST['price_4bed_whole'],
+        'price_4bed_upper_long' => $_POST['price_4bed_upper_long'],
+        'price_4bed_lower_long' => $_POST['price_4bed_lower_long'],
+        'price_4bed_whole_long' => $_POST['price_4bed_whole_long'],
         'price_6bed_upper' => $_POST['price_6bed_upper'],
-        'price_6bed_lower' => $_POST['price_6bed_lower']
+        'price_6bed_lower' => $_POST['price_6bed_lower'],
+        'price_6bed_whole' => $_POST['price_6bed_whole'],
+        'price_6bed_upper_long' => $_POST['price_6bed_upper_long'],
+        'price_6bed_lower_long' => $_POST['price_6bed_lower_long'],
+        'price_6bed_whole_long' => $_POST['price_6bed_whole_long']
     ];
     
     foreach($prices as $key => $val){
@@ -55,7 +64,13 @@ if(isset($_POST['update_prices'])){
 }
 
 // Fetch current prices for modal
-$default_prices = ['price_single' => 14000, 'price_4bed_upper' => 4200, 'price_4bed_lower' => 4700, 'price_6bed_upper' => 3750, 'price_6bed_lower' => 4500];
+$default_prices = [
+    'price_single' => 14000, 'price_single_long' => 13000,
+    'price_4bed_upper' => 4200, 'price_4bed_lower' => 4700, 'price_4bed_whole' => 18000,
+    'price_4bed_upper_long' => 4000, 'price_4bed_lower_long' => 4500, 'price_4bed_whole_long' => 17000,
+    'price_6bed_upper' => 3750, 'price_6bed_lower' => 4500, 'price_6bed_whole' => 25000,
+    'price_6bed_upper_long' => 3500, 'price_6bed_lower_long' => 4200, 'price_6bed_whole_long' => 24000
+];
 $q_prices = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key LIKE 'price_%'");
 while($row = mysqli_fetch_assoc($q_prices)){ $default_prices[$row['setting_key']] = (float)$row['setting_value']; }
 
@@ -394,24 +409,55 @@ $theme = get_theme_colors($conn);
             </div>
             <form method="POST">
                 <div class="modal-body">
-                    <p class="text-muted small">Set the default prices for new rooms. These values will be auto-filled when adding a room.</p>
+                    <p class="text-muted small mb-3">Set the default prices for new rooms. These values will be auto-filled when adding a room.</p>
                     
-                    <h6 class="fw-bold text-success border-bottom pb-1 mb-2">Single Room</h6>
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Monthly Price</label>
-                        <div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single" class="form-control" value="<?= $default_prices['price_single'] ?>" required></div>
+                        <label class="form-label small fw-bold">Filter Room Type:</label>
+                        <select class="form-select" id="priceFilter" onchange="togglePriceSections()">
+                            <option value="single">Single Room</option>
+                            <option value="4bed">4-Bed Dorm</option>
+                            <option value="6bed">6-Bed Dorm</option>
+                        </select>
                     </div>
                     
-                    <h6 class="fw-bold text-primary border-bottom pb-1 mb-2 mt-3">4-Bed Dorm</h6>
-                    <div class="row g-2">
-                        <div class="col-6"><label class="form-label small fw-bold">Upper Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_upper" class="form-control" value="<?= $default_prices['price_4bed_upper'] ?>" required></div></div>
-                        <div class="col-6"><label class="form-label small fw-bold">Lower Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_lower" class="form-control" value="<?= $default_prices['price_4bed_lower'] ?>" required></div></div>
+                    <div id="sec_single">
+                        <h6 class="fw-bold text-success border-bottom pb-1 mb-2">Single Room</h6>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6"><label class="form-label small fw-bold">Short Term (1mo)</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single" class="form-control" value="<?= $default_prices['price_single'] ?>" required></div></div>
+                            <div class="col-6"><label class="form-label small fw-bold">Long Term (6mo+)</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single_long" class="form-control" value="<?= $default_prices['price_single_long'] ?>" required></div></div>
+                        </div>
                     </div>
 
-                    <h6 class="fw-bold text-warning border-bottom pb-1 mb-2 mt-3">6-Bed Dorm</h6>
-                    <div class="row g-2">
-                        <div class="col-6"><label class="form-label small fw-bold">Upper Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_upper" class="form-control" value="<?= $default_prices['price_6bed_upper'] ?>" required></div></div>
-                        <div class="col-6"><label class="form-label small fw-bold">Lower Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_lower" class="form-control" value="<?= $default_prices['price_6bed_lower'] ?>" required></div></div>
+                    <div id="sec_4bed" style="display:none;">
+                        <h6 class="fw-bold text-primary border-bottom pb-1 mb-2">4-Bed Dorm</h6>
+                        <label class="small fw-bold text-muted mb-1">Short Term Prices</label>
+                        <div class="row g-2">
+                            <div class="col-6"><label class="form-label small fw-bold">Upper Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_upper" class="form-control" value="<?= $default_prices['price_4bed_upper'] ?>" required></div></div>
+                            <div class="col-6"><label class="form-label small fw-bold">Lower Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_lower" class="form-control" value="<?= $default_prices['price_4bed_lower'] ?>" required></div></div>
+                            <div class="col-12"><label class="form-label small fw-bold">Whole Room</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_whole" class="form-control" value="<?= $default_prices['price_4bed_whole'] ?>" required></div></div>
+                        </div>
+                        <label class="small fw-bold text-muted mb-1 mt-2">Long Term Prices</label>
+                        <div class="row g-2">
+                            <div class="col-6"><label class="form-label small fw-bold">Upper Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_upper_long" class="form-control" value="<?= $default_prices['price_4bed_upper_long'] ?>" required></div></div>
+                            <div class="col-6"><label class="form-label small fw-bold">Lower Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_lower_long" class="form-control" value="<?= $default_prices['price_4bed_lower_long'] ?>" required></div></div>
+                            <div class="col-12"><label class="form-label small fw-bold">Whole Room</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_whole_long" class="form-control" value="<?= $default_prices['price_4bed_whole_long'] ?>" required></div></div>
+                        </div>
+                    </div>
+
+                    <div id="sec_6bed" style="display:none;">
+                        <h6 class="fw-bold text-warning border-bottom pb-1 mb-2">6-Bed Dorm</h6>
+                        <label class="small fw-bold text-muted mb-1">Short Term Prices</label>
+                        <div class="row g-2">
+                            <div class="col-6"><label class="form-label small fw-bold">Upper Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_upper" class="form-control" value="<?= $default_prices['price_6bed_upper'] ?>" required></div></div>
+                            <div class="col-6"><label class="form-label small fw-bold">Lower Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_lower" class="form-control" value="<?= $default_prices['price_6bed_lower'] ?>" required></div></div>
+                            <div class="col-12"><label class="form-label small fw-bold">Whole Room</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_whole" class="form-control" value="<?= $default_prices['price_6bed_whole'] ?>" required></div></div>
+                        </div>
+                        <label class="small fw-bold text-muted mb-1 mt-2">Long Term Prices</label>
+                        <div class="row g-2">
+                            <div class="col-6"><label class="form-label small fw-bold">Upper Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_upper_long" class="form-control" value="<?= $default_prices['price_6bed_upper_long'] ?>" required></div></div>
+                            <div class="col-6"><label class="form-label small fw-bold">Lower Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_lower_long" class="form-control" value="<?= $default_prices['price_6bed_lower_long'] ?>" required></div></div>
+                            <div class="col-12"><label class="form-label small fw-bold">Whole Room</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_whole_long" class="form-control" value="<?= $default_prices['price_6bed_whole_long'] ?>" required></div></div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -425,6 +471,13 @@ $theme = get_theme_colors($conn);
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+function togglePriceSections() {
+    const val = document.getElementById('priceFilter').value;
+    document.getElementById('sec_single').style.display = (val === 'single') ? 'block' : 'none';
+    document.getElementById('sec_4bed').style.display = (val === '4bed') ? 'block' : 'none';
+    document.getElementById('sec_6bed').style.display = (val === '6bed') ? 'block' : 'none';
+}
+
 function filterModalRooms(select, typeId) {
     const floor = select.value;
     const modal = document.getElementById('modal_' + typeId);

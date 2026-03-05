@@ -307,7 +307,7 @@ if (isset($_POST['confirm_booking'])) {
                 } elseif ($troom != 'Single' && $bed_preference == 'Lower Bunk') {
                     $monthly_price = ($found_room['price_lower'] > 0) ? $found_room['price_lower'] : $found_room['total_price'];
                 } elseif ($bed_preference == 'Whole Room') {
-                    $monthly_price = ($found_room['price_whole'] > 0) ? $found_room['price_whole'] : $found_room['total_price'];
+                    $monthly_price = ($found_room['price_whole'] > 0) ? $found_room['price_whole'] : ($found_room['total_price'] * $found_room['total_beds']);
                 }
                 
                 // --- NEW CALCULATION LOGIC ---
@@ -1096,7 +1096,14 @@ function confirmReservation() {
                     } else {
                         let upper = parseFloat(priceData.long_upper || 0);
                         let lower = parseFloat(priceData.long_lower || 0);
-                        if(bedPref === 'Whole Room') monthlyRate = parseFloat(priceData.long_whole || 0);
+                        if(bedPref === 'Whole Room') {
+                            monthlyRate = parseFloat(priceData.long_whole || 0);
+                            if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_whole || 0);
+                            if(monthlyRate === 0) {
+                                let beds = (room === '4-Bed') ? 4 : 6;
+                                monthlyRate = parseFloat(priceData.short_base || 0) * beds;
+                            }
+                        }
                         monthlyRate = (bedPref === 'Upper Bunk') ? upper : lower;
                         if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_base || 0);
                     }
@@ -1127,7 +1134,13 @@ function confirmReservation() {
                     } else {
                         let upper = parseFloat(priceData.short_upper || 0);
                         let lower = parseFloat(priceData.short_lower || 0);
-                        if(bedPref === 'Whole Room') monthlyRate = parseFloat(priceData.short_whole || 0);
+                        if(bedPref === 'Whole Room') {
+                            monthlyRate = parseFloat(priceData.short_whole || 0);
+                            if(monthlyRate === 0) {
+                                let beds = (room === '4-Bed') ? 4 : 6;
+                                monthlyRate = parseFloat(priceData.short_base || 0) * beds;
+                            }
+                        }
                         monthlyRate = (bedPref === 'Upper Bunk') ? upper : lower;
                         if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_base || 0);
                     }
