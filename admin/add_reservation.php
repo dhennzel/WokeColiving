@@ -308,7 +308,7 @@ $theme = get_theme_colors($conn);
                             <div class="col-md-4"><label class="small fw-bold">First Name</label><input type="text" name="new_fname" class="form-control"></div>
                             <div class="col-md-4"><label class="small fw-bold">Middle Name</label><input type="text" name="new_mname" class="form-control"></div>
                             <div class="col-md-6"><label class="small fw-bold">Email</label><input type="email" name="new_email" class="form-control"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control" pattern="^09\d{9}$" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11);" title="Please enter a valid 11-digit Philippine mobile number (e.g., 09xxxxxxxxx)"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control"></div>
                             <div class="col-md-6">
                                 <label class="small fw-bold">Gender</label>
                                 <select name="new_gender" class="form-select">
@@ -317,7 +317,7 @@ $theme = get_theme_colors($conn);
                                 </select>
                             </div>
                             <div class="col-md-6"><label class="small fw-bold">Emergency Contact Name</label><input type="text" name="new_em_name" class="form-control"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Emergency Contact Number</label><input type="text" name="new_em_num" class="form-control" pattern="^09\d{9}$" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11);" title="Please enter a valid 11-digit Philippine mobile number (e.g., 09xxxxxxxxx)"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Emergency Contact Number</label><input type="text" name="new_em_num" class="form-control"></div>
                             <div class="col-md-6"><label class="small fw-bold">Password</label><input type="text" name="new_password" class="form-control" placeholder="Default: 123456"></div>
                         </div>
                         <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>123456</strong>.</small>

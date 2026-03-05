@@ -629,7 +629,7 @@ if (isset($_POST['confirm_booking'])) {
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_number) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_number" value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
                             <?php else: ?>
-                                <input type="text" name="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" pattern="^09\d{9}$" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11);" title="Please enter a valid 11-digit Philippine mobile number (e.g., 09xxxxxxxxx)" required>
+                                <input type="text" name="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" required>
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
