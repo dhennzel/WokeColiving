@@ -158,12 +158,33 @@ if(isset($_SESSION['user_id'])){
         </div>
         <div class="col-lg-6">
             <h2 class="fw-bold text-success display-6"><?= $room['room_name'] ?></h2>
-            <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="d-flex align-items-center gap-3 mb-2">
                 <span class="badge bg-secondary fs-6"><?= $room['room_type'] ?></span>
                 <span class="text-muted"><i class="fas fa-bed me-2"></i><?= $room['total_beds'] ?> Total Beds</span>
                 <span class="<?= $available_beds > 0 ? 'text-success' : 'text-danger' ?> fw-bold"><i class="fas fa-check-circle me-2"></i><?= $available_beds ?> Available</span>
             </div>
             
+            <div class="d-flex flex-column gap-3 mb-3">
+                <div>
+                    <div id="whole-room-price-container" class="mb-1" style="display: none;">
+                        <h3 class="fw-bold mb-0 text-primary" id="whole-room-price-display"></h3>
+                    </div>
+                    <h3 class="fw-bold mb-0" id="price-display">₱<?= number_format($room['total_price'], 2) ?> <small class="fs-6 text-muted">/ month</small></h3>
+                    <small id="rate-note" class="text-muted fst-italic">Rates are inclusive of water and electric fee.</small>
+                </div>
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="rate_type" id="short_term_rate" autocomplete="off" checked onchange="updatePrices('short')">
+                    <label class="btn btn-outline-success flex-fill" for="short_term_rate">Short Term</label>
+
+                    <input type="radio" class="btn-check" name="rate_type" id="long_term_rate" autocomplete="off" onchange="updatePrices('long')">
+                    <label class="btn btn-outline-success flex-fill" for="long_term_rate">Long Term</label>
+
+                    <input type="radio" class="btn-check" name="rate_type" id="daily_rate" autocomplete="off" onchange="updatePrices('daily')">
+                    <label class="btn btn-outline-success flex-fill" for="daily_rate">Daily</label>
+                </div>
+            </div>
+
+
             <?php if($is_bunk): ?>
             <div class="mb-4 p-3 bg-white rounded shadow-sm border">
                 <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-layer-group me-2"></i>Bed Availability</h6>
@@ -175,6 +196,7 @@ if(isset($_SESSION['user_id'])){
                                 <div>
                                     <small class="text-muted d-block">Lower Bunks</small>
                                     <strong class="<?= $avail_lower > 0 ? 'text-success' : 'text-danger' ?>"><?= $avail_lower ?> Available</strong>
+                                    <div id="lower-bunk-price" class="small text-dark fw-bold">₱<?= number_format($room['price_lower'] > 0 ? $room['price_lower'] : $room['total_price'], 2) ?></div>
                                 </div>
                             </div>
                             <?php if($avail_lower > 0): ?>
@@ -191,6 +213,7 @@ if(isset($_SESSION['user_id'])){
                                 <div>
                                     <small class="text-muted d-block">Upper Bunks</small>
                                     <strong class="<?= $avail_upper > 0 ? 'text-success' : 'text-danger' ?>"><?= $avail_upper ?> Available</strong>
+                                    <div id="upper-bunk-price" class="small text-dark fw-bold">₱<?= number_format($room['price_upper'] > 0 ? $room['price_upper'] : $room['total_price'], 2) ?></div>
                                 </div>
                             </div>
                             <?php if($avail_upper > 0): ?>
@@ -204,8 +227,6 @@ if(isset($_SESSION['user_id'])){
             </div>
             <?php endif; ?>
 
-            <h3 class="fw-bold mb-3">₱<?= number_format($room['total_price'], 2) ?> <small class="fs-6 text-muted">/ month</small></h3>
-            
             <p class="lead text-muted mb-3" style="font-size: 1rem;">Experience comfort and community in our <?= strtolower($room['room_type']) ?>. Fully furnished and ready for move-in. Perfect for students and professionals looking for a hassle-free stay.</p>
             
             <h5 class="fw-bold mb-2">Room Amenities</h5>
@@ -228,6 +249,81 @@ if(isset($_SESSION['user_id'])){
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    const prices = {
+        short: {
+            lower: <?= (float)($room['price_lower'] > 0 ? $room['price_lower'] : $room['total_price']) ?>,
+            upper: <?= (float)($room['price_upper'] > 0 ? $room['price_upper'] : $room['total_price']) ?>,
+            base: <?= (float)$room['total_price'] ?>,
+            whole: <?= (float)($room['price_whole'] ?? 0) ?>,
+            note: 'Rates are inclusive of water and electric fee.'
+        },
+        long: {
+            lower: <?= (float)($room['long_term_price_lower'] ?? 0) ?>,
+            upper: <?= (float)($room['long_term_price_upper'] ?? 0) ?>,
+            base: <?= (float)(($room['long_term_price_lower'] ?? 0) > 0 ? $room['long_term_price_lower'] : 0) ?>,
+            whole: <?= (float)($room['long_term_price_whole'] ?? 0) ?>,
+            note: 'Rates are for 6 months contract lease & EXCLUDES utility charges.'
+        },
+        daily: {
+            lower: <?= (float)($room['daily_price_bed'] ?? 0) ?>,
+            upper: <?= (float)($room['daily_price_bed'] ?? 0) ?>,
+            base: <?= (float)($room['daily_price_room'] ?? 0) ?>,
+            whole: <?= (float)($room['daily_price_room'] ?? 0) ?>,
+            note: 'Standard daily rates.'
+        }
+    };
+
+    function updatePrices(term) {
+        const priceData = prices[term];
+        const wholeRoomContainer = document.getElementById('whole-room-price-container');
+        const perBedDisplay = document.getElementById('price-display');
+
+        // Update note
+        document.getElementById('rate-note').innerText = priceData.note;
+
+        // Update bunk prices if they exist
+        const lowerPriceEl = document.getElementById('lower-bunk-price');
+        const upperPriceEl = document.getElementById('upper-bunk-price');
+
+        if (lowerPriceEl && priceData.lower > 0) {
+            lowerPriceEl.innerText = `₱${priceData.lower.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        }
+        if (upperPriceEl && priceData.upper > 0) {
+            upperPriceEl.innerText = `₱${priceData.upper.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        }
+
+        // Handle Whole Room vs Per Bed display
+        if (priceData.whole > 0) {
+            wholeRoomContainer.style.display = 'block';
+            document.getElementById('whole-room-price-display').innerHTML = `<small class="text-muted fs-6">Whole Room:</small> ₱${priceData.whole.toLocaleString('en-US', {minimumFractionDigits: 2})} <small class="fs-6 text-muted">/ ${term === 'daily' ? 'night' : 'month'}</small>`;
+        } else {
+            wholeRoomContainer.style.display = 'none';
+        }
+
+        // Always show per bed/base price if it exists
+        if(priceData.base > 0 || priceData.lower > 0) {
+            perBedDisplay.style.display = 'block'; // Show per-bed price
+            let priceHtml = '';
+            if(priceData.lower > 0 && priceData.upper > 0 && priceData.lower !== priceData.upper) {
+                 // Show range
+                 let min = Math.min(priceData.lower, priceData.upper);
+                 let max = Math.max(priceData.lower, priceData.upper);
+                 priceHtml = `₱${min.toLocaleString('en-US', {minimumFractionDigits: 2})} - ₱${max.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            } else {
+                 let p = priceData.base > 0 ? priceData.base : (priceData.lower > 0 ? priceData.lower : priceData.upper);
+                 priceHtml = `₱${p.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            }
+            perBedDisplay.innerHTML = `${priceHtml} <small class="fs-6 text-muted">/ ${term === 'daily' ? 'night' : 'month'}</small>`;
+        } else {
+            perBedDisplay.style.display = 'none';
+        }
+    }
+
+    // Initialize prices on load
+    document.addEventListener('DOMContentLoaded', function() {
+        updatePrices('short');
+    });
+
     // Night Mode Logic
     if(localStorage.getItem('nightMode') === 'enabled') {
         document.body.classList.add('night-mode');
