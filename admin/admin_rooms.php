@@ -185,9 +185,6 @@ $theme = get_theme_colors($conn);
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse" id="frontDeskSubmenu">
-                <a href="residents.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-users me-2"></i>Residents</span>
-                </a>
                 <a href="booking_management.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
                     <?php if($pending_res > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_res ?></span><?php endif; ?>
@@ -547,6 +544,45 @@ $theme = get_theme_colors($conn);
             </form>
         </div>
     </div>
+</div>
+
+<!-- Amenities Modal -->
+<div class="modal fade" id="amenitiesModal" tabindex="-1" aria-labelledby="amenitiesModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="amenitiesModalLabel"><i class="fas fa-star me-2 text-warning"></i>Woke Coliving Amenities</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-6">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-wifi fa-fw text-success me-3"></i>Wifi</li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-broom fa-fw text-success me-3"></i>Monthly Housekeeping</li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-couch fa-fw text-success me-3"></i>Fully Furnished</li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-shower fa-fw text-success me-3"></i>Ensuite shower and WC</li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-concierge-bell fa-fw text-success me-3"></i>24H concierge</li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-lock fa-fw text-success me-3"></i>Lockers</li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-parking fa-fw text-success me-3"></i>Car and motorbike parking</li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-wrench fa-fw text-success me-3"></i>Regular Maintenance</li>
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-file-signature fa-fw text-success me-3"></i>Flexible Contracts</li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-users fa-fw text-success me-3"></i>Lounges and common areas</li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-shield-alt fa-fw text-success me-3"></i>Security guard and CCTV</li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-calendar-alt fa-fw text-success me-3"></i>Event spaces</li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-cocktail fa-fw text-success me-3"></i>Roof top lounge and bar <span class="badge bg-light text-dark ms-2">soon</span></li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-utensils fa-fw text-success me-3"></i>Food & beverage room service <span class="badge bg-light text-dark ms-2">soon</span></li>
+              <li class="list-group-item d-flex align-items-center"><i class="fas fa-briefcase fa-fw text-success me-3"></i>Meeting room <span class="badge bg-light text-dark ms-2">soon</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
