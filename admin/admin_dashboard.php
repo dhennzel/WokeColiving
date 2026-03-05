@@ -8,6 +8,8 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
     exit;
 }
 
+$is_super = ($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin';
+
 // AJAX: Fetch Recent Activity
 if(isset($_GET['fetch_activity'])){
     $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_name) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
@@ -280,7 +282,9 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse" id="financeSubmenu">
+                <?php if($is_super): ?>
                 <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
+                <?php endif; ?>
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a>
             </div>
 
@@ -312,9 +316,12 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
             </a>
             <div class="collapse" id="settingsSubmenu">
                 <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
+                <?php if($is_super): ?>
+                <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
                 <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
                 <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
                 <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
+                <?php endif; ?>
             </div>
 
             <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
@@ -346,6 +353,7 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
 
     <!-- Stats Row -->
     <div class="row g-4 mb-5">
+        <?php if($is_super): ?>
         <div class="col-md-3">
             <a href="profit_report.php" class="text-decoration-none">
                 <div class="card stat-card h-100 p-3">
@@ -355,7 +363,8 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                 </div>
             </a>
         </div>
-        <div class="col-md-3">
+        <?php endif; ?>
+        <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
             <a href="admin_rooms.php" class="text-decoration-none">
                 <div class="card stat-card h-100 p-3">
                     <div class="stat-label">Occupancy Rate</div>
@@ -364,7 +373,7 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                 </div>
             </a>
         </div>
-        <div class="col-md-3">
+        <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
             <a href="booking_management.php?status=Pending" class="text-decoration-none">
                 <div class="card stat-card h-100 p-3">
                     <div class="stat-label">Pending Requests</div>
@@ -373,7 +382,7 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                 </div>
             </a>
         </div>
-        <div class="col-md-3">
+        <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
             <a href="booking_management.php?status=Approved" class="text-decoration-none">
                 <div class="card stat-card h-100 p-3">
                     <div class="stat-label">Confirmed Guests</div>
@@ -513,11 +522,13 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
         <div class="col-md-8">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <span><i class="fas fa-chart-line me-2 text-primary"></i> <span id="chartTitle">Monthly Earnings</span> (<?= $current_year ?>)</span>
+                    <span><i class="fas fa-chart-line me-2 text-primary"></i> <span id="chartTitle"><?= $is_super ? 'Monthly Earnings' : 'New Bookings' ?></span> (<?= $current_year ?>)</span>
+                    <?php if($is_super): ?>
                     <select id="chartFilter" class="form-select form-select-sm w-auto" onchange="updateChart()">
                         <option value="earnings">Earnings</option>
                         <option value="bookings">New Bookings</option>
                     </select>
+                    <?php endif; ?>
                 </div>
                 <div class="card-body">
                     <canvas id="earningsChart" style="max-height: 300px;"></canvas>
@@ -618,10 +629,10 @@ const earningsChart = new Chart(ctx, {
     data: {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
         datasets: [{
-            label: 'Earnings (₱)',
-            data: earningsData,
-            borderColor: '<?= $theme['primary'] ?>',
-            backgroundColor: 'rgba(46, 125, 50, 0.1)',
+            label: '<?= $is_super ? 'Earnings (₱)' : 'Bookings (Count)' ?>',
+            data: <?= $is_super ? 'earningsData' : 'bookingsData' ?>,
+            borderColor: '<?= $is_super ? $theme['primary'] : $theme['accent'] ?>',
+            backgroundColor: '<?= $is_super ? 'rgba(46, 125, 50, 0.1)' : 'rgba(251, 192, 45, 0.1)' ?>',
             borderWidth: 2,
             fill: true,
             tension: 0.4
@@ -649,6 +660,7 @@ Swal.fire({
 <?php endif; ?>
 
 function updateChart() {
+    <?php if(!$is_super): ?>return;<?php endif; ?>
     const filter = document.getElementById('chartFilter').value;
     const title = document.getElementById('chartTitle');
     
