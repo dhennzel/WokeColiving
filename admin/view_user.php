@@ -1071,7 +1071,7 @@ $theme = get_theme_colors($conn);
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Phone Number</label>
-                            <input type="text" name="phone_number" class="form-control" value="<?= htmlspecialchars($user['phone_number']) ?>">
+                            <input type="text" name="phone_number" class="form-control" value="<?= htmlspecialchars($user['phone_number']) ?>" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Gender</label>
@@ -1101,7 +1101,7 @@ $theme = get_theme_colors($conn);
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Emergency Contact Number</label>
-                            <input type="text" name="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user['emergency_contact_number'] ?? '') ?>">
+                            <input type="text" name="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user['emergency_contact_number'] ?? '') ?>" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09">
                         </div>
                     </div>
                 </div>

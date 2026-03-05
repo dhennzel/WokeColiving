@@ -73,6 +73,7 @@ while($row = mysqli_fetch_assoc($price_query)){
         'short_base' => $row['total_price'],
         'short_upper' => $row['price_upper'],
         'short_lower' => $row['price_lower'],
+        'short_whole' => $row['price_whole'],
         'long_upper' => $row['long_term_price_upper'] ?? 0,
         'long_lower' => $row['long_term_price_lower'] ?? 0,
         'long_whole' => $row['long_term_price_whole'] ?? 0,
@@ -283,6 +284,8 @@ if (isset($_POST['confirm_booking'])) {
                         if($avail_lower > 0) { $found_room = $room; break; }
                     } elseif($bed_preference == 'Upper Bunk'){
                         if($avail_upper > 0) { $found_room = $room; break; }
+                    } elseif($bed_preference == 'Whole Room'){
+                        if($total_booked == 0) { $found_room = $room; break; }
                     } else {
                         $found_room = $room; break;
                     }
@@ -303,6 +306,8 @@ if (isset($_POST['confirm_booking'])) {
                     $monthly_price = ($found_room['price_upper'] > 0) ? $found_room['price_upper'] : $found_room['total_price'];
                 } elseif ($troom != 'Single' && $bed_preference == 'Lower Bunk') {
                     $monthly_price = ($found_room['price_lower'] > 0) ? $found_room['price_lower'] : $found_room['total_price'];
+                } elseif ($bed_preference == 'Whole Room') {
+                    $monthly_price = ($found_room['price_whole'] > 0) ? $found_room['price_whole'] : $found_room['total_price'];
                 }
                 
                 // --- NEW CALCULATION LOGIC ---
@@ -316,6 +321,7 @@ if (isset($_POST['confirm_booking'])) {
                     if($nights < 1) $nights = 1;
                     $daily_rate = $found_room['daily_price_bed'] > 0 ? $found_room['daily_price_bed'] : 700; // Fallback
                     if($troom == 'Single') $daily_rate = $found_room['daily_price_room'] > 0 ? $found_room['daily_price_room'] : 1200;
+                    if($bed_preference == 'Whole Room') $daily_rate = $found_room['daily_price_room'] > 0 ? $found_room['daily_price_room'] : ($daily_rate * $found_room['total_beds']);
                     
                     $totalAmount = $nights * $daily_rate;
                     $status = "Pending"; 
@@ -328,6 +334,7 @@ if (isset($_POST['confirm_booking'])) {
                     } else {
                         if ($bed_preference == 'Upper Bunk' && $found_room['long_term_price_upper'] > 0) $lt_price = $found_room['long_term_price_upper'];
                         elseif ($bed_preference == 'Lower Bunk' && $found_room['long_term_price_lower'] > 0) $lt_price = $found_room['long_term_price_lower'];
+                        elseif ($bed_preference == 'Whole Room' && $found_room['long_term_price_whole'] > 0) $lt_price = $found_room['long_term_price_whole'];
                     }
 
                     $start_day = (int)$d1->format('j');
@@ -349,6 +356,7 @@ if (isset($_POST['confirm_booking'])) {
                     if ($troom != 'Single') {
                         if ($bed_preference == 'Upper Bunk' && $found_room['price_upper'] > 0) $st_price = $found_room['price_upper'];
                         elseif ($bed_preference == 'Lower Bunk' && $found_room['price_lower'] > 0) $st_price = $found_room['price_lower'];
+                        elseif ($bed_preference == 'Whole Room' && $found_room['price_whole'] > 0) $st_price = $found_room['price_whole'];
                     }
                     $totalAmount = $st_price + $security_deposit;
                 }
@@ -636,7 +644,7 @@ if (isset($_POST['confirm_booking'])) {
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_number) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_number" value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
                             <?php else: ?>
-                                <input type="text" name="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" required>
+                                <input type="text" name="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required>
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
@@ -682,6 +690,7 @@ if (isset($_POST['confirm_booking'])) {
                                     <option value="Any">Any</option>
                                     <option value="Lower Bunk">Lower Bunk</option>
                                     <option value="Upper Bunk">Upper Bunk</option>
+                                    <option value="Whole Room">Whole Room</option>
                                 </select>
                             <?php endif; ?>
                         </div>
@@ -913,6 +922,7 @@ function confirmReservation() {
                         if (r.room_type !== room) return false;
                         if (bedPref === 'Lower Bunk') return r.avail_lower > 0;
                         if (bedPref === 'Upper Bunk') return r.avail_upper > 0;
+                        if (bedPref === 'Whole Room') return r.available_beds == r.total_beds;
                         return r.available_beds > 0;
                     });
                     
@@ -1070,6 +1080,7 @@ function confirmReservation() {
                     
                     let dailyRate = parseFloat(priceData.daily_bed || 700);
                     if(room === 'Single') dailyRate = parseFloat(priceData.daily_room || 1200);
+                    if(bedPref === 'Whole Room') dailyRate = parseFloat(priceData.daily_room || 0);
                     
                     total = days * dailyRate;
 
@@ -1085,6 +1096,7 @@ function confirmReservation() {
                     } else {
                         let upper = parseFloat(priceData.long_upper || 0);
                         let lower = parseFloat(priceData.long_lower || 0);
+                        if(bedPref === 'Whole Room') monthlyRate = parseFloat(priceData.long_whole || 0);
                         monthlyRate = (bedPref === 'Upper Bunk') ? upper : lower;
                         if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_base || 0);
                     }
@@ -1115,6 +1127,7 @@ function confirmReservation() {
                     } else {
                         let upper = parseFloat(priceData.short_upper || 0);
                         let lower = parseFloat(priceData.short_lower || 0);
+                        if(bedPref === 'Whole Room') monthlyRate = parseFloat(priceData.short_whole || 0);
                         monthlyRate = (bedPref === 'Upper Bunk') ? upper : lower;
                         if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_base || 0);
                     }

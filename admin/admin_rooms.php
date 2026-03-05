@@ -36,6 +36,29 @@ if(isset($_GET['archive_id'])){
     }
 }
 
+// Handle Price Settings Update
+if(isset($_POST['update_prices'])){
+    $prices = [
+        'price_single' => $_POST['price_single'],
+        'price_4bed_upper' => $_POST['price_4bed_upper'],
+        'price_4bed_lower' => $_POST['price_4bed_lower'],
+        'price_6bed_upper' => $_POST['price_6bed_upper'],
+        'price_6bed_lower' => $_POST['price_6bed_lower']
+    ];
+    
+    foreach($prices as $key => $val){
+        $val = (float)$val;
+        mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('$key', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+    }
+    header("Location: admin_rooms.php?msg=prices_updated");
+    exit;
+}
+
+// Fetch current prices for modal
+$default_prices = ['price_single' => 14000, 'price_4bed_upper' => 4200, 'price_4bed_lower' => 4700, 'price_6bed_upper' => 3750, 'price_6bed_lower' => 4500];
+$q_prices = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key LIKE 'price_%'");
+while($row = mysqli_fetch_assoc($q_prices)){ $default_prices[$row['setting_key']] = (float)$row['setting_value']; }
+
 // Filter Logic
 $floor_filter = isset($_GET['floor']) ? (int)$_GET['floor'] : 0;
 $sql = "SELECT * FROM rooms WHERE is_archived='0'";
@@ -197,6 +220,7 @@ $theme = get_theme_colors($conn);
         </div>
         <div>
             <a href="admin_utilities.php#rooms" class="btn btn-outline-secondary me-2"><i class="fas fa-archive me-2"></i>View Archive</a>
+            <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#priceSettingsModal"><i class="fas fa-tags me-2"></i>Set Prices</button>
         </div>
     </div>
 
@@ -241,6 +265,7 @@ $theme = get_theme_colors($conn);
         <?php endforeach; ?>
     </div>
         </div>
+        <?php if(isset($_GET['msg']) && $_GET['msg'] == 'prices_updated') echo "<div class='alert alert-success mt-3'>Default room prices updated successfully.</div>"; ?>
     </div>
 </div>
 
@@ -358,6 +383,45 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 <?php endforeach; ?>
+
+<!-- Price Settings Modal -->
+<div class="modal fade" id="priceSettingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-tags me-2"></i>Default Room Prices</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <p class="text-muted small">Set the default prices for new rooms. These values will be auto-filled when adding a room.</p>
+                    
+                    <h6 class="fw-bold text-success border-bottom pb-1 mb-2">Single Room</h6>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Monthly Price</label>
+                        <div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single" class="form-control" value="<?= $default_prices['price_single'] ?>" required></div>
+                    </div>
+                    
+                    <h6 class="fw-bold text-primary border-bottom pb-1 mb-2 mt-3">4-Bed Dorm</h6>
+                    <div class="row g-2">
+                        <div class="col-6"><label class="form-label small fw-bold">Upper Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_upper" class="form-control" value="<?= $default_prices['price_4bed_upper'] ?>" required></div></div>
+                        <div class="col-6"><label class="form-label small fw-bold">Lower Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_lower" class="form-control" value="<?= $default_prices['price_4bed_lower'] ?>" required></div></div>
+                    </div>
+
+                    <h6 class="fw-bold text-warning border-bottom pb-1 mb-2 mt-3">6-Bed Dorm</h6>
+                    <div class="row g-2">
+                        <div class="col-6"><label class="form-label small fw-bold">Upper Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_upper" class="form-control" value="<?= $default_prices['price_6bed_upper'] ?>" required></div></div>
+                        <div class="col-6"><label class="form-label small fw-bold">Lower Bunk</label><div class="input-group"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_lower" class="form-control" value="<?= $default_prices['price_6bed_lower'] ?>" required></div></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" name="update_prices" class="btn btn-success">Save Prices</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>

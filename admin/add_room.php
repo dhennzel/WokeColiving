@@ -73,6 +73,11 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 
 $theme = get_theme_colors($conn);
 
+// Fetch default prices
+$default_prices = ['price_single' => 14000, 'price_4bed_upper' => 4200, 'price_4bed_lower' => 4700, 'price_6bed_upper' => 3750, 'price_6bed_lower' => 4500];
+$q_prices = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key LIKE 'price_%'");
+while($row = mysqli_fetch_assoc($q_prices)){ $default_prices[$row['setting_key']] = (float)$row['setting_value']; }
+
 $allowed_types = ['Single', '4-Bed', '6-Bed'];
 $locked_type = (isset($_GET['type']) && in_array($_GET['type'], $allowed_types)) ? $_GET['type'] : null;
 ?>
@@ -222,7 +227,7 @@ $locked_type = (isset($_GET['type']) && in_array($_GET['type'], $allowed_types))
                             </select>
                         <?php endif; ?>
                         </div>
-                        <div class="col-md-6 mb-3" id="single_price_div"><label class="form-label fw-bold">Price (₱)</label><input type="number" name="price" class="form-control" step="0.01" value="14000" readonly></div>
+                        <div class="col-md-6 mb-3" id="single_price_div"><label class="form-label fw-bold">Price (₱)</label><input type="number" name="price" class="form-control" step="0.01" value="<?= $default_prices['price_single'] ?>" readonly></div>
                         <div class="col-md-3 mb-3" id="upper_price_div" style="display:none;"><label class="form-label fw-bold">Upper Bed Price (₱)</label><input type="number" name="price_upper" class="form-control" step="0.01"></div>
                         <div class="col-md-3 mb-3" id="lower_price_div" style="display:none;"><label class="form-label fw-bold">Lower Bed Price (₱)</label><input type="number" name="price_lower" class="form-control" step="0.01"></div>
                     </div>
@@ -279,7 +284,7 @@ function togglePriceFields() {
         upperInput.required = false;
         lowerInput.required = false;
         
-        priceInput.value = 14000;
+        priceInput.value = <?= $default_prices['price_single'] ?>;
         bedsInput.value = 1;
     } else {
         singleDiv.style.display = "none";
@@ -291,12 +296,12 @@ function togglePriceFields() {
         lowerInput.required = true;
         
         if(type === "4-Bed") {
-            upperInput.value = 4200;
-            lowerInput.value = 4700;
+            upperInput.value = <?= $default_prices['price_4bed_upper'] ?>;
+            lowerInput.value = <?= $default_prices['price_4bed_lower'] ?>;
             bedsInput.value = 4;
         } else if(type === "6-Bed") {
-            upperInput.value = 3750;
-            lowerInput.value = 4500;
+            upperInput.value = <?= $default_prices['price_6bed_upper'] ?>;
+            lowerInput.value = <?= $default_prices['price_6bed_lower'] ?>;
             bedsInput.value = 6;
         }
     }
