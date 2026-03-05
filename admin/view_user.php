@@ -17,6 +17,10 @@ $uid = (int)$_GET['uid'];
 
 // Handle Delete User
 if(isset($_POST['delete_user'])){
+    if(($_SESSION['admin_role'] ?? 'Admin') !== 'Super Admin'){
+        $swal_error = "Access Denied: Only Super Admins can delete residents.";
+    } else {
+        
     $del_uid = (int)$_POST['user_id'];
     // Check for active reservations
     $check_active = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id=$del_uid AND status IN ('Pending', 'Approved')");
@@ -65,6 +69,7 @@ if(isset($_POST['delete_user'])){
             mysqli_rollback($conn);
             $swal_error = "Cannot delete user. Database error: " . addslashes($e->getMessage());
         }
+    }
     }
 }
 
@@ -435,6 +440,9 @@ $theme = get_theme_colors($conn);
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse show" id="frontDeskSubmenu">
+                <a href="residents.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-users me-2"></i>Residents</span>
+                </a>
                 <a href="booking_management.php" class="sidebar-link ps-5 active d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
                     <?php if($pending_res > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_res ?></span><?php endif; ?>
@@ -562,11 +570,13 @@ $theme = get_theme_colors($conn);
                     <button onclick="location.reload()" class="btn btn-outline-secondary rounded-pill btn-sm"><i class="fas fa-sync-alt me-1"></i> Refresh</button>
                     <a href="booking_management.php" class="btn btn-outline-secondary rounded-pill btn-sm"><i class="fas fa-arrow-left me-1"></i> Back</a>
                     <button type="button" class="btn btn-outline-primary rounded-pill btn-sm" data-bs-toggle="modal" data-bs-target="#editUserModal"><i class="fas fa-edit me-1"></i> Edit</button>
+                    <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
                     <form method="POST" id="deleteUserForm" class="d-inline">
                         <input type="hidden" name="user_id" value="<?= $user['user_id'] ?>">
                         <input type="hidden" name="delete_user" value="1">
                         <button type="button" class="btn btn-outline-danger rounded-pill btn-sm" onclick="confirmDeleteUser()"><i class="fas fa-trash-alt me-1"></i> Delete</button>
                     </form>
+                    <?php endif; ?>
                 </div>
             </div>
             
@@ -607,11 +617,13 @@ $theme = get_theme_colors($conn);
                 <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-user-times me-2"></i> Account Deletion Request</span>
                     <div class="d-flex gap-2">
+                        <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
                         <form method="POST" class="d-inline" onsubmit="return confirm('Approve deletion? This will permanently delete the user and all data.');">
                             <input type="hidden" name="user_id" value="<?= $uid ?>">
                             <input type="hidden" name="delete_user" value="1">
                             <button type="submit" class="btn btn-light btn-sm fw-bold text-danger"><i class="fas fa-check me-1"></i> Approve & Delete</button>
                         </form>
+                        <?php endif; ?>
                         <form method="POST" class="d-inline">
                             <input type="hidden" name="request_id" value="<?= $pending_del_req['request_id'] ?>">
                             <input type="hidden" name="reject_deletion_request" value="1">
