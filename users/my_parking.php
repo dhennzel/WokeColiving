@@ -79,7 +79,7 @@ $theme = get_theme_colors($conn);
                         <th>Slot Name</th>
                         <th>Slot Type</th>
                         <th>Start Date</th>
-                        <th>Billing Type</th>
+                        <th>Billing Types</th>
                         <th>Status</th>
                     </tr>
                 </thead>
