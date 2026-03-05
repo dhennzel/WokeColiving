@@ -391,14 +391,41 @@ $theme = get_theme_colors($conn);
                 <h5 class="card-title fw-bold text-dark"><?= $room_display_name ?></h5>
                 <span class="badge bg-light text-dark border"><?= $floor ?>F</span>
             </div>
-            <?php if($is_shared): ?>
-                <div class="mb-2">
+            <div class="mb-2">
+                <?php if($is_shared): ?>
                     <div class="small fw-bold text-primary">Upper: ₱<?= number_format($room['price_upper'], 2) ?></div>
                     <div class="small fw-bold text-success">Lower: ₱<?= number_format($room['price_lower'], 2) ?></div>
+                <?php else: ?>
+                    <p class="price-tag mb-0">₱<?= number_format($room['total_price'],2) ?> <small class="text-muted fs-6">/mo</small></p>
+                <?php endif; ?>
+                
+                <button class="btn btn-sm btn-link text-decoration-none p-0 mt-1 small text-success fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#rates_<?= $room['room_id'] ?>">
+                    <i class="fas fa-tags me-1"></i> View Detailed Rates
+                </button>
+                
+                <div class="collapse mt-2" id="rates_<?= $room['room_id'] ?>">
+                    <div class="card card-body p-2 bg-light border-0 small shadow-none" style="font-size: 0.75rem;">
+                        <div class="fw-bold text-dark border-bottom mb-1 pb-1">Short Term (1mo)</div>
+                        <?php if($is_shared): ?>
+                            <div class="d-flex justify-content-between"><span>Upper:</span> <span>₱<?= number_format($room['price_upper'], 2) ?></span></div>
+                            <div class="d-flex justify-content-between"><span>Lower:</span> <span>₱<?= number_format($room['price_lower'], 2) ?></span></div>
+                            <div class="d-flex justify-content-between"><span>Whole:</span> <span>₱<?= number_format($room['price_whole'], 2) ?></span></div>
+                        <?php else: ?>
+                            <div class="d-flex justify-content-between"><span>Monthly:</span> <span>₱<?= number_format($room['total_price'], 2) ?></span></div>
+                        <?php endif; ?>
+                        
+                        <div class="fw-bold text-dark border-bottom mt-2 mb-1 pb-1">Long Term (6mo+)</div>
+                        <?php if($is_shared): ?>
+                            <div class="d-flex justify-content-between"><span>Upper:</span> <span>₱<?= number_format($room['long_term_price_upper'], 2) ?></span></div>
+                            <div class="d-flex justify-content-between"><span>Lower:</span> <span>₱<?= number_format($room['long_term_price_lower'], 2) ?></span></div>
+                            <div class="d-flex justify-content-between"><span>Whole:</span> <span>₱<?= number_format($room['long_term_price_whole'], 2) ?></span></div>
+                        <?php else: ?>
+                            <div class="d-flex justify-content-between"><span>Monthly:</span> <span>₱<?= number_format($room['long_term_price_whole'], 2) ?></span></div>
+                        <?php endif; ?>
+                    </div>
                 </div>
-            <?php else: ?>
-                <p class="price-tag mb-1">₱<?= number_format($room['total_price'],2) ?> <small class="text-muted fs-6">/mo</small></p>
-            <?php endif; ?>
+            </div>
+
             <div class="mb-3">
                 <div class="d-flex justify-content-between small text-muted mb-1">
                     <span><i class="fas fa-bed me-1"></i> Total Beds: <?= $room['total_beds'] ?></span>
