@@ -154,65 +154,61 @@ if(!empty($payment['user_id'])){
         </div>
         <div class="list-group list-group-flush py-3">
             <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
-            <a href="booking_management.php" class="sidebar-link active d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
-                <?php if($pending_res > 0): ?>
-                    <span class="badge bg-danger rounded-pill"><?= $pending_res ?></span>
-                <?php endif; ?>
             </a>
-            <a href="admin_waitlist.php" class="sidebar-link d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
-                <?php if($waitlist_count > 0): ?>
-                    <span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span>
-                <?php endif; ?>
+            <div class="collapse show" id="frontDeskSubmenu">
+                <a href="booking_management.php" class="sidebar-link ps-5 active d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
+                    <?php if($pending_res > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_res ?></span><?php endif; ?>
+                </a>
+             fn     <span><i class="fas fa-user-times me-2"></i>Deletion Req</span>
+                    <?php if($del_req_count > 0): ?><span class="badge bg-danger rounded-pill"><?= $del_req_count ?></span><?php endif; ?>
+                </a>
+            </div>
+
+            <!-- Facilities -->
+            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+                <span><i class="fas fa-building me-2"></i>Facilities</span>
+                <i class="fas fa-chevron-down small"></i>
             </a>
-            <a href="admin_deletion_requests.php" class="sidebar-link d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-user-times me-2"></i>Deletion Req</span>
-                <?php if($del_req_count > 0): ?>
-                    <span class="badge bg-danger rounded-pill"><?= $del_req_count ?></span>
-                <?php endif; ?>
+            <div class="collapse" id="facilitiesSubmenu">
+                <a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
+                <a href="admin_room_occupancy.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Room Occupancy</a>
+                <a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a>
+                <a href="admin_keys.php" class="sidebar-link ps-5"><i class="fas fa-key me-2"></i>Key Monitoring</a>
+            </div>
+
+            <!-- Finance & Reports -->
+            <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+                <span><i class="fas fa-file-invoice-dollar me-2"></i>Finance & Reports</span>
+             iv>
+
+            <!-- Operations -->
+            <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+                <span><i class="fas fa-cogs me-2"></i>Operations</span>
+                <i class="fas fa-chevron-down small"></i>
             </a>
-            <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
-            <a href="admin_room_occupancy.php" class="sidebar-link"><i class="fas fa-users me-2"></i>Room Occupancy</a>
-            <a href="admin_parking.php" class="sidebar-link"><i class="fas fa-parking me-2"></i>Parkings</a>
-            <a href="admin_keys.php" class="sidebar-link"><i class="fas fa-key me-2"></i>Key Monitoring</a>
-            <a href="#utilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center"><span><i class="fas fa-tools me-2"></i>Utilities</span><i class="fas fa-chevron-down small"></i></a>
-            <div class="collapse" id="utilitiesSubmenu">
-                <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-file-invoice-dollar me-2"></i>Billing</a>
+            <div class="collapse" id="operationsSubmenu">
                 <a href="admin_maintenance.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-wrench me-2"></i>Maintenance</span>
-                    <?php if($pending_maint > 0): ?>
-                        <span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span>
-                    <?php endif; ?>
+                    <?php if($pending_maint > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span><?php endif; ?>
                 </a>
-                <a href="admin_housekeeping.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-broom me-2"></i>Housekeeping</span>
-                    <?php if($pending_house > 0): ?>
-                        <span class="badge bg-danger rounded-pill"><?= $pending_house ?></span>
-                    <?php endif; ?>
-                </a>
-                <a href="admin_utilities.php" class="sidebar-link ps-5"><i class="fas fa-archive me-2"></i>Utilities Archive</a>
-                <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
-            </div>
-            <a href="manage_hero.php" class="sidebar-link"><i class="fas fa-image me-2"></i>Hero Image</a>
-            <a href="profit_report.php" class="sidebar-link"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
-            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center"><span><i class="fas fa-cog me-2"></i>Settings</span><i class="fas fa-chevron-down small"></i></a>
+             "biv>
+            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+                <span><i class="fas fa-cog me-2"></i>System Settings</span>
+                <i class="fas fa-chevron-down small"></i>
+            </a>
             <div class="collapse" id="settingsSubmenu">
                 <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
+                <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
                 <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
+                <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
             </div>
             <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
         </div>
-    </div>
-
-    <!-- Page Content -->
-    <div id="page-content-wrapper">
-        <div class="container-fluid main-container">
-            <div class="d-flex justify-content-between align-items-center mb-4 mt-4 no-print">
-                <div class="d-flex align-items-center">
-                    <button class="btn btn-link text-dark me-3 d-md-none" id="menu-toggle"><i class="fas fa-bars"></i></button>
-                    <h3 class="fw-bold mb-0" style="color: var(--dark-green);">Payment Transaction Details</h3>
-                </div>
+    </div>t -->
+<div id="page-con
+        <div clas= ass="d-flex justify-content-between align-items-center mb-4 mt-4 no-print">
+                <div class="d-flex align-items-center">s-a(n>ransac
                 <a href="<?= $back_url ?>" class="btn btn-back text-decoration-none"><i class="fas fa-arrow-left me-2"></i>Back</a>
             </div>
 

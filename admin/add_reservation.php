@@ -62,6 +62,13 @@ while($row = mysqli_fetch_assoc($price_query)){
 // Check for pre-selected room type
 $pre_room_type = isset($_GET['room_type']) ? $_GET['room_type'] : '';
 
+// Sidebar counts
+$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
+$pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
+$waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
+$del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
+
 if(isset($_POST['add_reservation'])){
     $user_type = $_POST['user_type'];
     $user_id = 0;
