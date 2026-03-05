@@ -161,7 +161,7 @@ $theme = get_theme_colors($conn);
             <!-- Slot Monitoring -->
             <div class="card card-custom p-4 mb-4">
                 <h5 class="fw-bold text-secondary mb-3">Slot Monitoring</h5>
-                <h6 class="fw-bold"><i class="fas fa-car me-2 text-primary"></i>Car Slots</h6>
+                <h6 class="fw-bold"><i class="fas fa-car me-2 text-primary"></i>Car Slots (4)</h6>
                 <div class="row g-3 mb-3">
                     <?php foreach($parking_slots['Car'] as $slot): ?>
                     <div class="col">
@@ -172,7 +172,7 @@ $theme = get_theme_colors($conn);
                     </div>
                     <?php endforeach; ?>
                 </div>
-                <h6 class="fw-bold"><i class="fas fa-motorcycle me-2 text-warning"></i>Motorcycle Slots</h6>
+                <h6 class="fw-bold"><i class="fas fa-motorcycle me-2 text-warning"></i>Motorcycle Slots (7)</h6>
                 <div class="row g-3">
                     <?php foreach($parking_slots['Motorcycle'] as $slot): ?>
                     <div class="col">

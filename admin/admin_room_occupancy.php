@@ -223,7 +223,7 @@ $theme = get_theme_colors($conn);
             </a>
             <a href="admin_rooms.php" class="sidebar-link"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
             <a href="admin_room_occupancy.php" class="sidebar-link active"><i class="fas fa-users me-2"></i>Room Occupancy</a>
-            <a href="admin_parking.php" class="sidebar-link"><i class="fas fa-parking me-2"></i>Parking</a>
+            <a href="admin_parking.php" class="sidebar-link"><i class="fas fa-parking me-2"></i>Parkings</a>
             <a href="admin_keys.php" class="sidebar-link"><i class="fas fa-key me-2"></i>Key Monitoring</a>
 
             

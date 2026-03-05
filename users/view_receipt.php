@@ -35,7 +35,7 @@ $end_date = $data['end_date'] ?? $data['cout'] ?? 'N/A';
 $d_start = new DateTime($start_date);
 $d_end = new DateTime($end_date);
 $d_diff = $d_start->diff($d_end);
-$duration_str = ($d_diff->y > 0 ? $d_diff->y . " Yr " : "") . ($d_diff->m > 0 ? $d_diff->m . " Mo " : "") . ($d_diff->d > 0 ? $d_diff->d . " Days" : "");
+$duration_str = ($d_diff->y > 0 ? $d_diff->y . " Yr " : "") . ($d_diff->m > 0 ? $d_diff->m . " Months " : "") . ($d_diff->d > 0 ? $d_diff->d . " Days" : "");
 $duration_str = empty($duration_str) ? "0 Days" : trim($duration_str);
 
 $balance = $data['total_price'] - $total_paid;
