@@ -72,6 +72,9 @@ $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c F
 $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 
 $theme = get_theme_colors($conn);
+
+$allowed_types = ['Single', '4-Bed', '6-Bed'];
+$locked_type = (isset($_GET['type']) && in_array($_GET['type'], $allowed_types)) ? $_GET['type'] : null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -207,11 +210,18 @@ $theme = get_theme_colors($conn);
                                 <?php endfor; ?>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3"><label class="form-label fw-bold">Room Type</label><select name="room_type" id="room_type" class="form-select" required onchange="togglePriceFields()">
-                            <option value="Single">Single</option>
-                            <option value="4-Bed">4-Bed</option>
-                            <option value="6-Bed">6-Bed</option>
-                        </select></div>
+                        <div class="col-md-6 mb-3"><label class="form-label fw-bold">Room Type</label>
+                        <?php if($locked_type): ?>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($locked_type) ?>" readonly>
+                            <input type="hidden" name="room_type" id="room_type" value="<?= htmlspecialchars($locked_type) ?>">
+                        <?php else: ?>
+                            <select name="room_type" id="room_type" class="form-select" required onchange="togglePriceFields()">
+                                <option value="Single">Single</option>
+                                <option value="4-Bed">4-Bed</option>
+                                <option value="6-Bed">6-Bed</option>
+                            </select>
+                        <?php endif; ?>
+                        </div>
                         <div class="col-md-6 mb-3" id="single_price_div"><label class="form-label fw-bold">Price (₱)</label><input type="number" name="price" class="form-control" step="0.01" value="14000" readonly></div>
                         <div class="col-md-3 mb-3" id="upper_price_div" style="display:none;"><label class="form-label fw-bold">Upper Bed Price (₱)</label><input type="number" name="price_upper" class="form-control" step="0.01"></div>
                         <div class="col-md-3 mb-3" id="lower_price_div" style="display:none;"><label class="form-label fw-bold">Lower Bed Price (₱)</label><input type="number" name="price_lower" class="form-control" step="0.01"></div>

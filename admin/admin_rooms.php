@@ -197,7 +197,6 @@ $theme = get_theme_colors($conn);
         </div>
         <div>
             <a href="admin_utilities.php#rooms" class="btn btn-outline-secondary me-2"><i class="fas fa-archive me-2"></i>View Archive</a>
-            <a href="add_room.php" class="btn btn-custom px-4"><i class="fas fa-plus me-2"></i>Add New Room</a>
         </div>
     </div>
 
@@ -252,7 +251,8 @@ $theme = get_theme_colors($conn);
         <div class="modal-content bg-light">
             <div class="modal-header bg-white">
                 <h5 class="modal-title fw-bold text-success"><i class="fas fa-layer-group me-2"></i><?= $type ?> Inventory</h5>
-                <div class="d-flex align-items-center ms-auto me-3">
+                <a href="add_room.php?type=<?= urlencode($type) ?>" class="btn btn-sm btn-custom ms-auto me-3"><i class="fas fa-plus me-1"></i>Add Room</a>
+                <div class="d-flex align-items-center me-3">
                     <label class="small fw-bold me-2 text-muted">Filter:</label>
                     <select class="form-select form-select-sm" onchange="filterModalRooms(this, '<?= md5($type) ?>')">
                         <option value="all">All Floors</option>
