@@ -56,7 +56,7 @@ CREATE TABLE `activity_logs` (
   `details` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`log_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=314 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=316 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -65,6 +65,7 @@ CREATE TABLE `activity_logs` (
 
 LOCK TABLES `activity_logs` WRITE;
 /*!40000 ALTER TABLE `activity_logs` DISABLE KEYS */;
+INSERT INTO `activity_logs` VALUES (89,38,'Account Created','Walk-in account created by Admin','2026-02-26 01:25:30'),(92,40,'Account Created','Walk-in account created by Admin','2026-02-26 01:57:54'),(93,40,'Walk-in Booking','Reservation #51 created by Admin','2026-02-26 01:57:54'),(108,40,'Payment Confirmed','Payment #55 marked as Paid by Admin.','2026-02-28 13:54:57'),(217,40,'Profile Updated','Admin updated user details.','2026-03-01 12:29:35'),(218,40,'Profile Updated','Admin updated user details.','2026-03-01 12:36:44'),(232,40,'Profile Updated','Admin updated user details.','2026-03-02 07:19:43');
 /*!40000 ALTER TABLE `activity_logs` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -169,7 +170,7 @@ CREATE TABLE `key_transactions` (
   KEY `user_id` (`user_id`),
   CONSTRAINT `key_transactions_ibfk_1` FOREIGN KEY (`key_id`) REFERENCES `keys` (`id`) ON DELETE CASCADE,
   CONSTRAINT `key_transactions_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -178,6 +179,7 @@ CREATE TABLE `key_transactions` (
 
 LOCK TABLES `key_transactions` WRITE;
 /*!40000 ALTER TABLE `key_transactions` DISABLE KEYS */;
+INSERT INTO `key_transactions` VALUES (1,2,40,'2026-03-03 14:19:47','2026-03-03 14:20:14','Returned'),(2,2,40,'2026-03-03 14:21:51','2026-03-03 14:21:58','Returned');
 /*!40000 ALTER TABLE `key_transactions` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -195,7 +197,7 @@ CREATE TABLE `keys` (
   `reference_id` int(11) NOT NULL,
   `status` enum('Available','Released') DEFAULT 'Available',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -204,7 +206,7 @@ CREATE TABLE `keys` (
 
 LOCK TABLES `keys` WRITE;
 /*!40000 ALTER TABLE `keys` DISABLE KEYS */;
-INSERT INTO `keys` VALUES (7,'Room 301 Key','Room',6,'Available'),(8,'Room 302 Key','Room',7,'Available'),(9,'Room 303 Key','Room',8,'Available'),(10,'Room 201 Key','Room',18,'Available'),(11,'Room 6 Beds Room Key','Room',19,'Available');
+INSERT INTO `keys` VALUES (1,'Room 301 Key','Room',6,'Available'),(2,'Room 302 Key','Room',7,'Available'),(3,'Room 303 Key','Room',8,'Available'),(4,'Room 203 Key','Room',16,'Available'),(5,'Room 203 Key','Room',16,'Available'),(6,'Room 204 Key','Room',17,'Available'),(7,'Room 303 Key','Room',18,'Available');
 /*!40000 ALTER TABLE `keys` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -255,7 +257,7 @@ CREATE TABLE `notifications` (
   `message` text NOT NULL,
   `type` varchar(50) DEFAULT 'System',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=740 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=726 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -264,6 +266,7 @@ CREATE TABLE `notifications` (
 
 LOCK TABLES `notifications` WRITE;
 /*!40000 ALTER TABLE `notifications` DISABLE KEYS */;
+INSERT INTO `notifications` VALUES (504,'40','2026-02-26 09:57:57','','⚠️ <strong>Payment Overdue</strong><br>Your payment of ₱28,200.00 was due on Feb 26, 2026. Please pay immediately to avoid penalties.','Payment Warning'),(513,'40','2026-02-26 21:31:42','','⚠️ <strong>Payment Overdue</strong><br>Your payment of ₱28,200.00 was due on Feb 26, 2026. Please pay immediately to avoid penalties.','Payment Warning'),(526,'40','2026-02-27 15:28:35','','⚠️ <strong>Payment Overdue</strong><br>Your payment of ₱28,200.00 was due on Feb 26, 2026. Please pay immediately to avoid penalties.','Payment Warning'),(532,'40','2026-02-28 21:46:01','','⚠️ <strong>Payment Overdue</strong><br>Your payment of ₱28,200.00 was due on Feb 26, 2026. Please pay immediately to avoid penalties.','Payment Warning'),(536,'40','2026-02-28 21:54:57','','✅ <strong>Payment Confirmed</strong><br>Your payment #55 has been verified and marked as Paid.','Payment Update'),(707,'40','2026-03-03 13:28:50','','🅿️ <strong>Parking Assigned</strong><br>You have been assigned to Car Slot 1. A fee of ₱600.00 has been added to your account.','Parking'),(708,'40','2026-03-03 14:19:47','','🔑 <strong>Key Assigned</strong><br>You have been assigned a key. Please keep it safe.','Key System'),(709,'40','2026-03-03 14:20:14','','🔑 <strong>Key Returned</strong><br>Key has been marked as returned.','Key System'),(710,'40','2026-03-03 14:21:51','','🔑 <strong>Key Assigned</strong><br>You have been assigned a key. Please keep it safe.','Key System'),(711,'40','2026-03-03 14:21:58','','🔑 <strong>Key Returned</strong><br>Key has been marked as returned.','Key System'),(713,'40','2026-03-05 18:01:58','','⚠️ <strong>Payment Overdue</strong><br>Your payment of ₱600.00 was due on Mar 03, 2026. Please pay immediately to avoid penalties.','Payment Warning');
 /*!40000 ALTER TABLE `notifications` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -289,7 +292,7 @@ CREATE TABLE `parking_reservations` (
   KEY `slot_id` (`slot_id`),
   CONSTRAINT `parking_reservations_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `parking_reservations_ibfk_2` FOREIGN KEY (`slot_id`) REFERENCES `parking_slots` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -298,6 +301,7 @@ CREATE TABLE `parking_reservations` (
 
 LOCK TABLES `parking_reservations` WRITE;
 /*!40000 ALTER TABLE `parking_reservations` DISABLE KEYS */;
+INSERT INTO `parking_reservations` VALUES (2,40,1,'2026-03-03',NULL,600.00,'Monthly','Active','2026-03-03 05:28:50');
 /*!40000 ALTER TABLE `parking_reservations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -317,7 +321,7 @@ CREATE TABLE `parking_slots` (
   `daily_rate` decimal(10,2) NOT NULL,
   `is_archived` tinyint(1) DEFAULT 0,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -326,7 +330,7 @@ CREATE TABLE `parking_slots` (
 
 LOCK TABLES `parking_slots` WRITE;
 /*!40000 ALTER TABLE `parking_slots` DISABLE KEYS */;
-INSERT INTO `parking_slots` VALUES (1,'Car Slot 1','Car','Available',600.00,200.00,0),(2,'Car Slot 2','Car','Available',600.00,200.00,0),(3,'Car Slot 3','Car','Available',600.00,200.00,0),(4,'Car Slot 4','Car','Available',600.00,200.00,0),(6,'Motorcycle Slot 1','Motorcycle','Available',1500.00,50.00,0),(7,'Motorcycle Slot 2','Motorcycle','Available',1500.00,50.00,0),(8,'Motorcycle Slot 3','Motorcycle','Available',1500.00,50.00,0),(9,'Motorcycle Slot 4','Motorcycle','Available',1500.00,50.00,0),(10,'Motorcycle Slot 5','Motorcycle','Available',1500.00,50.00,0),(11,'Motorcycle Slot 6','Motorcycle','Available',1500.00,50.00,0),(12,'Motorcycle Slot 7','Motorcycle','Available',1500.00,50.00,0);
+INSERT INTO `parking_slots` VALUES (1,'Car Slot 1','Car','Occupied',600.00,200.00,0),(2,'Car Slot 2','Car','Available',600.00,200.00,0),(3,'Car Slot 3','Car','Available',600.00,200.00,0),(4,'Car Slot 4','Car','Available',600.00,200.00,0),(5,'Car Slot 5','Car','Available',600.00,200.00,0),(6,'Motorcycle Slot 1','Motorcycle','Occupied',1500.00,50.00,0),(7,'Motorcycle Slot 2','Motorcycle','Available',1500.00,50.00,0),(8,'Motorcycle Slot 3','Motorcycle','Available',1500.00,50.00,0),(9,'Motorcycle Slot 4','Motorcycle','Available',1500.00,50.00,0),(10,'Motorcycle Slot 5','Motorcycle','Available',1500.00,50.00,0);
 /*!40000 ALTER TABLE `parking_slots` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -351,7 +355,7 @@ CREATE TABLE `payments` (
   PRIMARY KEY (`payment_id`),
   KEY `reservation_id` (`reservation_id`),
   CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`reservation_id`) REFERENCES `reservations` (`reservation_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=106 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -360,6 +364,7 @@ CREATE TABLE `payments` (
 
 LOCK TABLES `payments` WRITE;
 /*!40000 ALTER TABLE `payments` DISABLE KEYS */;
+INSERT INTO `payments` VALUES (55,51,28200.00,'Cash','Paid','2026-02-28 13:54:57',NULL,NULL,'Room Payment',0),(103,51,600.00,'Cash','Unpaid','2026-03-03 05:28:50',NULL,NULL,'Monthly Parking Fee (March 2026) for Car Slot 1 (Parking ID: 2)',0);
 /*!40000 ALTER TABLE `payments` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -402,6 +407,7 @@ CREATE TABLE `reservations` (
 
 LOCK TABLES `reservations` WRITE;
 /*!40000 ALTER TABLE `reservations` DISABLE KEYS */;
+INSERT INTO `reservations` VALUES (51,40,7,'','',6,28200.00,'Approved','2026-02-26 01:57:54','2026-02-26','2026-08-26',NULL,'Lower Bunk',NULL,0,NULL,0);
 /*!40000 ALTER TABLE `reservations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -454,14 +460,14 @@ CREATE TABLE `rooms` (
   `is_archived` tinyint(1) DEFAULT 0,
   `floor` int(11) DEFAULT 2,
   `room_number` varchar(50) DEFAULT NULL,
+  `price_whole` decimal(10,2) DEFAULT 0.00,
   `long_term_price_upper` decimal(10,2) DEFAULT 0.00,
   `long_term_price_lower` decimal(10,2) DEFAULT 0.00,
   `long_term_price_whole` decimal(10,2) DEFAULT 0.00,
-  `price_whole` decimal(10,2) DEFAULT 0.00,
   `daily_price_bed` decimal(10,2) DEFAULT 0.00,
   `daily_price_room` decimal(10,2) DEFAULT 0.00,
   PRIMARY KEY (`room_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -470,7 +476,7 @@ CREATE TABLE `rooms` (
 
 LOCK TABLES `rooms` WRITE;
 /*!40000 ALTER TABLE `rooms` DISABLE KEYS */;
-INSERT INTO `rooms` VALUES (18,'201','Single',14000.00,1,0,NULL,'434612699_2697344013763217_6695140230318829305_n.jpg','Available','Available',0.00,0.00,0,2,NULL,0.00,0.00,0.00,0.00,0.00,0.00),(19,'6 Beds Room','6-Bed',4500.00,6,0,NULL,'462649285_910103944161119_916589224660087614_n.jpg','Available','Available',3750.00,4500.00,0,2,NULL,0.00,0.00,0.00,0.00,0.00,0.00);
+INSERT INTO `rooms` VALUES (6,'6 Beds','6-Bed',4500.00,6,0,NULL,'462649285_910103944161119_916589224660087614_n.jpg','Available','Available',5999.00,6600.00,0,2,'202',37797.00,3999.00,4500.00,25497.00,700.00,0.00),(7,'4 Beds','4-Bed',4700.00,4,0,NULL,'553086532_1458289505383792_3468955167122582667_n.jpg','Available','Available',6300.00,6900.00,0,3,'302',26400.00,4200.00,4700.00,17800.00,700.00,0.00),(8,'1 Bed','Single',14000.00,6,0,NULL,'434612699_2697344013763217_6695140230318829305_n.jpg','Available','Available',0.00,0.00,1,3,'303',0.00,0.00,0.00,0.00,0.00,1200.00),(16,'203','Single',14000.00,1,0,NULL,'434612699_2697344013763217_6695140230318829305_n.jpg','Available','Available',0.00,0.00,0,2,NULL,0.00,0.00,0.00,0.00,0.00,1200.00),(17,'204','Single',14000.00,1,0,NULL,'434612699_2697344013763217_6695140230318829305_n.jpg','Available','Available',0.00,0.00,0,2,NULL,0.00,0.00,0.00,0.00,0.00,1200.00),(18,'303','6-Bed',4500.00,6,0,NULL,'462649285_910103944161119_916589224660087614_n.jpg','Available','Available',5999.00,6600.00,0,3,NULL,37797.00,3999.00,4500.00,25497.00,700.00,0.00);
 /*!40000 ALTER TABLE `rooms` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -487,7 +493,7 @@ CREATE TABLE `site_settings` (
   `setting_value` text DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `setting_key` (`setting_key`)
-) ENGINE=InnoDB AUTO_INCREMENT=305 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=290 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -496,7 +502,7 @@ CREATE TABLE `site_settings` (
 
 LOCK TABLES `site_settings` WRITE;
 /*!40000 ALTER TABLE `site_settings` DISABLE KEYS */;
-INSERT INTO `site_settings` VALUES (1,'hero_image','[\"1770471778_hero_edit.png\",\"1770447312_hero_edit.png\",\"1770447047_hero.png\",\"1772369513_hero.png\"]'),(125,'living_area_image','living_area_1770486291.jpg'),(126,'last_update','1772704148');
+INSERT INTO `site_settings` VALUES (1,'hero_image','[\"1770471778_hero_edit.png\",\"1770447312_hero_edit.png\",\"1770447047_hero.png\",\"1772369513_hero.png\"]'),(125,'living_area_image','living_area_1770486291.jpg'),(126,'last_update','1772706740');
 /*!40000 ALTER TABLE `site_settings` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -583,6 +589,7 @@ CREATE TABLE `user_update_requests` (
 
 LOCK TABLES `user_update_requests` WRITE;
 /*!40000 ALTER TABLE `user_update_requests` DISABLE KEYS */;
+INSERT INTO `user_update_requests` VALUES (1,51,'Male','Student','KNS','San Isidro, Subic, Zambales','Alvin Rasing','092651752762',NULL,'Approved','2026-03-02 06:45:55'),(2,50,'Male','Student','','San Isidro','Jim','0931872322',NULL,'Approved','2026-03-02 06:52:03');
 /*!40000 ALTER TABLE `user_update_requests` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -627,7 +634,7 @@ CREATE TABLE `users` (
   `delete_account_feature` tinyint(1) DEFAULT NULL,
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -636,7 +643,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (58,'testuser1@gmail.com','09673101356',NULL,'$2y$10$q0Yl5yOYxnn9uhFh1fRAKeh6DVsVzoFdCwiXBYvYVqmSlwbceI.fO','user','2026-03-05 09:39:02',0,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,'TAYSON','FRED','N',1,NULL,NULL,1,1,1,1);
+INSERT INTO `users` VALUES (40,'bartjavillonar@gmail.com','09304871699',NULL,'$2y$10$X9kKW5UpTXSviWVagyKhAuXEzk2SiwS4GxxgjIjikUt22qpKOwho2','','2026-02-26 01:57:54',0,0,'Male',NULL,NULL,'Employed','','',NULL,'','',NULL,0,0,'JAVILLONAR','BARTOLOME','',1,NULL,NULL,NULL,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -707,4 +714,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-05 17:50:44
+-- Dump completed on 2026-03-05 18:37:38
