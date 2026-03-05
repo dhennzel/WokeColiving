@@ -15,8 +15,8 @@ if (isset($_POST['register'])) {
     $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
 
     // Validate Phone Number (Philippines format: 09xxxxxxxxx or +639xxxxxxxxx)
-    if (!preg_match('/^(09|\+639)\d{9}$/', $phone)) {
-        $error = "Invalid phone number. Please use a valid Philippine mobile number (e.g., 09xxxxxxxxx).";
+    if (!preg_match('/^09\d{9}$/', $phone)) {
+        $error = "Invalid phone number. Please use a valid 11-digit Philippine mobile number (e.g., 09xxxxxxxxx).";
     } elseif (mysqli_num_rows(mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'")) > 0) {
         // Check if email already exists
         $error = "Email address is already registered."; 
@@ -123,7 +123,7 @@ if (isset($_POST['register'])) {
             <div class="col-4"><input type="text" name="mname" class="form-control" placeholder="Middle Name"></div>
         </div>
         <input type="email" name="email" class="form-control" placeholder="Email Address" required>
-        <input type="text" name="phone" class="form-control" placeholder="Phone Number (e.g. 09xxxxxxxxx)" pattern="^(09|\+639)\d{9}$" title="Please enter a valid Philippine mobile number (e.g., 09xxxxxxxxx)" required>
+        <input type="text" name="phone" class="form-control" placeholder="Phone Number (e.g. 09xxxxxxxxx)" pattern="^09\d{9}$" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11);" title="Please enter a valid 11-digit Philippine mobile number (e.g., 09xxxxxxxxx)" required>
         <input type="password" name="password" class="form-control" placeholder="Password" required>
         <button type="submit" name="register" class="btn btn-custom mt-2 mb-3">Create Account</button>
     </form>
