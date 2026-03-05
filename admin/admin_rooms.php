@@ -228,7 +228,7 @@ $theme = get_theme_colors($conn);
                 <img src="../assets/images/<?= $image ?>" alt="<?= $type ?>">
                 <div class="card-body text-center">
                     <h3 class="fw-bold text-dark mb-2"><?= $type ?></h3>
-                    <p class="price-tag mb-2">₱<?= number_format($price, 2) ?> <small class="text-muted fs-6"></small></p>
+                    <p class="price-tag mb-2">₱<?= number_format($price, 2) ?> <small class="text-muted fs-6">/mo</small></p>
                     <div class="d-flex justify-content-center gap-3 text-muted small mb-3">
                         <span><i class="fas fa-door-open me-1"></i> <?= count($rooms_in_type) ?> Rooms</span>
                         <span><i class="fas fa-bed me-1"></i> <?= $type_total_beds ?> Beds</span>
@@ -323,7 +323,7 @@ $theme = get_theme_colors($conn);
                 <h5 class="card-title fw-bold text-dark"><?= $room_display_name ?></h5>
                 <span class="badge bg-light text-dark border"><?= $floor ?>F</span>
             </div>
-        <p class="price-tag mb-1">₱<?= number_format($room['total_price'],2) ?> <small class="text-muted fs-6">/months</small></p>
+        <p class="price-tag mb-1">₱<?= number_format($room['total_price'],2) ?> <small class="text-muted fs-6">/mo</small></p>
             <div class="mb-3">
                 <div class="d-flex justify-content-between small text-muted mb-1">
                     <span><i class="fas fa-bed me-1"></i> Total Beds: <?= $room['total_beds'] ?></span>

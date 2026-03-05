@@ -68,6 +68,7 @@ if($room['availability'] == 'Maintenance') {
 
 // Fetch user name for navbar if logged in
 $user_name = "";
+$unread_count = 0;
 if(isset($_SESSION['user_id'])){
     $uid = $_SESSION['user_id'];
     $u_q = mysqli_query($conn, "SELECT first_name FROM users WHERE user_id=$uid");
