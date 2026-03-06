@@ -15,6 +15,8 @@ if(!isset($_GET['uid'])){
 
 $uid = (int)$_GET['uid'];
 
+$admin_username = $_SESSION['admin_username'] ?? 'Admin';
+
 // Handle Delete User
 if(isset($_POST['delete_user'])){
     if(($_SESSION['admin_role'] ?? 'Admin') !== 'Super Admin'){
@@ -104,7 +106,7 @@ if(isset($_POST['update_user_info'])){
     if(in_array('gender', $existing_cols)) $set_clause .= ", gender='$u_gender'";
 
     if(mysqli_query($conn, "UPDATE users SET $set_clause WHERE user_id=$uid")){
-        log_activity($conn, $uid, "Profile Updated", "Admin updated user details.");
+        log_activity($conn, $uid, "Profile Updated", "User details updated by $admin_username.");
         echo "<script>window.location.href='view_user.php?uid=$uid&msg=user_updated';</script>";
         exit;
     } else {
@@ -135,7 +137,7 @@ if(isset($_POST['handle_update_request'])){
             
             if(mysqli_query($conn, $upd_sql)){
                 mysqli_query($conn, "UPDATE user_update_requests SET status='Approved' WHERE request_id=$req_id");
-                log_activity($conn, $req['user_id'], "Profile Update Approved", "Admin approved profile changes.");
+                log_activity($conn, $req['user_id'], "Profile Update Approved", "Profile changes approved by $admin_username.");
                 send_notification($conn, $req['user_id'], "✅ <strong>Profile Update Approved</strong><br>Your profile information has been updated.", "System");
                 echo "<script>window.location.href='view_user.php?uid=$uid&msg=update_approved';</script>";
                 exit;
@@ -154,7 +156,7 @@ if(isset($_POST['reject_deletion_request'])){
     $req_id = (int)$_POST['request_id'];
     mysqli_query($conn, "UPDATE account_deletion_requests SET status='Rejected' WHERE request_id=$req_id");
     send_notification($conn, $uid, "❌ <strong>Deletion Request Rejected</strong><br>Your request to delete your account has been rejected by the admin.", "System");
-    log_activity($conn, $uid, "Deletion Request Rejected", "Admin rejected account deletion request.");
+    log_activity($conn, $uid, "Deletion Request Rejected", "Account deletion request rejected by $admin_username.");
     
     echo "<script>window.location.href='view_user.php?uid=$uid&msg=del_req_rejected';</script>";
     exit;
@@ -172,7 +174,7 @@ if(isset($_POST['request_signature'])){
 
     mysqli_query($conn, "UPDATE reservations SET signature_required=1 WHERE reservation_id=$res_id");
     send_notification($conn, $uid, "✍️ <strong>Signature Required</strong><br>Admin has requested your signature for Reservation #$res_id. Please go to My Reservations to sign.", "Action Required");
-    log_activity($conn, $uid, "Signature Requested", "Admin requested signature for Reservation #$res_id");
+    log_activity($conn, $uid, "Signature Requested", "Signature requested for Reservation #$res_id by $admin_username");
     
     echo "<script>window.location.href='view_user.php?uid=$uid&msg=sig_requested';</script>";
     exit;
@@ -248,7 +250,7 @@ if(isset($_POST['assign_room'])){
     
     if($can_move){
         mysqli_query($conn, "UPDATE reservations SET room_id=$new_room_id, bed_preference='$new_bed_pref' WHERE reservation_id=$res_id");
-        log_activity($conn, $uid, "Room Re-assigned", "Reservation #$res_id moved to " . $room_info['room_name'] . " ($new_bed_pref)");
+        log_activity($conn, $uid, "Room Re-assigned", "Reservation #$res_id moved to " . $room_info['room_name'] . " ($new_bed_pref) by $admin_username");
         echo "<script>window.location.href='view_user.php?uid=$uid&msg=room_updated';</script>";
         exit;
     } else {

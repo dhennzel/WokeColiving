@@ -25,7 +25,7 @@ if(isset($_GET['action_filter']) && !empty($_GET['action_filter'])){
 }
 
 // Fetch Logs with Filter
-$logs = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id WHERE $where ORDER BY l.created_at DESC LIMIT 100");
+$logs = mysqli_query($conn, "SELECT l.*, l.role as performer_role, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id WHERE $where ORDER BY l.created_at DESC LIMIT 100");
 
 // Get distinct actions for dropdown
 $actions_q = mysqli_query($conn, "SELECT DISTINCT action FROM activity_logs ORDER BY action ASC");
@@ -67,6 +67,7 @@ $theme = get_theme_colors($conn);
         .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
         .btn-custom:hover { background-color: #f9a825; }
         .table th { background-color: var(--primary-green); color: white; font-weight: 500; border: none; }
+        .table { font-size: 0.85rem; }
         .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 768px) { #sidebar-wrapper { margin-left: -250px; } #wrapper.toggled #sidebar-wrapper { margin-left: 0; } }
@@ -184,10 +185,10 @@ $theme = get_theme_colors($conn);
                 <div class="col-md-2"><a href="system_logs.php" class="btn btn-outline-secondary w-100">Reset</a></div>
             </form>
 
-            <div class="card card-table p-4">
+            <div class="card card-table p-3">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead><tr><th>Date</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
+                    <table class="table table-hover table-sm align-middle">
+                        <thead><tr><th>Date</th><th>Affected User</th><th>Action</th><th>Details</th><th>Performed By</th></tr></thead>
                         <tbody>
                             <?php while($row = mysqli_fetch_assoc($logs)): ?>
                             <tr>
@@ -195,6 +196,12 @@ $theme = get_theme_colors($conn);
                                 <td class="fw-bold"><?= $row['full_name'] ? htmlspecialchars($row['full_name']) : 'System/Admin' ?></td>
                                 <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($row['action']) ?></span></td>
                                 <td class="small text-secondary"><?= htmlspecialchars($row['details']) ?></td>
+                                <td>
+                                    <?= htmlspecialchars($row['performed_by'] ?? 'System') ?>
+                                    <?php if(!empty($row['performer_role']) && in_array($row['performer_role'], ['Admin', 'Super Admin'])): ?>
+                                        <span class="badge <?= ($row['performer_role'] == 'Super Admin') ? 'bg-danger' : 'bg-primary' ?> ms-1" style="font-size: 0.7rem;"><?= htmlspecialchars($row['performer_role']) ?></span>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                             <?php endwhile; ?>
                             <?php if(mysqli_num_rows($logs) == 0): ?>

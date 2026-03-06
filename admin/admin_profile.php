@@ -45,30 +45,18 @@ if($row_la = mysqli_fetch_assoc($q_la)){
     }
 }
 
-// Handle Color Update
-if(isset($_POST['update_colors'])){
-    $colors = [
-        'theme_primary' => $_POST['primary_color'],
-        'theme_dark' => $_POST['dark_color'],
-        'theme_accent' => $_POST['accent_color']
-    ];
-    foreach($colors as $key => $val){
-        $val = mysqli_real_escape_string($conn, $val);
-        mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('$key', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
-    }
-    $message = "Theme colors updated.";
-    $theme = get_theme_colors($conn); // Refresh
-}
-
 // Handle Reset Defaults
 if(isset($_POST['reset_defaults'])){
+    if(is_super_admin()){
     mysqli_query($conn, "DELETE FROM site_settings WHERE setting_key IN ('theme_primary', 'theme_dark', 'theme_accent')");
     $message = "Theme colors reset to defaults.";
     $theme = get_theme_colors($conn); // Refresh
+    }
 }
 
 // Handle Logo Revert
 if(isset($_POST['revert_logo'])){
+    if(is_super_admin()){
     $target_file = "../Images/WokeLogo.jpg";
     $backup_file = "../Images/WokeLogo_backup.jpg";
     
@@ -80,6 +68,7 @@ if(isset($_POST['revert_logo'])){
         }
     } else {
         $error = "No backup logo found.";
+    }
     }
 }
 
@@ -138,6 +127,7 @@ if(isset($_POST['update_profile'])){
             $message = "Profile updated successfully.";
 
             // Handle Cropped Logo Upload
+            if(is_super_admin()){
             if(isset($_POST['cropped_logo_data']) && !empty($_POST['cropped_logo_data'])){
                 $data = $_POST['cropped_logo_data'];
                 list($type, $data) = explode(';', $data);
@@ -223,6 +213,21 @@ if(isset($_POST['update_profile'])){
                 } else {
                     $error = "Failed to upload living area image.";
                 }
+            }
+
+            // Handle Theme Colors
+            if(isset($_POST['primary_color'])){
+                $colors = [
+                    'theme_primary' => $_POST['primary_color'],
+                    'theme_dark' => $_POST['dark_color'],
+                    'theme_accent' => $_POST['accent_color']
+                ];
+                foreach($colors as $key => $val){
+                    $val = mysqli_real_escape_string($conn, $val);
+                    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('$key', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+                }
+                $theme = get_theme_colors($conn); // Refresh
+            }
             }
         } else {
             $error = "Error updating profile: " . mysqli_error($conn);
@@ -372,7 +377,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                             <input type="hidden" name="cropped_logo_data" id="cropped_logo_data">
                             <div class="row g-5">
                                 <!-- Left Column: Credentials -->
-                                <div class="col-md-6 border-end">
+                                <div class="<?= is_super_admin() ? 'col-md-6 border-end' : 'col-md-12' ?>">
                                     <h5 class="text-success fw-bold mb-3"><i class="fas fa-user-shield me-2"></i>Account Credentials</h5>
                                     <div class="mb-3">
                                         <label class="form-label fw-bold small">Username</label>
@@ -393,38 +398,72 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                                 </div>
 
                                 <!-- Right Column: Branding -->
+                                <?php if(is_super_admin()): ?>
                                 <div class="col-md-6">
-                                    <h5 class="text-warning fw-bold mb-3"><i class="fas fa-image me-2"></i>System Branding</h5>
-                                    <div class="text-center mb-3 p-3 bg-light rounded border">
-                                        <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" class="rounded-circle shadow-sm" style="width: 100px; height: 100px; object-fit: cover;">
-                                        <p class="small text-muted mt-2 mb-0">Current Logo</p>
+                                    <h5 class="text-secondary fw-bold mb-4 small text-uppercase border-bottom pb-2"><i class="fas fa-sliders-h me-2"></i>System Branding</h5>
+                                    
+                                    <!-- Logo -->
+                                    <div class="mb-4">
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <label class="form-label fw-bold small mb-0">System Logo</label>
+                                            <?php if(file_exists("../Images/WokeLogo_backup.jpg")): ?>
+                                                <button type="submit" name="revert_logo" class="btn btn-link btn-sm text-danger p-0 text-decoration-none" style="font-size: 0.75rem;" title="Revert to previous logo">
+                                                    <i class="fas fa-history me-1"></i> Revert
+                                                </button>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" class="rounded-circle border shadow-sm" style="width: 45px; height: 45px; object-fit: cover;">
+                                            <div class="flex-grow-1">
+                                                <input type="file" name="site_logo" id="logo_input" class="form-control form-control-sm" accept="image/*">
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold small">Upload New Logo</label>
-                                        <input type="file" name="site_logo" id="logo_input" class="form-control" accept="image/*">
-                                        <small class="text-muted d-block mt-1">Recommended: Square JPG/PNG (500x500)</small>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold small">Login Page Background</label>
-                                        <input type="file" name="login_bg" id="login_bg_input" class="form-control" accept="image/*">
-                                        <small class="text-muted d-block mt-1">Current: <?= htmlspecialchars($current_login_bg) ?></small>
+
+                                    <!-- Login Background -->
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold small">Login Background</label>
+                                        <input type="file" name="login_bg" id="login_bg_input" class="form-control form-control-sm" accept="image/*">
                                         <div id="login_bg_preview_container" class="mt-2" style="display:none;">
-                                            <small class="text-muted d-block mb-1">Preview:</small>
-                                            <img id="login_bg_preview" src="" style="max-width: 100%; max-height: 200px; border-radius: 5px; border: 1px solid #ddd;">
+                                            <img id="login_bg_preview" src="" class="rounded w-100 border" style="height: 120px; object-fit: cover;">
+                                        </div>
+                                        <div class="text-end mt-1">
+                                            <small class="text-muted" style="font-size: 0.7rem;">Current: <?= htmlspecialchars($current_login_bg) ?></small>
                                         </div>
                                     </div>
+
+                                    <!-- Living Area Image -->
                                     <div class="mb-3">
-                                        <label class="form-label fw-bold small">Living Area Image (Info Section)</label>
-                                        <input type="file" name="living_area_img" class="form-control" accept="image/*">
-                                        <small class="text-muted d-block mt-1">Current: <?= htmlspecialchars($current_living_area_img) ?></small>
-                                    </div>
-                                    <?php if(file_exists("../Images/WokeLogo_backup.jpg")): ?>
-                                        <div class="alert alert-light border d-flex align-items-center justify-content-between p-2">
-                                            <small class="text-muted">Restore previous logo?</small>
-                                            <button type="submit" name="revert_logo" class="btn btn-sm btn-outline-secondary"><i class="fas fa-undo me-1"></i> Revert</button>
+                                        <label class="form-label fw-bold small">Living Area Image</label>
+                                        <input type="file" name="living_area_img" class="form-control form-control-sm" accept="image/*">
+                                        <div class="text-end mt-1">
+                                            <small class="text-muted" style="font-size: 0.7rem;">Current: <?= htmlspecialchars($current_living_area_img) ?></small>
                                         </div>
-                                    <?php endif; ?>
+                                    </div>
+
+                                    <!-- Theme Colors -->
+                                    <h5 class="text-secondary fw-bold mb-4 small text-uppercase border-bottom pb-2 mt-5"><i class="fas fa-palette me-2"></i>Theme Customization</h5>
+                                    <div class="row g-2">
+                                        <div class="col-4">
+                                            <label class="form-label small fw-bold mb-1">Primary</label>
+                                            <input type="color" name="primary_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['primary'] ?>" title="Primary Color">
+                                        </div>
+                                        <div class="col-4">
+                                            <label class="form-label small fw-bold mb-1">Dark/Sidebar</label>
+                                            <input type="color" name="dark_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['dark'] ?>" title="Dark Color">
+                                        </div>
+                                        <div class="col-4">
+                                            <label class="form-label small fw-bold mb-1">Accent</label>
+                                            <input type="color" name="accent_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['accent'] ?>" title="Accent Color">
+                                        </div>
+                                    </div>
+                                    <div class="text-end mt-2">
+                                        <button type="submit" name="reset_defaults" class="btn btn-link btn-sm text-danger p-0 text-decoration-none" style="font-size: 0.75rem;" formnovalidate>
+                                            <i class="fas fa-undo me-1"></i> Reset to Default
+                                        </button>
+                                    </div>
                                 </div>
+                                <?php endif; ?>
                             </div>
                             
                             <hr class="my-4">
@@ -434,30 +473,6 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                         </form>
                     </div>
 
-                    <!-- Theme Colors Card -->
-                    <div class="card card-custom p-4 mt-4">
-                        <h5 class="fw-bold mb-3 text-secondary"><i class="fas fa-palette me-2"></i>Theme Customization</h5>
-                        <form method="POST" id="themeForm">
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <label class="form-label small fw-bold">Primary Color</label>
-                                    <input type="color" name="primary_color" id="primary_color" class="form-control form-control-color w-100" value="<?= $theme['primary'] ?>" title="Choose Primary Color">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label small fw-bold">Sidebar/Dark Color</label>
-                                    <input type="color" name="dark_color" id="dark_color" class="form-control form-control-color w-100" value="<?= $theme['dark'] ?>" title="Choose Dark Color">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label small fw-bold">Accent/Button Color</label>
-                                    <input type="color" name="accent_color" id="accent_color" class="form-control form-control-color w-100" value="<?= $theme['accent'] ?>" title="Choose Accent Color">
-                                </div>
-                            </div>
-                            <div class="text-end mt-3">
-                                <button type="button" class="btn btn-outline-danger btn-sm me-2" data-bs-toggle="modal" data-bs-target="#resetThemeModal">Reset to Default</button>
-                                <button type="submit" name="update_colors" class="btn btn-outline-secondary btn-sm">Update Theme</button>
-                            </div>
-                        </form>
-                    </div>
                 </div>
             </div>
         </div>

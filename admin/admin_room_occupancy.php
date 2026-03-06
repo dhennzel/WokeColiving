@@ -8,6 +8,8 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
     exit;
 }
 
+$admin_username = $_SESSION['admin_username'] ?? 'Admin';
+
 // Handle History Fetch (AJAX)
 if(isset($_GET['fetch_history']) && isset($_GET['room_id'])){
     $rid = (int)$_GET['room_id'];
@@ -37,26 +39,6 @@ if(isset($_GET['fetch_history']) && isset($_GET['room_id'])){
     exit;
 }
 
-// Handle Key Release
-if (isset($_POST['release_key'])) {
-    $key_id = (int)$_POST['key_id'];
-    $user_id = (int)$_POST['user_id'];
-    
-    if ($key_id > 0 && $user_id > 0) {
-        release_room_key($conn, $key_id, $user_id);
-        header("Location: admin_room_occupancy.php?msg=key_released");
-        exit;
-    }
-}
-
-// Handle Key Return
-if (isset($_GET['action']) && $_GET['action'] == 'return_key' && isset($_GET['trans_id'])) {
-    $trans_id = (int)$_GET['trans_id'];
-    return_room_key($conn, $trans_id);
-    header("Location: admin_room_occupancy.php?msg=key_returned");
-    exit;
-}
-
 // Fetch all rooms with occupancy information
 $rooms = get_all_rooms_with_occupancy($conn);
 
@@ -68,21 +50,6 @@ foreach ($rooms as $room) {
         $grouped_rooms[$type] = [];
     }
     $grouped_rooms[$type][] = $room;
-}
-
-// Fetch all active tenants for key release dropdown
-$active_tenants_q = mysqli_query($conn, "
-    SELECT DISTINCT u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name
-    FROM reservations r
-    JOIN users u ON r.user_id = u.user_id
-    WHERE r.status IN ('Approved', 'Pending')
-    AND r.start_date <= CURDATE() 
-    AND r.end_date > CURDATE()
-    ORDER BY u.last_name
-");
-$active_tenants = [];
-while ($t = mysqli_fetch_assoc($active_tenants_q)) {
-    $active_tenants[] = $t;
 }
 
 // Fetch Pending Counts for Sidebar
@@ -99,7 +66,7 @@ $theme = get_theme_colors($conn);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Room Occupancy & Key Monitoring | Woke Coliving INC</title>
+    <title>Room Occupancy | Woke Coliving INC</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -142,15 +109,6 @@ $theme = get_theme_colors($conn);
         .status-partial { background-color: #fff3cd; color: #856404; }
         .status-full { background-color: #f8d7da; color: #721c24; }
         .status-maintenance { background-color: #e2e3e5; color: #383d41; }
-        
-        .key-badge {
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            font-weight: 600;
-        }
-        .key-available { background-color: #d4edda; color: #155724; }
-        .key-released { background-color: #cce5ff; color: #004085; }
         
         .occupant-card {
             border-left: 4px solid var(--primary-green);
@@ -300,8 +258,8 @@ $theme = get_theme_colors($conn);
                         <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
                     </a>
                     <div>
-                        <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Room Occupancy & Key Monitoring</h4>
-                        <small class="text-muted">Monitor room occupancy and manage key assignments</small>
+                        <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Room Occupancy</h4>
+                        <small class="text-muted">Monitor room occupancy status</small>
                     </div>
                 </div>
                 <button onclick="location.reload()" class="btn btn-outline-secondary rounded-pill btn-sm">
@@ -316,11 +274,6 @@ $theme = get_theme_colors($conn);
                         <i class="fas fa-check-circle me-2"></i> Key has been released successfully!
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
-                <?php elseif($_GET['msg'] == 'key_returned'): ?>
-                    <div class="alert alert-info alert-dismissible fade show" role="alert">
-                        <i class="fas fa-key me-2"></i> Key has been returned successfully!
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
                 <?php endif; ?>
             <?php endif; ?>
 
@@ -331,17 +284,12 @@ $theme = get_theme_colors($conn);
             $vacant_count = 0;
             $full_count = 0;
             $partial_count = 0;
-            $total_keys_released = 0;
             
             foreach($rooms as $r) {
                 $total_occupants += $r['occupied_count'];
                 if($r['occupancy_status'] == 'Vacant') $vacant_count++;
                 elseif($r['occupancy_status'] == 'Fully Occupied') $full_count++;
                 elseif($r['occupancy_status'] == 'Partially Occupied') $partial_count++;
-                
-                if(isset($r['key_info']['key_status']) && $r['key_info']['key_status'] == 'Released') {
-                    $total_keys_released++;
-                }
             }
             ?>
             <div class="row mb-4 g-3">
@@ -355,12 +303,6 @@ $theme = get_theme_colors($conn);
                     <div class="card card-custom p-3 text-center h-100">
                         <h3 class="fw-bold text-primary mb-0"><?= $total_occupants ?></h3>
                         <small class="text-muted">Total Occupants</small>
-                    </div>
-                </div>
-                <div class="col-6 col-md">
-                    <div class="card card-custom p-3 text-center h-100" style="cursor: pointer;" onclick="filterByReleasedKeys()" title="Click to filter by released keys">
-                        <h3 class="fw-bold text-info mb-0"><?= $total_keys_released ?></h3>
-                        <small class="text-muted">Keys Released</small>
                     </div>
                 </div>
                 <div class="col-6 col-md">
@@ -396,13 +338,6 @@ $theme = get_theme_colors($conn);
                             <option value="Partially Occupied">Partially Occupied</option>
                             <option value="Fully Occupied">Fully Occupied</option>
                             <option value="Maintenance">Maintenance</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <select id="keyFilter" class="form-select form-select-sm" onchange="filterRooms()">
-                            <option value="all">All Keys</option>
-                            <option value="Available">Key Available</option>
-                            <option value="Released">Key Released</option>
                         </select>
                     </div>
                     <div class="col-md">
@@ -449,14 +384,6 @@ $theme = get_theme_colors($conn);
                         elseif($room['occupancy_status'] == 'Partially Occupied') $status_class = 'status-partial';
                         elseif($room['occupancy_status'] == 'Maintenance') $status_class = 'status-maintenance';
                         
-                        // Key status
-                        $key_info = $room['key_info'];
-                        $key_status_class = $key_info['key_status'] == 'Available' ? 'key-available' : 'key-released';
-                        
-                        // Check for key mismatch (Released but Vacant)
-                        $is_key_mismatch = ($room['occupancy_status'] == 'Vacant' && $key_info['key_status'] == 'Released');
-                        $card_border_class = $is_key_mismatch ? 'border border-danger border-2' : '';
-
                         // Concatenate occupant names for search
                         $occupant_names_str = "";
                         if (!empty($room['occupants'])) {
@@ -464,17 +391,14 @@ $theme = get_theme_colors($conn);
                             $occupant_names_str = htmlspecialchars(implode(' ', $occupant_names), ENT_QUOTES);
                         }
                     ?>
-                    <div class="col-lg-6 mb-4 room-item" data-floor="<?= $room['floor'] ?>" data-status="<?= $room['occupancy_status'] ?>" data-key-status="<?= $key_info['key_status'] ?>" data-name="<?= strtolower($room_display) ?>" data-occupants="<?= $occupant_names_str ?>">
-                        <div class="card card-custom h-100 <?= $card_border_class ?>">
+                    <div class="col-lg-6 mb-4 room-item" data-floor="<?= $room['floor'] ?>" data-status="<?= $room['occupancy_status'] ?>" data-name="<?= strtolower($room_display) ?>" data-occupants="<?= $occupant_names_str ?>">
+                        <div class="card card-custom h-100">
                             <div class="card-body">
                                 <!-- Room Header -->
                                 <div class="d-flex justify-content-between align-items-start mb-3">
                                     <div>
                                         <h6 class="fw-bold text-dark mb-0">
                                             <?= $room_display ?>
-                                            <?php if($is_key_mismatch): ?>
-                                                <i class="fas fa-exclamation-circle text-danger ms-1" title="Warning: Key is released but room is vacant"></i>
-                                            <?php endif; ?>
                                         </h6>
                                         <small class="text-muted"><i class="fas fa-building me-1"></i> <?= $room['floor'] ?>F | <?= $room['room_type'] ?></small>
                                     </div>
@@ -498,34 +422,6 @@ $theme = get_theme_colors($conn);
                                         ?>
                                         <div class="progress-bar <?= $bar_class ?>" style="width: <?= $percent ?>%"></div>
                                     </div>
-                                </div>
-
-                                <!-- Key Status -->
-                                <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded">
-                                    <div>
-                                        <small class="text-muted d-block"><i class="fas fa-key me-1"></i> Room Key</small>
-                                        <?php 
-                                            $key_tooltip = ($key_info['key_status'] == 'Released' && !empty($key_info['key_holder_name'])) 
-                                                ? 'title="Held by: ' . htmlspecialchars($key_info['key_holder_name']) . '"' 
-                                                : '';
-                                        ?>
-                                        <span class="key-badge <?= $key_status_class ?>" <?= $key_tooltip ?>>
-                                            <i class="fas <?= $key_info['key_status'] == 'Available' ? 'fa-lock-open' : 'fa-lock' ?> me-1"></i>
-                                            <?= $key_info['key_status'] ?>
-                                        </span>
-                                    </div>
-                                    <?php if($key_info['key_status'] == 'Available'): ?>
-                                        <button class="btn btn-sm btn-outline-primary" onclick="openKeyModal(<?= $key_info['key_id'] ?>, '<?= addslashes($room_display) ?>')">
-                                            <i class="fas fa-key me-1"></i> Release Key
-                                        </button>
-                                    <?php else: ?>
-                                        <div class="text-end">
-                                            <small class="text-muted d-block">Held by: <strong><?= $key_info['key_holder_name'] ?></strong></small>
-                                            <a href="?action=return_key&trans_id=<?= $key_info['trans_id'] ?>" class="btn btn-sm btn-outline-warning" onclick="return confirm('Mark this key as returned?')">
-                                                <i class="fas fa-undo me-1"></i> Return Key
-                                            </a>
-                                        </div>
-                                    <?php endif; ?>
                                 </div>
 
                                 <!-- Current Occupants -->
@@ -585,38 +481,6 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
-<!-- Key Release Modal -->
-<div class="modal fade" id="keyReleaseModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-key me-2"></i>Release Room Key</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST">
-                <div class="modal-body">
-                    <p>Releasing key for: <strong id="modalRoomName"></strong></p>
-                    <input type="hidden" name="key_id" id="modalKeyId">
-                    <input type="hidden" name="release_key" value="1">
-                    <div class="mb-3">
-                        <label class="form-label">Select Tenant to Assign Key</label>
-                        <select name="user_id" class="form-select" required>
-                            <option value="">-- Choose Tenant --</option>
-                            <?php foreach($active_tenants as $tenant): ?>
-                                <option value="<?= $tenant['user_id'] ?>"><?= $tenant['full_name'] ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Release Key</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- History Modal -->
 <div class="modal fade" id="historyModal" tabindex="-1">
     <div class="modal-dialog">
@@ -640,20 +504,17 @@ $theme = get_theme_colors($conn);
 function filterRooms() {
     const floor = document.getElementById('floorFilter').value;
     const status = document.getElementById('statusFilter').value;
-    const keyStatus = document.getElementById('keyFilter').value;
     const search = document.getElementById('roomSearch').value.toLowerCase();
     
     document.querySelectorAll('.room-item').forEach(item => {
         const itemFloor = item.getAttribute('data-floor');
         const itemStatus = item.getAttribute('data-status');
-        const itemKeyStatus = item.getAttribute('data-key-status');
         const itemName = item.getAttribute('data-name');
         const itemOccupants = item.getAttribute('data-occupants');
         
         let show = true;
         if (floor !== 'all' && itemFloor !== floor) show = false;
         if (status !== 'all' && itemStatus !== status) show = false;
-        if (keyStatus !== 'all' && itemKeyStatus !== keyStatus) show = false;
         if (search && !itemName.includes(search) && !itemOccupants.includes(search)) show = false;
         
         item.style.display = show ? '' : 'none';
@@ -672,15 +533,6 @@ function filterRooms() {
 function resetFilters() {
     document.getElementById('floorFilter').value = 'all';
     document.getElementById('statusFilter').value = 'all';
-    document.getElementById('keyFilter').value = 'all';
-    document.getElementById('roomSearch').value = '';
-    filterRooms();
-}
-
-function filterByReleasedKeys() {
-    document.getElementById('keyFilter').value = 'Released';
-    document.getElementById('floorFilter').value = 'all';
-    document.getElementById('statusFilter').value = 'all';
     document.getElementById('roomSearch').value = '';
     filterRooms();
 }
@@ -697,12 +549,6 @@ function viewHistory(roomId, roomName) {
         .then(html => {
             document.getElementById('histContent').innerHTML = html;
         });
-}
-
-function openKeyModal(keyId, roomName) {
-    document.getElementById('modalKeyId').value = keyId;
-    document.getElementById('modalRoomName').innerText = roomName;
-    new bootstrap.Modal(document.getElementById('keyReleaseModal')).show();
 }
 
 function toggleMenu(e) {

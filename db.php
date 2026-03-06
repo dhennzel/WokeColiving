@@ -57,6 +57,12 @@ function get_theme_colors($conn) {
 }
 }
 
+if (!function_exists('is_super_admin')) {
+function is_super_admin() {
+    return isset($_SESSION['admin_role']) && $_SESSION['admin_role'] === 'Super Admin';
+}
+}
+
 if (!function_exists('send_notification')) {
 function send_notification($conn, $user_id, $message, $type = 'System') {
     // 1. Insert into Database (In-App Notification)
@@ -149,10 +155,35 @@ function log_activity($conn, $user_id, $action, $details = "") {
         details TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )");
+    
+    // Ensure new columns exist for tracking performer
+    $cols_q = mysqli_query($conn, "SHOW COLUMNS FROM activity_logs LIKE 'performed_by'");
+    if(mysqli_num_rows($cols_q) == 0) {
+        mysqli_query($conn, "ALTER TABLE activity_logs ADD COLUMN performed_by VARCHAR(100) DEFAULT 'System'");
+    }
+    $cols_r = mysqli_query($conn, "SHOW COLUMNS FROM activity_logs LIKE 'role'");
+    if(mysqli_num_rows($cols_r) == 0) {
+        mysqli_query($conn, "ALTER TABLE activity_logs ADD COLUMN role VARCHAR(50) DEFAULT 'System'");
+    }
 
     $act = mysqli_real_escape_string($conn, $action);
     $det = mysqli_real_escape_string($conn, $details);
-    mysqli_query($conn, "INSERT INTO activity_logs (user_id, action, details) VALUES ('$user_id', '$act', '$det')");
+    
+    $performer = 'System';
+    $role = 'System';
+    
+    if(isset($_SESSION['admin_username'])){
+        $performer = $_SESSION['admin_username'];
+        $role = $_SESSION['admin_role'] ?? 'Admin';
+    } elseif(isset($_SESSION['user_id'])) {
+        $performer = 'User';
+        $role = 'User';
+    }
+    
+    $performer = mysqli_real_escape_string($conn, $performer);
+    $role = mysqli_real_escape_string($conn, $role);
+
+    mysqli_query($conn, "INSERT INTO activity_logs (user_id, action, details, performed_by, role) VALUES ('$user_id', '$act', '$det', '$performer', '$role')");
 }
 }
 
@@ -430,6 +461,20 @@ if(!in_array('cancellation_reason', $cols)) mysqli_query($conn, "ALTER TABLE res
 if(!in_array('is_archived', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
 if(!in_array('created_at', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
 if(!in_array('bed_preference', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN bed_preference VARCHAR(50) DEFAULT 'Any'");
+
+// Ensure activity_logs columns exist (Fix for System Logs page)
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)");
+$al_cols = [];
+$al_q = mysqli_query($conn, "SHOW COLUMNS FROM activity_logs");
+while($c = mysqli_fetch_assoc($al_q)) $al_cols[] = $c['Field'];
+if(!in_array('performed_by', $al_cols)) mysqli_query($conn, "ALTER TABLE activity_logs ADD COLUMN performed_by VARCHAR(100) DEFAULT 'System'");
+if(!in_array('role', $al_cols)) mysqli_query($conn, "ALTER TABLE activity_logs ADD COLUMN role VARCHAR(50) DEFAULT 'System'");
 
 // Ensure status ENUM is up to date and fix any broken statuses
 mysqli_query($conn, "ALTER TABLE reservations MODIFY COLUMN status ENUM('Pending', 'Verifying', 'Approved', 'Cancelled', 'Completed') DEFAULT 'Pending'");

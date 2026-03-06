@@ -2,7 +2,6 @@
 session_start();
 include("../db.php");
 
-// Only allow admin
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header("Location: admin_login.php");
     exit;
@@ -10,78 +9,71 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 $admin_username = $_SESSION['admin_username'] ?? 'Admin';
 
-// Handle Actions
-if (isset($_POST['add_parking_reservation'])) {
+// Handle Release Key
+if (isset($_POST['release_key'])) {
+    $key_id = (int)$_POST['key_id'];
     $user_id = (int)$_POST['user_id'];
-    $slot_id = (int)$_POST['slot_id'];
-    $start_date = $_POST['start_date'];
-    $billing_type = $_POST['billing_type'];
-
-    // Get slot details
-    $slot_q = mysqli_query($conn, "SELECT * FROM parking_slots WHERE id=$slot_id");
-    $slot = mysqli_fetch_assoc($slot_q);
-
-    $cost = ($billing_type == 'Monthly') ? $slot['monthly_rate'] : $slot['daily_rate'];
-    $end_date_sql = ($billing_type == 'Monthly') ? "NULL" : "'" . $start_date . "'";
-
-    // Insert parking reservation FIRST to get ID
-    $pr_stmt = mysqli_prepare($conn, "INSERT INTO parking_reservations (user_id, slot_id, start_date, end_date, total_cost, billing_type) VALUES (?, ?, ?, ?, ?, ?)");
-    mysqli_stmt_bind_param($pr_stmt, "iisdss", $user_id, $slot_id, $start_date, $end_date_sql_val, $cost, $billing_type);
-    $end_date_sql_val = ($billing_type == 'Monthly') ? null : $start_date;
-    mysqli_stmt_execute($pr_stmt);
-    $pr_id = mysqli_insert_id($conn);
-
-    // NOW create description with the new ID
-    if ($billing_type == 'Monthly') {
-        $desc = "Monthly Parking Fee (" . date('F Y') . ") for " . $slot['slot_name'] . " (Parking ID: $pr_id)";
-    } else { // Daily
-        $desc = "Daily Parking Fee ($start_date) for " . $slot['slot_name'] . " (Parking ID: $pr_id)";
-    }
-
-    // Update slot status
-    mysqli_query($conn, "UPDATE parking_slots SET status='Occupied' WHERE id=$slot_id");
-
-    // Add to payments table, linking to an active room reservation
-    $active_res_q = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id=$user_id AND status='Approved' ORDER BY end_date DESC LIMIT 1");
-    if ($active_res_row = mysqli_fetch_assoc($active_res_q)) {
-        $room_res_id = $active_res_row['reservation_id'];
-        $pay_stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'Cash', 'Unpaid', NOW(), ?)");
-        mysqli_stmt_bind_param($pay_stmt, "ids", $room_res_id, $cost, $desc);
-        mysqli_stmt_execute($pay_stmt);
-    }
-
-    send_notification($conn, $user_id, "🅿️ <strong>Parking Assigned</strong><br>You have been assigned to " . $slot['slot_name'] . ". A fee of ₱" . number_format($cost, 2) . " has been added to your account.", "Parking");
-    log_activity($conn, $user_id, "Parking Assigned", "Assigned to " . $slot['slot_name'] . " by $admin_username");
-    trigger_update($conn);
-    header("Location: admin_parking.php?msg=added");
-    exit;
-}
-
-if (isset($_GET['action']) && $_GET['action'] == 'end') {
-    $pr_id = (int)$_GET['id'];
-    $res = mysqli_query($conn, "SELECT * FROM parking_reservations WHERE id=$pr_id");
-    if ($pr = mysqli_fetch_assoc($res)) {
-        $slot_id = $pr['slot_id'];
-        mysqli_query($conn, "UPDATE parking_reservations SET status='Completed', end_date=CURDATE() WHERE id=$pr_id");
-        mysqli_query($conn, "UPDATE parking_slots SET status='Available' WHERE id=$slot_id");
-        send_notification($conn, $pr['user_id'], "🅿️ <strong>Parking Ended</strong><br>Your parking reservation for slot ID #$slot_id has been marked as completed.", "Parking");
-        log_activity($conn, $pr['user_id'], "Parking Ended", "Parking reservation #$pr_id ended by $admin_username");
+    
+    $chk = mysqli_query($conn, "SELECT status FROM `keys` WHERE id=$key_id");
+    $k = mysqli_fetch_assoc($chk);
+    
+    if ($k['status'] == 'Available') {
+        mysqli_query($conn, "INSERT INTO key_transactions (key_id, user_id) VALUES ($key_id, $user_id)");
+        mysqli_query($conn, "UPDATE `keys` SET status='Released' WHERE id=$key_id");
+        
+        send_notification($conn, $user_id, "🔑 <strong>Key Assigned</strong><br>You have been assigned a key (ID: $key_id). Please keep it safe.", "Key System");
+        log_activity($conn, $user_id, "Key Released", "Key ID $key_id released to user by $admin_username");
         trigger_update($conn);
-        header("Location: admin_parking.php?msg=ended");
+        header("Location: admin_keys.php?msg=released");
         exit;
     }
 }
 
-// Fetch Data for Display
-$slots_q = mysqli_query($conn, "SELECT * FROM parking_slots WHERE is_archived=0 ORDER BY slot_type, slot_name");
-$parking_slots = ['Car' => [], 'Motorcycle' => []];
-while ($row = mysqli_fetch_assoc($slots_q)) {
-    $parking_slots[$row['slot_type']][] = $row;
+// Handle Return Key
+if (isset($_GET['action']) && $_GET['action'] == 'return' && isset($_GET['id'])) {
+    $trans_id = (int)$_GET['id'];
+    
+    $t_q = mysqli_query($conn, "SELECT key_id, user_id FROM key_transactions WHERE id=$trans_id");
+    if ($t = mysqli_fetch_assoc($t_q)) {
+        $key_id = $t['key_id'];
+        mysqli_query($conn, "UPDATE key_transactions SET status='Returned', returned_at=NOW() WHERE id=$trans_id");
+        mysqli_query($conn, "UPDATE `keys` SET status='Available' WHERE id=$key_id");
+        
+        send_notification($conn, $t['user_id'], "🔑 <strong>Key Returned</strong><br>Key (ID: $key_id) has been marked as returned.", "Key System");
+        log_activity($conn, $t['user_id'], "Key Returned", "Key ID $key_id marked as returned by $admin_username");
+        trigger_update($conn);
+        header("Location: admin_keys.php?msg=returned");
+        exit;
+    }
 }
 
-$reservations_q = mysqli_query($conn, "SELECT pr.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, ps.slot_name, ps.slot_type FROM parking_reservations pr JOIN users u ON pr.user_id = u.user_id JOIN parking_slots ps ON pr.slot_id = ps.id WHERE pr.status = 'Active' ORDER BY pr.start_date DESC");
-$users_q = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name) as full_name FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM reservations WHERE status='Approved') ORDER BY last_name ASC");
-$avail_slots_q = mysqli_query($conn, "SELECT id, slot_name, slot_type FROM parking_slots WHERE status='Available' AND is_archived=0 ORDER BY slot_type, slot_name");
+// Fetch Keys
+$keys_q = mysqli_query($conn, "
+    SELECT k.*, 
+           kt.id as trans_id, kt.user_id, kt.released_at, 
+           CONCAT(u.last_name, ', ', u.first_name) as holder_name 
+    FROM `keys` k 
+    LEFT JOIN key_transactions kt ON k.id = kt.key_id AND kt.status = 'Active'
+    LEFT JOIN users u ON kt.user_id = u.user_id
+    ORDER BY k.type, k.key_name
+");
+
+// Fetch Users for Dropdown
+$users_q = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name) as full_name FROM users WHERE role='user' ORDER BY last_name");
+
+// Fetch History
+$history_q = mysqli_query($conn, "
+    SELECT kt.*, k.key_name, k.type, CONCAT(u.last_name, ', ', u.first_name) as full_name 
+    FROM key_transactions kt 
+    JOIN `keys` k ON kt.key_id = k.id 
+    JOIN users u ON kt.user_id = u.user_id 
+    ORDER BY kt.released_at DESC LIMIT 50
+");
+
+// Calculate Stats
+$total_keys = mysqli_num_rows(mysqli_query($conn, "SELECT id FROM `keys`"));
+$released_keys = mysqli_num_rows(mysqli_query($conn, "SELECT id FROM `keys` WHERE status='Released'"));
+$available_keys = $total_keys - $released_keys;
 
 // Sidebar counts
 $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
@@ -96,11 +88,10 @@ $theme = get_theme_colors($conn);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Parking Management | Woke Coliving INC</title>
+    <title>Key Monitoring | Woke Coliving INC</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root { --primary-green: <?= $theme['primary'] ?>; --dark-green: <?= $theme['dark'] ?>; --accent-yellow: <?= $theme['accent'] ?>; --light-bg: #f8f9fa; }
         body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
@@ -112,9 +103,6 @@ $theme = get_theme_colors($conn);
         .sidebar-link:hover, .sidebar-link.active { color: var(--dark-green); background-color: var(--accent-yellow); border-left-color: white; font-weight: 600; }
         .sidebar-brand { color: var(--accent-yellow); font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.3rem; padding: 25px; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
-        .slot-card { border: 1px solid #eee; border-radius: 10px; padding: 15px; text-align: center; transition: .3s; }
-        .slot-card.occupied { background-color: #f8d7da; border-color: #f5c6cb; }
-        .slot-card.available { background-color: #d4edda; border-color: #c3e6cb; }
         .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
     </style>
 </head>
@@ -146,8 +134,8 @@ $theme = get_theme_colors($conn);
             <div class="collapse show" id="facilitiesSubmenu">
                 <a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
                 <a href="admin_room_occupancy.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Room Occupancy</a>
-                <a href="admin_parking.php" class="sidebar-link ps-5 active"><i class="fas fa-parking me-2"></i>Parkings</a>
-                <a href="admin_keys.php" class="sidebar-link ps-5"><i class="fas fa-key me-2"></i>Key Monitoring</a>
+                <a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a>
+                <a href="admin_keys.php" class="sidebar-link ps-5 active"><i class="fas fa-key me-2"></i>Key Monitoring</a>
             </div>
 
             <!-- Finance & Reports -->
@@ -195,66 +183,84 @@ $theme = get_theme_colors($conn);
     <!-- Page Content -->
     <div id="page-content-wrapper">
         <div class="container-fluid px-4 py-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Parking Management</h4>
-                <div>
-                    <a href="admin_parking_reports.php" class="btn btn-outline-success"><i class="fas fa-chart-bar me-2"></i>View Reports</a>
-                    <button class="btn btn-custom" data-bs-toggle="modal" data-bs-target="#addReservationModal"><i class="fas fa-plus me-2"></i>New Parking Reservation</button>
-                </div>
-            </div>
+            <h4 class="fw-bold mb-4" style="color: var(--dark-green);">Key Monitoring System</h4>
 
             <?php if(isset($_GET['msg'])): ?>
-                <div class="alert alert-success"><?= $_GET['msg'] == 'added' ? 'Reservation added.' : 'Reservation ended.' ?></div>
+                <div class="alert alert-success"><?= $_GET['msg'] == 'released' ? 'Key released successfully.' : 'Key returned successfully.' ?></div>
             <?php endif; ?>
 
-            <!-- Slot Monitoring -->
-            <div class="card card-custom p-4 mb-4">
-                <h5 class="fw-bold text-secondary mb-3">Slot Monitoring</h5>
-                <h6 class="fw-bold"><i class="fas fa-car me-2 text-primary"></i>Car Slots (4)</h6>
-                <div class="row g-3 mb-3">
-                    <?php foreach($parking_slots['Car'] as $slot): ?>
-                    <div class="col">
-                        <div class="slot-card <?= strtolower($slot['status']) ?>">
-                            <div class="fw-bold"><?= $slot['slot_name'] ?></div>
-                            <div class="small"><?= $slot['status'] ?></div>
-                        </div>
+            <!-- Summary Stats -->
+            <div class="row mb-4 g-3">
+                <div class="col-md-4">
+                    <div class="card card-custom p-3 text-center h-100">
+                        <h3 class="fw-bold text-primary mb-0"><?= $total_keys ?></h3>
+                        <small class="text-muted">Total Keys</small>
                     </div>
-                    <?php endforeach; ?>
                 </div>
-                <h6 class="fw-bold"><i class="fas fa-motorcycle me-2 text-warning"></i>Motorcycle Slots (7)</h6>
-                <div class="row g-3">
-                    <?php foreach($parking_slots['Motorcycle'] as $slot): ?>
-                    <div class="col">
-                        <div class="slot-card <?= strtolower($slot['status']) ?>">
-                            <div class="fw-bold"><?= $slot['slot_name'] ?></div>
-                            <div class="small"><?= $slot['status'] ?></div>
-                        </div>
+                <div class="col-md-4">
+                    <div class="card card-custom p-3 text-center h-100">
+                        <h3 class="fw-bold text-warning mb-0"><?= $released_keys ?></h3>
+                        <small class="text-muted">Keys Released</small>
                     </div>
-                    <?php endforeach; ?>
+                </div>
+                <div class="col-md-4">
+                    <div class="card card-custom p-3 text-center h-100">
+                        <h3 class="fw-bold text-success mb-0"><?= $available_keys ?></h3>
+                        <small class="text-muted">Keys Available</small>
+                    </div>
                 </div>
             </div>
 
-            <!-- Active Reservations -->
-            <div class="card card-custom p-4">
-                <h5 class="fw-bold text-secondary mb-3">Active Parking Reservations</h5>
+            <!-- Key Status -->
+            <div class="card card-custom p-4 mb-4">
+                <h5 class="fw-bold text-secondary mb-3">Key Status</h5>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Tenant</th><th>Slot</th><th>Billing</th><th>Start Date</th><th class="text-end">Action</th></tr></thead>
+                        <thead><tr><th>Key Name</th><th>Type</th><th>Status</th><th>Current Holder</th><th>Released At</th><th class="text-end">Action</th></tr></thead>
                         <tbody>
-                            <?php while($row = mysqli_fetch_assoc($reservations_q)): ?>
+                            <?php while($row = mysqli_fetch_assoc($keys_q)): ?>
                             <tr>
-                                <td class="fw-bold"><?= $row['full_name'] ?></td>
-                                <td><?= $row['slot_name'] ?> (<?= $row['slot_type'] ?>)</td>
-                                <td><?= $row['billing_type'] ?></td>
-                                <td><?= date('M d, Y', strtotime($row['start_date'])) ?></td>
+                                <td class="fw-bold"><?= $row['key_name'] ?></td>
+                                <td><span class="badge bg-light text-dark border"><?= $row['type'] ?></span></td>
+                                <td>
+                                    <?php if($row['status'] == 'Available'): ?>
+                                        <span class="badge bg-success">Available</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-warning text-dark">Released</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= $row['holder_name'] ? $row['holder_name'] : '-' ?></td>
+                                <td><?= $row['released_at'] ? date('M d, h:i A', strtotime($row['released_at'])) : '-' ?></td>
                                 <td class="text-end">
-                                    <a href="?action=end&id=<?= $row['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('End this parking reservation?')">End Reservation</a>
+                                    <?php if($row['status'] == 'Available'): ?>
+                                        <button class="btn btn-sm btn-primary" onclick="openReleaseModal(<?= $row['id'] ?>, '<?= addslashes($row['key_name']) ?>')">Release Key</button>
+                                    <?php else: ?>
+                                        <a href="?action=return&id=<?= $row['trans_id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Mark this key as returned?')">Return Key</a>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
-                            <?php if(mysqli_num_rows($reservations_q) == 0): ?>
-                                <tr><td colspan="5" class="text-center text-muted">No active parking reservations.</td></tr>
-                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- History Log -->
+            <div class="card card-custom p-4">
+                <h5 class="fw-bold text-secondary mb-3">Transaction History</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle small">
+                        <thead><tr><th>Date Released</th><th>Key</th><th>Holder</th><th>Date Returned</th><th>Status</th></tr></thead>
+                        <tbody>
+                            <?php while($h = mysqli_fetch_assoc($history_q)): ?>
+                            <tr>
+                                <td><?= date('M d, Y h:i A', strtotime($h['released_at'])) ?></td>
+                                <td><?= $h['key_name'] ?></td>
+                                <td><?= $h['full_name'] ?></td>
+                                <td><?= $h['returned_at'] ? date('M d, Y h:i A', strtotime($h['returned_at'])) : '-' ?></td>
+                                <td><?= $h['status'] ?></td>
+                            </tr>
+                            <?php endwhile; ?>
                         </tbody>
                     </table>
                 </div>
@@ -263,16 +269,19 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
-<!-- Add Reservation Modal -->
-<div class="modal fade" id="addReservationModal" tabindex="-1">
+<!-- Release Modal -->
+<div class="modal fade" id="releaseModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">New Parking Reservation</h5>
+                <h5 class="modal-title">Release Key</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
                 <div class="modal-body">
+                    <p>Releasing: <strong id="modalKeyName"></strong></p>
+                    <input type="hidden" name="key_id" id="modalKeyId">
+                    <input type="hidden" name="release_key" value="1">
                     <div class="mb-3">
                         <label class="form-label">Select Tenant</label>
                         <select name="user_id" class="form-select" required>
@@ -282,30 +291,10 @@ $theme = get_theme_colors($conn);
                             <?php endwhile; ?>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Select Available Slot</label>
-                        <select name="slot_id" class="form-select" required>
-                            <option value="">-- Choose Slot --</option>
-                            <?php while($s = mysqli_fetch_assoc($avail_slots_q)): ?>
-                                <option value="<?= $s['id'] ?>"><?= $s['slot_name'] ?> (<?= $s['slot_type'] ?>)</option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Start Date</label>
-                        <input type="date" name="start_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Billing Type</label>
-                        <select name="billing_type" class="form-select" required>
-                            <option value="Monthly">Monthly</option>
-                            <option value="Daily">Daily</option>
-                        </select>
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" name="add_parking_reservation" class="btn btn-primary">Add Reservation</button>
+                    <button type="submit" class="btn btn-primary">Confirm Release</button>
                 </div>
             </form>
         </div>
@@ -313,5 +302,12 @@ $theme = get_theme_colors($conn);
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function openReleaseModal(id, name) {
+    document.getElementById('modalKeyId').value = id;
+    document.getElementById('modalKeyName').innerText = name;
+    new bootstrap.Modal(document.getElementById('releaseModal')).show();
+}
+</script>
 </body>
 </html>

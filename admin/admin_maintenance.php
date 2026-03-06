@@ -7,6 +7,8 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
     exit;
 }
 
+$admin_username = $_SESSION['admin_username'] ?? 'Admin';
+
 // Create table for temporary moves if not exists
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS temporary_moves (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -38,9 +40,13 @@ if(isset($_POST['move_tenant'])){
     $orig_q = mysqli_query($conn, "SELECT room_id FROM reservations WHERE reservation_id=$res_id");
     $orig_row = mysqli_fetch_assoc($orig_q);
     $orig_room = $orig_row['room_id'];
+    $u_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE reservation_id=$res_id");
+    $uid = mysqli_fetch_assoc($u_q)['user_id'];
     
     mysqli_query($conn, "INSERT INTO temporary_moves (reservation_id, original_room_id, temp_room_id) VALUES ($res_id, $orig_room, $target_room)");
     mysqli_query($conn, "UPDATE reservations SET room_id=$target_room WHERE reservation_id=$res_id");
+    
+    log_activity($conn, $uid, "Tenant Moved", "Moved to temporary room ID $target_room by $admin_username");
     
     trigger_update($conn);
     header("Location: admin_maintenance.php?msg=moved");
@@ -59,6 +65,10 @@ if(isset($_POST['return_tenant'])){
         
         mysqli_query($conn, "UPDATE reservations SET room_id=$orig_room WHERE reservation_id=$res_id");
         mysqli_query($conn, "UPDATE temporary_moves SET status='Returned' WHERE id=$move_id");
+        
+        $u_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE reservation_id=$res_id");
+        $uid = mysqli_fetch_assoc($u_q)['user_id'];
+        log_activity($conn, $uid, "Tenant Returned", "Returned to original room ID $orig_room by $admin_username");
     }
     trigger_update($conn);
     header("Location: admin_maintenance.php?msg=returned");
@@ -71,6 +81,10 @@ if(isset($_POST['update_request'])){
     $status = $_POST['status'];
     $sched_date = !empty($_POST['scheduled_date']) ? "'".$_POST['scheduled_date']."'" : "NULL";
     
+    $u_q = mysqli_query($conn, "SELECT user_id FROM maintenance_requests WHERE request_id=$req_id");
+    $uid = mysqli_fetch_assoc($u_q)['user_id'];
+    
+    log_activity($conn, $uid, "Maintenance Update", "Request #$req_id updated to '$status' by $admin_username");
     mysqli_query($conn, "UPDATE maintenance_requests SET status='$status', scheduled_date=$sched_date WHERE request_id=$req_id");
     trigger_update($conn);
     header("Location: admin_maintenance.php");
