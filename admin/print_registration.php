@@ -29,35 +29,12 @@ $theme = get_theme_colors($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="admin_CSS/admin_style.css">
     <style>
         :root {
             --primary-green: <?= $theme['primary'] ?>;
             --dark-green: <?= $theme['dark'] ?>;
             --accent-yellow: <?= $theme['accent'] ?>;
-        }
-        body { background: #f4f6f8; font-family: 'Poppins', sans-serif; }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-        
-        .receipt-container {
-            max-width: 800px;
-            margin: 40px auto;
-            background: #fff;
-            padding: 40px;
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-        .header { border-bottom: 3px solid var(--accent-yellow); padding-bottom: 20px; margin-bottom: 30px; }
-        .logo { width: 60px; height: 60px; object-fit: cover; border-radius: 50%; }
-        .company-name { color: var(--dark-green); font-weight: bold; font-size: 1.5rem; font-family: 'Playfair Display', serif; }
-        .label { font-weight: 600; color: #555; font-size: 0.9rem; text-transform: uppercase; }
-        .value { font-size: 1.1rem; font-weight: 500; color: #000; }
-        .sig-box { border-top: 1px solid #000; padding-top: 10px; display: inline-block; margin-top: 40px; width: 100%; text-align: center; }
-        .sig-img { max-height: 60px; display: block; margin: 0 auto 10px auto; }
-        @media print {
-            body { background: #fff; }
-            .receipt-container { box-shadow: none; border: none; margin: 0; padding: 0; width: 100%; max-width: 100%; }
-            .no-print { display: none !important; }
         }
     </style>
 </head>

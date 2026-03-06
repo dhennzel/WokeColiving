@@ -34,6 +34,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="admin_CSS/admin_style.css">
+    <link rel="stylesheet" href="admin_CSS/admin_login.css">
     <?php $theme = get_theme_colors($conn); ?>
     <?php
     $bg_url = '../assets/images/hero.jpg';
@@ -59,30 +61,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             justify-content: center;
             overflow: hidden;
         }
-        .overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom right, rgba(27, 94, 32, 0.9), rgba(27, 94, 32, 0.7));
-            backdrop-filter: blur(3px);
-            z-index: 1;
-        }
-        .login-card {
-            position: relative;
-            z-index: 2;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 40px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-            animation: fadeInUp 0.8s ease-out;
-        }
-        h2 { font-family: 'Playfair Display', serif; color: var(--dark-green); font-weight: bold; }
-        .form-control { border-radius: 50px; padding: 12px 20px; border: 1px solid #ddd; background: #f8f9fa; margin-bottom: 15px; }
-        .form-control:focus { border-color: var(--primary-green); box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25); background: #fff; }
-        .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: 700; border-radius: 50px; padding: 12px; width: 100%; border: none; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; }
-        .btn-custom:hover { background-color: #F9A825; transform: translateY(-3px); box-shadow: 0 5px 15px rgba(251, 192, 45, 0.4); }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>

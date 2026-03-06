@@ -175,6 +175,7 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <?php $theme = get_theme_colors($conn); ?>
+    <link rel="stylesheet" href="admin_CSS/admin_style.css">
     <style>
         :root {
             --primary-green: <?= $theme['primary'] ?>;
@@ -182,56 +183,6 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
             --accent-yellow: <?= $theme['accent'] ?>;
             --light-bg: #f8f9fa;
         }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-        
-        #wrapper { display: flex; width: 100%; }
-        #sidebar-wrapper { width: 260px; background-color: var(--dark-green); flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; transition: margin 0.25s ease-out; }
-        #wrapper.toggled #sidebar-wrapper { margin-left: -250px; }
-        @media (max-width: 768px) {
-            #sidebar-wrapper { margin-left: -250px; }
-            #wrapper.toggled #sidebar-wrapper { margin-left: 0; }
-        }
-        #page-content-wrapper { flex-grow: 1; }
-        .sidebar-link { color: rgba(255,255,255,0.8); text-decoration: none; padding: 15px 25px; display: block; font-weight: 500; border-left: 5px solid transparent; transition: 0.3s; }
-        .sidebar-link:hover, .sidebar-link.active { color: var(--dark-green); background-color: var(--accent-yellow); border-left-color: white; font-weight: 600; }
-        .sidebar-brand { color: var(--accent-yellow); font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.3rem; padding: 25px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
-        
-        /* Navbar */
-        #menu-toggle { display: none; }
-        #wrapper.toggled #menu-toggle { display: inline-block; }
-        @media (max-width: 768px) {
-            #menu-toggle { display: inline-block; }
-            #wrapper.toggled #menu-toggle { display: none; }
-        }
-
-        /* Stats Cards */
-        .stat-card { border: none; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); transition: .3s; background: white; }
-        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .stat-icon { font-size: 2.5rem; opacity: 0.15; position: absolute; right: 20px; top: 20px; }
-        .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--primary-green); font-family: 'Playfair Display', serif; }
-        .stat-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #666; }
-
-        /* Room Box */
-        .room-box { background: white; border-radius: 10px; padding: 10px; border: 1px solid #eee; height: 100%; transition: 0.2s; }
-        .room-box:hover { border-color: var(--primary-green); box-shadow: 0 3px 10px rgba(0,0,0,0.05); }
-        .bed-badge { font-size: 0.7rem; padding: 3px 6px; border-radius: 4px; }
-        .bg-lower { background-color: #e8f5e9; color: #2e7d32; }
-        .bg-upper { background-color: #e3f2fd; color: #1565c0; }
-
-        /* Table */
-        .card-table { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
-        .table th { background-color: var(--primary-green); color: white; font-weight: 500; border: none; }
-        .table td { vertical-align: middle; }
-        .user-avatar { width: 35px; height: 35px; background: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; }
-        
-        /* Badges */
-        .badge-pending { background: #fff3cd; color: #856404; }
-        .badge-approved { background: #d4edda; color: #155724; }
-        .badge-cancelled { background: #f8d7da; color: #721c24; }
-        
-        .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
-        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
