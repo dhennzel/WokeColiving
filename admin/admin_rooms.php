@@ -217,9 +217,7 @@ $theme = get_theme_colors($conn);
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse" id="financeSubmenu">
-                <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
                 <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
-                <?php endif; ?>
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a>
             </div>
 
@@ -251,12 +249,9 @@ $theme = get_theme_colors($conn);
             </a>
             <div class="collapse" id="settingsSubmenu">
                 <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
-                <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
-                <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
                 <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
                 <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
                 <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
-                <?php endif; ?>
             </div>
 
             <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
@@ -295,7 +290,6 @@ $theme = get_theme_colors($conn);
             foreach($rooms_in_type as $key => $room) {
                 $type_total_beds += $room['total_beds'];
                 $type_avail_beds += $room['available_beds'];
-            }
         ?>
         <!-- Summary Card -->
         <div class="col-md-4">
@@ -544,45 +538,6 @@ $theme = get_theme_colors($conn);
             </form>
         </div>
     </div>
-</div>
-
-<!-- Amenities Modal -->
-<div class="modal fade" id="amenitiesModal" tabindex="-1" aria-labelledby="amenitiesModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="amenitiesModalLabel"><i class="fas fa-star me-2 text-warning"></i>Woke Coliving Amenities</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="row">
-          <div class="col-md-6">
-            <ul class="list-group list-group-flush">
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-wifi fa-fw text-success me-3"></i>Wifi</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-broom fa-fw text-success me-3"></i>Monthly Housekeeping</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-couch fa-fw text-success me-3"></i>Fully Furnished</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-shower fa-fw text-success me-3"></i>Ensuite shower and WC</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-concierge-bell fa-fw text-success me-3"></i>24H concierge</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-lock fa-fw text-success me-3"></i>Lockers</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-parking fa-fw text-success me-3"></i>Car and motorbike parking</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-wrench fa-fw text-success me-3"></i>Regular Maintenance</li>
-            </ul>
-          </div>
-          <div class="col-md-6">
-            <ul class="list-group list-group-flush">
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-file-signature fa-fw text-success me-3"></i>Flexible Contracts</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-users fa-fw text-success me-3"></i>Lounges and common areas</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-shield-alt fa-fw text-success me-3"></i>Security guard and CCTV</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-calendar-alt fa-fw text-success me-3"></i>Event spaces</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-cocktail fa-fw text-success me-3"></i>Roof top lounge and bar <span class="badge bg-light text-dark ms-2">soon</span></li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-utensils fa-fw text-success me-3"></i>Food & beverage room service <span class="badge bg-light text-dark ms-2">soon</span></li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-briefcase fa-fw text-success me-3"></i>Meeting room <span class="badge bg-light text-dark ms-2">soon</span></li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
