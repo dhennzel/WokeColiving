@@ -714,7 +714,7 @@ if (isset($_POST['confirm_booking'])) {
 
                         <div class="mb-3">
                             <label class="form-label">Check-out Date</label>
-                            <input type="date" name="cout" id="cout" class="form-control" min="<?= date('Y-m-d', strtotime($pre_cin . ' +1 day')) ?>" required onchange="calculateTotal(); checkRealTimeAvailability()">
+                            <input type="date" name="cout" id="cout" class="form-control" min="<?= date('Y-m-d', strtotime($pre_cin . ' +1 day')) ?>" required onchange="updateDurationFromDates()">
                         </div>
 
                         <div class="alert alert-light border">
@@ -917,14 +917,32 @@ function confirmReservation() {
             fetch(`get_rooms.php?checkin=${cin}&checkout=${cout}`)
                 .then(response => response.json())
                 .then(data => {
-                    // Filter data for selected room type
-                    let available = data.some(r => {
-                        if (r.room_type !== room) return false;
-                        if (bedPref === 'Lower Bunk') return r.avail_lower > 0;
-                        if (bedPref === 'Upper Bunk') return r.avail_upper > 0;
-                        if (bedPref === 'Whole Room') return r.available_beds == r.total_beds;
-                        return r.available_beds > 0;
-                    });
+                    // Filter rooms of selected type
+                    let roomsOfType = data.filter(r => r.room_type === room);
+                    
+                    // Check specific availability across all rooms of this type
+                    let hasLower = roomsOfType.some(r => r.avail_lower > 0);
+                    let hasUpper = roomsOfType.some(r => r.avail_upper > 0);
+                    let hasWhole = roomsOfType.some(r => r.available_beds == r.total_beds);
+                    let hasAny = roomsOfType.length > 0;
+
+                    // Update Dropdown Options
+                    if(bedPrefEl) {
+                        let lowerOpt = bedPrefEl.querySelector('option[value="Lower Bunk"]');
+                        let upperOpt = bedPrefEl.querySelector('option[value="Upper Bunk"]');
+                        let wholeOpt = bedPrefEl.querySelector('option[value="Whole Room"]');
+
+                        if(lowerOpt) { lowerOpt.disabled = !hasLower; lowerOpt.text = hasLower ? "Lower Bunk" : "Lower Bunk (Full)"; }
+                        if(upperOpt) { upperOpt.disabled = !hasUpper; upperOpt.text = hasUpper ? "Upper Bunk" : "Upper Bunk (Full)"; }
+                        if(wholeOpt) { wholeOpt.disabled = !hasWhole; wholeOpt.text = hasWhole ? "Whole Room" : "Whole Room (Unavailable)"; }
+                    }
+
+                    // Check if current selection is valid
+                    let available = false;
+                    if (bedPref === 'Lower Bunk') available = hasLower;
+                    else if (bedPref === 'Upper Bunk') available = hasUpper;
+                    else if (bedPref === 'Whole Room') available = hasWhole;
+                    else available = hasAny;
                     
                     if(available) {
                         statusSpan.innerHTML = '<i class="fas fa-check-circle"></i> Available';
@@ -976,6 +994,30 @@ function confirmReservation() {
         }
     }
 
+    function updateDurationFromDates() {
+        let cin = document.getElementById('cin').value;
+        let cout = document.getElementById('cout').value;
+        let durationSelect = document.getElementById('duration_select');
+        let termInput = document.getElementById('term_type');
+
+        if (cin && cout) {
+            let d1 = new Date(cin);
+            let d2 = new Date(cout);
+            let diffTime = d2 - d1;
+            let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+            if (diffDays >= 28) {
+                durationSelect.value = '1';
+                termInput.value = 'Short';
+            } else {
+                durationSelect.value = 'Daily';
+                termInput.value = 'Daily';
+            }
+            calculateTotal();
+            checkRealTimeAvailability();
+        }
+    }
+
     function updateCheckoutDate() {
         let duration = document.getElementById('duration_select').value;
         let cinInput = document.getElementById('cin');
@@ -989,7 +1031,7 @@ function confirmReservation() {
                 // Short Term: 30 Days (Start Date + 29 days)
                 d.setDate(d.getDate() + 29);
                 coutInput.value = d.toISOString().split('T')[0];
-                coutInput.readOnly = true;
+                coutInput.readOnly = false;
                 termInput.value = 'Short';
             } else if (duration === '6') {
                 // Long Term Rules
@@ -1005,10 +1047,12 @@ function confirmReservation() {
                 // Set to last day of target month
                 let endDate = new Date(d.getFullYear(), targetMonth + 1, 0); 
                 coutInput.value = endDate.toISOString().split('T')[0];
-                coutInput.readOnly = true;
+                coutInput.readOnly = false;
                 termInput.value = 'Long';
             } else {
                 // Daily
+                d.setDate(d.getDate() + 1);
+                coutInput.value = d.toISOString().split('T')[0];
                 coutInput.readOnly = false;
                 termInput.value = 'Daily';
             }
@@ -1078,9 +1122,26 @@ function confirmReservation() {
                     document.getElementById('utility_display').innerHTML = '<span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> Included</span>';
                     document.getElementById('sd_display').innerText = '₱0.00';
                     
-                    let dailyRate = parseFloat(priceData.daily_bed || 700);
-                    if(room === 'Single') dailyRate = parseFloat(priceData.daily_room || 1200);
-                    if(bedPref === 'Whole Room') dailyRate = parseFloat(priceData.daily_room || 0);
+                    let dailyRate = 0;
+                    if(room === 'Single' || bedPref === 'Whole Room') dailyRate = parseFloat(priceData.daily_room || 0);
+                    else dailyRate = parseFloat(priceData.daily_bed || 0);
+
+                    // Fallback to Monthly / 30 if daily rate is 0
+                    if(dailyRate === 0) {
+                        let monthlyBase = 0;
+                        if(room === 'Single') monthlyBase = parseFloat(priceData.short_base || 0);
+                        else if(bedPref === 'Whole Room') {
+                            monthlyBase = parseFloat(priceData.short_whole || 0);
+                            if(monthlyBase === 0) {
+                                let beds = (room === '4-Bed') ? 4 : 6;
+                                monthlyBase = parseFloat(priceData.short_base || 0) * beds;
+                            }
+                        } else if(bedPref === 'Upper Bunk') monthlyBase = parseFloat(priceData.short_upper || 0);
+                        else monthlyBase = parseFloat(priceData.short_lower || 0);
+
+                        if(monthlyBase === 0) monthlyBase = parseFloat(priceData.short_base || 0);
+                        dailyRate = monthlyBase / 30;
+                    }
                     
                     total = days * dailyRate;
 
@@ -1103,9 +1164,10 @@ function confirmReservation() {
                                 let beds = (room === '4-Bed') ? 4 : 6;
                                 monthlyRate = parseFloat(priceData.short_base || 0) * beds;
                             }
+                        } else {
+                            monthlyRate = (bedPref === 'Upper Bunk') ? upper : lower;
+                            if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_base || 0);
                         }
-                        monthlyRate = (bedPref === 'Upper Bunk') ? upper : lower;
-                        if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_base || 0);
                     }
 
                     // Prorated Calculation
@@ -1140,9 +1202,10 @@ function confirmReservation() {
                                 let beds = (room === '4-Bed') ? 4 : 6;
                                 monthlyRate = parseFloat(priceData.short_base || 0) * beds;
                             }
+                        } else {
+                            monthlyRate = (bedPref === 'Upper Bunk') ? upper : lower;
+                            if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_base || 0);
                         }
-                        monthlyRate = (bedPref === 'Upper Bunk') ? upper : lower;
-                        if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_base || 0);
                     }
                     total = monthlyRate + sd;
                 }
@@ -1164,8 +1227,19 @@ function confirmReservation() {
     window.addEventListener('DOMContentLoaded', (event) => {
         if(document.getElementById('troom').value) {
             updateRoomOptions();
+        }
+        
+        // Initialize Dates if empty to trigger calculation
+        if(!document.getElementById('cin').value) {
+            let today = new Date();
+            let yyyy = today.getFullYear();
+            let mm = String(today.getMonth() + 1).padStart(2, '0');
+            let dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('cin').value = `${yyyy}-${mm}-${dd}`;
+            updateCheckoutDate(); // This sets cout and calls calculateTotal
+        } else {
+            calculateTotal(); // Calculate immediately if dates exist
             checkRealTimeAvailability();
-            calculateTotal();
         }
     });
 

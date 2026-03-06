@@ -191,7 +191,7 @@ if(isset($_POST['add_reservation'])){
             if ($room_type != 'Single') {
                 if ($bed_preference == 'Upper Bunk') $monthly_price = ($found_room['price_upper'] > 0) ? $found_room['price_upper'] : $found_room['total_price'];
                 elseif ($bed_preference == 'Lower Bunk') $monthly_price = ($found_room['price_lower'] > 0) ? $found_room['price_lower'] : $found_room['total_price'];
-                elseif ($bed_preference == 'Whole Room') $monthly_price = ($found_room['price_whole'] > 0) ? $found_room['price_whole'] : $found_room['total_price'];
+                elseif ($bed_preference == 'Whole Room') $monthly_price = ($found_room['price_whole'] > 0) ? $found_room['price_whole'] : ($found_room['total_price'] * $found_room['total_beds']);
             }
 
             // --- NEW CALCULATION LOGIC ---
@@ -202,9 +202,18 @@ if(isset($_POST['add_reservation'])){
             if ($term_type === 'Daily') {
                 $nights = $d1->diff($d2)->days;
                 if($nights < 1) $nights = 1;
-                $daily_rate = $found_room['daily_price_bed'] > 0 ? $found_room['daily_price_bed'] : 700;
-                if($room_type == 'Single') $daily_rate = $found_room['daily_price_room'] > 0 ? $found_room['daily_price_room'] : 1200;
-                if($bed_preference == 'Whole Room') $daily_rate = $found_room['daily_price_room'] > 0 ? $found_room['daily_price_room'] : ($daily_rate * $found_room['total_beds']);
+                
+                // Determine Daily Rate (Fallback to Monthly/30 if not set)
+                $daily_rate = 0;
+                if($room_type == 'Single' || $bed_preference == 'Whole Room') {
+                    $daily_rate = $found_room['daily_price_room'];
+                } else {
+                    $daily_rate = $found_room['daily_price_bed'];
+                }
+
+                if($daily_rate <= 0) {
+                    $daily_rate = $monthly_price / 30;
+                }
                 $totalAmount = $nights * $daily_rate;
             } elseif ($term_type === 'Long') {
                 // 6 Month Term Logic
@@ -214,7 +223,10 @@ if(isset($_POST['add_reservation'])){
                 } else {
                     if ($bed_preference == 'Upper Bunk' && $found_room['long_term_price_upper'] > 0) $lt_price = $found_room['long_term_price_upper'];
                     elseif ($bed_preference == 'Lower Bunk' && $found_room['long_term_price_lower'] > 0) $lt_price = $found_room['long_term_price_lower'];
-                    elseif ($bed_preference == 'Whole Room' && $found_room['long_term_price_whole'] > 0) $lt_price = $found_room['long_term_price_whole'];
+                    elseif ($bed_preference == 'Whole Room') {
+                        if($found_room['long_term_price_whole'] > 0) $lt_price = $found_room['long_term_price_whole'];
+                        else $lt_price = $monthly_price; // Fallback to short term whole room price
+                    }
                 }
 
                 $start_day = (int)$d1->format('j');
@@ -231,11 +243,6 @@ if(isset($_POST['add_reservation'])){
             } else {
                 // Short Term
                 $st_price = $monthly_price;
-                if ($room_type != 'Single') {
-                    if ($bed_preference == 'Upper Bunk' && $found_room['price_upper'] > 0) $st_price = $found_room['price_upper'];
-                    elseif ($bed_preference == 'Lower Bunk' && $found_room['price_lower'] > 0) $st_price = $found_room['price_lower'];
-                    elseif ($bed_preference == 'Whole Room' && $found_room['price_whole'] > 0) $st_price = $found_room['price_whole'];
-                }
                 $totalAmount = $st_price + $security_deposit;
             }
 
@@ -245,8 +252,12 @@ if(isset($_POST['add_reservation'])){
             
             if($stmt->execute()){
                 $res_id = $conn->insert_id;
-                // Add Payment Record (Unpaid)
-                mysqli_query($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date) VALUES ($res_id, $totalAmount, 'Cash', 'Unpaid', NOW())");
+                
+                $pay_method = $_POST['payment_method'] ?? 'Cash';
+                $pay_status = $_POST['payment_status'] ?? 'Unpaid';
+                $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date) VALUES (?, ?, ?, ?, NOW())");
+                $pay_stmt->bind_param("idss", $res_id, $totalAmount, $pay_method, $pay_status);
+                $pay_stmt->execute();
                 
                 log_activity($conn, $user_id, "Walk-in Booking", "Reservation #$res_id created by Admin");
                 
@@ -339,7 +350,7 @@ $theme = get_theme_colors($conn);
                             </div>
                             <div class="col-md-6"><label class="small fw-bold">Emergency Contact Name</label><input type="text" name="new_em_name" class="form-control"></div>
                             <div class="col-md-6"><label class="small fw-bold">Emergency Contact Number</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="text" name="new_password" class="form-control" placeholder="Default: 123456"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: 123456"></div>
                         </div>
                         <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>123456</strong>.</small>
                     </div>
@@ -381,7 +392,25 @@ $theme = get_theme_colors($conn);
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">Check-out</label>
-                            <input type="date" name="cout" id="cout" class="form-control" required onchange="calculateTotal(); checkAvailability()">
+                            <input type="date" name="cout" id="cout" class="form-control" required onchange="updateDurationFromDates()">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Payment Method</label>
+                            <select name="payment_method" class="form-select">
+                                <option value="Cash">Cash</option>
+                                <option value="GCash">GCash</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Payment Status</label>
+                            <select name="payment_status" class="form-select">
+                                <option value="Unpaid">Unpaid</option>
+                                <option value="Paid">Paid</option>
+                            </select>
                         </div>
                     </div>
 
@@ -466,11 +495,37 @@ function updateCheckoutDate() {
             coutInput.value = endDate.toISOString().split('T')[0];
             termInput.value = 'Long';
         } else {
+            d.setDate(d.getDate() + 1);
+            coutInput.value = d.toISOString().split('T')[0];
             termInput.value = 'Daily';
         }
     }
     calculateTotal();
     checkAvailability();
+}
+
+function updateDurationFromDates() {
+    let cin = document.getElementById('cin').value;
+    let cout = document.getElementById('cout').value;
+    let durationSelect = document.getElementById('duration_select');
+    let termInput = document.getElementById('term_type');
+
+    if (cin && cout) {
+        let d1 = new Date(cin);
+        let d2 = new Date(cout);
+        let diffTime = d2 - d1;
+        let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+        if (diffDays >= 28) {
+             durationSelect.value = '1';
+             termInput.value = 'Short';
+        } else {
+             durationSelect.value = 'Daily';
+             termInput.value = 'Daily';
+        }
+        calculateTotal();
+        checkAvailability();
+    }
 }
 
 function calculateTotal() {
@@ -494,9 +549,26 @@ function calculateTotal() {
             let days = Math.ceil((d2 - d1) / (1000 * 3600 * 24));
             if(days < 1) days = 1;
 
-            let dailyRate = parseFloat(priceData.daily_bed || 700);
-            if(room === 'Single') dailyRate = parseFloat(priceData.daily_room || 1200);
-            if(bedPref === 'Whole Room') dailyRate = parseFloat(priceData.daily_room || 0);
+            let dailyRate = 0;
+            if(room === 'Single' || bedPref === 'Whole Room') dailyRate = parseFloat(priceData.daily_room || 0);
+            else dailyRate = parseFloat(priceData.daily_bed || 0);
+
+            // Fallback to Monthly / 30 if daily rate is 0
+            if(dailyRate === 0) {
+                let monthlyBase = 0;
+                if(room === 'Single') monthlyBase = parseFloat(priceData.short_base || 0);
+                else if(bedPref === 'Whole Room') {
+                    monthlyBase = parseFloat(priceData.short_whole || 0);
+                    if(monthlyBase === 0) {
+                        let beds = (room === '4-Bed') ? 4 : 6;
+                        monthlyBase = parseFloat(priceData.short_base || 0) * beds;
+                    }
+                } else if(bedPref === 'Upper Bunk') monthlyBase = parseFloat(priceData.short_upper || 0);
+                else monthlyBase = parseFloat(priceData.short_lower || 0);
+
+                if(monthlyBase === 0) monthlyBase = parseFloat(priceData.short_base || 0);
+                dailyRate = monthlyBase / 30;
+            }
             total = days * dailyRate;
 
         } else if (durationType === '6') {
@@ -510,9 +582,17 @@ function calculateTotal() {
             } else {
                 let upper = parseFloat(priceData.long_upper || 0);
                 let lower = parseFloat(priceData.long_lower || 0);
-                if(bedPref === 'Whole Room') monthlyRate = parseFloat(priceData.long_whole || 0);
-                monthlyRate = (bedPref === 'Upper Bunk') ? upper : lower;
-                if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_base || 0);
+                if(bedPref === 'Whole Room') {
+                    monthlyRate = parseFloat(priceData.long_whole || 0);
+                    if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_whole || 0);
+                    if(monthlyRate === 0) {
+                        let beds = (room === '4-Bed') ? 4 : 6;
+                        monthlyRate = parseFloat(priceData.short_base || 0) * beds;
+                    }
+                } else {
+                    monthlyRate = (bedPref === 'Upper Bunk') ? upper : lower;
+                    if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_base || 0);
+                }
             }
 
             let start = new Date(cin);
@@ -526,9 +606,23 @@ function calculateTotal() {
         } else {
             document.getElementById('utility_display').innerHTML = '<span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> Included in Rent</span>';
             document.getElementById('sd_display').innerText = '₱3,000.00 (Refundable)';
-            let monthlyRate = (bedPref === 'Upper Bunk') ? parseFloat(priceData.short_upper || priceData.short_base) : (bedPref === 'Lower Bunk' ? parseFloat(priceData.short_lower || priceData.short_base) : parseFloat(priceData.short_base));
-            if(bedPref === 'Whole Room') monthlyRate = parseFloat(priceData.short_whole || 0);
-            if(room === 'Single') monthlyRate = parseFloat(priceData.short_base);
+            let monthlyRate = 0;
+            if (room === 'Single') {
+                monthlyRate = parseFloat(priceData.short_base || 0);
+            } else {
+                let upper = parseFloat(priceData.short_upper || 0);
+                let lower = parseFloat(priceData.short_lower || 0);
+                if(bedPref === 'Whole Room') {
+                    monthlyRate = parseFloat(priceData.short_whole || 0);
+                    if(monthlyRate === 0) {
+                        let beds = (room === '4-Bed') ? 4 : 6;
+                        monthlyRate = parseFloat(priceData.short_base || 0) * beds;
+                    }
+                } else {
+                    monthlyRate = (bedPref === 'Upper Bunk') ? upper : lower;
+                    if(monthlyRate === 0) monthlyRate = parseFloat(priceData.short_base || 0);
+                }
+            }
             total = monthlyRate + sd;
         }
 
@@ -552,13 +646,33 @@ function checkAvailability() {
         fetch(`../users/get_rooms.php?checkin=${cin}&checkout=${cout}`)
             .then(response => response.json())
             .then(data => {
-                let available = data.some(r => {
-                    if (r.room_type !== room) return false;
-                    if (bedPref === 'Lower Bunk') return r.avail_lower > 0;
-                    if (bedPref === 'Upper Bunk') return r.avail_upper > 0;
-                    if (bedPref === 'Whole Room') return r.available_beds == r.total_beds;
-                    return r.available_beds > 0;
-                });
+                // Filter rooms of selected type
+                let roomsOfType = data.filter(r => r.room_type === room);
+                
+                // Check specific availability across all rooms of this type
+                let hasLower = roomsOfType.some(r => r.avail_lower > 0);
+                let hasUpper = roomsOfType.some(r => r.avail_upper > 0);
+                let hasWhole = roomsOfType.some(r => r.available_beds == r.total_beds);
+                let hasAny = roomsOfType.length > 0;
+
+                // Update Dropdown Options
+                if(bedPrefEl) {
+                    let lowerOpt = bedPrefEl.querySelector('option[value="Lower Bunk"]');
+                    let upperOpt = bedPrefEl.querySelector('option[value="Upper Bunk"]');
+                    let wholeOpt = bedPrefEl.querySelector('option[value="Whole Room"]');
+
+                    if(lowerOpt) { lowerOpt.disabled = !hasLower; lowerOpt.text = hasLower ? "Lower Bunk" : "Lower Bunk (Full)"; }
+                    if(upperOpt) { upperOpt.disabled = !hasUpper; upperOpt.text = hasUpper ? "Upper Bunk" : "Upper Bunk (Full)"; }
+                    if(wholeOpt) { wholeOpt.disabled = !hasWhole; wholeOpt.text = hasWhole ? "Whole Room" : "Whole Room (Unavailable)"; }
+                }
+
+                // Check if current selection is valid
+                let available = false;
+                if (bedPref === 'Lower Bunk') available = hasLower;
+                else if (bedPref === 'Upper Bunk') available = hasUpper;
+                else if (bedPref === 'Whole Room') available = hasWhole;
+                else available = hasAny;
+
                 if(available) {
                     statusSpan.innerHTML = '<i class="fas fa-check-circle"></i> Available';
                     statusSpan.className = 'fw-bold mt-1 d-block text-success';
@@ -591,6 +705,19 @@ Swal.fire({
 window.addEventListener('DOMContentLoaded', (event) => {
     if(document.getElementById('room_type').value) {
         updateRoomOptions();
+    }
+    
+    // Initialize Dates if empty to trigger calculation
+    if(!document.getElementById('cin').value) {
+        let today = new Date();
+        let yyyy = today.getFullYear();
+        let mm = String(today.getMonth() + 1).padStart(2, '0');
+        let dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById('cin').value = `${yyyy}-${mm}-${dd}`;
+        updateCheckoutDate(); // This sets cout and calls calculateTotal
+    } else {
+        calculateTotal();
+        checkAvailability();
     }
 });
 </script>

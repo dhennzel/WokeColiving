@@ -57,6 +57,12 @@ function get_theme_colors($conn) {
 }
 }
 
+if (!function_exists('is_super_admin')) {
+function is_super_admin() {
+    return isset($_SESSION['admin_role']) && $_SESSION['admin_role'] === 'Super Admin';
+}
+}
+
 if (!function_exists('send_notification')) {
 function send_notification($conn, $user_id, $message, $type = 'System') {
     // 1. Insert into Database (In-App Notification)
