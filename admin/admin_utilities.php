@@ -96,6 +96,7 @@ $theme = get_theme_colors($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="admin_CSS/admin_style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
@@ -103,40 +104,6 @@ $theme = get_theme_colors($conn);
             --dark-green: <?= $theme['dark'] ?>;
             --accent-yellow: <?= $theme['accent'] ?>;
             --light-bg: #f8f9fa;
-        }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-        
-        #wrapper { display: flex; width: 100%; }
-        #sidebar-wrapper { width: 260px; background-color: var(--dark-green); flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; transition: margin 0.25s ease-out; }
-        #wrapper.toggled #sidebar-wrapper { margin-left: -250px; }
-        @media (max-width: 768px) {
-            #sidebar-wrapper { margin-left: -250px; }
-            #wrapper.toggled #sidebar-wrapper { margin-left: 0; }
-        }
-        #page-content-wrapper { flex-grow: 1; }
-        .sidebar-link { color: rgba(255,255,255,0.8); text-decoration: none; padding: 15px 25px; display: block; font-weight: 500; border-left: 5px solid transparent; transition: 0.3s; }
-        .sidebar-link:hover, .sidebar-link.active { color: var(--dark-green); background-color: var(--accent-yellow); border-left-color: white; font-weight: 600; }
-        .sidebar-brand { color: var(--accent-yellow); font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.3rem; padding: 25px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
-        
-        .card-table { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
-        .table th { background-color: var(--primary-green); color: white; font-weight: 500; border: none; }
-        .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
-        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
-        
-        #menu-toggle { display: none; }
-        #wrapper.toggled #menu-toggle { display: inline-block; }
-        @media (max-width: 768px) {
-            #menu-toggle { display: inline-block; }
-            #wrapper.toggled #menu-toggle { display: none; }
-        }
-        .nav-tabs .nav-link.active {
-            background-color: var(--primary-green);
-            color: white;
-            border-color: var(--primary-green);
-        }
-        .nav-tabs .nav-link {
-            color: var(--dark-green);
         }
     </style>
 </head>

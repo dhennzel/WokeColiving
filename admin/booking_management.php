@@ -323,6 +323,7 @@ $theme = get_theme_colors($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="admin_CSS/admin_style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
@@ -331,25 +332,6 @@ $theme = get_theme_colors($conn);
             --accent-yellow: <?= $theme['accent'] ?>;
             --light-bg: #f8f9fa;
         }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-        #wrapper { display: flex; width: 100%; }
-        #sidebar-wrapper { width: 260px; background-color: var(--dark-green); flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; transition: margin 0.25s ease-out; }
-        #wrapper.toggled #sidebar-wrapper { margin-left: -250px; }
-        #page-content-wrapper { flex-grow: 1; }
-        .sidebar-link { color: rgba(255,255,255,0.8); text-decoration: none; padding: 15px 25px; display: block; font-weight: 500; border-left: 5px solid transparent; transition: 0.3s; }
-        .sidebar-link:hover, .sidebar-link.active { color: var(--dark-green); background-color: var(--accent-yellow); border-left-color: white; font-weight: 600; }
-        .sidebar-brand { color: var(--accent-yellow); font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.3rem; padding: 25px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
-        .card-table { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
-        .table th { background-color: var(--primary-green); color: white; font-weight: 500; border: none; }
-        .user-avatar { width: 35px; height: 35px; background: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; overflow: hidden; }
-        .badge-pending { background: #fff3cd; color: #856404; }
-        .badge-approved { background: #d4edda; color: #155724; }
-        .badge-cancelled { background: #f8d7da; color: #721c24; }
-        .badge-verifying { background: #d1ecf1; color: #0c5460; }
-        .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
-        .btn-custom:hover { background-color: #f9a825; }
-        @media (max-width: 768px) { #sidebar-wrapper { margin-left: -250px; } #wrapper.toggled #sidebar-wrapper { margin-left: 0; } }
     </style>
 </head>
 <body>
