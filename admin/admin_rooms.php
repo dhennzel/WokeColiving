@@ -8,6 +8,8 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
     exit;
 }
 
+$is_super = ($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin';
+
 $current_page = basename($_SERVER['PHP_SELF']);
 
 // Ensure bed_preference column exists to prevent errors
@@ -124,7 +126,6 @@ $theme = get_theme_colors($conn);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Rooms | Woke Coliving INC</title>
-    <!-- Bootstrap 5 & FontAwesome -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -172,7 +173,6 @@ $theme = get_theme_colors($conn);
 <body>
 
 <div id="wrapper">
-    <!-- Sidebar -->
     <div id="sidebar-wrapper">
         <div class="sidebar-brand" id="sidebar-toggle">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
@@ -181,7 +181,6 @@ $theme = get_theme_colors($conn);
         <div class="list-group list-group-flush py-3">
             <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
             
-            <!-- Front Desk -->
             <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span>
                 <i class="fas fa-chevron-down small"></i>
@@ -201,7 +200,6 @@ $theme = get_theme_colors($conn);
                 </a>
             </div>
 
-            <!-- Facilities -->
             <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-building me-2"></i>Facilities</span>
                 <i class="fas fa-chevron-down small"></i>
@@ -213,19 +211,17 @@ $theme = get_theme_colors($conn);
                 <a href="admin_keys.php" class="sidebar-link ps-5"><i class="fas fa-key me-2"></i>Key Monitoring</a>
             </div>
 
-            <!-- Finance & Reports -->
             <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-file-invoice-dollar me-2"></i>Finance & Reports</span>
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? 'show' : '' ?>" id="financeSubmenu">
-                <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
+                <?php if($is_super): ?>
                 <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
                 <?php endif; ?>
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a>
             </div>
 
-            <!-- Operations -->
             <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_maintenance.php', 'admin_housekeeping.php', 'admin_utilities.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['admin_maintenance.php', 'admin_housekeeping.php', 'admin_utilities.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-cogs me-2"></i>Operations</span>
                 <i class="fas fa-chevron-down small"></i>
@@ -246,91 +242,78 @@ $theme = get_theme_colors($conn);
                 <a href="admin_utilities.php" class="sidebar-link ps-5"><i class="fas fa-archive me-2"></i>Utilities Archive</a>
             </div>
 
-            <!-- System Settings -->
             <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_profile.php', 'admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['admin_profile.php', 'admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-cog me-2"></i>System Settings</span>
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse <?= in_array($current_page, ['admin_profile.php', 'admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? 'show' : '' ?>" id="settingsSubmenu">
                 <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
-                <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
-                <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
                 <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
                 <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
                 <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
-                <?php endif; ?>
             </div>
 
             <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
         </div>
     </div>
 
-    <!-- Page Content -->
     <div id="page-content-wrapper">
         <div class="container-fluid px-4 py-4 reveal">
-    <?php if($error){ echo "<div class='alert alert-danger'>$error</div>"; } ?>
-    <div class="d-flex justify-content-between align-items-center mb-4">
-    <div class="d-flex align-items-center">
-            <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
-                <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
-            </a>
-            <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Room Inventory</h4>
-        </div>
-        <div>
-            <a href="admin_utilities.php#rooms" class="btn btn-outline-secondary me-2"><i class="fas fa-archive me-2"></i>View Archive</a>
-            <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#priceSettingsModal"><i class="fas fa-tags me-2"></i>Set Prices</button>
-        </div>
-    </div>
-
-    <div class="row g-4">
-        <?php foreach($grouped_rooms as $type => $rooms_in_type): 
-            // Calculate Aggregate Stats
-            $type_total_beds = 0;
-            $type_avail_beds = 0;
-            $first_room = $rooms_in_type[0];
-            $image = $first_room['image'];
-            $price = $first_room['total_price'];
-            $p_upper = $first_room['price_upper'];
-            $p_lower = $first_room['price_lower'];
-            
-            // Use centralized data for accurate occupancy
-            foreach($rooms_in_type as $key => $room) {
-                $type_total_beds += $room['total_beds'];
-                $type_avail_beds += $room['available_beds'];
-            }
-        ?>
-        <!-- Summary Card -->
-        <div class="col-md-4">
-            <div class="card card-room card-room-summary h-100" onclick="openTypeModal('<?= md5($type) ?>')">
-                <img src="../assets/images/<?= $image ?>" alt="<?= $type ?>">
-                <div class="card-body text-center">
-                    <h3 class="fw-bold text-dark mb-2"><?= $type ?></h3>
-                    <?php if($type != 'Single'): ?>
-                        <div class="mb-2">
-                            <span class="text-primary fw-bold small">Upper: ₱<?= number_format($p_upper, 2) ?></span><br>
-                            <span class="text-success fw-bold small">Lower: ₱<?= number_format($p_lower, 2) ?></span>
-                        </div>
-                    <?php else: ?>
-                        <p class="price-tag mb-2">₱<?= number_format($price, 2) ?> <small class="text-muted fs-6">/mo</small></p>
-                    <?php endif; ?>
-                    <div class="d-flex justify-content-center gap-3 text-muted small mb-3">
-                        <span><i class="fas fa-door-open me-1"></i> <?= count($rooms_in_type) ?> Rooms</span>
-                        <span><i class="fas fa-bed me-1"></i> <?= $type_total_beds ?> Beds</span>
-                    </div>
-                    <div class="alert <?= $type_avail_beds > 0 ? 'alert-success' : 'alert-danger' ?> py-2 mb-0 fw-bold">
-                        <?= $type_avail_beds ?> Beds Available
-                    </div>
+            <?php if($error){ echo "<div class='alert alert-danger'>$error</div>"; } ?>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
+                        <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
+                    </a>
+                    <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Room Inventory</h4>
+                </div>
+                <div>
+                    <a href="admin_utilities.php#rooms" class="btn btn-outline-secondary me-2"><i class="fas fa-archive me-2"></i>View Archive</a>
+                    <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#priceSettingsModal"><i class="fas fa-tags me-2"></i>Set Prices</button>
                 </div>
             </div>
-        </div>
-        <?php endforeach; ?>
-    </div>
-        </div>
-    </div>
-</div>
 
-<!-- Modals placed outside the reveal container -->
-<?php foreach($grouped_rooms as $type => $rooms_in_type): ?>
+            <div class="row g-4">
+                <?php foreach($grouped_rooms as $type => $rooms_in_type): 
+                    // Calculate Aggregate Stats for the room type
+                    $type_total_beds = array_sum(array_column($rooms_in_type, 'total_beds'));
+                    $type_avail_beds = array_sum(array_column($rooms_in_type, 'available_beds'));
+                    $first_room = $rooms_in_type[0] ?? null;
+
+                    if (!$first_room) continue; // Skip if no rooms of this type
+
+                    $image = $first_room['image'];
+                    $price = $first_room['total_price'];
+                    $p_upper = $first_room['price_upper'];
+                    $p_lower = $first_room['price_lower'];
+                ?>
+                    <div class="col-md-4">
+                        <div class="card card-room card-room-summary h-100" onclick="openTypeModal('<?= md5($type) ?>')">
+                            <img src="../assets/images/<?= $image ?>" alt="<?= $type ?>">
+                            <div class="card-body text-center">
+                                <h3 class="fw-bold text-dark mb-2"><?= $type ?></h3>
+                                <?php if($type != 'Single'): ?>
+                                    <div class="mb-2">
+                                        <span class="text-primary fw-bold small">Upper: ₱<?= number_format($p_upper, 2) ?></span><br>
+                                        <span class="text-success fw-bold small">Lower: ₱<?= number_format($p_lower, 2) ?></span>
+                                    </div>
+                                <?php else: ?>
+                                    <p class="price-tag mb-2">₱<?= number_format($price, 2) ?> <small class="text-muted fs-6">/mo</small></p>
+                                <?php endif; ?>
+                                <div class="d-flex justify-content-center gap-3 text-muted small mb-3">
+                                    <span><i class="fas fa-door-open me-1"></i> <?= count($rooms_in_type) ?> Rooms</span>
+                                    <span><i class="fas fa-bed me-1"></i> <?= $type_total_beds ?> Beds</span>
+                                </div>
+                                <div class="alert <?= $type_avail_beds > 0 ? 'alert-success' : 'alert-danger' ?> py-2 mb-0 fw-bold">
+                                    <?= $type_avail_beds ?> Beds Available
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div> </div> <?php foreach($grouped_rooms as $type => $rooms_in_type): ?>
 <div class="modal fade" id="modal_<?= md5($type) ?>" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content bg-light">
@@ -478,7 +461,6 @@ $theme = get_theme_colors($conn);
 </div>
 <?php endforeach; ?>
 
-<!-- Price Settings Modal -->
 <div class="modal fade" id="priceSettingsModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -546,45 +528,6 @@ $theme = get_theme_colors($conn);
             </form>
         </div>
     </div>
-</div>
-
-<!-- Amenities Modal -->
-<div class="modal fade" id="amenitiesModal" tabindex="-1" aria-labelledby="amenitiesModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="amenitiesModalLabel"><i class="fas fa-star me-2 text-warning"></i>Woke Coliving Amenities</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="row">
-          <div class="col-md-6">
-            <ul class="list-group list-group-flush">
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-wifi fa-fw text-success me-3"></i>Wifi</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-broom fa-fw text-success me-3"></i>Monthly Housekeeping</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-couch fa-fw text-success me-3"></i>Fully Furnished</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-shower fa-fw text-success me-3"></i>Ensuite shower and WC</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-concierge-bell fa-fw text-success me-3"></i>24H concierge</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-lock fa-fw text-success me-3"></i>Lockers</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-parking fa-fw text-success me-3"></i>Car and motorbike parking</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-wrench fa-fw text-success me-3"></i>Regular Maintenance</li>
-            </ul>
-          </div>
-          <div class="col-md-6">
-            <ul class="list-group list-group-flush">
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-file-signature fa-fw text-success me-3"></i>Flexible Contracts</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-users fa-fw text-success me-3"></i>Lounges and common areas</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-shield-alt fa-fw text-success me-3"></i>Security guard and CCTV</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-calendar-alt fa-fw text-success me-3"></i>Event spaces</li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-cocktail fa-fw text-success me-3"></i>Roof top lounge and bar <span class="badge bg-light text-dark ms-2">soon</span></li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-utensils fa-fw text-success me-3"></i>Food & beverage room service <span class="badge bg-light text-dark ms-2">soon</span></li>
-              <li class="list-group-item d-flex align-items-center"><i class="fas fa-briefcase fa-fw text-success me-3"></i>Meeting room <span class="badge bg-light text-dark ms-2">soon</span></li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

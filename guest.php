@@ -337,7 +337,7 @@ if(isset($_SESSION['user_id'])){
             <ul class="navbar-nav ms-auto align-items-center gap-3">
                 <li class="nav-item"><a href="#home" class="nav-link text-white">Home</a></li>
                 <li class="nav-item"><a href="#rooms" class="nav-link text-white">Rooms</a></li>
-                <li class="nav-item"><a href="#features" class="nav-link text-white">Amenities</a></li>
+                <li class="nav-item"><a href="#amenities" class="nav-link text-white">Amenities</a></li>
                 <li class="nav-item"><a href="#contact" class="nav-link text-white">Contact</a></li>
             </ul>
         <div class="d-flex gap-2">
@@ -377,6 +377,8 @@ if(isset($_SESSION['user_id'])){
         <a href="users/reservation_now.php" class="btn btn-custom btn-lg shadow-lg" data-aos="zoom-in" data-aos-delay="400"><i class="fas fa-search me-2"></i>Find Your Room Now</a>
     </div>
 </div>
+
+
 
 <!-- ROOMS SECTION -->
 <div class="container py-5 mb-0" id="rooms">
@@ -478,8 +480,8 @@ if(isset($_SESSION['user_id'])){
         <!-- Event spaces -->
         <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="500">
             <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-calendar-star fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Event spaces</h5>
+                <div class="amenity-icon mb-3"><i class="fas fa-map-marker-alt fa-2x text-success"></i></div>
+                <h5 class="fw-bold">Location</h5>
             </div>
         </div>
         <!-- Regular Maintenance -->
@@ -544,7 +546,7 @@ if(isset($_SESSION['user_id'])){
     }
 </style>
 
-<!-- FEATURES -->
+<!-- FEATURES 
 <div class="container py-4 mb-5" id="features">
     <div class="text-center mb-5" data-aos="fade-up">
         <h2 class="section-title display-5">Why Choose Us?</h2>
@@ -573,7 +575,7 @@ if(isset($_SESSION['user_id'])){
             </div>
         </div>
     </div>
-</div>
+</div>-->
 
 <!-- INFO SECTION -->
 <div class="container py-5 mb-5">
@@ -656,11 +658,15 @@ if(isset($_SESSION['user_id'])){
                             <p class="mb-4 opacity-75">Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.</p>
                             <div class="d-flex align-items-center mb-3">
                                 <i class="fas fa-phone-alt fa-lg me-3 text-warning"></i>
-                                <span>+63 912 345 6789</span>
+                                <span>+63 917 160 1978</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="fas fa-phone-alt fa-lg me-3 text-warning"></i>
+                                <span>02 7007 4137</span>
                             </div>
                             <div class="d-flex align-items-center mb-3">
                                 <i class="fas fa-envelope fa-lg me-3 text-warning"></i>
-                                <span>info@wokecoliving.com</span>
+                                <span>timmy@wokecoliving.com</span>
                             </div>
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-map-marker-alt fa-lg me-3 text-warning"></i>
