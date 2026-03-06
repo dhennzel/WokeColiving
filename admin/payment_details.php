@@ -14,6 +14,8 @@ if(!isset($_GET['id'])){
 
 $payment_id = (int)$_GET['id'];
 
+$current_page = basename($_SERVER['PHP_SELF']);
+
 // Fetch Payment Details
 $query = "
     SELECT p.*, r.start_date, r.end_date, r.user_id, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, rm.room_name, rm.room_type
@@ -147,42 +149,48 @@ if(!empty($payment['user_id'])){
 <body>
 
 <div id="wrapper">
-    <!-- Sidebar -->
     <div id="sidebar-wrapper" class="no-print">
         <div class="sidebar-brand" onclick="location.href='admin_dashboard.php'">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning"> Woke Coliving
         </div>
         <div class="list-group list-group-flush py-3">
             <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
+            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'true' : 'false' ?>">
+                <span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span>
+                <i class="fas fa-chevron-down small"></i>
             </a>
-            <div class="collapse show" id="frontDeskSubmenu">
+            <div class="collapse <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'show' : '' ?>" id="frontDeskSubmenu">
                 <a href="booking_management.php" class="sidebar-link ps-5 active d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
                     <?php if($pending_res > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_res ?></span><?php endif; ?>
                 </a>
-             fn     <span><i class="fas fa-user-times me-2"></i>Deletion Req</span>
+                <a href="admin_deletion_requests.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-user-times me-2"></i>Deletion Req</span>
                     <?php if($del_req_count > 0): ?><span class="badge bg-danger rounded-pill"><?= $del_req_count ?></span><?php endif; ?>
                 </a>
             </div>
 
-            <!-- Facilities -->
-            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-building me-2"></i>Facilities</span>
                 <i class="fas fa-chevron-down small"></i>
             </a>
-            <div class="collapse" id="facilitiesSubmenu">
+            <div class="collapse <?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? 'show' : '' ?>" id="facilitiesSubmenu">
                 <a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
                 <a href="admin_room_occupancy.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Room Occupancy</a>
                 <a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a>
                 <a href="admin_keys.php" class="sidebar-link ps-5"><i class="fas fa-key me-2"></i>Key Monitoring</a>
             </div>
 
-            <!-- Finance & Reports -->
-            <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+            <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-file-invoice-dollar me-2"></i>Finance & Reports</span>
-             iv>
+                <i class="fas fa-chevron-down small"></i>
+            </a>
+            <div class="collapse <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? 'show' : '' ?>" id="financeSubmenu">
+                <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
+                <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-file-invoice me-2"></i>Long-term Billing</a>
+                <a href="admin_parking_reports.php" class="sidebar-link ps-5"><i class="fas fa-car me-2"></i>Parking Reports</a>
+            </div>
 
-            <!-- Operations -->
             <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
                 <span><i class="fas fa-cogs me-2"></i>Operations</span>
                 <i class="fas fa-chevron-down small"></i>
@@ -192,7 +200,8 @@ if(!empty($payment['user_id'])){
                     <span><i class="fas fa-wrench me-2"></i>Maintenance</span>
                     <?php if($pending_maint > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span><?php endif; ?>
                 </a>
-             "biv>
+            </div>
+            
             <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
                 <span><i class="fas fa-cog me-2"></i>System Settings</span>
                 <i class="fas fa-chevron-down small"></i>
@@ -206,85 +215,90 @@ if(!empty($payment['user_id'])){
             </div>
             <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
         </div>
-    </div>t -->
-<div id="page-con
-        <div clas= ass="d-flex justify-content-between align-items-center mb-4 mt-4 no-print">
-                <div class="d-flex align-items-center">s-a(n>ransac
+    </div>
+    
+    <div id="page-content-wrapper">
+        <div class="container-fluid px-4 py-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 no-print">
                 <a href="<?= $back_url ?>" class="btn btn-back text-decoration-none"><i class="fas fa-arrow-left me-2"></i>Back</a>
             </div>
 
-    <div class="card card-custom">
-        <div class="card-header-custom d-flex justify-content-between align-items-center">
-            <div>
-                <h4 class="mb-1 fw-bold">Payment #<?= str_pad($payment['payment_id'], 6, '0', STR_PAD_LEFT) ?></h4>
-                <div class="opacity-75 small"><i class="fas fa-calendar-alt me-2"></i><?= date('F d, Y h:i A', strtotime($payment['payment_date'])) ?></div>
-            </div>
-            <div class="text-end">
-                <?php 
-                    $statusClass = 'bg-warning text-dark';
-                    $icon = 'fa-clock';
-                    if($payment['payment_status'] == 'Paid') { $statusClass = 'bg-success text-white'; $icon = 'fa-check-circle'; }
-                    if($payment['payment_status'] == 'Unpaid') { $statusClass = 'bg-danger text-white'; $icon = 'fa-times-circle'; }
-                ?>
-                <span class="badge <?= $statusClass ?> status-badge shadow-sm">
-                    <i class="fas <?= $icon ?> me-1"></i> <?= strtoupper($payment['payment_status']) ?>
-                </span>
-            </div>
-        </div>
+            <div class="card card-custom">
+                <div class="card-header-custom d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1 fw-bold">Payment #<?= str_pad($payment['payment_id'], 6, '0', STR_PAD_LEFT) ?></h4>
+                        <div class="opacity-75 small"><i class="fas fa-calendar-alt me-2"></i><?= date('F d, Y h:i A', strtotime($payment['payment_date'])) ?></div>
+                    </div>
+                    <div class="text-end">
+                        <?php 
+                            $statusClass = 'bg-warning text-dark';
+                            $icon = 'fa-clock';
+                            if($payment['payment_status'] == 'Paid') { $statusClass = 'bg-success text-white'; $icon = 'fa-check-circle'; }
+                            if($payment['payment_status'] == 'Unpaid') { $statusClass = 'bg-danger text-white'; $icon = 'fa-times-circle'; }
+                        ?>
+                        <span class="badge <?= $statusClass ?> status-badge shadow-sm">
+                            <i class="fas <?= $icon ?> me-1"></i> <?= strtoupper($payment['payment_status']) ?>
+                        </span>
+                    </div>
+                </div>
 
-        <div class="card-body p-4 p-md-5">
-            <!-- Payment Information -->
-            <h5 class="fw-bold text-secondary mb-4 border-bottom pb-2">Payment Information</h5>
-            <div class="row">
-                <div class="col-md-4 info-group">
-                    <div class="info-label">Total Amount</div>
-                    <div class="info-value amount">₱<?= number_format($payment['amount'], 2) ?></div>
-                </div>
-                <div class="col-md-4 info-group">
-                    <div class="info-label">Payment Method</div>
-                    <div class="info-value"><i class="fas fa-credit-card me-2 text-muted"></i><?= htmlspecialchars($payment['payment_method']) ?></div>
-                </div>
-                <div class="col-md-4 info-group">
-                    <div class="info-label">Reference Number</div>
-                    <div class="info-value"><?= !empty($payment['reference_number']) ? htmlspecialchars($payment['reference_number']) : '<span class="text-muted fst-italic">N/A</span>' ?></div>
-                </div>
-                <div class="col-md-12 info-group">
-                    <div class="info-label">Description</div>
-                    <div class="info-value"><?= !empty($payment['description']) ? htmlspecialchars($payment['description']) : 'Room Payment' ?></div>
-                </div>
-            </div>
+                <div class="card-body p-4 p-md-5">
+                    <h5 class="fw-bold text-secondary mb-4 border-bottom pb-2">Payment Information</h5>
+                    <div class="row">
+                        <div class="col-md-4 info-group">
+                            <div class="info-label">Total Amount</div>
+                            <div class="info-value amount">₱<?= number_format($payment['amount'], 2) ?></div>
+                        </div>
+                        <div class="col-md-4 info-group">
+                            <div class="info-label">Payment Method</div>
+                            <div class="info-value"><i class="fas fa-credit-card me-2 text-muted"></i><?= htmlspecialchars($payment['payment_method']) ?></div>
+                        </div>
+                        <div class="col-md-4 info-group">
+                            <div class="info-label">Reference Number</div>
+                            <div class="info-value"><?= !empty($payment['reference_number']) ? htmlspecialchars($payment['reference_number']) : '<span class="text-muted fst-italic">N/A</span>' ?></div>
+                        </div>
+                        <div class="col-md-12 info-group">
+                            <div class="info-label">Description</div>
+                            <div class="info-value"><?= !empty($payment['description']) ? htmlspecialchars($payment['description']) : 'Room Payment' ?></div>
+                        </div>
+                    </div>
 
-            <!-- Payer Details -->
-            <h5 class="fw-bold text-secondary mb-4 border-bottom pb-2 mt-3">Payer Details</h5>
-            <div class="row">
-                <div class="col-md-6 info-group">
-                    <div class="info-label">Tenant Name</div>
-                    <div class="info-value fw-bold"><?= htmlspecialchars($payment['full_name'] ?? 'Unknown User') ?></div>
-                    <div class="small text-muted"><?= htmlspecialchars($payment['email'] ?? '') ?></div>
-                    <div class="small text-muted"><?= htmlspecialchars($payment['phone_number'] ?? '') ?></div>
+                    <h5 class="fw-bold text-secondary mb-4 border-bottom pb-2 mt-3">Payer Details</h5>
+                    <div class="row">
+                        <div class="col-md-6 info-group">
+                            <div class="info-label">Tenant Name</div>
+                            <div class="info-value fw-bold"><?= htmlspecialchars($payment['full_name'] ?? 'Unknown User') ?></div>
+                            <div class="small text-muted"><?= htmlspecialchars($payment['email'] ?? '') ?></div>
+                            <div class="small text-muted"><?= htmlspecialchars($payment['phone_number'] ?? '') ?></div>
+                        </div>
+                        <div class="col-md-6 info-group">
+                            <div class="info-label">Room Reservation</div>
+                            <div class="info-value"><?= htmlspecialchars($payment['room_name'] ?? 'N/A') ?></div>
+                            <div class="small text-muted"><?= htmlspecialchars($payment['room_type'] ?? '') ?></div>
+                            <?php if(!empty($payment['start_date'])): ?>
+                                <div class="small text-muted mt-1"><i class="fas fa-calendar-day me-1"></i> <?= date('M d', strtotime($payment['start_date'])) ?> - <?= date('M d, Y', strtotime($payment['end_date'])) ?></div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-6 info-group">
-                    <div class="info-label">Room Reservation</div>
-                    <div class="info-value"><?= htmlspecialchars($payment['room_name'] ?? 'N/A') ?></div>
-                    <div class="small text-muted"><?= htmlspecialchars($payment['room_type'] ?? '') ?></div>
-                    <?php if(!empty($payment['start_date'])): ?>
-                        <div class="small text-muted mt-1"><i class="fas fa-calendar-day me-1"></i> <?= date('M d', strtotime($payment['start_date'])) ?> - <?= date('M d, Y', strtotime($payment['end_date'])) ?></div>
-                    <?php endif; ?>
+                
+                <div class="card-footer bg-light p-3 text-center border-top no-print">
+                    <button onclick="window.print()" class="btn btn-success rounded-pill px-4 fw-bold"><i class="fas fa-print me-2"></i>Print Details</button>
                 </div>
             </div>
-        </div>
-        
-        <div class="card-footer bg-light p-3 text-center border-top no-print">
-            <button onclick="window.print()" class="btn btn-success rounded-pill px-4 fw-bold"><i class="fas fa-print me-2"></i>Print Details</button>
-        </div>
-    </div>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById("menu-toggle").addEventListener("click", function(e) { e.preventDefault(); document.getElementById("wrapper").classList.toggle("toggled"); });
+    const menuToggle = document.getElementById("menu-toggle");
+    if (menuToggle) {
+        menuToggle.addEventListener("click", function(e) { 
+            e.preventDefault(); 
+            document.getElementById("wrapper").classList.toggle("toggled"); 
+        });
+    }
 
     // Auto Refresh Logic
     let lastUpdate = 0;
@@ -294,7 +308,8 @@ if(!empty($payment['user_id'])){
         .then(t => {
             if(lastUpdate == 0) lastUpdate = t;
             else if (t > lastUpdate) location.reload();
-        });
+        })
+        .catch(err => console.error("Update check failed:", err));
     }
     setInterval(checkUpdates, 3000); // Check every 3 seconds
 </script>

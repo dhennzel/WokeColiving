@@ -281,11 +281,11 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
             <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
             
             <!-- Front Desk -->
-            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span>
                 <i class="fas fa-chevron-down small"></i>
             </a>
-            <div class="collapse" id="frontDeskSubmenu">
+            <div class="collapse <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'show' : '' ?>" id="frontDeskSubmenu">
                 <a href="residents.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-users me-2"></i>Residents</span>
                 </a>
@@ -304,11 +304,11 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
             </div>
 
             <!-- Facilities -->
-            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-building me-2"></i>Facilities</span>
                 <i class="fas fa-chevron-down small"></i>
             </a>
-            <div class="collapse" id="facilitiesSubmenu">
+            <div class="collapse <?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? 'show' : '' ?>" id="facilitiesSubmenu">
                 <a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
                 <a href="admin_room_occupancy.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Room Occupancy</a>
                 <a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a>
@@ -345,11 +345,11 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
             </div>
 
             <!-- System Settings -->
-            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="true">
+            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_profile.php', 'admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['admin_profile.php', 'admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-cog me-2"></i>System Settings</span>
                 <i class="fas fa-chevron-down small"></i>
             </a>
-            <div class="collapse show" id="settingsSubmenu">
+            <div class="collapse <?= in_array($current_page, ['admin_profile.php', 'admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? 'show' : '' ?>" id="settingsSubmenu">
                 <a href="admin_profile.php" class="sidebar-link ps-5 active"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
                 <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
                 <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>

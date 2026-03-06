@@ -10,6 +10,8 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 
 $is_super = ($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin';
 
+$current_page = basename($_SERVER['PHP_SELF']);
+
 // AJAX: Fetch Recent Activity
 if(isset($_GET['fetch_activity'])){
     $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_name) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
@@ -245,11 +247,11 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
             <a href="admin_dashboard.php" class="sidebar-link active"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
             
             <!-- Front Desk -->
-            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span>
                 <i class="fas fa-chevron-down small"></i>
             </a>
-            <div class="collapse" id="frontDeskSubmenu">
+            <div class="collapse <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'show' : '' ?>" id="frontDeskSubmenu">
                 <a href="residents.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-users me-2"></i>Residents</span>
                 </a>
@@ -268,11 +270,11 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
             </div>
 
             <!-- Facilities -->
-            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-building me-2"></i>Facilities</span>
                 <i class="fas fa-chevron-down small"></i>
             </a>
-            <div class="collapse" id="facilitiesSubmenu">
+            <div class="collapse <?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? 'show' : '' ?>" id="facilitiesSubmenu">
                 <a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
                 <a href="admin_room_occupancy.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Room Occupancy</a>
                 <a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a>
@@ -280,11 +282,11 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
             </div>
 
             <!-- Finance & Reports -->
-            <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+            <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-file-invoice-dollar me-2"></i>Finance & Reports</span>
                 <i class="fas fa-chevron-down small"></i>
             </a>
-            <div class="collapse" id="financeSubmenu">
+            <div class="collapse <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? 'show' : '' ?>" id="financeSubmenu">
                 <?php if($is_super): ?>
                 <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
                 <?php endif; ?>
@@ -292,11 +294,11 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
             </div>
 
             <!-- Operations -->
-            <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+            <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_maintenance.php', 'admin_housekeeping.php', 'admin_utilities.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['admin_maintenance.php', 'admin_housekeeping.php', 'admin_utilities.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-cogs me-2"></i>Operations</span>
                 <i class="fas fa-chevron-down small"></i>
             </a>
-            <div class="collapse" id="operationsSubmenu">
+            <div class="collapse <?= in_array($current_page, ['admin_maintenance.php', 'admin_housekeeping.php', 'admin_utilities.php']) ? 'show' : '' ?>" id="operationsSubmenu">
                 <a href="admin_maintenance.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-wrench me-2"></i>Maintenance</span>
                     <?php if($pending_maint > 0): ?>
@@ -313,11 +315,11 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
             </div>
 
             <!-- System Settings -->
-            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_profile.php', 'admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['admin_profile.php', 'admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? 'true' : 'false' ?>">
                 <span><i class="fas fa-cog me-2"></i>System Settings</span>
                 <i class="fas fa-chevron-down small"></i>
             </a>
-            <div class="collapse" id="settingsSubmenu">
+            <div class="collapse <?= in_array($current_page, ['admin_profile.php', 'admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? 'show' : '' ?>" id="settingsSubmenu">
                 <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
                 <?php if($is_super): ?>
                 <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
