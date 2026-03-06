@@ -98,17 +98,25 @@ $theme = get_theme_colors($conn);
         .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
         .btn-custom:hover { background-color: #f9a825; }
         
-        .status-badge {
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
+        .card-room {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
         }
-        .status-vacant { background-color: #d4edda; color: #155724; }
-        .status-partial { background-color: #fff3cd; color: #856404; }
-        .status-full { background-color: #f8d7da; color: #721c24; }
-        .status-maintenance { background-color: #e2e3e5; color: #383d41; }
+        .card-room:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        .card-room img {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+        }
+        .card-room-summary {
+            cursor: pointer;
+        }
         
         .occupant-card {
             border-left: 4px solid var(--primary-green);
@@ -142,6 +150,18 @@ $theme = get_theme_colors($conn);
         .bed-upper { background-color: #e3f2fd; color: #1565c0; }
         .bed-lower { background-color: #e8f5e9; color: #2e7d32; }
         .bed-any { background-color: #f3e5f5; color: #7b1fa2; }
+        
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-vacant { background-color: #d4edda; color: #155724; }
+        .status-partial { background-color: #fff3cd; color: #856404; }
+        .status-full { background-color: #f8d7da; color: #721c24; }
+        .status-maintenance { background-color: #e2e3e5; color: #383d41; }
         
         .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
@@ -259,7 +279,7 @@ $theme = get_theme_colors($conn);
                     </a>
                     <div>
                         <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Room Occupancy</h4>
-                        <small class="text-muted">Monitor room occupancy status</small>
+                        <small class="text-muted">Click on a room type to view detailed occupancy</small>
                     </div>
                 </div>
                 <button onclick="location.reload()" class="btn btn-outline-secondary rounded-pill btn-sm">
@@ -319,64 +339,98 @@ $theme = get_theme_colors($conn);
                 </div>
             </div>
 
-            <!-- Filters -->
-            <div class="card card-custom p-3 mb-4">
-                <div class="row g-2 align-items-center">
-                    <div class="col-md-auto fw-bold text-secondary"><i class="fas fa-filter me-2"></i>Filter:</div>
-                    <div class="col-md-2">
-                        <select id="floorFilter" class="form-select form-select-sm" onchange="filterRooms()">
-                            <option value="all">All Floors</option>
-                            <?php for($i=2; $i<=7; $i++): ?>
-                                <option value="<?= $i ?>"><?= $i ?>th Floor</option>
-                            <?php endfor; ?>
-                        </select>
+            <!-- Room Type Cards (Like Room Inventory) -->
+            <div class="row g-4">
+                <?php foreach($grouped_rooms as $type => $rooms_in_type): 
+                    // Calculate Aggregate Stats for the room type
+                    $type_total_beds = array_sum(array_column($rooms_in_type, 'total_beds'));
+                    $type_occupied = array_sum(array_column($rooms_in_type, 'occupied_count'));
+                    $type_avail_beds = array_sum(array_column($rooms_in_type, 'available_beds'));
+                    $first_room = $rooms_in_type[0] ?? null;
+
+                    if (!$first_room) continue;
+
+                    $image = $first_room['image'];
+                    
+                    // Determine overall status for this room type
+                    $type_status = 'info';
+                    if($type_avail_beds == 0) $type_status = 'danger';
+                    elseif($type_occupied > 0) $type_status = 'warning';
+                    else $type_status = 'success';
+                ?>
+                    <div class="col-md-4">
+                        <div class="card card-room card-room-summary h-100" onclick="openOccupancyModal('<?= md5($type) ?>')">
+                            <img src="../assets/images/<?= $image ?>" alt="<?= $type ?>">
+                            <div class="card-body text-center">
+                                <h3 class="fw-bold text-dark mb-2"><?= $type ?></h3>
+                                <div class="d-flex justify-content-center gap-3 text-muted small mb-3">
+                                    <span><i class="fas fa-door-open me-1"></i> <?= count($rooms_in_type) ?> Rooms</span>
+                                    <span><i class="fas fa-bed me-1"></i> <?= $type_total_beds ?> Beds</span>
+                                </div>
+                                <div class="d-flex justify-content-center gap-2 mb-3">
+                                    <span class="badge bg-<?= $type_status ?>">
+                                        <?= $type_avail_beds ?> Beds Available
+                                    </span>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted"><?= $type_occupied ?>/<?= $type_total_beds ?> Beds Occupied</small>
+                                    <div class="progress mt-1" style="height: 6px;">
+                                        <?php 
+                                        $percent = $type_total_beds > 0 ? ($type_occupied / $type_total_beds) * 100 : 0;
+                                        $bar_class = 'bg-success';
+                                        if($percent >= 100) $bar_class = 'bg-danger';
+                                        elseif($percent > 0) $bar_class = 'bg-warning';
+                                        ?>
+                                        <div class="progress-bar <?= $bar_class ?>" style="width: <?= $percent ?>%"></div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <span class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i> View Details
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-2">
-                        <select id="statusFilter" class="form-select form-select-sm" onchange="filterRooms()">
-                            <option value="all">All Statuses</option>
-                            <option value="Vacant">Vacant</option>
-                            <option value="Partially Occupied">Partially Occupied</option>
-                            <option value="Fully Occupied">Fully Occupied</option>
-                            <option value="Maintenance">Maintenance</option>
-                        </select>
-                    </div>
-                    <div class="col-md">
-                        <input type="text" id="roomSearch" class="form-control form-control-sm" placeholder="Search room or occupant..." onkeyup="filterRooms()">
-                    </div>
-                    <div class="col-md-auto">
-                         <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">Reset</button>
-                    </div>
-                </div>
+                <?php endforeach; ?>
             </div>
 
-            <!-- Room Type Sections -->
-            <?php 
-            $room_type_order = ['6-Bed', '4-Bed', 'Single'];
-            foreach($room_type_order as $type): 
-                if(!isset($grouped_rooms[$type]) || empty($grouped_rooms[$type])) continue;
-            ?>
-            <div class="mb-5 room-type-section">
-                <div class="room-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i><?= $type ?> Rooms</h5>
-                        <small><?= count($grouped_rooms[$type]) ?> rooms</small>
-                    </div>
-                    <div class="text-end">
-                        <?php
-                        $type_occupied = 0;
-                        $type_total = 0;
-                        foreach($grouped_rooms[$type] as $tr) {
-                            $type_occupied += $tr['occupied_count'];
-                            $type_total += $tr['total_beds'];
-                        }
-                        ?>
-                        <small class="opacity-75"><?= $type_occupied ?>/<?= $type_total ?> Beds Occupied</small>
-                    </div>
-                </div>
+            <?php if(empty($rooms)): ?>
+            <div class="text-center py-5">
+                <i class="fas fa-bed fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No rooms found</h5>
+                <p class="text-muted">Please add rooms to start monitoring occupancy.</p>
+                <a href="add_room.php" class="btn btn-custom"><i class="fas fa-plus me-2"></i>Add Room</a>
+            </div>
+            <?php endif; ?>
 
-                <div class="row">
-                    <?php foreach($grouped_rooms[$type] as $room): 
+        </div>
+    </div>
+</div>
+
+<!-- Modals for each room type (Like Room Inventory) -->
+<?php foreach($grouped_rooms as $type => $rooms_in_type): ?>
+<div class="modal fade" id="occupancy_<?= md5($type) ?>" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content bg-light">
+            <div class="modal-header bg-white">
+                <h5 class="modal-title fw-bold text-success"><i class="fas fa-users me-2"></i><?= $type ?> Occupancy</h5>
+                <div class="d-flex align-items-center me-3">
+                    <label class="small fw-bold me-2 text-muted">Filter:</label>
+                    <select class="form-select form-select-sm" onchange="filterOccupancyRooms(this, '<?= md5($type) ?>')">
+                        <option value="all">All Floors</option>
+                        <?php for($i=2; $i<=7; $i++): ?>
+                            <option value="<?= $i ?>"><?= $i ?>th Floor</option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-4">
+                    <?php foreach($rooms_in_type as $room): 
                         $room_display = $room['room_number'] ? "Room " . $room['room_number'] : $room['room_name'];
+                        $floor = $room['floor'] ?? 2;
                         
                         // Status badge class
                         $status_class = 'status-vacant';
@@ -391,7 +445,7 @@ $theme = get_theme_colors($conn);
                             $occupant_names_str = htmlspecialchars(implode(' ', $occupant_names), ENT_QUOTES);
                         }
                     ?>
-                    <div class="col-lg-6 mb-4 room-item" data-floor="<?= $room['floor'] ?>" data-status="<?= $room['occupancy_status'] ?>" data-name="<?= strtolower($room_display) ?>" data-occupants="<?= $occupant_names_str ?>">
+                    <div class="col-md-6 col-lg-4 occupancy-room-item" data-floor="<?= $floor ?>" data-status="<?= $room['occupancy_status'] ?>" data-name="<?= strtolower($room_display) ?>" data-occupants="<?= $occupant_names_str ?>">
                         <div class="card card-custom h-100">
                             <div class="card-body">
                                 <!-- Room Header -->
@@ -400,11 +454,9 @@ $theme = get_theme_colors($conn);
                                         <h6 class="fw-bold text-dark mb-0">
                                             <?= $room_display ?>
                                         </h6>
-                                        <small class="text-muted"><i class="fas fa-building me-1"></i> <?= $room['floor'] ?>F | <?= $room['room_type'] ?></small>
+                                        <small class="text-muted"><i class="fas fa-building me-1"></i> <?= $floor ?>F | <?= $room['room_type'] ?></small>
                                     </div>
-                                    <div class="text-end">
-                                        <span class="status-badge <?= $status_class ?>"><?= $room['occupancy_status'] ?></span>
-                                    </div>
+                                    <span class="status-badge <?= $status_class ?>"><?= $room['occupancy_status'] ?></span>
                                 </div>
 
                                 <!-- Occupancy Bar -->
@@ -433,7 +485,7 @@ $theme = get_theme_colors($conn);
                                     <?php if(empty($room['occupants'])): ?>
                                         <p class="text-muted small mb-0">No current occupants</p>
                                     <?php else: ?>
-                                        <div class="mt-2" style="max-height: 200px; overflow-y: auto;">
+                                        <div style="max-height: 150px; overflow-y: auto;">
                                             <?php foreach($room['occupants'] as $occupant): 
                                                 $bed_class = 'bed-any';
                                                 $bed_icon = 'fa-random';
@@ -466,20 +518,10 @@ $theme = get_theme_colors($conn);
                     <?php endforeach; ?>
                 </div>
             </div>
-            <?php endforeach; ?>
-
-            <?php if(empty($rooms)): ?>
-            <div class="text-center py-5">
-                <i class="fas fa-bed fa-4x text-muted mb-3"></i>
-                <h5 class="text-muted">No rooms found</h5>
-                <p class="text-muted">Please add rooms to start monitoring occupancy.</p>
-                <a href="add_room.php" class="btn btn-custom"><i class="fas fa-plus me-2"></i>Add Room</a>
-            </div>
-            <?php endif; ?>
-
         </div>
     </div>
 </div>
+<?php endforeach; ?>
 
 <!-- History Modal -->
 <div class="modal fade" id="historyModal" tabindex="-1">
@@ -501,40 +543,22 @@ $theme = get_theme_colors($conn);
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-function filterRooms() {
-    const floor = document.getElementById('floorFilter').value;
-    const status = document.getElementById('statusFilter').value;
-    const search = document.getElementById('roomSearch').value.toLowerCase();
-    
-    document.querySelectorAll('.room-item').forEach(item => {
-        const itemFloor = item.getAttribute('data-floor');
-        const itemStatus = item.getAttribute('data-status');
-        const itemName = item.getAttribute('data-name');
-        const itemOccupants = item.getAttribute('data-occupants');
-        
-        let show = true;
-        if (floor !== 'all' && itemFloor !== floor) show = false;
-        if (status !== 'all' && itemStatus !== status) show = false;
-        if (search && !itemName.includes(search) && !itemOccupants.includes(search)) show = false;
-        
-        item.style.display = show ? '' : 'none';
-    });
-
-    // Hide empty sections
-    document.querySelectorAll('.room-type-section').forEach(section => {
-        let hasVisible = false;
-        section.querySelectorAll('.room-item').forEach(item => {
-            if (item.style.display !== 'none') hasVisible = true;
-        });
-        section.style.display = hasVisible ? '' : 'none';
-    });
+function openOccupancyModal(typeId) {
+    new bootstrap.Modal(document.getElementById('occupancy_' + typeId)).show();
 }
 
-function resetFilters() {
-    document.getElementById('floorFilter').value = 'all';
-    document.getElementById('statusFilter').value = 'all';
-    document.getElementById('roomSearch').value = '';
-    filterRooms();
+function filterOccupancyRooms(select, typeId) {
+    const floor = select.value;
+    const modal = document.getElementById('occupancy_' + typeId);
+    const items = modal.querySelectorAll('.occupancy-room-item');
+    
+    items.forEach(item => {
+        if(floor === 'all' || item.getAttribute('data-floor') === floor) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
 }
 
 function viewHistory(roomId, roomName) {
@@ -581,7 +605,7 @@ function checkUpdates() {
         else if (t > lastUpdate) location.reload();
     });
 }
-setInterval(checkUpdates, 3000); // Check every 3 seconds
+setInterval(checkUpdates, 3000);
 </script>
 </body>
 </html>

@@ -423,9 +423,6 @@ if(isset($_SESSION['user_id'])){
                     <?php else: ?>
                         <p class="price-tag mb-2 fw-bold text-success">₱<?= number_format($price, 2) ?> <small class="text-muted fs-6">/mo</small></p>
                     <?php endif; ?>
-                    <div class="alert <?= $type_avail_beds > 0 ? 'alert-success' : 'alert-danger' ?> py-2 mb-3 fw-bold">
-                        <?= $type_avail_beds ?> Beds Available
-                    </div>
                     <a href="users/room_details.php?id=<?= $first_room['room_id'] ?>" class="btn btn-outline-success rounded-pill px-4">View Details</a>
                 </div>
             </div>
