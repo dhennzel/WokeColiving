@@ -14,6 +14,8 @@ if(!isset($_GET['id'])){
 
 $id = (int)$_GET['id'];
 
+$admin_username = $_SESSION['admin_username'] ?? 'Admin';
+
 // Handle Signature Reset
 if(isset($_POST['reset_signature'])){
     $reset_stmt = mysqli_prepare($conn, "UPDATE reservations SET signature_image = NULL WHERE reservation_id = ?");
@@ -37,7 +39,7 @@ if(isset($_POST['request_signature'])){
 
     mysqli_query($conn, "UPDATE reservations SET signature_required=1 WHERE reservation_id=$res_id");
     send_notification($conn, $uid, "✍️ <strong>Signature Required</strong><br>Admin has requested your signature for Reservation #$res_id. Please go to My Reservations to sign.", "Action Required");
-    log_activity($conn, $uid, "Signature Requested", "Admin requested signature for Reservation #$res_id from receipt view.");
+    log_activity($conn, $uid, "Signature Requested", "Signature requested for Reservation #$res_id by $admin_username from receipt view.");
     
     header("Location: view_receipt.php?id=$id&msg=sig_requested");
     exit;

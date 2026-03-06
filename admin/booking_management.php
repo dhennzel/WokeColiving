@@ -8,6 +8,8 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
     exit;
 }
 
+$admin_username = $_SESSION['admin_username'] ?? 'Admin';
+
 // Handle Approve with Room Selection (POST)
 if(isset($_POST['confirm_approve'])){
     $reservation_id = (int)$_POST['reservation_id'];
@@ -54,7 +56,7 @@ if(isset($_POST['confirm_approve'])){
             
             mysqli_commit($conn);
             
-            log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated. Assigned Room ID: $new_room_id");
+            log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated by $admin_username. Assigned Room ID: $new_room_id");
             send_notification($conn, $target_user_id, "🔄 <strong>Stay Extended!</strong><br>Your extension request has been approved.", "Extension Approved");
         } catch (Exception $e) {
             mysqli_rollback($conn);
@@ -67,7 +69,7 @@ if(isset($_POST['confirm_approve'])){
     } else {
         // NORMAL APPROVAL
         if(mysqli_query($conn, "UPDATE reservations SET status='Approved', room_id=$new_room_id WHERE reservation_id=$reservation_id")){
-            log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id approved. Assigned Room ID: $new_room_id");
+            log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id approved by $admin_username. Assigned Room ID: $new_room_id");
             send_notification($conn, $target_user_id, "🎉 <strong>Reservation Approved!</strong><br>Your booking has been approved. Please proceed to payment or view details.", "Booking Approved");
         }
     }
@@ -107,7 +109,7 @@ if(isset($_GET['action'])){
         mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
         if($target_user_id) {
-            log_activity($conn, $target_user_id, "Reservation Rejected", "Reservation #$reservation_id has been cancelled.");
+            log_activity($conn, $target_user_id, "Reservation Rejected", "Reservation #$reservation_id cancelled by $admin_username.");
             send_notification($conn, $target_user_id, "❌ <strong>Reservation Rejected</strong><br>Your booking #$reservation_id has been cancelled. Please contact support for details.", "Booking Rejected");
         }
     } elseif($action == 'terminate'){
@@ -117,7 +119,7 @@ if(isset($_GET['action'])){
         mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
         if($target_user_id) {
-            log_activity($conn, $target_user_id, "Contract Ended", "Reservation #$reservation_id marked as Completed by admin.");
+            log_activity($conn, $target_user_id, "Contract Ended", "Reservation #$reservation_id marked as Completed by $admin_username.");
             send_notification($conn, $target_user_id, "🏁 <strong>Contract Completed</strong><br>Your stay for reservation #$reservation_id has been marked as completed. Thank you for staying with us!", "Contract Ended");
         }
     } elseif($action == 'verify'){
@@ -126,7 +128,7 @@ if(isset($_GET['action'])){
         mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
         if($target_user_id) {
-            log_activity($conn, $target_user_id, "Reservation Verifying", "Reservation #$reservation_id moved to Verifying status.");
+            log_activity($conn, $target_user_id, "Reservation Verifying", "Reservation #$reservation_id moved to Verifying status by $admin_username.");
             send_notification($conn, $target_user_id, "🔍 <strong>Reservation Verifying</strong><br>Your booking #$reservation_id is now being verified. Please ensure payment and lease signing are completed.", "Booking Update");
         }
     } elseif($action == 'renew' && isset($_GET['months'])){
@@ -157,7 +159,7 @@ if(isset($_GET['action'])){
             mysqli_stmt_execute($ins_pay);
             
             if($target_user_id) {
-                log_activity($conn, $target_user_id, "Contract Renewed", "Admin extended contract #$reservation_id by $months_to_add months.");
+                log_activity($conn, $target_user_id, "Contract Renewed", "Contract #$reservation_id extended by $months_to_add months by $admin_username.");
                 send_notification($conn, $target_user_id, "🔄 <strong>Contract Renewed</strong><br>Your stay has been extended by $months_to_add months. Please check your billing.", "Contract Renewed");
             }
         }
@@ -173,7 +175,7 @@ if(isset($_GET['action'])){
         }
         
         if($target_user_id) {
-            log_activity($conn, $target_user_id, "Payment Confirmed", "Payment #$pid marked as Paid by Admin.");
+            log_activity($conn, $target_user_id, "Payment Confirmed", "Payment #$pid marked as Paid by $admin_username.");
             send_notification($conn, $target_user_id, "✅ <strong>Payment Confirmed</strong><br>Your payment #$pid has been verified and marked as Paid.", "Payment Update");
         }
         header("Location: $redirect_url");
@@ -226,7 +228,7 @@ if(isset($_GET['action'])){
                     
                     mysqli_commit($conn);
                     
-                    log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated.");
+                    log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated by $admin_username.");
                     send_notification($conn, $target_user_id, "🔄 <strong>Stay Extended!</strong><br>Your extension request has been approved.", "Extension Approved");
                 } catch (Exception $e) {
                     mysqli_rollback($conn);
@@ -234,7 +236,7 @@ if(isset($_GET['action'])){
             } else {
                 // NORMAL APPROVAL
                 mysqli_query($conn, "UPDATE reservations SET status='Approved' WHERE reservation_id=$reservation_id");
-                log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id approved.");
+                log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id approved by $admin_username.");
                 send_notification($conn, $target_user_id, "🎉 <strong>Reservation Approved!</strong><br>Your booking has been approved.", "Booking Approved");
             }
         }

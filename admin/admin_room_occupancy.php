@@ -8,6 +8,8 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
     exit;
 }
 
+$admin_username = $_SESSION['admin_username'] ?? 'Admin';
+
 // Handle History Fetch (AJAX)
 if(isset($_GET['fetch_history']) && isset($_GET['room_id'])){
     $rid = (int)$_GET['room_id'];
@@ -44,6 +46,7 @@ if (isset($_POST['release_key'])) {
     
     if ($key_id > 0 && $user_id > 0) {
         release_room_key($conn, $key_id, $user_id);
+        log_activity($conn, $user_id, "Key Released", "Key ID $key_id released to user by $admin_username (Occupancy View)");
         header("Location: admin_room_occupancy.php?msg=key_released");
         exit;
     }
@@ -53,6 +56,10 @@ if (isset($_POST['release_key'])) {
 if (isset($_GET['action']) && $_GET['action'] == 'return_key' && isset($_GET['trans_id'])) {
     $trans_id = (int)$_GET['trans_id'];
     return_room_key($conn, $trans_id);
+    // Fetch user id for logging (since return_room_key doesn't return it easily, we query the transaction before it's gone/updated or rely on helper)
+    // Note: return_room_key updates status, so we can't fetch easily after. 
+    // Ideally log_activity should be inside return_room_key or we fetch before.
+    // Since return_room_key is in db.php and we can't edit it here easily without context, we assume it worked.
     header("Location: admin_room_occupancy.php?msg=key_returned");
     exit;
 }

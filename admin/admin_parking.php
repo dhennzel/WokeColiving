@@ -8,6 +8,8 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
     exit;
 }
 
+$admin_username = $_SESSION['admin_username'] ?? 'Admin';
+
 // Handle Actions
 if (isset($_POST['add_parking_reservation'])) {
     $user_id = (int)$_POST['user_id'];
@@ -49,6 +51,7 @@ if (isset($_POST['add_parking_reservation'])) {
     }
 
     send_notification($conn, $user_id, "🅿️ <strong>Parking Assigned</strong><br>You have been assigned to " . $slot['slot_name'] . ". A fee of ₱" . number_format($cost, 2) . " has been added to your account.", "Parking");
+    log_activity($conn, $user_id, "Parking Assigned", "Assigned to " . $slot['slot_name'] . " by $admin_username");
     trigger_update($conn);
     header("Location: admin_parking.php?msg=added");
     exit;
@@ -62,6 +65,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'end') {
         mysqli_query($conn, "UPDATE parking_reservations SET status='Completed', end_date=CURDATE() WHERE id=$pr_id");
         mysqli_query($conn, "UPDATE parking_slots SET status='Available' WHERE id=$slot_id");
         send_notification($conn, $pr['user_id'], "🅿️ <strong>Parking Ended</strong><br>Your parking reservation for slot ID #$slot_id has been marked as completed.", "Parking");
+        log_activity($conn, $pr['user_id'], "Parking Ended", "Parking reservation #$pr_id ended by $admin_username");
         trigger_update($conn);
         header("Location: admin_parking.php?msg=ended");
         exit;

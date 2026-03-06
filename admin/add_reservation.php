@@ -69,6 +69,8 @@ $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
 $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 
+$admin_username = $_SESSION['admin_username'] ?? 'Admin';
+
 if(isset($_POST['add_reservation'])){
     $user_type = $_POST['user_type'];
     $user_id = 0;
@@ -97,7 +99,7 @@ if(isset($_POST['add_reservation'])){
             if(mysqli_stmt_execute($stmt)){
                 $user_id = mysqli_insert_id($conn);
                 $account_msg = "Account created for $name (Pass: $raw_pass). ";
-                log_activity($conn, $user_id, "Account Created", "Walk-in account created by Admin");
+                log_activity($conn, $user_id, "Account Created", "Walk-in account created by $admin_username");
             } else {
                 $error = "Failed to create user account.";
             }
@@ -259,7 +261,7 @@ if(isset($_POST['add_reservation'])){
                 $pay_stmt->bind_param("idss", $res_id, $totalAmount, $pay_method, $pay_status);
                 $pay_stmt->execute();
                 
-                log_activity($conn, $user_id, "Walk-in Booking", "Reservation #$res_id created by Admin");
+                log_activity($conn, $user_id, "Walk-in Booking", "Reservation #$res_id created by $admin_username");
                 
                 $success = $account_msg . "Reservation created successfully!";
                 $new_reservation_id = $res_id; // For JS Print Popup

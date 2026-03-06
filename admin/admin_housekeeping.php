@@ -7,6 +7,8 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
     exit;
 }
 
+$admin_username = $_SESSION['admin_username'] ?? 'Admin';
+
 $message = "";
 $error = "";
 
@@ -16,6 +18,9 @@ if(isset($_POST['update_request'])){
     $status = $_POST['status'];
     $sched_date = !empty($_POST['scheduled_date']) ? "'".$_POST['scheduled_date']."'" : "NULL";
     
+    $u_q = mysqli_query($conn, "SELECT user_id FROM housekeeping_requests WHERE request_id=$req_id");
+    $uid = mysqli_fetch_assoc($u_q)['user_id'];
+    log_activity($conn, $uid, "Housekeeping Update", "Request #$req_id updated to '$status' by $admin_username");
     mysqli_query($conn, "UPDATE housekeeping_requests SET status='$status', scheduled_date=$sched_date WHERE request_id=$req_id");
     trigger_update($conn);
     header("Location: admin_housekeeping.php");
@@ -62,6 +67,7 @@ if(isset($_POST['schedule_cleaning'])){
         mysqli_stmt_execute($stmt);
         trigger_update($conn);
         $message = "Routine cleaning scheduled successfully (Free).";
+        log_activity($conn, $uid, "Housekeeping Scheduled", "Admin $admin_username scheduled cleaning for $sched_date");
         send_notification($conn, $uid, "🧹 <strong>Housekeeping Scheduled</strong><br>Admin has scheduled a routine cleaning for your room on " . date('M d, Y', strtotime($sched_date)) . ".", "Housekeeping");
     } else {
         $error = "No active tenant found in selected room to link request.";
