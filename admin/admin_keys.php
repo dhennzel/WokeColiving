@@ -212,20 +212,20 @@ $theme = get_theme_colors($conn);
                     ?>
                     <div class="col-md-4">
                         <div class="card card-room h-100" onclick="openKeyModal('<?= md5($type) ?>')">
-                            <div class="card-body text-center" style="background: linear-gradient(135deg, var(--primary-green), var(--dark-green)); color: white;">
-                                <i class="fas fa-key fa-3x mb-3"></i>
-                                <h3 class="fw-bold mb-2"><?= $type ?> Room</h3>
-                                <div class="d-flex justify-content-center gap-3 small mb-3 opacity-75">
+                            <div class="card-body text-center bg-white">
+                                <i class="fas fa-key fa-3x mb-3 text-success"></i>
+                                <h3 class="fw-bold mb-2 text-dark"><?= $type ?> Room</h3>
+                                <div class="d-flex justify-content-center gap-3 small mb-3 text-muted">
                                     <span><i class="fas fa-key me-1"></i> <?= $type_total ?> Keys</span>
                                 </div>
                                 <div class="alert alert-<?= $type_status ?> py-2 mb-0 fw-bold">
                                     <?= $type_available ?> Available
                                 </div>
                                 <div class="mt-2">
-                                    <small class="opacity-75"><?= $type_released ?>/<?= $type_total ?> Released</small>
+                                    <small class="text-muted"><?= $type_released ?>/<?= $type_total ?> Released</small>
                                 </div>
                                 <div class="mt-3">
-                                    <span class="btn btn-sm btn-light"><i class="fas fa-eye me-1"></i> View Details</span>
+                                    <span class="btn btn-sm btn-outline-success"><i class="fas fa-eye me-1"></i> View Details</span>
                                 </div>
                             </div>
                         </div>
