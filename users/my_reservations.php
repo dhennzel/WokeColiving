@@ -81,65 +81,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        :root {
-            --primary-green: #2E7D32;
-            --dark-green: #1B5E20;
-            --accent-yellow: #FBC02D;
-            --light-bg: #f8f9fa;
-        }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-        .navbar { background: var(--dark-green); padding: 15px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        
-        .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
-        .table thead th { background-color: var(--primary-green); color: white; font-weight: 500; border: none; }
-        .table tbody tr { transition: 0.2s; }
-        .table tbody tr:hover { background-color: #f1f8e9; }
-        @keyframes shake { 0% { transform: rotate(0deg); } 20% { transform: rotate(15deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(5deg); } 80% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
-        .shake-animation { animation: shake 0.5s; }
-        
-        @media print {
-            body * { visibility: hidden; }
-            #activityLogModal, #activityLogModal * { visibility: visible; }
-            #activityLogModal { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible !important; }
-            .modal-dialog { margin: 0; width: 100%; max-width: 100%; }
-            .modal-content { border: none; box-shadow: none; }
-            .no-print { display: none !important; }
-        }
-
-        /* Night Mode Styles */
-        body.night-mode { background-color: #121212; color: #e0e0e0; }
-        body.night-mode .navbar { background: #1f1f1f !important; }
-        body.night-mode .card, body.night-mode .card-custom { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
-        body.night-mode .text-dark { color: #e0e0e0 !important; }
-        body.night-mode .text-muted { color: #b0b0b0 !important; }
-        body.night-mode .bg-light { background-color: #2c2c2c !important; }
-        body.night-mode .dropdown-menu { background-color: #1e1e1e; border-color: #333; }
-        body.night-mode .dropdown-item { color: #e0e0e0; }
-        body.night-mode .dropdown-item:hover { background-color: #333; }
-        
-        /* Updated Table Styles Below */
-        body.night-mode .table { color: #e0e0e0; background-color: transparent; } 
-        body.night-mode .table thead th { background-color: #1f1f1f; border-color: #333; color: #e0e0e0; }
-        body.night-mode .table td, body.night-mode .table th { background-color: #1e1e1e; border-color: #333; color: #e0e0e0; } 
-        
-        /* Modal Night Mode Styles */
-        body.night-mode .modal-content { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
-        body.night-mode .modal-header { border-bottom-color: #333; }
-        body.night-mode .modal-footer { border-top-color: #333; }
-        body.night-mode .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
-        body.night-mode button.close { color: #e0e0e0; text-shadow: none; }
-        
-        /* Button Styles */
-        body.night-mode .btn-outline-dark { color: #e0e0e0; border-color: #e0e0e0; }
-        body.night-mode .btn-outline-dark:hover { background-color: #e0e0e0; color: #121212; }
-
-        /* Form & Table Fixes */
-        body.night-mode .form-control, body.night-mode .form-select { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
-        body.night-mode .form-control:focus, body.night-mode .form-select:focus { background-color: #333; color: #fff; }
-        body.night-mode .table-hover tbody tr:hover > * { background-color: #2c2c2c; color: #fff; }
-    </style>
+    <link rel="stylesheet" href="users_CSS/my_reservations.css">
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
 

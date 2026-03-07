@@ -94,269 +94,7 @@ if(isset($_SESSION['user_id'])){
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="../CSS/index.css">
-    <style>
-        :root {
-            --primary-green: #2E7D32;
-            --dark-green: #1B5E20;
-            --accent-yellow: #FBC02D;
-            --light-bg: #f8f9fa;
-            --text-dark: #2c3e50;
-        }
-        html {
-            scroll-behavior: smooth;
-        }
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 10px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary-green);
-            border-radius: 5px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--dark-green);
-        }
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: var(--light-bg);
-            overflow-x: hidden;
-        }
-        h1, h2, h3, .navbar-brand {
-            font-family: 'Playfair Display', serif;
-        }
-        .hero-section {
-            position: relative;
-            color: white;
-            text-align: center;
-            overflow: hidden;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .navbar {
-            background: transparent;
-            padding: 20px 0;
-            transition: all 0.4s ease;
-        }
-        .nav-link {
-            position: relative;
-            transition: color 0.3s ease;
-        }
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            width: 0;
-            height: 2px;
-            bottom: 0;
-            left: 0;
-            background-color: var(--accent-yellow);
-            transition: width 0.3s ease;
-        }
-        .nav-link:hover::after {
-            width: 100%;
-        }
-        .navbar.scrolled {
-            background: rgba(27, 94, 32, 0.9) !important;
-            backdrop-filter: blur(10px);
-            padding: 12px 0;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        }
-        .hero-bg-carousel {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-        }
-        .hero-bg-carousel .carousel-item, .hero-bg-carousel .active { height: 100%; }
-        .hero-bg-carousel img { 
-            width: 100%; height: 100%; object-fit: cover; 
-            transition: transform 10s linear;
-        }
-        .hero-bg-carousel .carousel-item.active img {
-            transform: scale(1.1);
-        }
-        .hero-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(to bottom, rgba(27, 94, 32, 0.7), rgba(27, 94, 32, 0.5));
-            z-index: 1;
-        }
-        .hero-content {
-            position: relative;
-            z-index: 2;
-            opacity: 0;
-            transform: translateY(30px);
-            animation: fadeInUp 1s ease-out forwards 0.5s, float 4s ease-in-out infinite 1.5s;
-        }
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
-            100% { transform: translateY(0px); }
-        }
-        .feature-icon {
-            font-size: 3.5rem;
-            color: var(--primary-green);
-            margin-bottom: 15px;
-            transition: transform 0.3s;
-        }
-        .feature-card:hover .feature-icon {
-            transform: scale(1.1) rotate(5deg);
-            color: var(--accent-yellow);
-        }
-        .room-card {
-            border: none;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-            transition: all 0.4s ease;
-            background: white;
-        }
-        .room-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-        }
-        .room-img-wrapper {
-            height: 250px;
-            overflow: hidden;
-            position: relative;
-        }
-        .room-img-wrapper img {
-            transition: transform 0.5s ease;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .room-card:hover .room-img-wrapper img {
-            transform: scale(1.1);
-        }
-        .btn-custom {
-            background-color: var(--accent-yellow);
-            color: var(--dark-green);
-            font-weight: 700;
-            border-radius: 50px;
-            padding: 12px 35px;
-            border: none;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 5px 15px rgba(251, 192, 45, 0.3);
-        }
-        .feature-card {
-            transition: transform 0.3s, box-shadow 0.3s;
-            border: none;
-            border-radius: 20px;
-            background: white;
-            padding: 2.5rem 1.5rem;
-            height: 100%;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        }
-        .feature-card:hover {
-            transform: translateY(-15px) scale(1.05);
-            box-shadow: 0 25px 50px rgba(46, 125, 50, 0.2);
-            border: 1px solid var(--accent-yellow);
-        }
-        .feature-icon {
-            font-size: 3rem;
-            color: var(--accent-yellow);
-            background: var(--dark-green);
-            width: 80px;
-            height: 80px;
-            line-height: 80px;
-            border-radius: 50%;
-            margin: 0 auto 1.5rem;
-            transition: transform 0.5s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .feature-card:hover .feature-icon {
-            transform: rotateY(180deg);
-        }
-        .btn-custom:hover {
-            background-color: #F9A825;
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(251, 192, 45, 0.4);
-            color: var(--dark-green);
-        }
-        footer {
-            background: var(--dark-green);
-            color: white;
-            padding: 3rem 0;
-            margin-top: 3rem;
-        }
-        .section-title {
-            color: var(--dark-green);
-            font-weight: 700;
-            margin-bottom: 10px;
-            position: relative;
-            display: inline-block;
-        }
-        .section-title::after {
-            content: '';
-            display: block;
-            width: 60px;
-            height: 3px;
-            background: var(--accent-yellow);
-            margin: 10px auto 0;
-            border-radius: 2px;
-        }
-        /* Scroll Animations */
-        .reveal {
-            opacity: 0;
-            transform: translateY(30px);
-            transition: all 0.8s ease-out;
-        }
-        .reveal.active {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        @keyframes fadeInUp {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        .badge-custom {
-            background-color: rgba(255, 255, 255, 0.9);
-            color: var(--dark-green);
-            border: 1px solid var(--primary-green);
-        }
-        .contact-card {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-        }
-        footer a { color: rgba(255,255,255,0.7); text-decoration: none; transition: 0.3s; }
-        footer a:hover { color: var(--accent-yellow); }
-        .room-img { width: 100%; height: 400px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        @keyframes shake { 0% { transform: rotate(0deg); } 20% { transform: rotate(15deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(5deg); } 80% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
-        .shake-animation { animation: shake 0.5s; }
-
-        /* Night Mode Styles */
-        body.night-mode { background-color: #121212; color: #e0e0e0; }
-        body.night-mode .navbar { background: #1f1f1f !important; }
-        body.night-mode .card, body.night-mode .room-card, body.night-mode .feature-card, body.night-mode .contact-card { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
-        body.night-mode .text-dark { color: #e0e0e0 !important; }
-        body.night-mode .text-muted { color: #b0b0b0 !important; }
-        body.night-mode .bg-light { background-color: #2c2c2c !important; }
-        body.night-mode .bg-white { background-color: #1e1e1e !important; }
-        body.night-mode .dropdown-menu { background-color: #1e1e1e; border-color: #333; }
-        body.night-mode .dropdown-item { color: #e0e0e0; }
-        body.night-mode .dropdown-item:hover { background-color: #333; }
-        body.night-mode .form-control, body.night-mode .form-floating > label { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
-        body.night-mode .form-control:focus { background-color: #333; color: #fff; }
-        body.night-mode footer { background-color: #1f1f1f; }
-        body.night-mode .contact-card { background: rgba(30, 30, 30, 0.9); }
-        body.night-mode .section-title { color: #e0e0e0; }
-    </style>
+    <link rel="stylesheet" href="users_CSS/index.css">
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
 
@@ -465,140 +203,111 @@ if(isset($_SESSION['user_id'])){
         <h2 class="section-title display-5">Our Amenities</h2>
         <p class="text-muted">Everything you need for comfortable living</p>
     </div>
-    <div class="row g-4">
-        <!-- Wifi -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="50">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-wifi fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Wifi</h5>
+    
+    <div class="position-relative px-2 px-md-4">
+        <button class="slider-btn prev-btn d-none d-md-flex" id="prevAmenity"><i class="fas fa-chevron-left"></i></button>
+
+        <div class="amenities-scroll-container pb-2" id="amenitiesScroll">
+            
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="50">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-wifi fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Wifi</h5>
+                </div>
             </div>
-        </div>
-        <!-- Monthly Housekeeping -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="100">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-broom fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Monthly Housekeeping</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="100">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-broom fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Monthly Housekeeping</h5>
+                </div>
             </div>
-        </div>
-        <!-- Fully Furnished -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="150">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-couch fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Fully Furnished</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="150">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-couch fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Fully Furnished</h5>
+                </div>
             </div>
-        </div>
-        <!-- Ensuite shower and WC -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="200">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-bath fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Ensuite shower and WC</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="200">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-bath fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Ensuite shower and WC</h5>
+                </div>
             </div>
-        </div>
-        <!-- Roof top lounge and bar (soon) -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="250">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white position-relative">
-                <span class="position-absolute top-0 end-0 badge bg-warning text-dark m-2">Coming Soon</span>
-                <div class="amenity-icon mb-3"><i class="fas fa-glass-cheers fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Roof top lounge and bar</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="250">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white position-relative">
+                    <span class="position-absolute top-0 end-0 badge bg-warning text-dark m-2">Coming Soon</span>
+                    <div class="amenity-icon mb-3"><i class="fas fa-glass-cheers fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Roof top lounge and bar</h5>
+                </div>
             </div>
-        </div>
-        <!-- 24H Concierge -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="300">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-user-clock fa-2x text-success"></i></div>
-                <h5 class="fw-bold">24H Concierge</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="300">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-user-clock fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">24H Concierge</h5>
+                </div>
             </div>
-        </div>
-        <!-- Lockers -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="350">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-lock fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Lockers</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="350">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-lock fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Lockers</h5>
+                </div>
             </div>
-        </div>
-        <!-- Food & beverage room service (soon) -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="400">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white position-relative">
-                <span class="position-absolute top-0 end-0 badge bg-warning text-dark m-2">Coming Soon</span>
-                <div class="amenity-icon mb-3"><i class="fas fa-utensils fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Food & beverage room service</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="400">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white position-relative">
+                    <span class="position-absolute top-0 end-0 badge bg-warning text-dark m-2">Coming Soon</span>
+                    <div class="amenity-icon mb-3"><i class="fas fa-utensils fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Food & beverage room service</h5>
+                </div>
             </div>
-        </div>
-        <!-- Car and motorbike parking -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="450">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-parking fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Car and motorbike parking</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="450">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-parking fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Car and motorbike parking</h5>
+                </div>
             </div>
-        </div>
-        <!-- Event spaces -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="500">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-map-marker-alt fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Location</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="500">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-map-marker-alt fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Location</h5>
+                </div>
             </div>
-        </div>
-        <!-- Regular Maintenance -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="550">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-tools fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Regular Maintenance</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="550">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-tools fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Regular Maintenance</h5>
+                </div>
             </div>
-        </div>
-        <!-- Flexible Contracts -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="600">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-file-signature fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Flexible Contracts</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="600">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-file-signature fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Flexible Contracts</h5>
+                </div>
             </div>
-        </div>
-        <!-- Lounges and common areas -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="650">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-comments fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Lounges and common areas</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="650">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-comments fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Lounges and common areas</h5>
+                </div>
             </div>
-        </div>
-        <!-- Security guard and CCTV -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="700">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
-                <div class="amenity-icon mb-3"><i class="fas fa-shield-alt fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Security guard and CCTV</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="700">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white">
+                    <div class="amenity-icon mb-3"><i class="fas fa-shield-alt fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Security guard and CCTV</h5>
+                </div>
             </div>
-        </div>
-        <!-- Meeting room (soon) -->
-        <div class="col-lg-3 col-md-4 col-sm-6" data-aos="fade-up" data-aos-delay="750">
-            <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white position-relative">
-                <span class="position-absolute top-0 end-0 badge bg-warning text-dark m-2">Coming Soon</span>
-                <div class="amenity-icon mb-3"><i class="fas fa-users-rectangle fa-2x text-success"></i></div>
-                <h5 class="fw-bold">Meeting room</h5>
+            <div class="amenity-item" data-aos="fade-up" data-aos-delay="750">
+                <div class="amenity-card p-4 text-center h-100 rounded-4 shadow-sm bg-white position-relative">
+                    <span class="position-absolute top-0 end-0 badge bg-warning text-dark m-2">Coming Soon</span>
+                    <div class="amenity-icon mb-3"><i class="fas fa-users-rectangle fa-2x text-success"></i></div>
+                    <h5 class="fw-bold">Meeting room</h5>
+                </div>
             </div>
+            
         </div>
+        
+        <button class="slider-btn next-btn d-none d-md-flex" id="nextAmenity"><i class="fas fa-chevron-right"></i></button>
     </div>
 </div>
-
-<style>
-    .amenity-card {
-        transition: transform 0.3s, box-shadow 0.3s;
-    }
-    .amenity-card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 15px 30px rgba(46, 125, 50, 0.15) !important;
-    }
-    .amenity-icon {
-        width: 70px;
-        height: 70px;
-        line-height: 70px;
-        margin: 0 auto;
-        background: rgba(46, 125, 50, 0.1);
-        border-radius: 50%;
-        transition: all 0.3s;
-    }
-    .amenity-card:hover .amenity-icon {
-        background: #2E7D32;
-        color: white !important;
-    }
-</style>
 
 <!-- FEATURES 
 <div class="container py-4 mb-5" id="features">
@@ -797,6 +506,16 @@ if(isset($_SESSION['user_id'])){
       } else {
           document.querySelector('.navbar').classList.remove('scrolled');
       }
+  });
+
+  // Slider Navigation Logic
+  document.getElementById('nextAmenity').addEventListener('click', function() {
+      const container = document.getElementById('amenitiesScroll');
+      container.scrollBy({ left: 300, behavior: 'smooth' }); 
+  });
+  document.getElementById('prevAmenity').addEventListener('click', function() {
+      const container = document.getElementById('amenitiesScroll');
+      container.scrollBy({ left: -300, behavior: 'smooth' });
   });
 
   <?php if(isset($_SESSION['swal'])): ?>

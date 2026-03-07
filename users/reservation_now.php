@@ -477,89 +477,21 @@ if (isset($_POST['confirm_booking'])) {
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        :root {
-            --primary-green: #2E7D32;
-            --dark-green: #1B5E20;
-            --accent-yellow: #FBC02D;
-            --light-bg: #f8f9fa;
-        }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-        .navbar { background: var(--dark-green); padding: 15px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        
-        .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; transition: transform 0.3s; }
-        .card-custom:hover { transform: translateY(-5px); }
-        
-        .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; padding: 10px 30px; border: none; }
-        .btn-custom:hover { background-color: #f9a825; }
-        
-        .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
-        @keyframes shake { 0% { transform: rotate(0deg); } 20% { transform: rotate(15deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(5deg); } 80% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
-        .shake-animation { animation: shake 0.5s; }
-        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
-
-        /* Night Mode Styles */
-        body.night-mode { background-color: #121212; color: #e0e0e0; }
-        body.night-mode .navbar { background: #1f1f1f !important; }
-        body.night-mode .card, body.night-mode .card-custom { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
-        body.night-mode .card-header { background-color: #252525 !important; color: #e0e0e0 !important; border-bottom-color: #333; }
-        body.night-mode .text-dark { color: #e0e0e0 !important; }
-        body.night-mode .text-muted { color: #b0b0b0 !important; }
-        body.night-mode .bg-light { background-color: #2c2c2c !important; }
-        body.night-mode .dropdown-menu { background-color: #1e1e1e; border-color: #333; }
-        body.night-mode .dropdown-item { color: #e0e0e0; }
-        body.night-mode .dropdown-item:hover { background-color: #333; }
-        body.night-mode .form-control, body.night-mode .form-select, body.night-mode textarea { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
-        body.night-mode .form-control:focus, body.night-mode .form-select:focus { background-color: #333; color: #fff; }
-        body.night-mode .alert-light { background-color: #2c2c2c; border-color: #333; color: #e0e0e0; }
-    </style>
+    <link rel="stylesheet" href="users_CSS/reservation_now.css">
 </head>
 <body>
-
-<!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark fixed-top">
-    <div class="container">
-        <a class="navbar-brand fw-bold d-flex align-items-center" href="../index.php">
-            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
-            Woke Coliving INC
-        </a>
-        <div class="d-flex align-items-center gap-3 ms-auto">
-            <a href="profile.php" class="text-white text-decoration-none fw-bold position-relative">
-                My Profile
-                <?php if($unread_count > 0): ?>
-                    <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
-                        <span class="visually-hidden">New alerts</span>
-                    </span>
-                <?php endif; ?>
-            </a>
-            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_fname) ?></span>
-            <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
-        </div>
-    </div>
-</nav>
-
-<div class="container mb-5 reveal" style="margin-top: 100px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <?php if($is_extension): ?>
-            <h2 class="fw-bold text-warning"><i class="fas fa-history me-2"></i>Extend Your Stay</h2>
-        <?php else: ?>
-            <h2 class="fw-bold text-success"><i class="fas fa-calendar-plus me-2"></i>Make a Reservation</h2>
+<div class="container py-5">
+    <?php if(!empty($error)): ?>
+    <div class="alert alert-danger">
+        <?= $error ?>
+        <?php if(isset($show_waitlist) && $show_waitlist): ?>
+            <form method="POST" class="mt-2">
+                <input type="hidden" name="wl_room" value="<?= $_POST['troom'] ?>">
+                <button type="submit" name="join_waitlist" class="btn btn-sm btn-outline-danger fw-bold">Join Waitlist for <?= $_POST['troom'] ?></button>
+            </form>
         <?php endif; ?>
-        <a href="profile.php" class="btn btn-secondary rounded-pill">&larr; Back</a>
     </div>
-
-    <?php if(isset($error)) { ?>
-        <div class="alert alert-danger">
-            <?= $error ?>
-            <?php if(isset($show_waitlist) && $show_waitlist): ?>
-                <form method="POST" class="mt-2">
-                    <input type="hidden" name="wl_room" value="<?= $_POST['troom'] ?>">
-                    <button type="submit" name="join_waitlist" class="btn btn-sm btn-outline-danger fw-bold">Join Waitlist for <?= $_POST['troom'] ?></button>
-                </form>
-            <?php endif; ?>
-        </div>
-    <?php } ?>
+    <?php endif; ?>
 
     <form method="post" enctype="multipart/form-data" id="reservationForm">
         <input type="hidden" name="confirm_booking" value="1">
