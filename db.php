@@ -528,6 +528,12 @@ if(mysqli_num_rows($check_profile_image_col) == 0) {
     mysqli_query($conn, "ALTER TABLE users ADD COLUMN profile_image VARCHAR(255) DEFAULT NULL");
 }
 
+// Ensure is_archived column exists in users table for soft delete
+$check_is_archived_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'is_archived'");
+if(mysqli_num_rows($check_is_archived_col) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
+}
+
 // Ensure notifications table exists and is correct before use in automated tasks
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,

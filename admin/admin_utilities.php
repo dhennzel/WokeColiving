@@ -10,6 +10,7 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 
 $message = "";
 $active_tab = "";
+$is_super = ($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin';
 
 // Handle Archive Actions (Delete/Restore)
 if(isset($_POST['archive_action'])) {
@@ -20,6 +21,7 @@ if(isset($_POST['archive_action'])) {
     if($type == 'room') $active_tab = 'rooms';
     elseif($type == 'maintenance') $active_tab = 'maintenance';
     elseif($type == 'housekeeping') $active_tab = 'housekeeping';
+    elseif($type == 'user') $active_tab = 'users';
 
     if ($type == 'room') {
         if ($action == 'restore') {
@@ -33,6 +35,60 @@ if(isset($_POST['archive_action'])) {
                 $message = "Error: Cannot delete room. It may be linked to reservations.";
             }
         }
+    } elseif ($type == 'user') {
+        if (!$is_super) {
+            $message = "Error: Only Super Admins can perform this action.";
+        } elseif ($action == 'restore') {
+            mysqli_query($conn, "UPDATE users SET is_archived='0' WHERE user_id=$id");
+            $message = "User restored successfully.";
+        } elseif ($action == 'delete') {
+            // Permanent delete logic for user
+            mysqli_begin_transaction($conn);
+            try {
+                // 1. Get Reservation IDs to clean up child records
+                $res_ids = [];
+                $r_q = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id=$id");
+                while($row = mysqli_fetch_assoc($r_q)){
+                    $res_ids[] = $row['reservation_id'];
+                }
+    
+                if(!empty($res_ids)){
+                    $ids_str = implode(',', $res_ids);
+                    // Delete Payments linked to reservations
+                    mysqli_query($conn, "DELETE FROM payments WHERE reservation_id IN ($ids_str)");
+                    // Try deleting from optional tables (ignore if not exists)
+                    try { mysqli_query($conn, "DELETE FROM utility_bills WHERE reservation_id IN ($ids_str)"); } catch(Exception $e){}
+                    try { mysqli_query($conn, "DELETE FROM temporary_moves WHERE reservation_id IN ($ids_str)"); } catch(Exception $e){}
+                }
+    
+                // 2. Delete records linked directly to user
+                // Break self-referencing constraints if any
+                try { mysqli_query($conn, "UPDATE reservations SET extended_from = NULL WHERE user_id=$id"); } catch(Exception $e){}
+                mysqli_query($conn, "DELETE FROM reservations WHERE user_id=$id");
+                
+                try { mysqli_query($conn, "DELETE FROM activity_logs WHERE user_id=$id"); } catch(Exception $e){}
+                try { mysqli_query($conn, "DELETE FROM maintenance_requests WHERE user_id=$id"); } catch(Exception $e){}
+                try { mysqli_query($conn, "DELETE FROM housekeeping_requests WHERE user_id=$id"); } catch(Exception $e){}
+                try { mysqli_query($conn, "DELETE FROM notifications WHERE user_id=$id"); } catch(Exception $e){}
+                try { mysqli_query($conn, "DELETE FROM waitlist WHERE user_id=$id"); } catch(Exception $e){}
+                try { mysqli_query($conn, "DELETE FROM user_update_requests WHERE user_id=$id"); } catch(Exception $e){}
+                try { mysqli_query($conn, "DELETE FROM account_deletion_requests WHERE user_id=$id"); } catch(Exception $e){}
+                try { mysqli_query($conn, "DELETE FROM parking_reservations WHERE user_id=$id"); } catch(Exception $e){}
+                try { mysqli_query($conn, "DELETE FROM key_transactions WHERE user_id=$id"); } catch(Exception $e){}
+    
+                mysqli_query($conn, "DELETE FROM users WHERE user_id=$id");
+                trigger_update($conn);
+                mysqli_commit($conn);
+                $message = "User permanently deleted.";
+            } catch (mysqli_sql_exception $e) {
+                mysqli_rollback($conn);
+                $message = "Error permanently deleting user: " . $e->getMessage();
+            } catch (Exception $e) {
+                mysqli_rollback($conn);
+                $message = "Error permanently deleting user: " . $e->getMessage();
+            }
+        }
+
     } else {
         $table = ($type == 'maintenance') ? 'maintenance_requests' : 'housekeeping_requests';
         
@@ -78,6 +134,12 @@ $u_sql = "SELECT p.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name I
 if($search) $u_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%')";
 $u_sql .= " ORDER BY p.payment_date DESC";
 $utility_bills_query = mysqli_query($conn, $u_sql);
+
+// Fetch Archived Users
+$archived_users_sql = "SELECT user_id, first_name, last_name, email, created_at FROM users WHERE is_archived=1";
+if($search) $archived_users_sql .= " AND (first_name LIKE '%$search%' OR last_name LIKE '%$search%' OR email LIKE '%$search%')";
+$archived_users_sql .= " ORDER BY created_at DESC";
+$archived_users_query = mysqli_query($conn, $archived_users_sql);
 
 // Fetch Pending Counts for Sidebar
 $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
@@ -248,6 +310,9 @@ $theme = get_theme_colors($conn);
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab">Transaction Reports</button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">Archived Users</button>
+                    </li>
                 </ul>
 
                 <div class="tab-content" id="archiveTabsContent">
@@ -406,6 +471,45 @@ $theme = get_theme_colors($conn);
                                     <?php endwhile; ?>
                                     <?php if(mysqli_num_rows($transactions_query) == 0): ?>
                                         <tr><td colspan="6" class="text-center text-muted py-3">No transactions found.</td></tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Archived Users Tab -->
+                    <div class="tab-pane fade" id="users" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th class="text-end">Actions</th></tr></thead>
+                                <tbody>
+                                    <?php while($row = mysqli_fetch_assoc($archived_users_query)): ?>
+                                    <tr>
+                                        <td class="fw-bold"><?= htmlspecialchars($row['last_name'] . ', ' . $row['first_name']) ?></td>
+                                        <td><?= htmlspecialchars($row['email']) ?></td>
+                                        <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
+                                        <td class="text-end">
+                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this user account?')">
+                                                <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
+                                                <input type="hidden" name="type" value="user">
+                                                <input type="hidden" name="archive_action" value="restore">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                            </form>
+                                            <?php if($is_super): // Only Super Admin can permanently delete ?>
+                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this user and ALL their data? This cannot be undone.')">
+                                                <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
+                                                <input type="hidden" name="type" value="user">
+                                                <input type="hidden" name="archive_action" value="delete">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Permanently Delete"><i class="fas fa-user-slash"></i></button>
+                                            </form>
+                                            <?php else: ?>
+                                                <button type="button" class="btn btn-sm btn-outline-danger disabled" title="Super Admin Only"><i class="fas fa-user-slash"></i></button>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                    <?php endwhile; ?>
+                                    <?php if(mysqli_num_rows($archived_users_query) == 0): ?>
+                                        <tr><td colspan="4" class="text-center text-muted py-3">No archived users found.</td></tr>
                                     <?php endif; ?>
                                 </tbody>
                             </table>
