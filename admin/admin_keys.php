@@ -77,8 +77,12 @@ foreach($all_keys as $key) {
     $grouped_keys[$type][] = $key;
 }
 
-// Fetch Users for Dropdown
-$users_q = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name) as full_name FROM users WHERE role='user' ORDER BY last_name");
+// Fetch Users for Dropdown - Only users with approved room reservations
+$users_q = mysqli_query($conn, "SELECT DISTINCT u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name 
+    FROM users u 
+    JOIN reservations r ON u.user_id = r.user_id 
+    WHERE r.status = 'Approved' AND u.role = 'user' 
+    ORDER BY u.last_name");
 
 // Fetch History
 $history_q = mysqli_query($conn, "
@@ -366,7 +370,7 @@ $theme = get_theme_colors($conn);
                                 <div class="alert alert-success py-2 mb-2 small text-center">
                                     <i class="fas fa-check-circle me-1"></i> Available
                                 </div>
-                                <button class="btn btn-sm btn-primary w-100" onclick="openReleaseModal(<?= $key['id'] ?>, '<?= addslashes($key['key_name']) ?>')">
+                                <button class="btn btn-sm btn-primary w-100" onclick="openReleaseModal(<?= $key['id'] ?>, '<?= addslashes($key['key_name']) ?>', <?= $key['reference_id'] ?>)">
                                     <i class="fas fa-share me-1"></i> Release Key
                                 </button>
                             <?php endif; ?>
@@ -393,15 +397,13 @@ $theme = get_theme_colors($conn);
             <form method="POST">
                 <div class="modal-body">
                     <p>Releasing: <strong id="modalKeyName"></strong></p>
+                    <p class="small text-muted">Room: <span id="modalRoomName"></span></p>
                     <input type="hidden" name="key_id" id="modalKeyId">
                     <input type="hidden" name="release_key" value="1">
                     <div class="mb-3">
-                        <label class="form-label">Select Tenant</label>
-                        <select name="user_id" class="form-select" required>
-                            <option value="">-- Choose Tenant --</option>
-                            <?php mysqli_data_seek($users_q, 0); while($u = mysqli_fetch_assoc($users_q)): ?>
-                                <option value="<?= $u['user_id'] ?>"><?= $u['full_name'] ?></option>
-                            <?php endwhile; ?>
+                        <label class="form-label">Select Tenant (Assigned to this room)</label>
+                        <select name="user_id" id="tenantSelect" class="form-select" required>
+                            <option value="">Loading...</option>
                         </select>
                     </div>
                 </div>
@@ -434,10 +436,37 @@ function filterKeys(select, typeId) {
     });
 }
 
-function openReleaseModal(id, name) {
+function openReleaseModal(id, name, roomId) {
     document.getElementById('modalKeyId').value = id;
     document.getElementById('modalKeyName').innerText = name;
-    new bootstrap.Modal(document.getElementById('releaseModal')).show();
+    
+    // Show modal first
+    var modal = new bootstrap.Modal(document.getElementById('releaseModal'));
+    modal.show();
+    
+    // Fetch tenants for this specific room
+    var select = document.getElementById('tenantSelect');
+    select.innerHTML = '<option value="">Loading...</option>';
+    
+    fetch('get_room_tenants.php?room_id=' + roomId)
+        .then(response => response.json())
+        .then(data => {
+            select.innerHTML = '<option value="">-- Choose Tenant --</option>';
+            if (data.length === 0) {
+                select.innerHTML = '<option value="">No tenants found for this room</option>';
+            } else {
+                data.forEach(function(user) {
+                    var option = document.createElement('option');
+                    option.value = user.user_id;
+                    option.textContent = user.full_name;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            select.innerHTML = '<option value="">Error loading tenants</option>';
+        });
 }
 
 function toggleMenu(e) {

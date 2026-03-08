@@ -257,7 +257,7 @@ $theme = get_theme_colors($conn);
                                 <td><?= $row['billing_type'] ?></td>
                                 <td><?= date('M d, Y', strtotime($row['start_date'])) ?></td>
                                 <td class="text-end">
-                                    <a href="?action=end&id=<?= $row['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('End this parking reservation?')">End Reservation</a>
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="endParkingReservation(<?= $row['id'] ?>, '<?= htmlspecialchars($row['full_name']) ?>', '<?= htmlspecialchars($row['slot_name']) ?>', '<?= $row['slot_type'] ?>')">End Reservation</button>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
@@ -384,6 +384,41 @@ function validateSlot() {
         return false;
     }
     return true;
+}
+
+function endParkingReservation(id, tenantName, slotName, slotType) {
+    const icon = slotType === 'Car' ? 'fa-car' : 'fa-motorcycle';
+    
+    Swal.fire({
+        title: 'End Parking Reservation?',
+        html: `
+            <div class="text-start">
+                <p class="mb-2">Are you sure you want to end this parking reservation?</p>
+                <div class="bg-light p-3 rounded">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-user text-secondary me-2"></i>
+                        <strong>Tenant:</strong>&nbsp;<span>${tenantName}</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="fas ${icon} text-secondary me-2"></i>
+                        <strong>Slot:</strong>&nbsp;<span>${slotName}</span>
+                    </div>
+                </div>
+                <p class="text-muted small mt-2 mb-0">This action will mark the reservation as completed and free up the parking slot.</p>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, End Reservation',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = '?action=end&id=' + id;
+        }
+    });
 }
 </script>
 </body>
