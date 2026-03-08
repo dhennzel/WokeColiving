@@ -191,7 +191,7 @@ $theme = get_theme_colors($conn);
                                 <td class="text-end">
                                     <a href="view_user.php?uid=<?= $row['user_id'] ?>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</a>
                                     <?php if($is_super): ?>
-                                    <form method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this user? This cannot be undone.');">
+                                    <form method="POST" class="d-inline" onsubmit="confirmDeleteUser(event)">
                                         <input type="hidden" name="user_id" value="<?= $row['user_id'] ?>">
                                         <input type="hidden" name="delete_user" value="1">
                                         <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
@@ -213,6 +213,22 @@ $theme = get_theme_colors($conn);
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     document.getElementById("menu-toggle").addEventListener("click", function(e) { e.preventDefault(); document.getElementById("wrapper").classList.toggle("toggled"); });
+
+    function confirmDeleteUser(e) {
+        e.preventDefault();
+        const form = e.target;
+        Swal.fire({
+            title: 'Delete User?',
+            text: "Are you sure you want to delete this user? This cannot be undone.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) form.submit();
+        });
+    }
 </script>
 </body>
 </html>
