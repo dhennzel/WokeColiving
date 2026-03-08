@@ -12,76 +12,6 @@ $admin_username = $_SESSION['admin_username'] ?? 'Admin';
 
 $current_page = basename($_SERVER['PHP_SELF']);
 
-// Handle Approve with Room Selection (POST)
-if(isset($_POST['confirm_approve'])){
-    $reservation_id = (int)$_POST['reservation_id'];
-    $new_room_id = (int)$_POST['room_id'];
-
-    if ($new_room_id <= 0) {
-        $redirect = isset($_POST['redirect_url']) ? $_POST['redirect_url'] : "booking_management.php";
-        $redirect = str_replace(['?msg=approved', '&msg=approved'], '', $redirect);
-        $sep = (strpos($redirect, '?') === false) ? '?' : '&';
-        header("Location: $redirect{$sep}error=Invalid Room Selected");
-        exit;
-    }
-    
-    // Fetch reservation details to check for extension
-    $chk_ext = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
-    $res_data = mysqli_fetch_assoc($chk_ext);
-    $target_user_id = $res_data['user_id'];
-
-    if(!empty($res_data['extended_from'])){
-        // MERGE EXTENSION INTO ORIGINAL CONTRACT
-        $parent_id = $res_data['extended_from'];
-        $new_end = $res_data['end_date'];
-        $added_months = $res_data['months'];
-        $added_price = $res_data['total_price'];
-
-        mysqli_begin_transaction($conn);
-        try {
-            // Update parent reservation with NEW ROOM ID selected by admin
-            $upd = mysqli_query($conn, "UPDATE reservations SET 
-                end_date='$new_end', 
-                months = months + $added_months, 
-                total_price = total_price + $added_price,
-                room_id = $new_room_id, 
-                status = 'Approved'
-                WHERE reservation_id=$parent_id");
-            if(!$upd) throw new Exception("Failed to update parent reservation");
-            
-            // Move payments and delete temp request
-            $mov = mysqli_query($conn, "UPDATE payments SET reservation_id=$parent_id WHERE reservation_id=$reservation_id");
-            if(!$mov) throw new Exception("Failed to move payments");
-            
-            $del = mysqli_query($conn, "DELETE FROM reservations WHERE reservation_id=$reservation_id");
-            if(!$del) throw new Exception("Failed to delete request");
-            
-            mysqli_commit($conn);
-            
-            log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated by $admin_username. Assigned Room ID: $new_room_id");
-            send_notification($conn, $target_user_id, "🔄 <strong>Stay Extended!</strong><br>Your extension request has been approved.", "Extension Approved");
-        } catch (Exception $e) {
-            mysqli_rollback($conn);
-            $redirect = isset($_POST['redirect_url']) ? $_POST['redirect_url'] : "booking_management.php";
-            $redirect = str_replace(['?msg=approved', '&msg=approved'], '', $redirect);
-            $sep = (strpos($redirect, '?') === false) ? '?' : '&';
-            header("Location: $redirect{$sep}error=" . urlencode($e->getMessage()));
-            exit;
-        }
-    } else {
-        // NORMAL APPROVAL
-        if(mysqli_query($conn, "UPDATE reservations SET status='Approved', room_id=$new_room_id WHERE reservation_id=$reservation_id")){
-            log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id approved by $admin_username. Assigned Room ID: $new_room_id");
-            send_notification($conn, $target_user_id, "🎉 <strong>Reservation Approved!</strong><br>Your booking has been approved. Please proceed to payment or view details.", "Booking Approved");
-        }
-    }
-    
-    trigger_update($conn);
-    $redirect = isset($_POST['redirect_url']) ? $_POST['redirect_url'] : "booking_management.php";
-    header("Location: $redirect");
-    exit;
-}
-
 // Handle reservation approval/rejection
 if(isset($_GET['action'])){
     $action = $_GET['action'];
@@ -373,6 +303,7 @@ $theme = get_theme_colors($conn);
             </a>
             <div class="collapse <?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? 'show' : '' ?>" id="facilitiesSubmenu">
                 <a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
+                <a href="admin_room_assignment.php" class="sidebar-link ps-5"><i class="fas fa-door-open me-2"></i>Room Assignment</a>
                 <a href="admin_room_occupancy.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Room Occupancy</a>
                 <a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a>
                 <a href="admin_keys.php" class="sidebar-link ps-5"><i class="fas fa-key me-2"></i>Key Monitoring</a>
