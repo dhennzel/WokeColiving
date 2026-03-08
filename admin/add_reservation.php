@@ -298,7 +298,9 @@ $theme = get_theme_colors($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="admin_CSS/admin_style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="Admin_JS/add_reservation.js"></script>
     <style>
         :root {
             --primary-green: <?= $theme['primary'] ?>;
@@ -309,12 +311,11 @@ $theme = get_theme_colors($conn);
         .card-form { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); padding: 40px; background: white; }
         .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
         .btn-custom:hover { filter: brightness(90%); }
-        
-        .room-card-option { cursor: pointer; transition: all 0.2s; border: 2px solid transparent; overflow: hidden; }
+        .room-card-option { cursor: pointer; transition: all 0.2s; border: 2px solid transparent; overflow: hidden; height: 100%; }
         .room-card-option:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         .room-card-option.selected { border-color: var(--primary-green); background-color: #e8f5e9; }
         .room-card-option.disabled { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
-        .room-card-option img { height: 120px; object-fit: cover; width: 100%; }
+        .room-card-option img { height: 140px; object-fit: cover; width: 100%; }
     </style>
 </head>
 <body>
@@ -479,13 +480,21 @@ $theme = get_theme_colors($conn);
                 </div>
                 <div class="row g-3" id="roomSelectionGrid">
                     <?php foreach($all_rooms as $room): ?>
-                        <div class="col-md-4 col-lg-3 room-select-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>" data-id="<?= $room['room_id'] ?>">
-                            <div class="card h-100 shadow-sm room-card-option" onclick="selectSpecificRoom(<?= $room['room_id'] ?>, '<?= addslashes($room['room_name']) ?>')">
+                        <div class="col-md-6 col-lg-4 room-select-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>" data-id="<?= $room['room_id'] ?>">
+                            <div class="card room-card-option shadow-sm" onclick="selectSpecificRoom(<?= $room['room_id'] ?>, '<?= addslashes($room['room_name']) ?>')">
                                 <img src="../assets/images/<?= $room['image'] ?>" class="card-img-top" alt="<?= $room['room_name'] ?>">
-                                <div class="card-body p-2 text-center">
-                                    <div class="fw-bold"><?= $room['room_name'] ?></div>
-                                    <div class="small text-muted"><?= $room['room_type'] ?> &bull; <?= $room['floor'] ?>F</div>
-                                    <div class="badge bg-secondary mt-1 room-status-badge" id="status_badge_<?= $room['room_id'] ?>">Check Dates</div>
+                                <div class="card-body d-flex flex-column p-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="fw-bold text-dark mb-0"><?= $room['room_name'] ?></h6>
+                                        <span class="badge bg-light text-dark border"><?= $room['floor'] ?>F</span>
+                                    </div>
+                                    <div class="mb-2 small text-muted">
+                                        <div class="d-flex justify-content-between"><span>Total Beds:</span> <strong><?= $room['total_beds'] ?></strong></div>
+                                        <div class="availability-details mt-1" id="details_<?= $room['room_id'] ?>"></div>
+                                    </div>
+                                    <div class="mt-auto text-center">
+                                        <span class="badge bg-secondary w-100 py-2 room-status-badge" id="status_badge_<?= $room['room_id'] ?>">Check Dates</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -504,6 +513,7 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const roomPrices = <?= json_encode($room_prices_js) ?>;
 
@@ -711,7 +721,8 @@ function checkAvailability() {
     let room = document.getElementById('room_type').value;
     let cin = document.getElementById('cin').value;
     let cout = document.getElementById('cout').value;
-    let bedPref = document.querySelector('select[name="bed_preference"]').value;
+    let bedPrefEl = document.querySelector('select[name="bed_preference"]');
+    let bedPref = bedPrefEl ? bedPrefEl.value : 'Any';
     let statusSpan = document.getElementById('availability_status');
 
     if(room && cin && cout) {
@@ -802,12 +813,14 @@ function updateModalAvailability() {
     items.forEach(item => {
         const roomId = item.dataset.id;
         const badge = document.getElementById('status_badge_' + roomId);
+        const details = document.getElementById('details_' + roomId);
         const card = item.querySelector('.room-card-option');
         
         const roomData = availableRoomsData.find(r => r.room_id == roomId);
         let isAvailable = false;
         let statusText = "Full/Unavailable";
         let badgeClass = "bg-secondary";
+        let detailsHtml = "";
         
         if(roomData) {
             if (bedPref === 'Lower Bunk') isAvailable = roomData.avail_lower > 0;
@@ -817,12 +830,20 @@ function updateModalAvailability() {
             
             if(isAvailable) {
                 statusText = `${roomData.available_beds} Beds Free`;
-                badgeClass = "bg-success";
+                badgeClass = "bg-success text-white";
+            } else {
+                badgeClass = "bg-danger text-white";
+            }
+
+            if(roomData.room_type !== 'Single') {
+                detailsHtml += `<div class="d-flex justify-content-between"><span class="text-muted">Upper:</span> <span class="${roomData.avail_upper > 0 ? 'text-success fw-bold' : 'text-danger'}">${roomData.avail_upper} left</span></div>`;
+                detailsHtml += `<div class="d-flex justify-content-between"><span class="text-muted">Lower:</span> <span class="${roomData.avail_lower > 0 ? 'text-success fw-bold' : 'text-danger'}">${roomData.avail_lower} left</span></div>`;
             }
         }
         
         badge.innerText = statusText;
-        badge.className = `badge mt-1 room-status-badge ${badgeClass}`;
+        badge.className = `badge w-100 py-2 room-status-badge ${badgeClass}`;
+        if(details) details.innerHTML = detailsHtml;
         
         if(isAvailable) card.classList.remove('disabled');
         else card.classList.add('disabled');
