@@ -1,6 +1,7 @@
 <?php
 session_start();
 include("../db.php");
+date_default_timezone_set('Asia/Manila');
 
 if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true){
     header("Location: admin_login.php");
@@ -29,6 +30,25 @@ $type_query = mysqli_query($conn, "
 $room_type_data = [];
 while($row = mysqli_fetch_assoc($type_query)){
     $room_type_data[] = $row;
+}
+
+// Earnings by Category (Rent, Utilities, Parking, etc.)
+$cat_query = mysqli_query($conn, "
+    SELECT 
+        CASE 
+            WHEN description LIKE '%Parking%' THEN 'Parking'
+            WHEN description LIKE '%Utility%' THEN 'Utilities'
+            WHEN description LIKE '%Penalty%' THEN 'Penalties'
+            ELSE 'Room Rent'
+        END as category,
+        SUM(amount) as total
+    FROM payments 
+    WHERE payment_status='Paid'
+    GROUP BY category
+");
+$cat_data = [];
+while($row = mysqli_fetch_assoc($cat_query)){
+    $cat_data[$row['category']] = $row['total'];
 }
 
 // --- ACCURATE MONTHLY TRENDS ---
@@ -102,6 +122,16 @@ $theme = get_theme_colors($conn);
             --dark-green: <?= $theme['dark'] ?>;
             --accent-yellow: <?= $theme['accent'] ?>;
             --light-bg: #f8f9fa;
+        }
+        .print-header { display: none; }
+        @media print {
+            #sidebar-wrapper, #menu-toggle, .btn-export, .btn-print, .no-print { display: none !important; }
+            #page-content-wrapper { margin: 0; padding: 0; width: 100%; }
+            .card { border: 1px solid #ddd !important; box-shadow: none !important; break-inside: avoid; margin-bottom: 20px; }
+            .container-fluid { padding: 0 !important; }
+            body { background-color: white; font-size: 11pt; }
+            .print-header { display: block !important; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            canvas { max-height: 300px !important; width: 100% !important; }
         }
     </style>
 </head>
@@ -206,7 +236,7 @@ $theme = get_theme_colors($conn);
     <!-- Page Content -->
     <div id="page-content-wrapper">
         <div class="container-fluid px-4 py-4 reveal">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 no-print">
                 <div class="d-flex align-items-center">
                     <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
                         <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
@@ -219,6 +249,13 @@ $theme = get_theme_colors($conn);
                     <button onclick="window.print()" class="btn btn-outline-secondary btn-sm btn-print"><i class="fas fa-print me-2"></i>Print Report</button>
                 </div>
             </div>
+            
+            <div class="print-header text-center">
+                <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 80px; height: 80px; object-fit: cover;" class="rounded-circle mb-2">
+                <h2 class="fw-bold mb-0">Woke Coliving INC</h2>
+                <p class="text-muted mb-0">Profit & Revenue Report</p>
+                <small class="text-muted">Generated on <?= date('F d, Y h:i A') ?></small>
+            </div>
 
             <div class="row mb-4">
                 <div class="col-md-12">
@@ -228,6 +265,29 @@ $theme = get_theme_colors($conn);
                         <p class="mb-0">Total revenue from approved reservations</p>
                     </div>
                 </div>
+            </div>
+
+            <!-- Revenue Breakdown Cards -->
+            <div class="row mb-4 g-3">
+                <?php 
+                $icons = ['Room Rent' => 'fa-bed', 'Utilities' => 'fa-bolt', 'Parking' => 'fa-car', 'Penalties' => 'fa-exclamation-circle'];
+                $colors = ['Room Rent' => 'primary', 'Utilities' => 'warning', 'Parking' => 'info', 'Penalties' => 'danger'];
+                foreach($cat_data as $cat => $amount): 
+                    $icon = $icons[$cat] ?? 'fa-coins';
+                    $color = $colors[$cat] ?? 'secondary';
+                ?>
+                <div class="col-md-3 col-6">
+                    <div class="card card-stat p-3 h-100 border-start border-4 border-<?= $color ?>">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted text-uppercase fw-bold"><?= $cat ?></small>
+                                <h4 class="fw-bold mb-0 text-dark">₱<?= number_format($amount, 2) ?></h4>
+                            </div>
+                            <i class="fas <?= $icon ?> fa-2x text-<?= $color ?> opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
             </div>
 
             <div class="row mb-4">

@@ -1,6 +1,7 @@
 <?php
 session_start();
 include("../db.php");
+date_default_timezone_set('Asia/Manila');
 
 // Only allow admin
 if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true){

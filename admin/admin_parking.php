@@ -82,6 +82,10 @@ while ($row = mysqli_fetch_assoc($slots_q)) {
 $reservations_q = mysqli_query($conn, "SELECT pr.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, ps.slot_name, ps.slot_type FROM parking_reservations pr JOIN users u ON pr.user_id = u.user_id JOIN parking_slots ps ON pr.slot_id = ps.id WHERE pr.status = 'Active' ORDER BY pr.start_date DESC");
 $users_q = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name) as full_name FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM reservations WHERE status='Approved') ORDER BY last_name ASC");
 $avail_slots_q = mysqli_query($conn, "SELECT id, slot_name, slot_type FROM parking_slots WHERE status='Available' AND is_archived=0 ORDER BY slot_type, slot_name");
+$available_slots_grouped = ['Car' => [], 'Motorcycle' => []];
+while($s = mysqli_fetch_assoc($avail_slots_q)){
+    $available_slots_grouped[$s['slot_type']][] = $s;
+}
 
 // Sidebar counts
 $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
@@ -116,6 +120,10 @@ $theme = get_theme_colors($conn);
         .slot-card.occupied { background-color: #f8d7da; border-color: #f5c6cb; }
         .slot-card.available { background-color: #d4edda; border-color: #c3e6cb; }
         .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
+        .slot-select-card { cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+        .slot-select-card:hover { border-color: #ccc; background-color: #f9f9f9; transform: translateY(-2px); }
+        .slot-select-card.selected { border-color: var(--primary-green); background-color: #e8f5e9; }
+        .slot-select-card.selected i { color: var(--primary-green) !important; }
     </style>
 </head>
 <body>
@@ -266,16 +274,16 @@ $theme = get_theme_colors($conn);
 
 <!-- Add Reservation Modal -->
 <div class="modal fade" id="addReservationModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">New Parking Reservation</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-parking me-2"></i>New Parking Reservation</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Select Tenant</label>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-muted">SELECT TENANT</label>
                         <select name="user_id" class="form-select" required>
                             <option value="">-- Choose Tenant --</option>
                             <?php while($u = mysqli_fetch_assoc($users_q)): ?>
@@ -283,30 +291,78 @@ $theme = get_theme_colors($conn);
                             <?php endwhile; ?>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Select Available Slot</label>
-                        <select name="slot_id" class="form-select" required>
-                            <option value="">-- Choose Slot --</option>
-                            <?php while($s = mysqli_fetch_assoc($avail_slots_q)): ?>
-                                <option value="<?= $s['id'] ?>"><?= $s['slot_name'] ?> (<?= $s['slot_type'] ?>)</option>
-                            <?php endwhile; ?>
-                        </select>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-muted mb-2">SELECT PARKING SLOT</label>
+                        <input type="hidden" name="slot_id" id="selected_slot_id" required>
+                        
+                        <ul class="nav nav-pills mb-3 nav-fill" id="slotTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="car-tab" data-bs-toggle="pill" data-bs-target="#car_slots" type="button"><i class="fas fa-car me-2"></i>Car Slots</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="motor-tab" data-bs-toggle="pill" data-bs-target="#motor_slots" type="button"><i class="fas fa-motorcycle me-2"></i>Motorcycle Slots</button>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content border rounded p-3 bg-light" style="max-height: 300px; overflow-y: auto;">
+                            <div class="tab-pane fade show active" id="car_slots" role="tabpanel">
+                                <div class="row g-2">
+                                    <?php if(empty($available_slots_grouped['Car'])): ?>
+                                        <div class="col-12 text-center text-muted py-3">No available car slots.</div>
+                                    <?php else: ?>
+                                        <?php foreach($available_slots_grouped['Car'] as $slot): ?>
+                                            <div class="col-md-4 col-6">
+                                                <div class="card slot-select-card h-100" onclick="selectSlot(this, <?= $slot['id'] ?>)">
+                                                    <div class="card-body text-center p-2">
+                                                        <i class="fas fa-car fa-2x text-secondary mb-2"></i>
+                                                        <div class="fw-bold small"><?= $slot['slot_name'] ?></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="motor_slots" role="tabpanel">
+                                <div class="row g-2">
+                                    <?php if(empty($available_slots_grouped['Motorcycle'])): ?>
+                                        <div class="col-12 text-center text-muted py-3">No available motorcycle slots.</div>
+                                    <?php else: ?>
+                                        <?php foreach($available_slots_grouped['Motorcycle'] as $slot): ?>
+                                            <div class="col-md-4 col-6">
+                                                <div class="card slot-select-card h-100" onclick="selectSlot(this, <?= $slot['id'] ?>)">
+                                                    <div class="card-body text-center p-2">
+                                                        <i class="fas fa-motorcycle fa-2x text-secondary mb-2"></i>
+                                                        <div class="fw-bold small"><?= $slot['slot_name'] ?></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="slot_error" class="text-danger small mt-1" style="display:none;">Please select a slot.</div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Start Date</label>
-                        <input type="date" name="start_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Billing Type</label>
-                        <select name="billing_type" class="form-select" required>
-                            <option value="Monthly">Monthly</option>
-                            <option value="Daily">Daily</option>
-                        </select>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-muted">START DATE</label>
+                            <input type="date" name="start_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-muted">BILLING TYPE</label>
+                            <select name="billing_type" class="form-select" required>
+                                <option value="Monthly">Monthly</option>
+                                <option value="Daily">Daily</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" name="add_parking_reservation" class="btn btn-primary">Add Reservation</button>
+                    <button type="submit" name="add_parking_reservation" class="btn btn-success fw-bold" onclick="return validateSlot()">Confirm Reservation</button>
                 </div>
             </form>
         </div>
@@ -314,5 +370,21 @@ $theme = get_theme_colors($conn);
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function selectSlot(card, id) {
+    document.querySelectorAll('.slot-select-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    document.getElementById('selected_slot_id').value = id;
+    document.getElementById('slot_error').style.display = 'none';
+}
+
+function validateSlot() {
+    if(!document.getElementById('selected_slot_id').value) {
+        document.getElementById('slot_error').style.display = 'block';
+        return false;
+    }
+    return true;
+}
+</script>
 </body>
 </html>
