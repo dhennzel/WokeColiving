@@ -9,7 +9,7 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 }
 
 $message = "";
-$active_tab = "";
+$active_modal = "";
 $is_super = ($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin';
 
 // Handle Archive Actions (Delete/Restore)
@@ -18,10 +18,11 @@ if(isset($_POST['archive_action'])) {
     $type = $_POST['type']; // 'maintenance' or 'housekeeping'
     $action = $_POST['archive_action']; // 'delete' or 'restore'
     
-    if($type == 'room') $active_tab = 'rooms';
-    elseif($type == 'maintenance') $active_tab = 'maintenance';
-    elseif($type == 'housekeeping') $active_tab = 'housekeeping';
-    elseif($type == 'user') $active_tab = 'users';
+    // Set which modal to re-open after refresh
+    if($type == 'room') $active_modal = 'modalRooms';
+    elseif($type == 'maintenance') $active_modal = 'modalMaintenance';
+    elseif($type == 'housekeeping') $active_modal = 'modalHousekeeping';
+    elseif($type == 'user') $active_modal = 'modalUsers';
 
     if ($type == 'room') {
         if ($action == 'restore') {
@@ -104,6 +105,7 @@ if(isset($_POST['archive_action'])) {
 
 // Search Logic
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
+if($search) $active_modal = 'searchResults'; // Optional: Handle search visibility if needed
 
 // Fetch Maintenance Archive
 $m_sql = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name FROM maintenance_requests m JOIN users u ON m.user_id = u.user_id LEFT JOIN rooms r ON m.room_id = r.room_id WHERE m.status IN ('Completed', 'Cancelled')";
@@ -167,12 +169,95 @@ $theme = get_theme_colors($conn);
             --accent-yellow: <?= $theme['accent'] ?>;
             --light-bg: #f8f9fa;
         }
+
+        /* Carousel Styles */
+        .archive-slider-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 2rem;
+            padding: 20px 0;
+        }
+        .archive-slider {
+            display: flex;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            gap: 20px;
+            padding: 10px;
+            scrollbar-width: none; /* Firefox */
+            flex: 1;
+            max-width: 900px;
+        }
+        .archive-slider::-webkit-scrollbar {
+            display: none; /* Safari/Chrome */
+        }
+        .archive-card {
+            min-width: 200px;
+            height: 280px;
+            border: 3px solid var(--dark-green);
+            border-radius: 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: var(--dark-green);
+        }
+        .archive-card:hover {
+            transform: scale(1.05);
+            background: var(--dark-green);
+            color: var(--accent-yellow);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        }
+        .archive-card i {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            transition: color 0.3s ease;
+        }
+        .archive-card h3 {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 0;
+        }
+        .slider-btn {
+            background: #fff;
+            border: 3px solid var(--dark-green);
+            color: var(--dark-green);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .slider-btn:hover {
+            background: var(--dark-green);
+            color: var(--accent-yellow);
+        }
+        
+        /* Modal Customization */
+        .modal-header {
+            background-color: var(--dark-green);
+            color: white;
+            border-bottom: 3px solid var(--accent-yellow);
+        }
+        .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
     </style>
 </head>
 <body>
 
 <div id="wrapper">
-    <!-- Sidebar -->
     <div id="sidebar-wrapper">
         <div class="sidebar-brand" id="sidebar-toggle">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
@@ -181,7 +266,6 @@ $theme = get_theme_colors($conn);
         <div class="list-group list-group-flush py-3">
             <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
             
-            <!-- Front Desk -->
             <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
                 <span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span>
                 <i class="fas fa-chevron-down small"></i>
@@ -204,7 +288,6 @@ $theme = get_theme_colors($conn);
                 </a>
             </div>
 
-            <!-- Facilities -->
             <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
                 <span><i class="fas fa-building me-2"></i>Facilities</span>
                 <i class="fas fa-chevron-down small"></i>
@@ -217,7 +300,6 @@ $theme = get_theme_colors($conn);
                 <a href="admin_keys.php" class="sidebar-link ps-5"><i class="fas fa-key me-2"></i>Key Monitoring</a>
             </div>
 
-            <!-- Finance & Reports -->
             <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
                 <span><i class="fas fa-file-invoice-dollar me-2"></i>Finance & Reports</span>
                 <i class="fas fa-chevron-down small"></i>
@@ -229,7 +311,6 @@ $theme = get_theme_colors($conn);
                 <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a>
             </div>
 
-            <!-- Operations -->
             <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="true">
                 <span><i class="fas fa-cogs me-2"></i>Operations</span>
                 <i class="fas fa-chevron-down small"></i>
@@ -250,7 +331,6 @@ $theme = get_theme_colors($conn);
                 <a href="admin_utilities.php" class="sidebar-link ps-5 active"><i class="fas fa-archive me-2"></i>Utilities Archive</a>
             </div>
 
-            <!-- System Settings -->
             <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
                 <span><i class="fas fa-cog me-2"></i>System Settings</span>
                 <i class="fas fa-chevron-down small"></i>
@@ -269,7 +349,6 @@ $theme = get_theme_colors($conn);
         </div>
     </div>
 
-    <!-- Page Content -->
     <div id="page-content-wrapper">
         <div class="container-fluid px-4 py-4 reveal">
             <div class="d-flex align-items-center mb-4">
@@ -287,7 +366,7 @@ $theme = get_theme_colors($conn);
             <?php endif; ?>
 
             <div class="card card-table p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-4">
                     <h5 class="fw-bold mb-0 text-secondary">Archive Records</h5>
                     <form method="GET" class="d-flex gap-2">
                         <input type="text" name="search" class="form-control form-control-sm" placeholder="Search archives..." value="<?= htmlspecialchars($search) ?>">
@@ -295,227 +374,297 @@ $theme = get_theme_colors($conn);
                         <?php if($search): ?><a href="admin_utilities.php" class="btn btn-sm btn-outline-secondary">Reset</a><?php endif; ?>
                     </form>
                 </div>
-                <ul class="nav nav-tabs mb-3" id="archiveTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="maintenance-tab" data-bs-toggle="tab" data-bs-target="#maintenance" type="button" role="tab">Maintenance</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="housekeeping-tab" data-bs-toggle="tab" data-bs-target="#housekeeping" type="button" role="tab">Housekeeping</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="billing-tab" data-bs-toggle="tab" data-bs-target="#billing" type="button" role="tab">Utility Bills</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#rooms" type="button" role="tab">Archived Rooms</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab">Transaction Reports</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">Archived Users</button>
-                    </li>
-                </ul>
 
-                <div class="tab-content" id="archiveTabsContent">
-                    <!-- Maintenance Tab -->
-                    <div class="tab-pane fade show active" id="maintenance" role="tabpanel">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead><tr><th>Date</th><th>Tenant</th><th>Room</th><th>Issue</th><th>Status</th><th>Scheduled</th><th class="text-end">Actions</th></tr></thead>
-                                <tbody>
-                                    <?php while($row = mysqli_fetch_assoc($maintenance_query)): ?>
-                                    <tr>
-                                        <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
-                                        <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
-                                        <td><?= htmlspecialchars($row['room_name']) ?></td>
-                                        <td><?= htmlspecialchars($row['description']) ?></td>
-                                        <td><span class="badge <?= $row['status'] == 'Completed' ? 'bg-success' : 'bg-secondary' ?>"><?= $row['status'] ?></span></td>
-                                        <td><?= $row['scheduled_date'] ? date('M d, Y', strtotime($row['scheduled_date'])) : '-' ?></td>
-                                        <td class="text-end">
-                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this request to Pending?')">
-                                                <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
-                                                <input type="hidden" name="type" value="maintenance">
-                                                <input type="hidden" name="archive_action" value="restore">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
-                                            </form>
-                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
-                                                <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
-                                                <input type="hidden" name="type" value="maintenance">
-                                                <input type="hidden" name="archive_action" value="delete">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    <?php endwhile; ?>
-                                    <?php if(mysqli_num_rows($maintenance_query) == 0): ?>
-                                        <tr><td colspan="7" class="text-center text-muted py-3">No completed or cancelled maintenance requests.</td></tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
+                <div class="archive-slider-wrapper">
+                    <button class="slider-btn" id="slideLeft"><i class="fas fa-arrow-left"></i></button>
+                    
+                    <div class="archive-slider" id="archiveSlider">
+                        <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalMaintenance">
+                            <i class="fas fa-wrench"></i>
+                            <h3>Maintenance</h3>
+                        </div>
+                        
+                        <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalHousekeeping">
+                            <i class="fas fa-broom"></i>
+                            <h3>Housekeeping</h3>
+                        </div>
+
+                        <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalBilling">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                            <h3>Utility Bills</h3>
+                        </div>
+
+                        <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalRooms">
+                            <i class="fas fa-bed"></i>
+                            <h3>Archived Rooms</h3>
+                        </div>
+
+                        <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalReports">
+                            <i class="fas fa-chart-line"></i>
+                            <h3>Transactions</h3>
+                        </div>
+
+                        <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalUsers">
+                            <i class="fas fa-user-slash"></i>
+                            <h3>Archived Users</h3>
                         </div>
                     </div>
 
-                    <!-- Housekeeping Tab -->
-                    <div class="tab-pane fade" id="housekeeping" role="tabpanel">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead><tr><th>Date</th><th>Tenant</th><th>Room</th><th>Service</th><th>Status</th><th>Scheduled</th><th class="text-end">Actions</th></tr></thead>
-                                <tbody>
-                                    <?php while($row = mysqli_fetch_assoc($housekeeping_query)): ?>
-                                    <tr>
-                                        <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
-                                        <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
-                                        <td><?= htmlspecialchars($row['room_name']) ?></td>
-                                        <td><?= htmlspecialchars($row['description']) ?></td>
-                                        <td><span class="badge <?= $row['status'] == 'Completed' ? 'bg-success' : 'bg-secondary' ?>"><?= $row['status'] ?></span></td>
-                                        <td><?= $row['scheduled_date'] ? date('M d, Y', strtotime($row['scheduled_date'])) : '-' ?></td>
-                                        <td class="text-end">
-                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this request to Pending?')">
-                                                <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
-                                                <input type="hidden" name="type" value="housekeeping">
-                                                <input type="hidden" name="archive_action" value="restore">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
-                                            </form>
-                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
-                                                <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
-                                                <input type="hidden" name="type" value="housekeeping">
-                                                <input type="hidden" name="archive_action" value="delete">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    <?php endwhile; ?>
-                                    <?php if(mysqli_num_rows($housekeeping_query) == 0): ?>
-                                        <tr><td colspan="7" class="text-center text-muted py-3">No completed or cancelled housekeeping requests.</td></tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <button class="slider-btn" id="slideRight"><i class="fas fa-arrow-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-                    <!-- Utility Bills Tab -->
-                    <div class="tab-pane fade" id="billing" role="tabpanel">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead>
-                                    <tr><th>Payment Date</th><th>Tenant</th><th>Room</th><th>Description</th><th class="text-end">Amount</th></tr>
-                                </thead>
-                                <tbody>
-                                    <?php while($row = mysqli_fetch_assoc($utility_bills_query)): ?>
-                                    <tr>
-                                        <td><?= date('M d, Y', strtotime($row['payment_date'])) ?></td>
-                                        <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
-                                        <td><?= htmlspecialchars($row['room_name']) ?></td>
-                                        <td class="small text-muted"><?= htmlspecialchars($row['description']) ?></td>
-                                        <td class="text-end fw-bold text-success">₱<?= number_format($row['amount'], 2) ?></td>
-                                    </tr>
-                                    <?php endwhile; ?>
-                                    <?php if(mysqli_num_rows($utility_bills_query) == 0): ?>
-                                        <tr><td colspan="5" class="text-center text-muted py-3">No paid utility bills found.</td></tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+<div class="modal fade" id="modalMaintenance" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-wrench me-2"></i>Maintenance Archive</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead><tr><th>Date</th><th>Tenant</th><th>Room</th><th>Issue</th><th>Status</th><th>Scheduled</th><th class="text-end">Actions</th></tr></thead>
+                        <tbody>
+                            <?php while($row = mysqli_fetch_assoc($maintenance_query)): ?>
+                            <tr>
+                                <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
+                                <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
+                                <td><?= htmlspecialchars($row['room_name']) ?></td>
+                                <td><?= htmlspecialchars($row['description']) ?></td>
+                                <td><span class="badge <?= $row['status'] == 'Completed' ? 'bg-success' : 'bg-secondary' ?>"><?= $row['status'] ?></span></td>
+                                <td><?= $row['scheduled_date'] ? date('M d, Y', strtotime($row['scheduled_date'])) : '-' ?></td>
+                                <td class="text-end">
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this request to Pending?')">
+                                        <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
+                                        <input type="hidden" name="type" value="maintenance">
+                                        <input type="hidden" name="archive_action" value="restore">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                    </form>
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
+                                        <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
+                                        <input type="hidden" name="type" value="maintenance">
+                                        <input type="hidden" name="archive_action" value="delete">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                            <?php if(mysqli_num_rows($maintenance_query) == 0): ?>
+                                <tr><td colspan="7" class="text-center text-muted py-3">No completed or cancelled maintenance requests.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-                    <!-- Archived Rooms Tab -->
-                    <div class="tab-pane fade" id="rooms" role="tabpanel">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead><tr><th>Image</th><th>Room Name</th><th>Type</th><th>Price</th><th class="text-end">Actions</th></tr></thead>
-                                <tbody>
-                                    <?php while($row = mysqli_fetch_assoc($archived_rooms_query)): ?>
-                                    <tr>
-                                        <td><img src="../assets/images/<?= $row['image'] ?>" style="width: 50px; height: 50px; object-fit: cover;" class="rounded"></td>
-                                        <td class="fw-bold"><?= htmlspecialchars($row['room_name']) ?></td>
-                                        <td><?= $row['room_type'] ?></td>
-                                        <td>₱<?= number_format($row['total_price'], 2) ?></td>
-                                        <td class="text-end">
-                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this room?')">
-                                                <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
-                                                <input type="hidden" name="type" value="room">
-                                                <input type="hidden" name="archive_action" value="restore">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
-                                            </form>
-                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this room?')">
-                                                <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
-                                                <input type="hidden" name="type" value="room">
-                                                <input type="hidden" name="archive_action" value="delete">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    <?php endwhile; ?>
-                                    <?php if(mysqli_num_rows($archived_rooms_query) == 0): ?>
-                                        <tr><td colspan="5" class="text-center text-muted py-3">No archived rooms found.</td></tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+<div class="modal fade" id="modalHousekeeping" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-broom me-2"></i>Housekeeping Archive</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead><tr><th>Date</th><th>Tenant</th><th>Room</th><th>Service</th><th>Status</th><th>Scheduled</th><th class="text-end">Actions</th></tr></thead>
+                        <tbody>
+                            <?php while($row = mysqli_fetch_assoc($housekeeping_query)): ?>
+                            <tr>
+                                <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
+                                <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
+                                <td><?= htmlspecialchars($row['room_name']) ?></td>
+                                <td><?= htmlspecialchars($row['description']) ?></td>
+                                <td><span class="badge <?= $row['status'] == 'Completed' ? 'bg-success' : 'bg-secondary' ?>"><?= $row['status'] ?></span></td>
+                                <td><?= $row['scheduled_date'] ? date('M d, Y', strtotime($row['scheduled_date'])) : '-' ?></td>
+                                <td class="text-end">
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this request to Pending?')">
+                                        <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
+                                        <input type="hidden" name="type" value="housekeeping">
+                                        <input type="hidden" name="archive_action" value="restore">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                    </form>
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
+                                        <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
+                                        <input type="hidden" name="type" value="housekeeping">
+                                        <input type="hidden" name="archive_action" value="delete">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                            <?php if(mysqli_num_rows($housekeeping_query) == 0): ?>
+                                <tr><td colspan="7" class="text-center text-muted py-3">No completed or cancelled housekeeping requests.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-                    <!-- Transaction Reports Tab -->
-                    <div class="tab-pane fade" id="reports" role="tabpanel">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead><tr><th>Date</th><th>Tenant</th><th>Room</th><th>Description</th><th>Method</th><th class="text-end">Amount</th></tr></thead>
-                                <tbody>
-                                    <?php while($row = mysqli_fetch_assoc($transactions_query)): ?>
-                                    <tr>
-                                        <td><?= date('M d, Y', strtotime($row['payment_date'])) ?></td>
-                                        <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
-                                        <td><?= htmlspecialchars($row['room_name']) ?></td>
-                                        <td class="small text-muted"><?= htmlspecialchars($row['description'] ?? '') ?></td>
-                                        <td><?= $row['payment_method'] ?></td>
-                                        <td class="text-end fw-bold text-success">₱<?= number_format($row['amount'], 2) ?></td>
-                                    </tr>
-                                    <?php endwhile; ?>
-                                    <?php if(mysqli_num_rows($transactions_query) == 0): ?>
-                                        <tr><td colspan="6" class="text-center text-muted py-3">No transactions found.</td></tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+<div class="modal fade" id="modalBilling" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-file-invoice-dollar me-2"></i>Utility Bills</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr><th>Payment Date</th><th>Tenant</th><th>Room</th><th>Description</th><th class="text-end">Amount</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php while($row = mysqli_fetch_assoc($utility_bills_query)): ?>
+                            <tr>
+                                <td><?= date('M d, Y', strtotime($row['payment_date'])) ?></td>
+                                <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
+                                <td><?= htmlspecialchars($row['room_name']) ?></td>
+                                <td class="small text-muted"><?= htmlspecialchars($row['description']) ?></td>
+                                <td class="text-end fw-bold text-success">₱<?= number_format($row['amount'], 2) ?></td>
+                            </tr>
+                            <?php endwhile; ?>
+                            <?php if(mysqli_num_rows($utility_bills_query) == 0): ?>
+                                <tr><td colspan="5" class="text-center text-muted py-3">No paid utility bills found.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-                    <!-- Archived Users Tab -->
-                    <div class="tab-pane fade" id="users" role="tabpanel">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th class="text-end">Actions</th></tr></thead>
-                                <tbody>
-                                    <?php while($row = mysqli_fetch_assoc($archived_users_query)): ?>
-                                    <tr>
-                                        <td class="fw-bold"><?= htmlspecialchars($row['last_name'] . ', ' . $row['first_name']) ?></td>
-                                        <td><?= htmlspecialchars($row['email']) ?></td>
-                                        <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
-                                        <td class="text-end">
-                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this user account?')">
-                                                <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
-                                                <input type="hidden" name="type" value="user">
-                                                <input type="hidden" name="archive_action" value="restore">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
-                                            </form>
-                                            <?php if($is_super): // Only Super Admin can permanently delete ?>
-                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this user and ALL their data? This cannot be undone.')">
-                                                <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
-                                                <input type="hidden" name="type" value="user">
-                                                <input type="hidden" name="archive_action" value="delete">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Permanently Delete"><i class="fas fa-user-slash"></i></button>
-                                            </form>
-                                            <?php else: ?>
-                                                <button type="button" class="btn btn-sm btn-outline-danger disabled" title="Super Admin Only"><i class="fas fa-user-slash"></i></button>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
-                                    <?php endwhile; ?>
-                                    <?php if(mysqli_num_rows($archived_users_query) == 0): ?>
-                                        <tr><td colspan="4" class="text-center text-muted py-3">No archived users found.</td></tr>
+<div class="modal fade" id="modalRooms" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-bed me-2"></i>Archived Rooms</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead><tr><th>Image</th><th>Room Name</th><th>Type</th><th>Price</th><th class="text-end">Actions</th></tr></thead>
+                        <tbody>
+                            <?php while($row = mysqli_fetch_assoc($archived_rooms_query)): ?>
+                            <tr>
+                                <td><img src="../assets/images/<?= $row['image'] ?>" style="width: 50px; height: 50px; object-fit: cover;" class="rounded"></td>
+                                <td class="fw-bold"><?= htmlspecialchars($row['room_name']) ?></td>
+                                <td><?= $row['room_type'] ?></td>
+                                <td>₱<?= number_format($row['total_price'], 2) ?></td>
+                                <td class="text-end">
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this room?')">
+                                        <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
+                                        <input type="hidden" name="type" value="room">
+                                        <input type="hidden" name="archive_action" value="restore">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                    </form>
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this room?')">
+                                        <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
+                                        <input type="hidden" name="type" value="room">
+                                        <input type="hidden" name="archive_action" value="delete">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                            <?php if(mysqli_num_rows($archived_rooms_query) == 0): ?>
+                                <tr><td colspan="5" class="text-center text-muted py-3">No archived rooms found.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalReports" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-chart-line me-2"></i>Transactions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead><tr><th>Date</th><th>Tenant</th><th>Room</th><th>Description</th><th>Method</th><th class="text-end">Amount</th></tr></thead>
+                        <tbody>
+                            <?php while($row = mysqli_fetch_assoc($transactions_query)): ?>
+                            <tr>
+                                <td><?= date('M d, Y', strtotime($row['payment_date'])) ?></td>
+                                <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
+                                <td><?= htmlspecialchars($row['room_name']) ?></td>
+                                <td class="small text-muted"><?= htmlspecialchars($row['description'] ?? '') ?></td>
+                                <td><?= $row['payment_method'] ?></td>
+                                <td class="text-end fw-bold text-success">₱<?= number_format($row['amount'], 2) ?></td>
+                            </tr>
+                            <?php endwhile; ?>
+                            <?php if(mysqli_num_rows($transactions_query) == 0): ?>
+                                <tr><td colspan="6" class="text-center text-muted py-3">No transactions found.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalUsers" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-user-slash me-2"></i>Archived Users</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th class="text-end">Actions</th></tr></thead>
+                        <tbody>
+                            <?php while($row = mysqli_fetch_assoc($archived_users_query)): ?>
+                            <tr>
+                                <td class="fw-bold"><?= htmlspecialchars($row['last_name'] . ', ' . $row['first_name']) ?></td>
+                                <td><?= htmlspecialchars($row['email']) ?></td>
+                                <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
+                                <td class="text-end">
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this user account?')">
+                                        <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
+                                        <input type="hidden" name="type" value="user">
+                                        <input type="hidden" name="archive_action" value="restore">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                    </form>
+                                    <?php if($is_super): // Only Super Admin can permanently delete ?>
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this user and ALL their data? This cannot be undone.')">
+                                        <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
+                                        <input type="hidden" name="type" value="user">
+                                        <input type="hidden" name="archive_action" value="delete">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Permanently Delete"><i class="fas fa-user-slash"></i></button>
+                                    </form>
+                                    <?php else: ?>
+                                        <button type="button" class="btn btn-sm btn-outline-danger disabled" title="Super Admin Only"><i class="fas fa-user-slash"></i></button>
                                     <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                            <?php if(mysqli_num_rows($archived_users_query) == 0): ?>
+                                <tr><td colspan="4" class="text-center text-muted py-3">No archived users found.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -524,6 +673,7 @@ $theme = get_theme_colors($conn);
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// Toggle Sidebar
 function toggleMenu(e) {
     if(e) e.preventDefault();
     document.getElementById("wrapper").classList.toggle("toggled");
@@ -544,24 +694,29 @@ document.addEventListener('click', function(event) {
     }
 });
 
-// Handle URL Hash for Tabs
-var hash = window.location.hash;
-var phpActiveTab = "<?= $active_tab ?>";
+// Horizontal Slider Logic
+const slider = document.getElementById('archiveSlider');
+document.getElementById('slideLeft').addEventListener('click', () => {
+    slider.scrollBy({ left: -250, behavior: 'smooth' });
+});
+document.getElementById('slideRight').addEventListener('click', () => {
+    slider.scrollBy({ left: 250, behavior: 'smooth' });
+});
 
-if (phpActiveTab) {
-    var triggerEl = document.querySelector('button[data-bs-target="#' + phpActiveTab + '"]');
-    if (triggerEl) {
-        var tab = new bootstrap.Tab(triggerEl);
-        tab.show();
-    }
-} else if (hash) {
-    var triggerEl = document.querySelector('button[data-bs-target="' + hash + '"]');
-    if (triggerEl) {
-        var tab = new bootstrap.Tab(triggerEl);
-        tab.show();
+// Handle Re-opening Active Modal after POST request or Search
+var activeModalID = "<?= $active_modal ?>";
+if (activeModalID) {
+    if (activeModalID === 'searchResults') {
+        // If it's a search, maybe open the first modal or default to one
+        var searchModal = new bootstrap.Modal(document.getElementById('modalReports'));
+        searchModal.show();
+    } else {
+        var myModal = new bootstrap.Modal(document.getElementById(activeModalID));
+        myModal.show();
     }
 }
 
+// Confirmation Dialogs
 function confirmForm(e, msg) {
     e.preventDefault();
     Swal.fire({
