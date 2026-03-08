@@ -39,16 +39,21 @@ $cat_query = mysqli_query($conn, "
             WHEN description LIKE '%Parking%' THEN 'Parking'
             WHEN description LIKE '%Utility%' THEN 'Utilities'
             WHEN description LIKE '%Penalty%' THEN 'Penalties'
+            WHEN description LIKE '%Maintenance%' THEN 'Maintenance'
+            WHEN description LIKE '%Housekeeping%' THEN 'Housekeeping'
             ELSE 'Room Rent'
         END as category,
-        SUM(amount) as total
+        SUM(amount) as total,
+        COUNT(*) as count
     FROM payments 
     WHERE payment_status='Paid'
     GROUP BY category
 ");
 $cat_data = [];
+$cat_counts = [];
 while($row = mysqli_fetch_assoc($cat_query)){
     $cat_data[$row['category']] = $row['total'];
+    $cat_counts[$row['category']] = $row['count'];
 }
 
 // --- ACCURATE MONTHLY TRENDS ---
@@ -270,8 +275,15 @@ $theme = get_theme_colors($conn);
             <!-- Revenue Breakdown Cards -->
             <div class="row mb-4 g-3">
                 <?php 
-                $icons = ['Room Rent' => 'fa-bed', 'Utilities' => 'fa-bolt', 'Parking' => 'fa-car', 'Penalties' => 'fa-exclamation-circle'];
-                $colors = ['Room Rent' => 'primary', 'Utilities' => 'warning', 'Parking' => 'info', 'Penalties' => 'danger'];
+                $icons = [
+                    'Room Rent' => 'fa-bed', 'Utilities' => 'fa-bolt', 'Parking' => 'fa-car', 
+                    'Penalties' => 'fa-exclamation-circle', 'Maintenance' => 'fa-tools', 'Housekeeping' => 'fa-broom'
+                ];
+                $colors = [
+                    'Room Rent' => 'primary', 'Utilities' => 'warning', 'Parking' => 'info', 
+                    'Penalties' => 'danger', 'Maintenance' => 'secondary', 'Housekeeping' => 'success'
+                ];
+                
                 foreach($cat_data as $cat => $amount): 
                     $icon = $icons[$cat] ?? 'fa-coins';
                     $color = $colors[$cat] ?? 'secondary';
@@ -288,6 +300,50 @@ $theme = get_theme_colors($conn);
                     </div>
                 </div>
                 <?php endforeach; ?>
+            </div>
+
+            <!-- Detailed Breakdown Table -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card card-stat p-4">
+                        <h5 class="fw-bold mb-3 text-secondary">Detailed Revenue Breakdown</h5>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Transactions</th>
+                                        <th>Contribution</th>
+                                        <th class="text-end">Total Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php 
+                                    $grand_total = $total_earnings > 0 ? $total_earnings : 1;
+                                    foreach($cat_data as $cat => $amount): 
+                                        $percent = ($amount / $grand_total) * 100;
+                                        $count = $cat_counts[$cat] ?? 0;
+                                        $color = $colors[$cat] ?? 'secondary';
+                                    ?>
+                                    <tr>
+                                        <td><i class="fas <?= $icons[$cat] ?? 'fa-circle' ?> text-<?= $color ?> me-2"></i> <?= $cat ?></td>
+                                        <td><?= $count ?></td>
+                                        <td style="width: 40%;">
+                                            <div class="d-flex align-items-center">
+                                                <span class="me-2 small fw-bold" style="width: 45px;"><?= number_format($percent, 1) ?>%</span>
+                                                <div class="progress flex-grow-1" style="height: 6px;">
+                                                    <div class="progress-bar bg-<?= $color ?>" style="width: <?= $percent ?>%"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-end fw-bold">₱<?= number_format($amount, 2) ?></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="row mb-4">
@@ -360,6 +416,46 @@ $theme = get_theme_colors($conn);
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="card card-stat p-4 mb-4">
+                <h5 class="fw-bold mb-3 text-secondary">Recent Transactions</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Payer</th>
+                                <th>Description</th>
+                                <th>Method</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $trans_q = mysqli_query($conn, "
+                                SELECT p.*, CONCAT(u.last_name, ', ', u.first_name) as full_name 
+                                FROM payments p 
+                                JOIN reservations r ON p.reservation_id = r.reservation_id 
+                                JOIN users u ON r.user_id = u.user_id 
+                                WHERE p.payment_status='Paid' 
+                                ORDER BY p.payment_date DESC 
+                                LIMIT 50
+                            ");
+                            while($t = mysqli_fetch_assoc($trans_q)):
+                            ?>
+                            <tr>
+                                <td><?= date('M d, Y', strtotime($t['payment_date'])) ?></td>
+                                <td class="fw-bold"><?= $t['full_name'] ?></td>
+                                <td class="small text-muted"><?= $t['description'] ?></td>
+                                <td><?= $t['payment_method'] ?></td>
+                                <td class="text-end fw-bold text-success">₱<?= number_format($t['amount'], 2) ?></td>
+                            </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
