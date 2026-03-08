@@ -447,7 +447,8 @@ $theme = get_theme_colors($conn);
                         }
                     ?>
                     <div class="col-md-6 col-lg-4 occupancy-room-item" data-floor="<?= $floor ?>" data-status="<?= $room['occupancy_status'] ?>" data-name="<?= strtolower($room_display) ?>" data-occupants="<?= $occupant_names_str ?>">
-                        <div class="card card-custom h-100">
+                        <div class="card card-custom h-100" style="overflow: hidden;">
+                            <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room_display ?>" style="height: 150px; object-fit: cover; width: 100%;">
                             <div class="card-body">
                                 <!-- Room Header -->
                                 <div class="d-flex justify-content-between align-items-start mb-3">

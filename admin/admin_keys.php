@@ -8,6 +8,8 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 }
 
 $admin_username = $_SESSION['admin_username'] ?? 'Admin';
+$is_super = ($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin';
+$current_page = basename($_SERVER['PHP_SELF']);
 
 // Handle Release Key
 if (isset($_POST['release_key'])) {
@@ -49,7 +51,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'return' && isset($_GET['id']))
 
 // Fetch all keys with room info
 $all_keys_q = mysqli_query($conn, "
-    SELECT k.*, r.room_type, r.room_number, r.room_name,
+    SELECT k.*, r.room_type, r.room_number, r.room_name, r.image, r.floor,
            kt.id as trans_id, kt.user_id, kt.released_at, kt.status as trans_status,
            CONCAT(u.last_name, ', ', u.first_name) as holder_name 
     FROM `keys` k
@@ -126,6 +128,7 @@ $theme = get_theme_colors($conn);
         
         .card-room { border: none; border-radius: 15px; overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; cursor: pointer; }
         .card-room:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+        .card-room img { height: 150px; object-fit: cover; width: 100%; }
         
         .key-card { border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin-bottom: 10px; transition: 0.3s; }
         .key-card:hover { background-color: #f8f9fa; border-color: var(--primary-green); }
@@ -139,15 +142,37 @@ $theme = get_theme_colors($conn);
 <body>
 <div id="wrapper">
     <div id="sidebar-wrapper">
-        <div class="sidebar-brand"><img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning"> Woke Coliving</div>
+        <div class="sidebar-brand" id="sidebar-toggle">
+            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
+            Woke Coliving
+        </div>
         <div class="list-group list-group-flush py-3">
             <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
-            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button"><span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span><i class="fas fa-chevron-down small"></i></a>
+            
+            <!-- Front Desk -->
+            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+                <span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span>
+                <i class="fas fa-chevron-down small"></i>
+            </a>
             <div class="collapse" id="frontDeskSubmenu">
-                <a href="residents.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Residents</a>
-                <a href="booking_management.php" class="sidebar-link ps-5"><i class="fas fa-calendar-check me-2"></i>Bookings<?php if($pending_res > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_res ?></span><?php endif; ?></a>
-                <a href="admin_waitlist.php" class="sidebar-link ps-5"><i class="fas fa-list-ol me-2"></i>Waitlist<?php if($waitlist_count > 0): ?><span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span><?php endif; ?></a>
+                <a href="residents.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-users me-2"></i>Residents</span>
+                </a>
+                <a href="booking_management.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
+                    <?php if($pending_res > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_res ?></span><?php endif; ?>
+                </a>
+                <a href="admin_waitlist.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
+                    <?php if($waitlist_count > 0): ?><span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span><?php endif; ?>
+                </a>
+                <a href="admin_deletion_requests.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-user-times me-2"></i>Deletion Req</span>
+                    <?php if($del_req_count > 0): ?><span class="badge bg-danger rounded-pill"><?= $del_req_count ?></span><?php endif; ?>
+                </a>
             </div>
+
+            <!-- Facilities -->
             <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="true"><span><i class="fas fa-building me-2"></i>Facilities</span><i class="fas fa-chevron-down small"></i></a>
             <div class="collapse show" id="facilitiesSubmenu">
                 <a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
@@ -156,14 +181,40 @@ $theme = get_theme_colors($conn);
                 <a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a>
                 <a href="admin_keys.php" class="sidebar-link ps-5 active"><i class="fas fa-key me-2"></i>Key Monitoring</a>
             </div>
-            <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button"><span><i class="fas fa-cogs me-2"></i>Operations</span><i class="fas fa-chevron-down small"></i></a>
-            <div class="collapse" id="operationsSubmenu">
-                <a href="admin_maintenance.php" class="sidebar-link ps-5"><i class="fas fa-wrench me-2"></i>Maintenance<?php if($pending_maint > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span><?php endif; ?></a>
-                <a href="admin_housekeeping.php" class="sidebar-link ps-5"><i class="fas fa-broom me-2"></i>Housekeeping<?php if($pending_house > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_house ?></span><?php endif; ?></a>
+
+            <!-- Finance & Reports -->
+            <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+                <span><i class="fas fa-file-invoice-dollar me-2"></i>Finance & Reports</span>
+                <i class="fas fa-chevron-down small"></i>
+            </a>
+            <div class="collapse" id="financeSubmenu">
+                <?php if($is_super): ?>
+                <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
+                <?php endif; ?>
+                <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a>
             </div>
+
+            <!-- Operations -->
+            <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
+                <span><i class="fas fa-cogs me-2"></i>Operations</span>
+                <i class="fas fa-chevron-down small"></i>
+            </a>
+            <div class="collapse" id="operationsSubmenu">
+                <a href="admin_maintenance.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center"><span><i class="fas fa-wrench me-2"></i>Maintenance</span><?php if($pending_maint > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span><?php endif; ?></a>
+                <a href="admin_housekeeping.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center"><span><i class="fas fa-broom me-2"></i>Housekeeping</span><?php if($pending_house > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_house ?></span><?php endif; ?></a>
+                <a href="admin_utilities.php" class="sidebar-link ps-5"><i class="fas fa-archive me-2"></i>Utilities Archive</a>
+            </div>
+
+            <!-- System Settings -->
             <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button"><span><i class="fas fa-cog me-2"></i>System Settings</span><i class="fas fa-chevron-down small"></i></a>
             <div class="collapse" id="settingsSubmenu">
                 <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
+                <?php if($is_super): ?>
+                <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
+                <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
+                <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
+                <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
+                <?php endif; ?>
             </div>
             <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
         </div>
@@ -171,7 +222,12 @@ $theme = get_theme_colors($conn);
 
     <div id="page-content-wrapper">
         <div class="container-fluid px-4 py-4 reveal">
-            <h4 class="fw-bold mb-4" style="color: var(--dark-green);">Key Monitoring System</h4>
+            <div class="d-flex align-items-center mb-4">
+                <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
+                    <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
+                </a>
+                <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Key Monitoring System</h4>
+            </div>
 
             <?php if(isset($_GET['msg'])): ?>
                 <div class="alert alert-success"><?= $_GET['msg'] == 'released' ? 'Key released successfully!' : 'Key returned successfully!' ?></div>
@@ -263,44 +319,59 @@ $theme = get_theme_colors($conn);
 <?php if(!isset($grouped_keys[$type]) || empty($grouped_keys[$type])) continue; ?>
 <?php $keys_in_type = $grouped_keys[$type]; ?>
 <div class="modal fade" id="key_<?= md5($type) ?>" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content bg-light">
+            <div class="modal-header bg-white">
                 <h5 class="modal-title fw-bold text-success"><i class="fas fa-key me-2"></i><?= $type ?> Room Keys</h5>
+                <div class="d-flex align-items-center me-3 ms-auto">
+                    <label class="small fw-bold me-2 text-muted">Filter:</label>
+                    <select class="form-select form-select-sm" onchange="filterKeys(this, '<?= md5($type) ?>')">
+                        <option value="all">All Floors</option>
+                        <?php for($i=2; $i<=7; $i++): ?>
+                            <option value="<?= $i ?>"><?= $i ?>th Floor</option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <div class="row g-3">
                     <?php foreach($keys_in_type as $key): ?>
                     <?php $is_released = $key['status'] == 'Released'; ?>
                     <?php $room_display = $key['room_number'] ? "Room " . $key['room_number'] : $key['key_name']; ?>
-                    <div class="col-md-6 col-lg-4">
-                        <div class="key-card <?= strtolower($key['status']) ?>">
+                    <div class="col-md-6 col-lg-4 key-item" data-floor="<?= $key['floor'] ?>">
+                        <div class="card card-room h-100" style="cursor: default;">
+                            <img src="../assets/images/<?= $key['image'] ?>" alt="<?= $key['room_name'] ?>">
+                            <div class="card-body d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <div>
                                     <h6 class="fw-bold text-dark mb-0"><?= $room_display ?></h6>
-                                    <small class="text-muted"><?= $key['key_name'] ?></small>
+                                    <small class="text-muted"><?= $key['key_name'] ?> (<?= $key['floor'] ?>F)</small>
                                 </div>
-                                <?php if($is_released): ?>
-                                    <span class="badge bg-warning text-dark">Released</span>
-                                <?php else: ?>
-                                    <span class="badge bg-success">Available</span>
-                                <?php endif; ?>
                             </div>
+                            
+                            <div class="mt-auto">
                             <?php if($is_released && $key['holder_name']): ?>
-                                <div class="mb-2">
-                                    <small class="text-muted fw-bold">Current Holder:</small>
-                                    <div class="fw-bold"><?= $key['holder_name'] ?></div>
-                                    <small class="text-muted">Released: <?= date('M d, h:i A', strtotime($key['released_at'])) ?></small>
+                                <div class="alert alert-warning py-2 mb-2 small">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="fw-bold text-dark">Released</span>
+                                        <span class="text-muted"><?= date('M d', strtotime($key['released_at'])) ?></span>
+                                    </div>
+                                    <div class="text-truncate" title="<?= $key['holder_name'] ?>"><i class="fas fa-user me-1"></i> <?= $key['holder_name'] ?></div>
                                 </div>
                                 <a href="?action=return&id=<?= $key['trans_id'] ?>" class="btn btn-sm btn-outline-danger w-100" onclick="return confirm('Mark this key as returned?')">
                                     <i class="fas fa-undo me-1"></i> Return Key
                                 </a>
                             <?php else: ?>
+                                <div class="alert alert-success py-2 mb-2 small text-center">
+                                    <i class="fas fa-check-circle me-1"></i> Available
+                                </div>
                                 <button class="btn btn-sm btn-primary w-100" onclick="openReleaseModal(<?= $key['id'] ?>, '<?= addslashes($key['key_name']) ?>')">
                                     <i class="fas fa-share me-1"></i> Release Key
                                 </button>
                             <?php endif; ?>
+                            </div>
+                            </div>
                         </div>
                     </div>
                     <?php endforeach; ?>
@@ -349,13 +420,13 @@ function openKeyModal(typeId) {
     new bootstrap.Modal(document.getElementById('key_' + typeId)).show();
 }
 
-function filterKeyModal(select, typeId) {
-    const status = select.value;
+function filterKeys(select, typeId) {
+    const floor = select.value;
     const modal = document.getElementById('key_' + typeId);
     const items = modal.querySelectorAll('.key-item');
     
     items.forEach(item => {
-        if(status === 'all' || item.getAttribute('data-status') === status) {
+        if(floor === 'all' || item.getAttribute('data-floor') === floor) {
             item.style.display = 'block';
         } else {
             item.style.display = 'none';
