@@ -155,6 +155,19 @@ if(isset($_POST['bulk_mark_paid']) && !empty($_POST['payment_ids'])){
     }
 }
 
+// Handle Approve with Room Selection (New Bookings)
+if(isset($_POST['approve_with_room'])){
+    $res_id = (int)$_POST['reservation_id'];
+    $room_id = (int)$_POST['room_id'];
+    
+    // Update the reservation with the selected room
+    mysqli_query($conn, "UPDATE reservations SET room_id=$room_id WHERE reservation_id=$res_id");
+    
+    // Redirect to standard approval logic
+    echo "<script>window.location.href='booking_management.php?action=approve&id=$res_id&redirect=view_user&uid=$uid';</script>";
+    exit;
+}
+
 // Fetch User Details
 $user_query = mysqli_query($conn, "
     SELECT u.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name,
@@ -240,9 +253,12 @@ $pending_del_req = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM account
 
 // Fetch Base Rooms List (Availability calculated dynamically per reservation)
 $base_rooms_list = [];
-$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor, total_beds, availability FROM rooms WHERE is_archived=0 ORDER BY floor ASC, room_type ASC, room_number ASC");
+$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor, total_beds, availability, image FROM rooms WHERE is_archived=0 ORDER BY floor ASC, room_type ASC, room_number ASC");
 if($rfm_q){
     while($r = mysqli_fetch_assoc($rfm_q)){
+        // Calculate current occupancy for display in modal
+        $occ_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE room_id={$r['room_id']} AND status IN ('Pending', 'Approved') AND end_date > CURDATE()");
+        $r['occupied'] = mysqli_fetch_assoc($occ_q)['c'];
         $base_rooms_list[$r['room_id']] = $r;
     }
 }
@@ -313,6 +329,12 @@ $theme = get_theme_colors($conn);
         .nav-tabs .nav-link:hover { border-color: transparent; color: var(--primary-green); }
         .profile-header { background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
         .avatar-circle { width: 80px; height: 80px; font-size: 2rem; background-color: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        
+        /* Room Selection Modal Styles */
+        .card-room-select { cursor: pointer; transition: all 0.2s; border: 2px solid transparent; overflow: hidden; }
+        .card-room-select:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .card-room-select.selected { border-color: var(--primary-green); background-color: #e8f5e9; }
+        .card-room-select img { height: 120px; object-fit: cover; width: 100%; }
     </style>
 </head>
 <body>
@@ -729,7 +751,11 @@ $theme = get_theme_colors($conn);
                                                     $has_sig = !empty($row['signature_image']);
                                                 ?>
                                                 <div class="d-flex justify-content-end gap-1">
-                                                    <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this reservation?')" title="Approve"><i class="fas fa-check"></i></a>
+                                                    <?php if(empty($row['extended_from'])): ?>
+                                                        <button type="button" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, '<?= $row['room_type'] ?>')" title="Approve & Assign Room"><i class="fas fa-check"></i></button>
+                                                    <?php else: ?>
+                                                        <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this extension?')" title="Approve"><i class="fas fa-check"></i></a>
+                                                    <?php endif; ?>
                                                     <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')" title="Reject"><i class="fas fa-times"></i></a>
                                                 </div>
                                                 <?php if(!$is_paid || !$has_sig): ?>
@@ -851,6 +877,7 @@ $theme = get_theme_colors($conn);
                 </div>
                 </form>
                         </div>
+
                     </div>
                 </div>
             </div>
@@ -922,6 +949,60 @@ $theme = get_theme_colors($conn);
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Approve & Assign Room Modal -->
+<div class="modal fade" id="approveRoomModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-check-circle me-2"></i>Approve & Assign Room</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <p class="mb-0">Select a room for this reservation (<strong id="modalRoomType"></strong>):</p>
+                        <div class="d-flex align-items-center">
+                            <label class="small fw-bold me-2 text-muted">Filter Floor:</label>
+                            <select id="approveFloorFilter" class="form-select form-select-sm" style="width: 120px;" onchange="filterApproveRooms()">
+                                <option value="all">All Floors</option>
+                                <?php for($i=2; $i<=7; $i++): ?>
+                                    <option value="<?= $i ?>"><?= $i ?>th Floor</option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <input type="hidden" name="approve_with_room" value="1">
+                    <input type="hidden" name="reservation_id" id="approveResId">
+                    <input type="hidden" name="room_id" id="approveRoomId" required>
+
+                    <div class="row g-3" id="approveRoomGrid">
+                        <?php foreach($base_rooms_list as $room): 
+                            $avail = $room['total_beds'] - $room['occupied'];
+                            $is_full = $avail <= 0;
+                        ?>
+                        <div class="col-md-4 col-lg-3 approve-room-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>">
+                            <div class="card card-room-select h-100 shadow-sm" onclick="selectApproveRoom(this, <?= $room['room_id'] ?>)">
+                                <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>">
+                                <div class="card-body p-2 text-center">
+                                    <div class="fw-bold"><?= $room['room_name'] ?></div>
+                                    <div class="small text-muted"><?= $room['room_type'] ?> &bull; <?= $room['floor'] ?>F</div>
+                                    <div class="badge <?= $is_full ? 'bg-secondary' : 'bg-success' ?> mt-1"><?= $is_full ? 'Full' : $avail . ' Beds Free' ?></div>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold" id="btnApproveConfirm" disabled>Confirm Approval</button>
                 </div>
             </form>
         </div>
@@ -1079,6 +1160,40 @@ function confirmBulkPaid() {
             form.submit();
         }
     });
+}
+
+let currentApproveType = '';
+
+function openApproveModal(resId, type) {
+    document.getElementById('approveResId').value = resId;
+    document.getElementById('modalRoomType').innerText = type;
+    currentApproveType = type;
+    
+    filterApproveRooms();
+    new bootstrap.Modal(document.getElementById('approveRoomModal')).show();
+}
+
+function filterApproveRooms() {
+    const floor = document.getElementById('approveFloorFilter').value;
+    const items = document.querySelectorAll('.approve-room-item');
+    
+    items.forEach(item => {
+        const itemType = item.getAttribute('data-type');
+        const itemFloor = item.getAttribute('data-floor');
+        
+        if (itemType === currentApproveType && (floor === 'all' || itemFloor === floor)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function selectApproveRoom(card, id) {
+    document.querySelectorAll('.card-room-select').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    document.getElementById('approveRoomId').value = id;
+    document.getElementById('btnApproveConfirm').disabled = false;
 }
 
 // Auto Refresh Logic

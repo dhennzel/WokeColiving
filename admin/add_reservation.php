@@ -59,6 +59,13 @@ while($row = mysqli_fetch_assoc($price_query)){
     ];
 }
 
+// Fetch All Rooms for Modal Selection
+$all_rooms_q = mysqli_query($conn, "SELECT * FROM rooms WHERE is_archived=0 ORDER BY floor, room_number");
+$all_rooms = [];
+while($r = mysqli_fetch_assoc($all_rooms_q)){
+    $all_rooms[] = $r;
+}
+
 // Check for pre-selected room type
 $pre_room_type = isset($_GET['room_type']) ? $_GET['room_type'] : '';
 
@@ -127,10 +134,18 @@ if(isset($_POST['add_reservation'])){
         $months = max(1, round($days_total / 30));
 
         // Find available room
+        $specific_room_id = isset($_POST['specific_room_id']) ? (int)$_POST['specific_room_id'] : 0;
         $found_room = null;
-        $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, daily_price_bed, daily_price_room FROM rooms WHERE room_type = ? AND availability = 'Available' AND is_archived=0";
-        $r_stmt = $conn->prepare($r_sql);
-        $r_stmt->bind_param("s", $room_type);
+        
+        if ($specific_room_id > 0) {
+            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, daily_price_bed, daily_price_room FROM rooms WHERE room_id = ? AND is_archived=0";
+            $r_stmt = $conn->prepare($r_sql);
+            $r_stmt->bind_param("i", $specific_room_id);
+        } else {
+            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, daily_price_bed, daily_price_room FROM rooms WHERE room_type = ? AND availability = 'Available' AND is_archived=0";
+            $r_stmt = $conn->prepare($r_sql);
+            $r_stmt->bind_param("s", $room_type);
+        }
         $r_stmt->execute();
         $r_res = $r_stmt->get_result();
 
@@ -294,6 +309,12 @@ $theme = get_theme_colors($conn);
         .card-form { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); padding: 40px; background: white; }
         .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
         .btn-custom:hover { filter: brightness(90%); }
+        
+        .room-card-option { cursor: pointer; transition: all 0.2s; border: 2px solid transparent; overflow: hidden; }
+        .room-card-option:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .room-card-option.selected { border-color: var(--primary-green); background-color: #e8f5e9; }
+        .room-card-option.disabled { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
+        .room-card-option img { height: 120px; object-fit: cover; width: 100%; }
     </style>
 </head>
 <body>
@@ -309,7 +330,7 @@ $theme = get_theme_colors($conn);
                 <?php if($error) echo "<div class='alert alert-danger'>$error</div>"; ?>
                 <?php if($success) echo "<div class='alert alert-success'>$success</div>"; ?>
 
-                <form method="POST">
+                <form method="POST" id="reservationForm">
                     <input type="hidden" name="term_type" id="term_type" value="Short">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Guest Type</label>
@@ -426,8 +447,58 @@ $theme = get_theme_colors($conn);
                         <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2"><span class="h5 mb-0">Total: </span><span class="h4 text-success fw-bold">₱<span id="totalAmount">0.00</span></span></div>
                     </div>
 
-                    <button type="submit" name="add_reservation" class="btn btn-custom w-100 py-2">Create Reservation</button>
+                    <input type="hidden" name="specific_room_id" id="specific_room_id" value="">
+                    
+                    <button type="button" class="btn btn-custom w-100 py-2 mt-4" onclick="openRoomModal()">Select Room</button>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Room Selection Modal -->
+<div class="modal fade" id="roomSelectionModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-door-open me-2"></i>Select Room</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <p class="mb-0">Showing rooms for: <strong id="modalRoomTypeDisplay">All</strong></p>
+                    <div class="d-flex align-items-center">
+                        <label class="small fw-bold me-2 text-muted">Filter Floor:</label>
+                        <select id="roomModalFloorFilter" class="form-select form-select-sm" style="width: 120px;" onchange="filterRoomModal()">
+                            <option value="all">All Floors</option>
+                            <?php for($i=2; $i<=7; $i++): ?>
+                                <option value="<?= $i ?>"><?= $i ?>th Floor</option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-3" id="roomSelectionGrid">
+                    <?php foreach($all_rooms as $room): ?>
+                        <div class="col-md-4 col-lg-3 room-select-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>" data-id="<?= $room['room_id'] ?>">
+                            <div class="card h-100 shadow-sm room-card-option" onclick="selectSpecificRoom(<?= $room['room_id'] ?>, '<?= addslashes($room['room_name']) ?>')">
+                                <img src="../assets/images/<?= $room['image'] ?>" class="card-img-top" alt="<?= $room['room_name'] ?>">
+                                <div class="card-body p-2 text-center">
+                                    <div class="fw-bold"><?= $room['room_name'] ?></div>
+                                    <div class="small text-muted"><?= $room['room_type'] ?> &bull; <?= $room['floor'] ?>F</div>
+                                    <div class="badge bg-secondary mt-1 room-status-badge" id="status_badge_<?= $room['room_id'] ?>">Check Dates</div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto">
+                    <span class="text-muted small">Selected: </span><strong id="modalSelectedRoom" class="text-success">Auto Assign</strong>
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none" onclick="clearRoomSelection()">(Clear)</button>
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-custom" onclick="submitReservation()">Create Reservation</button>
             </div>
         </div>
     </div>
@@ -634,6 +705,8 @@ function calculateTotal() {
     }
 }
 
+let availableRoomsData = []; // Store fetched availability
+
 function checkAvailability() {
     let room = document.getElementById('room_type').value;
     let cin = document.getElementById('cin').value;
@@ -648,10 +721,11 @@ function checkAvailability() {
         fetch(`../users/get_rooms.php?checkin=${cin}&checkout=${cout}`)
             .then(response => response.json())
             .then(data => {
-                // Filter rooms of selected type
-                let roomsOfType = data.filter(r => r.room_type === room);
+                availableRoomsData = data; // Store for modal
+                updateModalAvailability(); // Update modal badges
                 
                 // Check specific availability across all rooms of this type
+                let roomsOfType = data.filter(r => r.room_type === room);
                 let hasLower = roomsOfType.some(r => r.avail_lower > 0);
                 let hasUpper = roomsOfType.some(r => r.avail_upper > 0);
                 let hasWhole = roomsOfType.some(r => r.available_beds == r.total_beds);
@@ -686,6 +760,92 @@ function checkAvailability() {
     } else {
         statusSpan.innerHTML = '';
     }
+}
+
+function openRoomModal() {
+    const form = document.getElementById('reservationForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const type = document.getElementById('room_type').value;
+    if(!type) { Swal.fire('Select Room Type', 'Please select a room type first.', 'warning'); return; }
+    
+    document.getElementById('modalRoomTypeDisplay').innerText = type;
+    filterRoomModal(); // Apply filters
+    updateModalAvailability(); // Ensure badges are correct
+    new bootstrap.Modal(document.getElementById('roomSelectionModal')).show();
+}
+
+function filterRoomModal() {
+    const floor = document.getElementById('roomModalFloorFilter').value;
+    const type = document.getElementById('room_type').value;
+    const items = document.querySelectorAll('.room-select-item');
+    
+    items.forEach(item => {
+        const itemType = item.dataset.type;
+        const itemFloor = item.dataset.floor;
+        
+        if (itemType === type && (floor === 'all' || itemFloor === floor)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function updateModalAvailability() {
+    const bedPref = document.querySelector('select[name="bed_preference"]').value;
+    const items = document.querySelectorAll('.room-select-item');
+    
+    items.forEach(item => {
+        const roomId = item.dataset.id;
+        const badge = document.getElementById('status_badge_' + roomId);
+        const card = item.querySelector('.room-card-option');
+        
+        const roomData = availableRoomsData.find(r => r.room_id == roomId);
+        let isAvailable = false;
+        let statusText = "Full/Unavailable";
+        let badgeClass = "bg-secondary";
+        
+        if(roomData) {
+            if (bedPref === 'Lower Bunk') isAvailable = roomData.avail_lower > 0;
+            else if (bedPref === 'Upper Bunk') isAvailable = roomData.avail_upper > 0;
+            else if (bedPref === 'Whole Room') isAvailable = (roomData.available_beds == roomData.total_beds);
+            else isAvailable = (roomData.available_beds > 0);
+            
+            if(isAvailable) {
+                statusText = `${roomData.available_beds} Beds Free`;
+                badgeClass = "bg-success";
+            }
+        }
+        
+        badge.innerText = statusText;
+        badge.className = `badge mt-1 room-status-badge ${badgeClass}`;
+        
+        if(isAvailable) card.classList.remove('disabled');
+        else card.classList.add('disabled');
+    });
+}
+
+function selectSpecificRoom(id, name) {
+    document.getElementById('specific_room_id').value = id;
+    document.getElementById('modalSelectedRoom').innerText = name;
+    
+    document.querySelectorAll('.room-card-option').forEach(c => c.classList.remove('selected'));
+    const selectedItem = document.querySelector(`.room-select-item[data-id="${id}"] .room-card-option`);
+    if(selectedItem) selectedItem.classList.add('selected');
+}
+
+function clearRoomSelection() {
+    document.getElementById('specific_room_id').value = "";
+    document.getElementById('modalSelectedRoom').innerText = "Auto Assign";
+    document.querySelectorAll('.room-card-option').forEach(c => c.classList.remove('selected'));
+}
+
+function submitReservation() {
+    document.getElementById('reservationForm').submit();
 }
 
 <?php if(isset($new_reservation_id)): ?>
