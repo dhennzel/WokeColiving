@@ -14,8 +14,24 @@ if(($_SESSION['admin_role'] ?? 'Admin') != 'Super Admin'){
     exit;
 }
 
+// Date Filter Logic
+$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
+$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
+
+$filter_payments = "";
+$filter_payments_p = "";
+$filter_reservations = "";
+
+if($start_date && $end_date){
+    $s = mysqli_real_escape_string($conn, $start_date) . " 00:00:00";
+    $e = mysqli_real_escape_string($conn, $end_date) . " 23:59:59";
+    $filter_payments = " AND payment_date BETWEEN '$s' AND '$e'";
+    $filter_payments_p = " AND p.payment_date BETWEEN '$s' AND '$e'";
+    $filter_reservations = " WHERE created_at BETWEEN '$s' AND '$e'";
+}
+
 // Total Earnings
-$total_query = mysqli_query($conn, "SELECT SUM(amount) as total FROM payments WHERE payment_status='Paid'");
+$total_query = mysqli_query($conn, "SELECT SUM(amount) as total FROM payments WHERE payment_status='Paid' $filter_payments");
 $total_earnings = mysqli_fetch_assoc($total_query)['total'] ?? 0;
 
 // Earnings by Room Type
@@ -24,7 +40,7 @@ $type_query = mysqli_query($conn, "
     FROM reservations res
     JOIN rooms r ON res.room_id = r.room_id
     JOIN payments p ON res.reservation_id = p.reservation_id
-    WHERE p.payment_status='Paid'
+    WHERE p.payment_status='Paid' $filter_payments_p
     GROUP BY r.room_type
 ");
 $room_type_data = [];
@@ -46,7 +62,7 @@ $cat_query = mysqli_query($conn, "
         SUM(amount) as total,
         COUNT(*) as count
     FROM payments 
-    WHERE payment_status='Paid'
+    WHERE payment_status='Paid' $filter_payments
     GROUP BY category
 ");
 $cat_data = [];
@@ -63,7 +79,7 @@ $earnings_data = [];
 $e_query = mysqli_query($conn, "
     SELECT DATE_FORMAT(payment_date, '%Y-%m') as month, SUM(amount) as total 
     FROM payments 
-    WHERE payment_status='Paid' 
+    WHERE payment_status='Paid' $filter_payments
     GROUP BY month
 ");
 while($row = mysqli_fetch_assoc($e_query)){
@@ -75,6 +91,7 @@ $bookings_data = [];
 $b_query = mysqli_query($conn, "
     SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count 
     FROM reservations 
+    $filter_reservations
     GROUP BY month
 ");
 while($row = mysqli_fetch_assoc($b_query)){
@@ -82,13 +99,19 @@ while($row = mysqli_fetch_assoc($b_query)){
 }
 
 // 3. Generate Continuous Timeline
-$min_date = date('Y-m');
-if(!empty($earnings_data)) $min_date = min($min_date, min(array_keys($earnings_data)));
-if(!empty($bookings_data)) $min_date = min($min_date, min(array_keys($bookings_data)));
-
-$start = new DateTime($min_date . '-01');
-$end = new DateTime(date('Y-m-01'));
-$end->modify('+1 month');
+if($start_date && $end_date){
+    $start = new DateTime(date('Y-m-01', strtotime($start_date)));
+    $end = new DateTime(date('Y-m-01', strtotime($end_date)));
+    $end->modify('+1 month');
+} else {
+    $min_date = date('Y-m');
+    if(!empty($earnings_data)) $min_date = min($min_date, min(array_keys($earnings_data)));
+    if(!empty($bookings_data)) $min_date = min($min_date, min(array_keys($bookings_data)));
+    
+    $start = new DateTime($min_date . '-01');
+    $end = new DateTime(date('Y-m-01'));
+    $end->modify('+1 month');
+}
 $period = new DatePeriod($start, new DateInterval('P1M'), $end);
 
 $monthly_data = [];
@@ -248,7 +271,16 @@ $theme = get_theme_colors($conn);
                     </a>
                     <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Profit & Earnings Report</h4>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 align-items-center">
+                    <form method="GET" class="d-flex gap-2 align-items-center me-2">
+                        <input type="date" name="start_date" class="form-control form-control-sm" value="<?= $start_date ?>" required>
+                        <span class="text-muted">-</span>
+                        <input type="date" name="end_date" class="form-control form-control-sm" value="<?= $end_date ?>" required>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-filter"></i></button>
+                        <?php if($start_date || $end_date): ?>
+                            <a href="profit_report.php" class="btn btn-sm btn-outline-secondary" title="Reset"><i class="fas fa-undo"></i></a>
+                        <?php endif; ?>
+                    </form>
                     <a href="admin_parking_reports.php" class="btn btn-outline-success btn-sm btn-export"><i class="fas fa-parking me-2"></i>Parking Reports</a>
                     <a href="admin_utilities.php#reports" class="btn btn-outline-secondary btn-sm btn-export"><i class="fas fa-archive me-2"></i>View Archive</a>
                     <button onclick="window.print()" class="btn btn-outline-secondary btn-sm btn-print"><i class="fas fa-print me-2"></i>Print Report</button>
@@ -258,7 +290,7 @@ $theme = get_theme_colors($conn);
             <div class="print-header text-center">
                 <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 80px; height: 80px; object-fit: cover;" class="rounded-circle mb-2">
                 <h2 class="fw-bold mb-0">Woke Coliving INC</h2>
-                <p class="text-muted mb-0">Profit & Revenue Report</p>
+                <p class="text-muted mb-0">Profit & Revenue Report <?= ($start_date && $end_date) ? "(".date('M d, Y', strtotime($start_date))." - ".date('M d, Y', strtotime($end_date)).")" : "" ?></p>
                 <small class="text-muted">Generated on <?= date('F d, Y h:i A') ?></small>
             </div>
 
@@ -440,7 +472,7 @@ $theme = get_theme_colors($conn);
                                 FROM payments p 
                                 JOIN reservations r ON p.reservation_id = r.reservation_id 
                                 JOIN users u ON r.user_id = u.user_id 
-                                WHERE p.payment_status='Paid' 
+                                WHERE p.payment_status='Paid' $filter_payments_p
                                 ORDER BY p.payment_date DESC 
                                 LIMIT 50
                             ");
