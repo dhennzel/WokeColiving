@@ -87,6 +87,36 @@ if(isset($_POST['update_prices'])){
     exit;
 }
 
+// Handle Individual Room Order Save (AJAX)
+if(isset($_POST['save_individual_room_order'])){
+    if(!$is_super) exit;
+    $room_ids = json_decode($_POST['order'], true);
+    if(is_array($room_ids) && !empty($room_ids)){
+        $case_sql = "CASE room_id ";
+        $ids_sql = [];
+        $order = 1;
+        foreach($room_ids as $id){
+            $id = (int)$id;
+            $case_sql .= "WHEN $id THEN $order ";
+            $ids_sql[] = $id;
+            $order++;
+        }
+        $case_sql .= "END";
+        $ids_str = implode(',', $ids_sql);
+        mysqli_query($conn, "UPDATE rooms SET display_order = $case_sql WHERE room_id IN ($ids_str)");
+    }
+    exit;
+}
+
+// Handle Room Order Save (AJAX)
+if(isset($_POST['save_room_order'])){
+    if(!$is_super) exit;
+    $order = $_POST['order'];
+    $order = mysqli_real_escape_string($conn, $order);
+    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('room_type_order', '$order') ON DUPLICATE KEY UPDATE setting_value='$order'");
+    exit;
+}
+
 // Fetch current prices for modal
 $default_prices = [
     'price_single' => 14000, 'price_single_long' => 13000,
@@ -109,6 +139,24 @@ foreach ($rooms as $room) {
         $grouped_rooms[$type] = [];
     }
     $grouped_rooms[$type][] = $room;
+}
+
+// Sort room types based on saved order or alphabetically
+$order_q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='room_type_order'");
+$saved_order = ($row = mysqli_fetch_assoc($order_q)) ? json_decode($row['setting_value'], true) : [];
+
+if (!empty($saved_order) && is_array($saved_order)) {
+    $ordered_groups = [];
+    foreach ($saved_order as $type) {
+        if (isset($grouped_rooms[$type])) {
+            $ordered_groups[$type] = $grouped_rooms[$type];
+            unset($grouped_rooms[$type]);
+        }
+    }
+    ksort($grouped_rooms); // Sort remaining alphabetically
+    $grouped_rooms = $ordered_groups + $grouped_rooms;
+} else {
+    ksort($grouped_rooms);
 }
 
 // Get representative images for price modal
@@ -139,6 +187,7 @@ $theme = get_theme_colors($conn);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="admin_CSS/admin_style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
         :root {
             --primary-green: <?= $theme['primary'] ?>;
@@ -256,7 +305,7 @@ $theme = get_theme_colors($conn);
                 </div>
             </div>
 
-            <div class="row g-4">
+            <div class="row g-4" id="roomTypesContainer">
                 <?php foreach($grouped_rooms as $type => $rooms_in_type): 
                     // Calculate Aggregate Stats for the room type
                     $type_total_beds = array_sum(array_column($rooms_in_type, 'total_beds'));
@@ -270,7 +319,7 @@ $theme = get_theme_colors($conn);
                     $p_upper = $first_room['price_upper'];
                     $p_lower = $first_room['price_lower'];
                 ?>
-                    <div class="col-md-4">
+                    <div class="col-md-4" data-type="<?= $type ?>">
                         <div class="card card-room card-room-summary h-100" onclick="openTypeModal('<?= md5($type) ?>')">
                             <img src="../assets/images/<?= $image ?>" alt="<?= $type ?>">
                             <div class="card-body text-center">
@@ -315,7 +364,7 @@ $theme = get_theme_colors($conn);
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="row g-4">
+                <div class="row g-4" id="room-container-<?= md5($type) ?>">
                     <?php foreach($rooms_in_type as $room): 
     // Detailed Calculation for Individual Room
     $floor = $room['floor'] ?? 2;
@@ -323,7 +372,13 @@ $theme = get_theme_colors($conn);
     $room_id = $room['room_id'];
     $total_beds = $room['total_beds'];
     $room_type = $room['room_type'];
-    $room_display_name = $room['room_number'] ? "Room " . $room['room_number'] : $room['room_name'];
+    // Make room display name consistent
+    $room_display_name = $room['room_name'];
+    if (!empty($room['room_number'])) {
+        $room_display_name = "Room " . $room['room_number'];
+    } elseif (is_numeric($room['room_name'])) {
+        $room_display_name = "Room " . $room['room_name'];
+    }
     $is_shared = ($room_type == '4-Bed' || $room_type == '6-Bed');
     
     // Count occupied beds based on active reservations
@@ -366,7 +421,7 @@ $theme = get_theme_colors($conn);
         $avail_lower = 0;
     }
                     ?>
-                    <div class="col-md-6 col-lg-4 room-card-item" data-floor="<?= $floor ?>">
+                    <div class="col-md-6 col-lg-4 room-card-item" data-floor="<?= $floor ?>" data-id="<?= $room['room_id'] ?>">
     <div class="card card-room h-100">
         <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>">
         <div class="card-body d-flex flex-column">
@@ -546,6 +601,48 @@ Swal.fire({
 const url = new URL(window.location);
 url.searchParams.delete('msg');
 window.history.replaceState({}, document.title, url);
+<?php endif; ?>
+
+<?php if($is_super): ?>
+// Initialize Sortable for rooms inside modals
+document.querySelectorAll('[id^="room-container-"]').forEach(container => {
+    new Sortable(container, {
+        animation: 150,
+        handle: '.card-room', // The draggable handle
+        onEnd: function() {
+            const order = [];
+            container.querySelectorAll('[data-id]').forEach(el => {
+                order.push(el.getAttribute('data-id'));
+            });
+            
+            fetch('admin_rooms.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'save_individual_room_order=1&order=' + encodeURIComponent(JSON.stringify(order))
+            });
+        }
+    });
+});
+
+// Initialize Sortable for Room Types
+const roomContainer = document.getElementById('roomTypesContainer');
+if(roomContainer){
+    new Sortable(roomContainer, {
+        animation: 150,
+        handle: '.card-room-summary',
+        onEnd: function() {
+            const order = [];
+            roomContainer.querySelectorAll('[data-type]').forEach(el => {
+                order.push(el.getAttribute('data-type'));
+            });
+            fetch('admin_rooms.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'save_room_order=1&order=' + encodeURIComponent(JSON.stringify(order))
+            });
+        }
+    });
+}
 <?php endif; ?>
 
 function filterModalRooms(select, typeId) {

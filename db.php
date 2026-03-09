@@ -41,7 +41,11 @@ if(!in_array('long_term_price_whole', $existing_cols)) mysqli_query($conn, "ALTE
 if(!in_array('daily_price_bed', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN daily_price_bed DECIMAL(10,2) DEFAULT 0.00");
 if(!in_array('daily_price_room', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN daily_price_room DECIMAL(10,2) DEFAULT 0.00");
 if(!in_array('is_archived', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
-if(!in_array('is_archived', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
+if(!in_array('display_order', $existing_cols)) {
+    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN display_order INT DEFAULT 0");
+    // Initialize order based on current sorting to avoid disruption
+    mysqli_query($conn, "UPDATE rooms r SET r.display_order = r.room_id");
+}
 
 if (!function_exists('get_theme_colors')) {
 function get_theme_colors($conn) {
@@ -730,7 +734,7 @@ function get_all_rooms_with_occupancy($conn) {
                r.room_number, r.room_type, r.total_beds, r.floor, r.room_name, r.availability
         FROM rooms r
         WHERE r.is_archived = 0
-        ORDER BY r.room_type, r.floor, r.room_number
+        ORDER BY r.display_order ASC, r.room_type, r.floor, CAST(COALESCE(r.room_number, r.room_name) AS UNSIGNED), COALESCE(r.room_number, r.room_name) ASC
     ");
     
     $rooms = [];
