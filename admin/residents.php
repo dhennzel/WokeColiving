@@ -23,51 +23,19 @@ if(isset($_POST['delete_user'])){
         if(mysqli_num_rows($check_active) > 0){
             $error = "Cannot delete user: They have active or pending reservations.";
         } else {
-            mysqli_begin_transaction($conn);
-            try {
-                // 1. Get Reservation IDs to clean up child records
-                $res_ids = [];
-                $r_q = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id=$del_uid");
-                while($row = mysqli_fetch_assoc($r_q)){
-                    $res_ids[] = $row['reservation_id'];
-                }
-
-                if(!empty($res_ids)){
-                    $ids_str = implode(',', $res_ids);
-                    mysqli_query($conn, "DELETE FROM payments WHERE reservation_id IN ($ids_str)");
-                    try { mysqli_query($conn, "DELETE FROM utility_bills WHERE reservation_id IN ($ids_str)"); } catch(Exception $e){}
-                    try { mysqli_query($conn, "DELETE FROM temporary_moves WHERE reservation_id IN ($ids_str)"); } catch(Exception $e){}
-                }
-
-                // 2. Delete records linked directly to user
-                try { mysqli_query($conn, "UPDATE reservations SET extended_from = NULL WHERE user_id=$del_uid"); } catch(Exception $e){}
-                mysqli_query($conn, "DELETE FROM reservations WHERE user_id=$del_uid");
-                
-                try { mysqli_query($conn, "DELETE FROM activity_logs WHERE user_id=$del_uid"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM maintenance_requests WHERE user_id=$del_uid"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM housekeeping_requests WHERE user_id=$del_uid"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM notifications WHERE user_id=$del_uid"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM waitlist WHERE user_id=$del_uid"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM user_update_requests WHERE user_id=$del_uid"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM account_deletion_requests WHERE user_id=$del_uid"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM parking_reservations WHERE user_id=$del_uid"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM key_transactions WHERE user_id=$del_uid"); } catch(Exception $e){}
-
-                mysqli_query($conn, "DELETE FROM users WHERE user_id=$del_uid");
-                trigger_update($conn);
-                mysqli_commit($conn);
-                $msg = "User deleted successfully.";
-            } catch (mysqli_sql_exception $e) {
-                mysqli_rollback($conn);
-                $error = "Cannot delete user. Database error: " . $e->getMessage();
-            }
+            // Soft delete: Mark user as archived instead of permanent deletion
+            mysqli_query($conn, "UPDATE users SET is_archived=1 WHERE user_id=$del_uid");
+            // Also mark any pending deletion request as Approved
+            mysqli_query($conn, "UPDATE account_deletion_requests SET status='Approved' WHERE user_id=$del_uid AND status='Pending'");
+            trigger_update($conn);
+            $msg = "User archived successfully.";
         }
     }
 }
 
 // Fetch Residents
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
-$where = "role != 'admin' AND role != 'Super Admin'";
+$where = "role != 'admin' AND role != 'Super Admin' AND u.is_archived = 0";
 if($search){
     $where .= " AND (last_name LIKE '%$search%' OR first_name LIKE '%$search%' OR email LIKE '%$search%')";
 }

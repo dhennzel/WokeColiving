@@ -31,6 +31,8 @@ if(isset($_POST['delete_user'])){
     } else {
         // Soft delete: Mark user as archived instead of permanent deletion
         mysqli_query($conn, "UPDATE users SET is_archived=1 WHERE user_id=$del_uid");
+        // Also mark any pending deletion request as Approved
+        mysqli_query($conn, "UPDATE account_deletion_requests SET status='Approved' WHERE user_id=$del_uid AND status='Pending'");
         trigger_update($conn);
         echo "<script>window.location='booking_management.php?msg=user_archived';</script>";
         exit;
@@ -541,10 +543,10 @@ $theme = get_theme_colors($conn);
                     <span><i class="fas fa-user-times me-2"></i> Account Deletion Request</span>
                     <div class="d-flex gap-2">
                         <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
-                        <form method="POST" class="d-inline" onsubmit="return confirm('Approve deletion? This will permanently delete the user and all data.');">
+                        <form method="POST" class="d-inline" onsubmit="return confirm('Approve deletion? This will archive the user account.');">
                             <input type="hidden" name="user_id" value="<?= $uid ?>">
                             <input type="hidden" name="delete_user" value="1">
-                            <button type="submit" class="btn btn-light btn-sm fw-bold text-danger"><i class="fas fa-check me-1"></i> Approve & Delete</button>
+                            <button type="submit" class="btn btn-light btn-sm fw-bold text-danger"><i class="fas fa-check me-1"></i> Approve & Archive</button>
                         </form>
                         <?php endif; ?>
                         <form method="POST" class="d-inline">
@@ -1114,12 +1116,12 @@ document.addEventListener('click', function(event) {
 function confirmDeleteUser() {
     Swal.fire({
         title: 'Are you sure?',
-        text: "You are about to PERMANENTLY delete this user. This action cannot be undone.",
+        text: "You are about to archive this user. They will be moved to the archived list.",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete user!'
+        confirmButtonText: 'Yes, archive user!'
     }).then((result) => {
         if (result.isConfirmed) {
             document.getElementById('deleteUserForm').submit();
