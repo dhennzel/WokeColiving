@@ -58,15 +58,15 @@ $today = date('Y-m-d');
 $cap_q = mysqli_query($conn, "SELECT SUM(total_beds) as total FROM rooms WHERE availability != 'Maintenance' AND is_archived=0");
 $total_capacity = mysqli_fetch_assoc($cap_q)['total'] ?? 0;
 
-// 2. Total Occupied (Active Approved Reservations)
-$occ_q = mysqli_query($conn, "SELECT COUNT(*) as occupied FROM reservations WHERE status='Approved' AND start_date <= '$today' AND end_date > '$today'");
+// 2. Total Occupied (Active Approved and Pending Reservations)
+$occ_q = mysqli_query($conn, "SELECT COUNT(*) as occupied FROM reservations WHERE status IN ('Approved', 'Pending') AND start_date <= '$today' AND end_date > '$today'");
 $total_occupied = mysqli_fetch_assoc($occ_q)['occupied'] ?? 0;
 
 $occupancy_rate = ($total_capacity > 0) ? round(($total_occupied / $total_capacity) * 100) : 0;
 
 // Fetch Expiring Contracts (Approved and ending within 7 days or already ended)
 $expiring_query = mysqli_query($conn, "
-    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, u.do_not_renew, rm.room_name 
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, u.do_not_renew, rm.room_name, rm.room_number 
     FROM reservations r 
     JOIN users u ON r.user_id = u.user_id 
     JOIN rooms rm ON r.room_id = rm.room_id 
@@ -91,57 +91,85 @@ $waitlist_count = ($waitlist_count_query) ? mysqli_fetch_assoc($waitlist_count_q
 $del_req_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM account_deletion_requests WHERE status='Pending'");
 $del_req_count = ($del_req_query) ? mysqli_fetch_assoc($del_req_query)['count'] : 0;
 
-// Detailed Occupancy by Floor
-$floors_data = [];
-$floors_q = mysqli_query($conn, "SELECT DISTINCT floor FROM rooms ORDER BY floor ASC");
-
-while($f = mysqli_fetch_assoc($floors_q)){
-    $floor = $f['floor'];
-    $rooms_on_floor = [];
-    
-    $r_q = mysqli_query($conn, "SELECT * FROM rooms WHERE floor = $floor ORDER BY room_name");
-    while($room = mysqli_fetch_assoc($r_q)){
-        $rid = $room['room_id'];
-        $rtype = $room['room_type'];
-        $total_beds = $room['total_beds'];
-        
-        // Get Occupancy for this room
-        $ro_q = mysqli_query($conn, "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id=$rid AND status IN ('Pending', 'Approved') AND start_date <= '$today' AND end_date > '$today' GROUP BY bed_preference");
-        
-        $occ_upper = 0; $occ_lower = 0; $occ_any = 0;
-        $total_room_occ = 0;
-        while($ro = mysqli_fetch_assoc($ro_q)){
-            $total_room_occ += $ro['cnt'];
-            if($ro['bed_preference'] == 'Upper Bunk') $occ_upper += $ro['cnt'];
-            elseif($ro['bed_preference'] == 'Lower Bunk') $occ_lower += $ro['cnt'];
-            else $occ_any += $ro['cnt'];
-        }
-        
-        $cap_lower = ceil($total_beds / 2);
-        $cap_upper = floor($total_beds / 2);
-        if($rtype == 'Single') { $cap_lower = $total_beds; $cap_upper = 0; }
-
-        // Calculate Availability (Inventory Logic)
-        $avail_upper = max(0, $cap_upper - $occ_upper);
-        $avail_lower = max(0, $cap_lower - $occ_lower);
-
-        if($occ_any > 0) {
-            $fill_lower = min($avail_lower, $occ_any);
-            $avail_lower -= $fill_lower;
-            $occ_any -= $fill_lower;
-            
-            $avail_upper -= $occ_any;
-            $avail_upper = max(0, $avail_upper);
-        }
-        
-        $rooms_on_floor[] = [
-            'id' => $rid, 'name' => $room['room_name'], 'type' => $rtype, 'total' => $total_beds,
-            'occupied' => $total_room_occ, 'avail_lower' => $avail_lower, 'avail_upper' => $avail_upper,
-            'cap_lower' => $cap_lower, 'cap_upper' => $cap_upper, 'status' => $room['status']
-        ];
-    }
-    $floors_data[$floor] = $rooms_on_floor;
+// Ensure is_hidden column exists
+$check_col_hidden = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'is_hidden'");
+if(mysqli_num_rows($check_col_hidden) == 0) {
+    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN is_hidden TINYINT(1) DEFAULT 0");
 }
+
+// Detailed Occupancy by Floor
+    $floors_data = [];
+    $all_rooms_unified = []; // For "All Floors" view - sorted by room_number
+    
+    $floors_q = mysqli_query($conn, "SELECT DISTINCT floor FROM rooms WHERE is_hidden=0 ORDER BY floor ASC");
+
+    while($f = mysqli_fetch_assoc($floors_q)){
+        $floor = $f['floor'];
+        $rooms_on_floor = [];
+        
+        $r_q = mysqli_query($conn, "SELECT * FROM rooms WHERE floor = $floor AND is_hidden=0 ORDER BY CAST(room_number AS UNSIGNED) ASC");
+        while($room = mysqli_fetch_assoc($r_q)){
+            $rid = $room['room_id'];
+            $rtype = $room['room_type'];
+            $total_beds = $room['total_beds'];
+            $room_number = $room['room_number'] ?? '';
+            
+            // Get Occupancy for this room
+            $ro_q = mysqli_query($conn, "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id=$rid AND status IN ('Pending', 'Approved') AND start_date <= '$today' AND end_date > '$today' GROUP BY bed_preference");
+            
+            $occ_upper = 0; $occ_lower = 0; $occ_any = 0;
+            $total_room_occ = 0;
+            while($ro = mysqli_fetch_assoc($ro_q)){
+                $total_room_occ += $ro['cnt'];
+                if($ro['bed_preference'] == 'Upper Bunk') $occ_upper += $ro['cnt'];
+                elseif($ro['bed_preference'] == 'Lower Bunk') $occ_lower += $ro['cnt'];
+                else $occ_any += $ro['cnt'];
+            }
+            
+            $cap_lower = ceil($total_beds / 2);
+            $cap_upper = floor($total_beds / 2);
+            if($rtype == 'Single') { $cap_lower = $total_beds; $cap_upper = 0; }
+
+            // Calculate Availability (Inventory Logic)
+            $avail_upper = max(0, $cap_upper - $occ_upper);
+            $avail_lower = max(0, $cap_lower - $occ_lower);
+
+            if($occ_any > 0) {
+                $fill_lower = min($avail_lower, $occ_any);
+                $avail_lower -= $fill_lower;
+                $occ_any -= $fill_lower;
+                
+                $avail_upper -= $occ_any;
+                $avail_upper = max(0, $avail_upper);
+            }
+            
+            // Make room display name consistent with admin_rooms.php
+            $room_display = $room['room_name'];
+            if (!empty($room_number)) {
+                $room_display = "Room " . $room_number;
+            } elseif (is_numeric($room['room_name'])) {
+                $room_display = "Room " . $room['room_name'];
+            }
+            
+            $room_data = [
+                'id' => $rid, 'name' => $room['room_name'], 'room_number' => $room_number, 'display_name' => $room_display, 'type' => $rtype, 'total' => $total_beds,
+                'occupied' => $total_room_occ, 'avail_lower' => $avail_lower, 'avail_upper' => $avail_upper,
+                'cap_lower' => $cap_lower, 'cap_upper' => $cap_upper, 'status' => $room['status'], 'floor' => $floor
+            ];
+            
+            $rooms_on_floor[] = $room_data;
+            $all_rooms_unified[] = $room_data; // Add to unified list for "All Floors" view
+        }
+        $floors_data[$floor] = $rooms_on_floor;
+    }
+    
+    // Sort unified list by room_number (ascending) for "All Floors" view
+    usort($all_rooms_unified, function($a, $b) {
+        $a_num = is_numeric($a['room_number']) ? intval($a['room_number']) : 0;
+        $b_num = is_numeric($b['room_number']) ? intval($b['room_number']) : 0;
+        return $a_num - $b_num;
+    });
+    $floors_data['all'] = $all_rooms_unified;
 
 // Stats: Monthly Earnings for Chart
 $current_year = date('Y');
@@ -398,8 +426,8 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                         <i class="fas fa-building me-2 text-success"></i> 
                         <span class="me-2">Occupancy</span>
                         <select id="floorFilter" class="form-select form-select-sm w-auto py-0 me-2" style="font-size: 0.8rem;" onchange="filterOccupancy()">
-                            <option value="all">All Floors</option>
-                            <option value="2" selected>2nd Floor</option>
+                            <option value="all" selected>All Floors</option>
+                            <option value="2">2nd Floor</option>
                             <option value="3">3rd Floor</option>
                             <option value="4">4th Floor</option>
                             <option value="5">5th Floor</option>
@@ -412,12 +440,19 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                             <option value="full">Full</option>
                             <option value="maintenance">Maintenance</option>
                         </select>
+                        <select id="roomTypeFilter" class="form-select form-select-sm w-auto py-0 me-2" style="font-size: 0.8rem;" onchange="filterOccupancy()">
+                            <option value="all">All Types</option>
+                            <option value="Single">Single</option>
+                            <option value="4-Bed">4-Bed</option>
+                            <option value="6-Bed">6-Bed</option>
+                        </select>
                         <input type="text" id="roomSearch" class="form-control form-control-sm w-auto py-0" style="font-size: 0.8rem; width: 120px;" placeholder="Search..." onkeyup="filterOccupancy()">
                     </div>
                     <span class="badge bg-success"><?= $total_occupied ?> / <?= $total_capacity ?> Beds</span>
                 </div>
                 <div class="card-body p-3" style="max-height: 400px; overflow-y: auto;">
                     <?php foreach($floors_data as $floor => $rooms): ?>
+                    <?php if($floor === 'all') continue; // Skip 'all' key, JavaScript handles combining rooms for "All Floors" view ?>
                     <div class="floor-group" data-floor="<?= $floor ?>">
                         <h6 class="fw-bold text-muted mb-2 small text-uppercase border-bottom pb-1"><?= $floor == 2 ? '2nd' : ($floor == 3 ? '3rd' : $floor.'th') ?> Floor</h6>
                         <div class="row g-2 mb-3">
@@ -427,10 +462,10 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                                 if($room['status'] == 'Maintenance') $status_tag = 'maintenance';
                                 elseif($room['occupied'] >= $room['total']) $status_tag = 'full';
                             ?>
-                            <div class="col-lg-4 col-md-6 room-item" data-status="<?= $status_tag ?>">
+                            <div class="col-lg-4 col-md-6 room-item" data-status="<?= $status_tag ?>" data-room-type="<?= $room['type'] ?>">
                                 <div class="room-box">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="fw-bold small"><?= $room['name'] ?></span>
+                                        <span class="fw-bold small"><?= $room['display_name'] ?></span>
                                         <span class="badge bg-light text-dark border" style="font-size: 0.6rem;"><?= $room['type'] ?></span>
                                     </div>
                                     <?php if($room['status'] == 'Maintenance'): ?>
@@ -548,13 +583,19 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                             $status_text = $days_left < 0 ? "Expired " . abs($days_left) . " days ago" : ($days_left == 0 ? "Expires Today" : "$days_left days left");
                             $text_class = $days_left <= 0 ? "text-danger fw-bold" : "text-warning fw-bold";
                             $dnr_alert = $exp['do_not_renew'] ? '<span class="badge bg-danger ms-2"><i class="fas fa-ban me-1"></i>Do Not Renew</span>' : '';
+                            // Make room display name consistent with admin_rooms.php
+                            $room_display = $exp['room_name'];
+                            if (!empty($exp['room_number'])) {
+                                $room_display = "Room " . $exp['room_number'];
+                            } elseif (is_numeric($exp['room_name'])) {
+                                $room_display = "Room " . $exp['room_name'];
+                            }
                         ?>
                         <tr>
                             <td class="fw-bold">
                                 <?= htmlspecialchars($exp['full_name']) ?>
                                 <?= $dnr_alert ?>
                             </td>
-                            <td><?= htmlspecialchars($exp['room_name']) ?></td>
                             <td><?= $exp['end_date'] ?></td>
                             <td class="<?= $text_class ?>"><?= $status_text ?></td>
                             <td class="text-end">
@@ -728,37 +769,95 @@ setInterval(refreshActivity, 30000); // 30 seconds
 function filterOccupancy() {
     const filter = document.getElementById('occupancyFilter').value;
     const floorFilter = document.getElementById('floorFilter').value;
+    const roomTypeFilter = document.getElementById('roomTypeFilter') ? document.getElementById('roomTypeFilter').value : 'all';
     const search = document.getElementById('roomSearch').value.toLowerCase();
     const groups = document.querySelectorAll('.floor-group');
     
-    groups.forEach(group => {
-        const groupFloor = group.getAttribute('data-floor');
-        const showFloor = (floorFilter === 'all') || (floorFilter === groupFloor);
-
-        const items = group.querySelectorAll('.room-item');
-        let visibleCount = 0;
-        
-        if (!showFloor) {
-            group.style.display = 'none';
-            return;
-        }
-        
-        items.forEach(item => {
-            const status = item.dataset.status;
-            const name = item.querySelector('.fw-bold').innerText.toLowerCase();
-            const type = item.querySelector('.badge').innerText.toLowerCase();
+    // If "All Floors" is selected, show unified sorted list
+    if (floorFilter === 'all') {
+        // Hide floor headers and show all rooms sorted by room number
+        groups.forEach((group, index) => {
+            const items = group.querySelectorAll('.room-item');
+            let visibleCount = 0;
             
-            const matchesFilter = (filter === 'all') || (filter === status);
-            const matchesSearch = name.includes(search) || type.includes(search);
+            // Hide floor header when showing "All Floors"
+            const header = group.querySelector('h6');
+            if (header) header.style.display = 'none';
             
-            const show = matchesFilter && matchesSearch;
+            items.forEach(item => {
+                const status = item.dataset.status;
+                const roomType = item.dataset.roomType || '';
+                const name = item.querySelector('.fw-bold').innerText.toLowerCase();
+                const type = item.querySelector('.badge').innerText.toLowerCase();
+                
+                const matchesFilter = (filter === 'all') || (filter === status);
+                const matchesRoomType = (roomTypeFilter === 'all') || (roomType === roomTypeFilter);
+                const matchesSearch = name.includes(search) || type.includes(search);
+                
+                const show = matchesFilter && matchesRoomType && matchesSearch;
+                
+                item.style.display = show ? 'block' : 'none';
+                if(show) visibleCount++;
+            });
             
-            item.style.display = show ? 'block' : 'none';
-            if(show) visibleCount++;
+            group.style.display = visibleCount > 0 ? 'block' : 'none';
         });
         
-        group.style.display = visibleCount > 0 ? 'block' : 'none';
-    });
+        // Re-sort all visible room-items by their room name/number
+        groups.forEach(group => {
+            const container = group.querySelector('.row');
+            const items = Array.from(group.querySelectorAll('.room-item'));
+            
+            // Sort items by room number
+            items.sort((a, b) => {
+                const aName = a.querySelector('.fw-bold').innerText;
+                const bName = b.querySelector('.fw-bold').innerText;
+                // Extract numeric part from room name (e.g., "Room 201" -> 201)
+                const aNum = parseInt(aName.replace(/\D/g, '')) || 0;
+                const bNum = parseInt(bName.replace(/\D/g, '')) || 0;
+                return aNum - bNum;
+            });
+            
+            // Re-append items in sorted order
+            items.forEach(item => container.appendChild(item));
+        });
+    } else {
+        // Specific floor selected - show grouped by floor
+        groups.forEach(group => {
+            const groupFloor = group.getAttribute('data-floor');
+            const showFloor = (floorFilter === 'all') || (floorFilter === groupFloor);
+
+            const items = group.querySelectorAll('.room-item');
+            let visibleCount = 0;
+            
+            // Show floor header when specific floor is selected
+            const header = group.querySelector('h6');
+            if (header) header.style.display = showFloor ? 'block' : 'none';
+            
+            if (!showFloor) {
+                group.style.display = 'none';
+                return;
+            }
+            
+            items.forEach(item => {
+                const status = item.dataset.status;
+                const roomType = item.dataset.roomType || '';
+                const name = item.querySelector('.fw-bold').innerText.toLowerCase();
+                const type = item.querySelector('.badge').innerText.toLowerCase();
+                
+                const matchesFilter = (filter === 'all') || (filter === status);
+                const matchesRoomType = (roomTypeFilter === 'all') || (roomType === roomTypeFilter);
+                const matchesSearch = name.includes(search) || type.includes(search);
+                
+                const show = matchesFilter && matchesRoomType && matchesSearch;
+                
+                item.style.display = show ? 'block' : 'none';
+                if(show) visibleCount++;
+            });
+            
+            group.style.display = visibleCount > 0 ? 'block' : 'none';
+        });
+    }
 }
 
 // Initialize filter on load

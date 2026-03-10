@@ -73,6 +73,11 @@ $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
 $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 
+// Calculate Key Statistics
+$total_keys = mysqli_num_rows(mysqli_query($conn, "SELECT id FROM `keys`"));
+$released_keys = mysqli_num_rows(mysqli_query($conn, "SELECT id FROM `keys` WHERE status='Released'"));
+$available_keys = $total_keys - $released_keys;
+
 $theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
@@ -173,7 +178,29 @@ $theme = get_theme_colors($conn);
     <!-- Page Content -->
     <div id="page-content-wrapper">
         <div class="container-fluid px-4 py-4">
-            <h4 class="fw-bold mb-4" style="color: var(--dark-green);">Key Monitoring System</h4>
+<h4 class="fw-bold mb-4" style="color: var(--dark-green);">Key Monitoring System</h4>
+
+            <!-- Key Statistics Cards -->
+            <div class="row mb-4 g-3">
+                <div class="col-4">
+                    <div class="card card-custom p-3 text-center">
+                        <h3 class="fw-bold text-primary mb-0"><?= $total_keys ?></h3>
+                        <small class="text-muted">Total Keys</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="card card-custom p-3 text-center">
+                        <h3 class="fw-bold text-warning mb-0"><?= $released_keys ?></h3>
+                        <small class="text-muted">Keys Released</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="card card-custom p-3 text-center">
+                        <h3 class="fw-bold text-success mb-0"><?= $available_keys ?></h3>
+                        <small class="text-muted">Keys Available</small>
+                    </div>
+                </div>
+            </div>
 
             <?php if(isset($_GET['msg'])): ?>
                 <div class="alert alert-success"><?= $_GET['msg'] == 'released' ? 'Key released successfully.' : 'Key returned successfully.' ?></div>

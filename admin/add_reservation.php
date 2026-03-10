@@ -333,6 +333,7 @@ $theme = get_theme_colors($conn);
 
                 <form method="POST" id="reservationForm">
                     <input type="hidden" name="term_type" id="term_type" value="Short">
+                    <input type="hidden" name="add_reservation" value="1">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Guest Type</label>
                         <div>
@@ -551,7 +552,7 @@ function updateCheckoutDate() {
     let cinInput = document.getElementById('cin');
     let coutInput = document.getElementById('cout');
     let termInput = document.getElementById('term_type');
-    
+
     // Auto-set Check-in to today if empty when selecting duration
     if (!cinInput.value) {
         let today = new Date();
@@ -560,22 +561,17 @@ function updateCheckoutDate() {
         let dd = String(today.getDate()).padStart(2, '0');
         cinInput.value = `${yyyy}-${mm}-${dd}`;
     }
-    
+
     if(cinInput.value) {
         let d = new Date(cinInput.value);
-        
+
         if (duration === '1') {
-            d.setDate(d.getDate() + 29);
+            d.setMonth(d.getMonth() + 1);
             coutInput.value = d.toISOString().split('T')[0];
             termInput.value = 'Short';
         } else if (duration === '6') {
-            let startDay = d.getDate();
-            let targetMonth = d.getMonth();
-            if (startDay <= 15) targetMonth += 5;
-            else targetMonth += 6;
-            
-            let endDate = new Date(d.getFullYear(), targetMonth + 1, 0); 
-            coutInput.value = endDate.toISOString().split('T')[0];
+            d.setMonth(d.getMonth() + 6);
+            coutInput.value = d.toISOString().split('T')[0];
             termInput.value = 'Long';
         } else {
             d.setDate(d.getDate() + 1);
@@ -594,12 +590,24 @@ function updateDurationFromDates() {
     let termInput = document.getElementById('term_type');
 
     if (cin && cout) {
-        let d1 = new Date(cin);
-        let d2 = new Date(cout);
-        let diffTime = d2 - d1;
-        let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        let p1 = cin.split('-');
+        let d1 = new Date(parseInt(p1[0]), parseInt(p1[1]) - 1, parseInt(p1[2]));
+        let p2 = cout.split('-');
+        let d2 = new Date(parseInt(p2[0]), parseInt(p2[1]) - 1, parseInt(p2[2]));
+        
+        let diffTime = d2.getTime() - d1.getTime();
+        let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        if (diffDays >= 28) {
+        // Calculate month difference
+        let months = (d2.getFullYear() - d1.getFullYear()) * 12;
+        months -= d1.getMonth();
+        months += d2.getMonth();
+        months = months <= 0 ? 0 : months;
+
+        if (months >= 5 && diffDays > 150) {
+             durationSelect.value = '6';
+             termInput.value = 'Long';
+        } else if (diffDays >= 28) {
              durationSelect.value = '1';
              termInput.value = 'Short';
         } else {

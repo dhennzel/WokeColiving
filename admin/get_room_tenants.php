@@ -12,12 +12,17 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 $room_id = (int)$_GET['room_id'] ?? 0;
 
 if ($room_id > 0) {
-    // Get users with approved reservations for this specific room
+    // Get users with ACTIVE reservations for this specific room (currently staying)
+    // Only show tenants where current date falls within the reservation period
     $q = mysqli_query($conn, "
         SELECT DISTINCT u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name 
         FROM users u 
         JOIN reservations r ON u.user_id = r.user_id 
-        WHERE r.room_id = $room_id AND r.status = 'Approved' AND u.role = 'user' 
+        WHERE r.room_id = $room_id 
+        AND r.status = 'Approved' 
+        AND r.start_date <= CURDATE() 
+        AND r.end_date > CURDATE()
+        AND u.role = 'user' 
         ORDER BY u.last_name
     ");
     

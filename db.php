@@ -728,12 +728,14 @@ function get_room_key_info($conn, $room_id) {
 
 // Get all rooms with occupancy information
 if (!function_exists('get_all_rooms_with_occupancy')) {
-function get_all_rooms_with_occupancy($conn) {
+function get_all_rooms_with_occupancy($conn, $show_hidden = false) {
+    $hidden_clause = $show_hidden ? "" : "AND r.is_hidden = 0";
     $query = mysqli_query($conn, "
         SELECT r.*, 
                r.room_number, r.room_type, r.total_beds, r.floor, r.room_name, r.availability
         FROM rooms r
         WHERE r.is_archived = 0
+        $hidden_clause
         ORDER BY r.display_order ASC, r.room_type, r.floor, CAST(COALESCE(r.room_number, r.room_name) AS UNSIGNED), COALESCE(r.room_number, r.room_name) ASC
     ");
     

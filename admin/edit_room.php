@@ -24,6 +24,12 @@ if(mysqli_num_rows($check_cols) == 0) {
     mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN price_lower DECIMAL(10,2) DEFAULT 0.00");
 }
 
+// Ensure is_hidden column exists
+$check_col_hidden = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'is_hidden'");
+if(mysqli_num_rows($check_col_hidden) == 0) {
+    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN is_hidden TINYINT(1) DEFAULT 0");
+}
+
 // Fetch room details
 $query = mysqli_query($conn, "SELECT * FROM rooms WHERE room_id=$room_id");
 if(mysqli_num_rows($query) == 0){
@@ -58,6 +64,7 @@ if(isset($_POST['update_room'])){
     $lt_whole = isset($_POST['long_term_price_whole']) ? (float) $_POST['long_term_price_whole'] : 0;
     $beds = (int) $_POST['beds'];
     $availability = $_POST['availability'];
+    $is_hidden = isset($_POST['is_hidden']) ? 1 : 0;
     
     // Image Upload
     $image = $room['image']; // Default to old image
@@ -84,8 +91,8 @@ if(isset($_POST['update_room'])){
             $price = $price_lower;
         }
 
-        $stmt = mysqli_prepare($conn, "UPDATE rooms SET room_name=?, room_number=?, room_type=?, floor=?, total_price=?, price_upper=?, price_lower=?, price_whole=?, long_term_price_upper=?, long_term_price_lower=?, long_term_price_whole=?, total_beds=?, availability=?, image=? WHERE room_id=?");
-        mysqli_stmt_bind_param($stmt, "sssidddddddissi", $room_name, $room_number, $room_type, $floor, $price, $price_upper, $price_lower, $price_whole, $lt_upper, $lt_lower, $lt_whole, $beds, $availability, $image, $room_id);
+        $stmt = mysqli_prepare($conn, "UPDATE rooms SET room_name=?, room_number=?, room_type=?, floor=?, total_price=?, price_upper=?, price_lower=?, price_whole=?, long_term_price_upper=?, long_term_price_lower=?, long_term_price_whole=?, total_beds=?, availability=?, image=?, is_hidden=? WHERE room_id=?");
+        mysqli_stmt_bind_param($stmt, "sssidddddddissii", $room_name, $room_number, $room_type, $floor, $price, $price_upper, $price_lower, $price_whole, $lt_upper, $lt_lower, $lt_whole, $beds, $availability, $image, $is_hidden, $room_id);
         
         try {
             if(mysqli_stmt_execute($stmt)){
@@ -293,6 +300,15 @@ $theme = get_theme_colors($conn);
                                         <option <?= $room['availability'] == 'Occupied' ? 'selected' : '' ?>>Occupied</option>
                                         <option <?= $room['availability'] == 'Maintenance' ? 'selected' : '' ?>>Maintenance</option>
                                     </select>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="is_hidden" id="is_hidden" value="1" <?= ($room['is_hidden'] ?? 0) == 1 ? 'checked' : '' ?>>
+                                    <label class="form-check-label fw-bold" for="is_hidden">
+                                        <i class="fas fa-eye-slash me-1"></i> Hide from Dashboard
+                                    </label>
+                                    <small class="text-muted d-block">When enabled, this room will not appear in the Admin Dashboard occupancy view.</small>
                                 </div>
                             </div>
                             <div class="mb-4">

@@ -430,7 +430,13 @@ $theme = get_theme_colors($conn);
             <div class="modal-body p-4">
                 <div class="row g-4">
                     <?php foreach($rooms_in_type as $room): 
-                        $room_display = $room['room_number'] ? "Room " . $room['room_number'] : $room['room_name'];
+                        // Make room display name consistent with admin_rooms.php
+                        $room_display = $room['room_name'];
+                        if (!empty($room['room_number'])) {
+                            $room_display = "Room " . $room['room_number'];
+                        } elseif (is_numeric($room['room_name'])) {
+                            $room_display = "Room " . $room['room_name'];
+                        }
                         $floor = $room['floor'] ?? 2;
                         
                         // Status badge class

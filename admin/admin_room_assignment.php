@@ -49,7 +49,7 @@ if(isset($_POST['move_tenant'])){
 $query = "
     SELECT r.reservation_id, r.start_date, r.end_date, r.bed_preference,
            u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name, u.profile_image, u.email, u.phone_number,
-           rm.room_id, rm.room_name, rm.room_type, rm.floor
+           rm.room_id, rm.room_name, rm.room_number, rm.room_type, rm.floor
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -190,7 +190,15 @@ $theme = get_theme_colors($conn);
                     <table class="table table-hover align-middle">
                         <thead><tr><th>Resident</th><th>Current Room</th><th>Contract</th><th>Action</th></tr></thead>
                         <tbody>
-                            <?php while($res = mysqli_fetch_assoc($residents)): ?>
+                            <?php while($res = mysqli_fetch_assoc($residents)): 
+                                // Make room display name consistent with admin_rooms.php
+                                $room_display = $res['room_name'];
+                                if (!empty($res['room_number'])) {
+                                    $room_display = "Room " . $res['room_number'];
+                                } elseif (is_numeric($res['room_name'])) {
+                                    $room_display = "Room " . $res['room_name'];
+                                }
+                            ?>
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
@@ -208,7 +216,7 @@ $theme = get_theme_colors($conn);
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="fw-bold text-success"><?= $res['room_name'] ?></span>
+                                    <span class="fw-bold text-success"><?= $room_display ?></span>
                                     <span class="badge bg-light text-dark border ms-1"><?= $res['room_type'] ?></span>
                                     <?php if($res['bed_preference'] != 'Any'): ?>
                                         <div class="small text-muted"><i class="fas fa-bed"></i> <?= $res['bed_preference'] ?></div>
@@ -218,7 +226,7 @@ $theme = get_theme_colors($conn);
                                     <small class="d-block">End: <?= date('M d, Y', strtotime($res['end_date'])) ?></small>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-primary px-3" onclick="openMoveModal(<?= $res['reservation_id'] ?>, '<?= addslashes($res['full_name']) ?>', '<?= addslashes($res['room_name']) ?>')">
+                                    <button class="btn btn-sm btn-primary px-3" onclick="openMoveModal(<?= $res['reservation_id'] ?>, '<?= addslashes($res['full_name']) ?>', '<?= addslashes($room_display) ?>')">
                                         <i class="fas fa-exchange-alt me-1"></i> Move
                                     </button>
                                 </td>
@@ -280,6 +288,14 @@ $theme = get_theme_colors($conn);
                     <div class="tab-pane fade <?= $first ? 'show active' : '' ?>" id="content-<?= $type_id ?>" role="tabpanel">
                         <div class="row g-3">
                             <?php foreach($rooms_in_type as $room): 
+                                // Make room display name consistent with admin_rooms.php
+                                $room_display = $room['room_name'];
+                                if (!empty($room['room_number'])) {
+                                    $room_display = "Room " . $room['room_number'];
+                                } elseif (is_numeric($room['room_name'])) {
+                                    $room_display = "Room " . $room['room_name'];
+                                }
+                                
                                 // Availability Logic
                                 $total = $room['total_beds'];
                                 $occ_count = count($room['occupants']);
@@ -318,7 +334,7 @@ $theme = get_theme_colors($conn);
                                     <img src="../assets/images/<?= $room['image'] ?>" class="card-img-top" style="height: 120px; object-fit: cover;">
                                     <div class="card-body p-3 d-flex flex-column">
                                         <div class="d-flex justify-content-between align-items-start mb-2">
-                                            <h6 class="fw-bold mb-0"><?= $room['room_name'] ?></h6>
+                                            <h6 class="fw-bold mb-0"><?= $room_display ?></h6>
                                             <span class="badge bg-light text-dark border"><?= $room['floor'] ?>F</span>
                                         </div>
                                         <div class="mb-3">
