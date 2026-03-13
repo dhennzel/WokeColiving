@@ -10,6 +10,33 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 $admin_username = $_SESSION['admin_username'] ?? 'Admin';
 
+// Handle Key Actions
+if (isset($_POST['release_key'])) {
+    $key_id = (int)$_POST['key_id'];
+    $user_id = (int)$_POST['user_id'];
+    
+    if(release_room_key($conn, $key_id, $user_id)){
+        log_activity($conn, $user_id, "Key Released", "Key ID $key_id released to user by $admin_username from Occupancy page.");
+        header("Location: admin_room_occupancy.php?msg=key_released");
+        exit;
+    }
+}
+
+if (isset($_GET['action']) && $_GET['action'] == 'return_key' && isset($_GET['trans_id'])) {
+    $trans_id = (int)$_GET['trans_id'];
+    
+    $t_q = mysqli_query($conn, "SELECT user_id, key_id FROM key_transactions WHERE id=$trans_id");
+    $trans_info = mysqli_fetch_assoc($t_q);
+
+    if(return_room_key($conn, $trans_id)){
+        if ($trans_info) {
+            log_activity($conn, $trans_info['user_id'], "Key Returned", "Key ID {$trans_info['key_id']} returned by user, processed by $admin_username from Occupancy page.");
+        }
+        header("Location: admin_room_occupancy.php?msg=key_returned");
+        exit;
+    }
+}
+
 // Handle History Fetch (AJAX)
 if(isset($_GET['fetch_history']) && isset($_GET['room_id'])){
     $rid = (int)$_GET['room_id'];
@@ -291,8 +318,14 @@ $theme = get_theme_colors($conn);
             <!-- Success Messages -->
             <?php if(isset($_GET['msg'])): ?>
                 <?php if($_GET['msg'] == 'key_released'): ?>
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
                         <i class="fas fa-check-circle me-2"></i> Key has been released successfully!
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+                <?php if($_GET['msg'] == 'key_returned'): ?>
+                    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+                        <i class="fas fa-undo me-2"></i> Key has been marked as returned successfully!
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
@@ -520,6 +553,41 @@ $theme = get_theme_colors($conn);
                                         </div>
                                     <?php endif; ?>
                                 </div>
+
+                                <!-- Key Status Section -->
+                                <div class="mt-auto pt-3 border-top">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <small class="text-muted fw-bold"><i class="fas fa-key me-1"></i> Key Status</small>
+                                    </div>
+                                    <div style="max-height: 140px; overflow-y: auto;">
+                                    <?php if(!empty($room['all_keys'])): ?>
+                                        <?php foreach($room['all_keys'] as $key): ?>
+                                            <div class="d-flex justify-content-between align-items-center p-2 rounded mb-1" style="background-color: <?= $key['key_status'] == 'Available' ? '#e8f5e9' : '#fff3cd' ?>;">
+                                                <div class="small">
+                                                    <strong class="text-dark"><?= htmlspecialchars($key['key_name']) ?></strong>
+                                                    <?php if($key['key_status'] == 'Released'): ?>
+                                                        <div class="text-muted text-truncate" style="max-width: 120px;" title="<?= htmlspecialchars($key['key_holder_name']) ?>">
+                                                            <i class="fas fa-user-tag me-1"></i>
+                                                            <?= htmlspecialchars($key['key_holder_name']) ?>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php if($key['key_status'] == 'Available'): ?>
+                                                    <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 0.7rem;" onclick="openReleaseModal(<?= $key['key_id'] ?>, '<?= addslashes(htmlspecialchars($key['key_name'])) ?>', <?= $room['room_id'] ?>, '<?= addslashes(htmlspecialchars($room_display)) ?>')">
+                                                        Release
+                                                    </button>
+                                                <?php else: ?>
+                                                    <button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.7rem;" onclick="confirmReturn(<?= $key['trans_id'] ?>, '<?= addslashes(htmlspecialchars($key['key_name'])) ?>', '<?= addslashes(htmlspecialchars($key['key_holder_name'])) ?>')">
+                                                        Return
+                                                    </button>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <p class="text-muted small mb-0">No keys configured for this room.</p>
+                                    <?php endif; ?>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -544,6 +612,56 @@ $theme = get_theme_colors($conn);
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Release Modal -->
+<div class="modal fade" id="releaseModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-share me-2"></i>Release Key</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <p>Releasing: <strong id="modalKeyName"></strong></p>
+                    <p class="small text-muted">Room: <span id="modalRoomName"></span></p>
+                    <input type="hidden" name="key_id" id="modalKeyId">
+                    <input type="hidden" name="release_key" value="1">
+                    <div class="mb-3">
+                        <label class="form-label">Select Tenant (Approved occupants of this room)</label>
+                        <select name="user_id" id="tenantSelect" class="form-select" required>
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Confirm Release</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Return Modal -->
+<div class="modal fade" id="confirmReturnModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-undo me-2"></i>Confirm Key Return</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Are you sure you want to mark <strong id="returnKeyName"></strong> as returned from <strong id="returnHolderName"></strong>?</p>
+                <p class="text-muted small mt-2">This action will mark the key as 'Available' and record the return time.</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmReturnBtn" class="btn btn-danger rounded-pill px-4">Yes, Mark as Returned</a>
             </div>
         </div>
     </div>
@@ -581,6 +699,46 @@ function viewHistory(roomId, roomName) {
         .then(html => {
             document.getElementById('histContent').innerHTML = html;
         });
+}
+
+function openReleaseModal(id, name, roomId, roomName) {
+    document.getElementById('modalKeyId').value = id;
+    document.getElementById('modalKeyName').innerText = name;
+    document.getElementById('modalRoomName').innerText = roomName;
+    
+    var modal = new bootstrap.Modal(document.getElementById('releaseModal'));
+    modal.show();
+    
+    var select = document.getElementById('tenantSelect');
+    select.innerHTML = '<option value="">Loading...</option>';
+    
+    fetch('get_room_tenants.php?room_id=' + roomId)
+        .then(response => response.json())
+        .then(data => {
+            select.innerHTML = '<option value="">-- Choose Tenant --</option>';
+            if (data.length === 0) {
+                select.innerHTML = '<option value="">No approved occupants found for this room</option>';
+            } else {
+                data.forEach(function(user) {
+                    var option = document.createElement('option');
+                    option.value = user.user_id;
+                    option.textContent = user.full_name;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            select.innerHTML = '<option value="">Error loading tenants</option>';
+        });
+}
+
+function confirmReturn(transId, keyName, holderName) {
+    document.getElementById('returnKeyName').innerText = keyName;
+    document.getElementById('returnHolderName').innerText = holderName;
+    document.getElementById('confirmReturnBtn').href = `admin_room_occupancy.php?action=return_key&trans_id=${transId}`;
+    var myModal = new bootstrap.Modal(document.getElementById('confirmReturnModal'));
+    myModal.show();
 }
 
 function toggleMenu(e) {

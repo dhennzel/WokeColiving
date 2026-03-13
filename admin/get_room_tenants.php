@@ -2,37 +2,33 @@
 session_start();
 include("../db.php");
 
-header('Content-Type: application/json');
-
+// Only allow admin
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    echo json_encode([]);
+    http_response_code(403);
+    echo json_encode(['error' => 'Unauthorized']);
     exit;
 }
 
-$room_id = (int)$_GET['room_id'] ?? 0;
+header('Content-Type: application/json');
 
-if ($room_id > 0) {
-    // Get users with ACTIVE reservations for this specific room (currently staying)
-    // Only show tenants where current date falls within the reservation period
-    $q = mysqli_query($conn, "
-        SELECT DISTINCT u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name 
-        FROM users u 
-        JOIN reservations r ON u.user_id = r.user_id 
-        WHERE r.room_id = $room_id 
-        AND r.status = 'Approved' 
-        AND r.start_date <= CURDATE() 
-        AND r.end_date > CURDATE()
-        AND u.role = 'user' 
-        ORDER BY u.last_name
-    ");
-    
-    $tenants = [];
-    while ($row = mysqli_fetch_assoc($q)) {
-        $tenants[] = $row;
-    }
-    echo json_encode($tenants);
-} else {
-    echo json_encode([]);
+if(!isset($_GET['room_id'])){
+    http_response_code(400);
+    echo json_encode(['error' => 'Room ID not provided']);
+    exit;
 }
-?>
 
+$room_id = (int)$_GET['room_id'];
+
+// Use the existing function from db.php to get occupants
+$occupants = get_room_occupants($conn, $room_id);
+
+// Filter for approved tenants only, as keys should only be released to them
+$tenants = [];
+foreach($occupants as $occupant){
+    if($occupant['status'] == 'Approved'){
+        $tenants[] = ['user_id' => $occupant['user_id'], 'full_name' => $occupant['full_name']];
+    }
+}
+
+echo json_encode($tenants);
+?>

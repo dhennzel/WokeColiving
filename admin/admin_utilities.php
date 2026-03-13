@@ -12,6 +12,11 @@ $message = "";
 $active_modal = "";
 $is_super = ($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin';
 
+// Handle GET param to open modal
+if(isset($_GET['modal'])){
+    $active_modal = $_GET['modal'];
+}
+
 // Handle Archive Actions (Delete/Restore)
 if(isset($_POST['archive_action'])) {
     $id = (int)$_POST['id'];

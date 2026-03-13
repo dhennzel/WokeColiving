@@ -86,6 +86,9 @@ foreach($all_rooms as $room){
 }
 $available_keys = $total_keys - $released_keys;
 
+// Released keys count for new button
+$released_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM key_transactions WHERE status='Active'"))['c'];
+
 // Sidebar counts
 $pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
@@ -260,6 +263,8 @@ $theme = get_theme_colors($conn);
                 </div>
             </div>
 
+        
+
             <!-- Key Type Cards (Single, 4-Bed, 6-Bed) -->
             <div class="row g-4">
                 <?php foreach($room_type_order as $type): ?>
@@ -419,17 +424,18 @@ $theme = get_theme_colors($conn);
                                     <div class="mb-2">
                                         <small class="text-muted fw-bold"><i class="fas fa-key me-1"></i> KEY STATUS</small>
                                     </div>
-                                    <?php if($is_released && $key_info['holder_name']): ?>
+                                   <?php if ((isset($is_released) && $is_released) && !empty($key_info['key_holder_name'])): ?>
                                         <div class="alert alert-warning py-2 mb-2 small">
-                                            <div class="d-flex justify-content-between">
-                                                <span class="fw-bold text-dark">Released</span>
-                                                <span class="text-muted"><?= date('M d', strtotime($key_info['released_at'])) ?></span>
+                                            <div class="fw-bold text-dark">
+                                                <i class="fas fa-user-tag me-1"></i> Released
                                             </div>
-                                            <div class="text-truncate" title="<?= $key_info['holder_name'] ?>"><i class="fas fa-user me-1"></i> <?= $key_info['holder_name'] ?></div>
+                                            <div class="text-truncate" title="<?= $key_info['key_holder_name'] ?>">
+                                                <small><?= $key_info['key_holder_name'] ?></small>
+                                            </div>
                                         </div>
-                                        <a href="?action=return&id=<?= $key_info['trans_id'] ?>" class="btn btn-sm btn-outline-danger w-100" onclick="return confirm('Mark this key as returned?')">
-                                            <i class="fas fa-undo me-1"></i> Return Key
-                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="confirmUnrelease(<?= $key_info['trans_id'] ?>, '<?= addslashes($key_info['key_name']) ?>', '<?= addslashes($key_info['key_holder_name']) ?>')">
+                                            <i class="fas fa-undo me-1"></i> Unrelease Key
+                                        </button>
                                     <?php else: ?>
                                         <div class="alert alert-success py-2 mb-2 small text-center">
                                             <i class="fas fa-check-circle me-1"></i> Available
@@ -449,6 +455,26 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 <?php endforeach; ?>
+
+<!-- Confirm Unrelease Modal -->
+<div class="modal fade" id="confirmUnreleaseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Unrelease</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Are you sure you want to unrelease <strong id="unreleaseKeyName"></strong> from <strong id="unreleaseHolderName"></strong>?</p>
+                <p class="text-muted small mt-2">This action will mark the key as 'Available' and record the return time.</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="confirmUnreleaseBtn" class="btn btn-danger rounded-pill px-4">Yes, Unrelease</a>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Release Modal -->
 <div class="modal fade" id="releaseModal" tabindex="-1">
@@ -476,6 +502,44 @@ $theme = get_theme_colors($conn);
                     <button type="submit" class="btn btn-primary">Confirm Release</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Unrelease Keys List Modal -->
+<div class="modal fade" id="unreleaseListModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-key me-2"></i> Released Keys Management
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <input type="text" id="searchReleased" class="form-control form-control-sm" placeholder="Search by room, key, holder...">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="loadReleasedKeys()">
+                        <i class="fas fa-refresh"></i> Refresh
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover" id="releasedKeysTable">
+                        <thead class="table-warning">
+                            <tr>
+                                <th>Room</th>
+                                <th>Key</th>
+                                <th>Holder</th>
+                                <th>Released</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" class="text-center text-muted">Click Refresh or open to load released keys...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -534,6 +598,14 @@ function openReleaseModal(id, name, roomId, roomName) {
         });
 }
 
+function confirmUnrelease(transId, keyName, holderName) {
+    document.getElementById('unreleaseKeyName').innerText = keyName;
+    document.getElementById('unreleaseHolderName').innerText = holderName;
+    document.getElementById('confirmUnreleaseBtn').href = `?action=return&id=${transId}`;
+    var myModal = new bootstrap.Modal(document.getElementById('confirmUnreleaseModal'));
+    myModal.show();
+}
+
 function toggleMenu(e) {
     if(e) e.preventDefault();
     document.getElementById("wrapper").classList.toggle("toggled");
@@ -553,6 +625,48 @@ document.addEventListener('click', function(event) {
         }
     }
 });
+
+// Unrelease Modal functions
+function openUnreleaseModal() {
+    loadReleasedKeys();
+    new bootstrap.Modal(document.getElementById('unreleaseListModal')).show();
+}
+
+function openRoom501UnreleaseModal() {
+    loadReleasedKeys('501');
+    const modalTitle = document.querySelector('#unreleaseListModal .modal-title');
+    modalTitle.innerHTML = '<i class="fas fa-key me-2"></i> Room 501 Key Unrelease';
+    new bootstrap.Modal(document.getElementById('unreleaseListModal')).show();
+}
+
+function loadReleasedKeys() {
+    fetch('get_released_keys.php')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.querySelector('#releasedKeysTable tbody');
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No currently released keys.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(row => `
+                <tr>
+                    <td><strong>${row.room_number || row.room_name || 'N/A'}</strong></td>
+                    <td><code>${row.key_name}</code></td>
+                    <td>${row.holder_name}</td>
+                    <td>${new Date(row.released_at).toLocaleDateString()}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="confirmUnrelease(${row.trans_id}, '${row.key_name.replace(/'/g, "\\'")}', '${row.holder_name.replace(/'/g, "\\'")}')">
+                            <i class="fas fa-undo"></i> Unrelease
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        })
+        .catch(err => {
+            console.error('Error loading released keys:', err);
+            document.querySelector('#releasedKeysTable tbody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading data</td></tr>';
+        });
+}
 
 // Auto Refresh Logic
 let lastUpdate = 0;

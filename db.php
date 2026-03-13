@@ -346,12 +346,22 @@ function setup_key_tables($conn) {
     )");
 
     // 3. Sync Keys with Rooms
-    $rooms = mysqli_query($conn, "SELECT room_id, room_name, room_number FROM rooms");
+    $rooms = mysqli_query($conn, "SELECT room_id, room_name, room_number, total_beds FROM rooms WHERE is_archived = 0");
     while($r = mysqli_fetch_assoc($rooms)){
-        $name = "Room " . ($r['room_number'] ? $r['room_number'] : $r['room_name']) . " Key";
         $rid = $r['room_id'];
+        $total_beds = (int)$r['total_beds'];
+        
         $chk = mysqli_query($conn, "SELECT id FROM `keys` WHERE type='Room' AND reference_id=$rid");
-        if(mysqli_num_rows($chk) == 0) mysqli_query($conn, "INSERT INTO `keys` (key_name, type, reference_id) VALUES ('$name', 'Room', $rid)");
+        $existing_keys_count = mysqli_num_rows($chk);
+
+        if ($existing_keys_count < $total_beds) {
+            for ($i = $existing_keys_count + 1; $i <= $total_beds; $i++) {
+                $room_identifier = !empty($r['room_number']) ? $r['room_number'] : $r['room_name'];
+                $name = "Room " . $room_identifier . " Key #" . $i;
+                $name = mysqli_real_escape_string($conn, $name);
+                mysqli_query($conn, "INSERT INTO `keys` (key_name, type, reference_id) VALUES ('$name', 'Room', $rid)");
+            }
+        }
     }
 }
 setup_key_tables($conn);
@@ -722,7 +732,13 @@ function get_room_key_info($conn, $room_id) {
         WHERE k.type = 'Room' AND k.reference_id = $room_id
     ");
     
-    return mysqli_fetch_assoc($query);
+    $keys = [];
+    if ($query) {
+        while($row = mysqli_fetch_assoc($query)) {
+            $keys[] = $row;
+        }
+    }
+    return $keys;
 }
 }
 
@@ -744,7 +760,9 @@ function get_all_rooms_with_occupancy($conn, $show_hidden = false) {
         $room_id = $row['room_id'];
         $row['occupancy_status'] = get_room_occupancy_status($conn, $room_id);
         $row['occupants'] = get_room_occupants($conn, $room_id);
-        $row['key_info'] = get_room_key_info($conn, $room_id);
+        $keys = get_room_key_info($conn, $room_id);
+        $row['key_info'] = !empty($keys) ? $keys[0] : null; // For backward compatibility, provide first key
+        $row['all_keys'] = $keys; // Provide all keys in a new field
         $row['occupied_count'] = count($row['occupants']);
         
         // Calculate available beds
