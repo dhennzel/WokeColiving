@@ -12,15 +12,20 @@ if (isset($_POST['register'])) {
     $mname = mysqli_real_escape_string($conn, $mname);
     $email = mysqli_real_escape_string($conn, trim($_POST['email']));
     $phone = mysqli_real_escape_string($conn, trim($_POST['phone']));
-    $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $raw_pass = $_POST['password'];
 
     // Validate Phone Number (Philippines format: 09xxxxxxxxx or +639xxxxxxxxx)
     if (!preg_match('/^09\d{9}$/', $phone)) {
         $error = "Invalid phone number. Please use a valid 11-digit Philippine mobile number (e.g., 09xxxxxxxxx).";
+    } elseif (strlen($raw_pass) > 8) {
+        $error = "Password must be maximum 8 characters.";
+    } elseif (!preg_match('/[a-zA-Z]/', $raw_pass) || !preg_match('/[0-9]/', $raw_pass)) {
+        $error = "Password must contain at least one letter and one number.";
     } elseif (mysqli_num_rows(mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'")) > 0) {
         // Check if email already exists
         $error = "Email address is already registered."; 
     } else {
+        $pass = password_hash($raw_pass, PASSWORD_DEFAULT);
         $sql = "INSERT INTO users (last_name, first_name, middle_name, email, phone_number, password) VALUES ('$lname', '$fname', '$mname', '$email', '$phone', '$pass')";
         
         try {
