@@ -23,15 +23,22 @@ if(isset($_POST['add_admin'])){
         $error = "Only Super Admins can add new admins.";
     } else {
         $username = mysqli_real_escape_string($conn, $_POST['username']);
-        $password = mysqli_real_escape_string($conn, $_POST['password']);
+        $raw_pass = !empty($_POST['password']) ? $_POST['password'] : '12345678';
         $role = mysqli_real_escape_string($conn, $_POST['role']);
         
-        $check = mysqli_query($conn, "SELECT * FROM admin WHERE username='$username'");
-        if(mysqli_num_rows($check) > 0){
-            $error = "Username already exists.";
-        } else {
-            mysqli_query($conn, "INSERT INTO admin (username, password, role) VALUES ('$username', '$password', '$role')");
-            $message = "New admin added successfully.";
+        if(!empty($_POST['password']) && (!preg_match('/[a-zA-Z]/', $raw_pass) || !preg_match('/[0-9]/', $raw_pass))){
+            $error = "Password must contain at least one letter and one number.";
+        }
+        
+        if(empty($error)){
+            $password = mysqli_real_escape_string($conn, $raw_pass);
+            $check = mysqli_query($conn, "SELECT * FROM admin WHERE username='$username'");
+            if(mysqli_num_rows($check) > 0){
+                $error = "Username already exists.";
+            } else {
+                mysqli_query($conn, "INSERT INTO admin (username, password, role) VALUES ('$username', '$password', '$role')");
+                $message = "New admin added successfully.";
+            }
         }
     }
 }
@@ -135,7 +142,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                         <h5 class="fw-bold mb-3">Add New Admin</h5>
                         <form method="POST">
                             <div class="mb-3"><label class="form-label">Username</label><input type="text" name="username" class="form-control" required></div>
-                            <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required></div>
+                            <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" placeholder="Default: 12345678"></div>
                             <div class="mb-3"><label class="form-label">Role</label><select name="role" class="form-select"><option value="Admin">Admin</option><option value="Super Admin">Super Admin</option></select></div>
                             <button type="submit" name="add_admin" class="btn btn-custom w-100">Add Admin</button>
                         </form>

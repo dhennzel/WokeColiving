@@ -721,6 +721,9 @@ $theme = get_theme_colors($conn);
                                             <?php if(!empty($row['bed_preference']) && $row['bed_preference'] != 'Any'): ?>
                                                 <div class="badge bg-light text-dark border mt-1"><i class="fas fa-bed me-1"></i> <?= $row['bed_preference'] ?></div>
                                             <?php endif; ?>
+                                            <?php if(isset($row['auto_assigned']) && $row['auto_assigned'] == 0): ?>
+                                                <div class="badge bg-primary mt-1"><i class="fas fa-hand-pointer me-1"></i> Chosen by Guest</div>
+                                            <?php endif; ?>
                                             <?php if(!empty($row['extended_from'])): ?>
                                                 <div class="badge bg-info text-dark mt-1"><i class="fas fa-history me-1"></i> Extension Request (for #<?= $row['extended_from'] ?>)</div>
                                             <?php endif; ?>
@@ -753,10 +756,12 @@ $theme = get_theme_colors($conn);
                                                     $has_sig = !empty($row['signature_image']);
                                                 ?>
                                                 <div class="d-flex justify-content-end gap-1">
-                                                    <?php if(empty($row['extended_from'])): ?>
+                                                    <?php if(!empty($row['extended_from'])): ?>
+                                                        <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this extension?')" title="Approve"><i class="fas fa-check"></i></a>
+                                                    <?php elseif(isset($row['auto_assigned']) && $row['auto_assigned'] == 1): ?>
                                                         <button type="button" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, '<?= $row['room_type'] ?>')" title="Approve & Assign Room"><i class="fas fa-check"></i></button>
                                                     <?php else: ?>
-                                                        <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this extension?')" title="Approve"><i class="fas fa-check"></i></a>
+                                                        <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this reservation?')" title="Approve"><i class="fas fa-check"></i></a>
                                                     <?php endif; ?>
                                                     <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')" title="Reject"><i class="fas fa-times"></i></a>
                                                 </div>

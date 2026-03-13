@@ -77,11 +77,16 @@ $history_q = mysqli_query($conn, "
 ");
 
 // Calculate Stats
-$total_keys = count($all_rooms);
+$total_keys = 0;
 $released_keys = 0;
 foreach($all_rooms as $room){
-    if(isset($room['key_info']['key_status']) && $room['key_info']['key_status'] == 'Released') {
-        $released_keys++;
+    if (!empty($room['all_keys'])) {
+        $total_keys += count($room['all_keys']);
+        foreach($room['all_keys'] as $key) {
+            if ($key['key_status'] == 'Released') {
+                $released_keys++;
+            }
+        }
     }
 }
 $available_keys = $total_keys - $released_keys;
@@ -424,26 +429,34 @@ $theme = get_theme_colors($conn);
                                     <div class="mb-2">
                                         <small class="text-muted fw-bold"><i class="fas fa-key me-1"></i> KEY STATUS</small>
                                     </div>
-                                   <?php if ((isset($is_released) && $is_released) && !empty($key_info['key_holder_name'])): ?>
-                                        <div class="alert alert-warning py-2 mb-2 small">
-                                            <div class="fw-bold text-dark">
-                                                <i class="fas fa-user-tag me-1"></i> Released
+                                    <div style="max-height: 140px; overflow-y: auto;">
+                                    <?php if(!empty($room['all_keys'])): ?>
+                                        <?php foreach($room['all_keys'] as $key): ?>
+                                            <div class="d-flex justify-content-between align-items-center p-2 rounded mb-1" style="background-color: <?= $key['key_status'] == 'Available' ? '#e8f5e9' : '#fff3cd' ?>;">
+                                                <div class="small">
+                                                    <strong class="text-dark"><?= htmlspecialchars($key['key_name']) ?></strong>
+                                                    <?php if($key['key_status'] == 'Released'): ?>
+                                                        <div class="text-muted text-truncate" style="max-width: 120px;" title="<?= htmlspecialchars($key['key_holder_name']) ?>">
+                                                            <i class="fas fa-user-tag me-1"></i>
+                                                            <?= htmlspecialchars($key['key_holder_name']) ?>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php if($key['key_status'] == 'Available'): ?>
+                                                    <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 0.7rem;" onclick="openReleaseModal(<?= $key['key_id'] ?>, '<?= addslashes(htmlspecialchars($key['key_name'])) ?>', <?= $room['room_id'] ?>, '<?= addslashes(htmlspecialchars($room_display)) ?>')">
+                                                        Release
+                                                    </button>
+                                                <?php else: ?>
+                                                    <button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.7rem;" onclick="confirmUnrelease(<?= $key['trans_id'] ?>, '<?= addslashes(htmlspecialchars($key['key_name'])) ?>', '<?= addslashes(htmlspecialchars($key['key_holder_name'])) ?>')">
+                                                        Return
+                                                    </button>
+                                                <?php endif; ?>
                                             </div>
-                                            <div class="text-truncate" title="<?= $key_info['key_holder_name'] ?>">
-                                                <small><?= $key_info['key_holder_name'] ?></small>
-                                            </div>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="confirmUnrelease(<?= $key_info['trans_id'] ?>, '<?= addslashes($key_info['key_name']) ?>', '<?= addslashes($key_info['key_holder_name']) ?>')">
-                                            <i class="fas fa-undo me-1"></i> Unrelease Key
-                                        </button>
+                                        <?php endforeach; ?>
                                     <?php else: ?>
-                                        <div class="alert alert-success py-2 mb-2 small text-center">
-                                            <i class="fas fa-check-circle me-1"></i> Available
-                                        </div>
-                                        <button class="btn btn-sm btn-primary w-100" onclick="openReleaseModal(<?= $key_info['key_id'] ?>, '<?= addslashes($key_info['key_name']) ?>', <?= $room['room_id'] ?>, '<?= addslashes($room_display) ?>')">
-                                            <i class="fas fa-share me-1"></i> Release Key
-                                        </button>
+                                        <p class="text-muted small mb-0">No keys configured for this room.</p>
                                     <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
                         </div>

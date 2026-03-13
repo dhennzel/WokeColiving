@@ -239,11 +239,20 @@ if (isset($_POST['confirm_booking'])) {
             }
         }
         
+        $specific_room_id = isset($_POST['specific_room_id']) ? (int)$_POST['specific_room_id'] : 0;
+        $auto_assigned = ($specific_room_id > 0) ? 0 : 1;
+
         // Find an available room of the selected type
         $found_room = null;
-        $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower FROM rooms WHERE room_type = ? AND availability = 'Available' AND is_archived=0";
-        $r_stmt = $conn->prepare($r_sql);
-        $r_stmt->bind_param("s", $troom);
+        if ($specific_room_id > 0) {
+            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower FROM rooms WHERE room_id = ? AND is_archived=0";
+            $r_stmt = $conn->prepare($r_sql);
+            $r_stmt->bind_param("i", $specific_room_id);
+        } else {
+            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower FROM rooms WHERE room_type = ? AND availability = 'Available' AND is_archived=0";
+            $r_stmt = $conn->prepare($r_sql);
+            $r_stmt->bind_param("s", $troom);
+        }
         $r_stmt->execute();
         $r_res = $r_stmt->get_result();
 
@@ -379,14 +388,14 @@ if (isset($_POST['confirm_booking'])) {
                 if($sig_img) {
                     // Insert with signature
                     try {
-                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, signature_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        $stmt->bind_param("iissidsss", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $status, $bed_preference, $sig_img);
+                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, signature_image, auto_assigned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $stmt->bind_param("iissidsssi", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $status, $bed_preference, $sig_img, $auto_assigned);
                     } catch (Exception $e) { $stmt = false; }
                 } else {
                     // Standard insert
                     try {
-                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                        if($stmt) $stmt->bind_param("iissidss", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $status, $bed_preference);
+                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, auto_assigned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        if($stmt) $stmt->bind_param("iissidssi", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $status, $bed_preference, $auto_assigned);
                     } catch (Exception $e) { $stmt = false; }
                 }
 
@@ -478,6 +487,13 @@ if (isset($_POST['confirm_booking'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="users_CSS/reservation_now.css">
+    <style>
+        .room-card-option { cursor: pointer; transition: all 0.2s; border: 2px solid transparent; overflow: hidden; height: 100%; }
+        .room-card-option:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .room-card-option.selected { border-color: var(--primary-green); background-color: #e8f5e9; }
+        .room-card-option.disabled { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
+        .room-card-option img { height: 140px; object-fit: cover; width: 100%; }
+    </style>
 </head>
 <body>
 <div class="container py-5">
@@ -609,6 +625,16 @@ if (isset($_POST['confirm_booking'])) {
                                 <option value="Single" <?= ($pre_room == 'Single') ? 'selected' : '' ?>>Single Room</option>
                             </select>
                             <small id="availability_status" class="fw-bold mt-1 d-block"></small>
+                        </div>
+
+                        <div class="mb-3" id="specific_room_selection_div" style="display:none;">
+                            <label class="form-label">Select Specific Room (Optional)</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="openRoomSelectionModal()"><i class="fas fa-door-open me-1"></i> Choose Room</button>
+                                <span id="selected_room_display" class="fw-bold text-success ms-2">Auto Assign</span>
+                            </div>
+                            <input type="hidden" name="specific_room_id" id="specific_room_id" value="">
+                            <small class="text-muted d-block mt-1">If no room is selected, the system will auto-assign one for you.</small>
                         </div>
 
                         <div class="mb-3" id="bed_pref_div" style="display:none;">
@@ -751,8 +777,43 @@ if (isset($_POST['confirm_booking'])) {
     </form>
 </div>
 
+<!-- Room Selection Modal -->
+<div class="modal fade" id="roomSelectionModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-door-open me-2"></i>Select a Room</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <p class="mb-0">Showing available rooms for: <strong id="modalRoomTypeDisplay"></strong></p>
+                    <div class="d-flex align-items-center">
+                        <label class="small fw-bold me-2 text-muted">Filter Floor:</label>
+                        <select id="roomModalFloorFilter" class="form-select form-select-sm" style="width: 120px;" onchange="renderRoomGrid()">
+                            <option value="all">All Floors</option>
+                            <?php for($i=2; $i<=7; $i++): ?>
+                                <option value="<?= $i ?>"><?= $i ?>th Floor</option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-3" id="userRoomSelectionGrid">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto">
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none text-danger fw-bold" onclick="clearRoomSelection()">Clear Selection (Auto Assign)</button>
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Notification Sound -->
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
     <?php if(isset($_SESSION['swal'])): ?>
@@ -849,6 +910,7 @@ function confirmReservation() {
             fetch(`get_rooms.php?checkin=${cin}&checkout=${cout}`)
                 .then(response => response.json())
                 .then(data => {
+                    window.availableRoomsData = data;
                     // Filter rooms of selected type
                     let roomsOfType = data.filter(r => r.room_type === room);
                     
@@ -879,9 +941,12 @@ function confirmReservation() {
                     if(available) {
                         statusSpan.innerHTML = '<i class="fas fa-check-circle"></i> Available';
                         statusSpan.className = 'fw-bold mt-1 d-block text-success';
+                        document.getElementById('specific_room_selection_div').style.display = 'block';
                     } else {
                         statusSpan.innerHTML = '<i class="fas fa-times-circle"></i> Fully Booked (Waitlist available on submit)';
                         statusSpan.className = 'fw-bold mt-1 d-block text-danger';
+                        document.getElementById('specific_room_selection_div').style.display = 'none';
+                        clearRoomSelection();
                     }
                 });
         }
@@ -897,6 +962,124 @@ function confirmReservation() {
             let bedSelect = document.querySelector('select[name="bed_preference"]');
             if(bedSelect) bedSelect.value = 'Any';
         }
+    }
+
+    function openRoomSelectionModal() {
+        let type = document.getElementById('troom').value;
+        let cin = document.getElementById('cin').value;
+        let cout = document.getElementById('cout').value;
+        
+        if(!type || !cin || !cout) {
+            Swal.fire('Incomplete Details', 'Please select a room type, check-in, and check-out dates first.', 'warning');
+            return;
+        }
+        
+        document.getElementById('modalRoomTypeDisplay').innerText = type;
+        
+        let modalEl = document.getElementById('roomSelectionModal');
+        let modalObj = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modalObj.show();
+        
+        const grid = document.getElementById('userRoomSelectionGrid');
+        grid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-success" role="status"></div><p class="mt-2 text-muted">Loading available rooms...</p></div>';
+
+        fetch(`get_rooms.php?checkin=${cin}&checkout=${cout}`)
+            .then(response => response.json())
+            .then(data => {
+                window.availableRoomsData = data;
+                renderRoomGrid();
+            })
+            .catch(error => {
+                grid.innerHTML = '<div class="col-12 text-center text-danger py-4"><i class="fas fa-exclamation-circle fa-2x mb-2"></i><br>Error loading rooms. Please try again.</div>';
+            });
+    }
+
+    function renderRoomGrid() {
+        const grid = document.getElementById('userRoomSelectionGrid');
+        const type = document.getElementById('troom').value;
+        const floorFilter = document.getElementById('roomModalFloorFilter').value;
+        const bedPref = document.querySelector('[name="bed_preference"]')?.value || 'Any';
+        const selectedId = document.getElementById('specific_room_id').value;
+
+        grid.innerHTML = '';
+
+        if(!window.availableRoomsData) return;
+
+        let filteredRooms = window.availableRoomsData.filter(r => r.room_type === type);
+
+        if(floorFilter !== 'all') {
+            filteredRooms = filteredRooms.filter(r => r.floor == floorFilter);
+        }
+
+        if(filteredRooms.length === 0) {
+            grid.innerHTML = '<div class="col-12 text-center text-muted py-4">No rooms available for the selected criteria.</div>';
+            return;
+        }
+
+        filteredRooms.forEach(room => {
+            let isAvailable = false;
+            if (bedPref === 'Lower Bunk') isAvailable = room.avail_lower > 0;
+            else if (bedPref === 'Upper Bunk') isAvailable = room.avail_upper > 0;
+            else if (bedPref === 'Whole Room') isAvailable = (room.available_beds == room.total_beds);
+            else isAvailable = (room.available_beds > 0);
+
+            if(!isAvailable) return;
+
+            let displayName = room.room_number ? `Room ${room.room_number}` : (!isNaN(room.room_name) ? `Room ${room.room_name}` : room.room_name);
+            let isSelected = selectedId == room.room_id ? 'selected' : '';
+
+            let detailsHtml = '';
+            if(room.room_type !== 'Single') {
+                detailsHtml += `<div class="d-flex justify-content-between"><span class="text-muted">Upper:</span> <span class="${room.avail_upper > 0 ? 'text-success fw-bold' : 'text-danger'}">${room.avail_upper} left</span></div>`;
+                detailsHtml += `<div class="d-flex justify-content-between"><span class="text-muted">Lower:</span> <span class="${room.avail_lower > 0 ? 'text-success fw-bold' : 'text-danger'}">${room.avail_lower} left</span></div>`;
+            }
+
+            let cardHtml = `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card room-card-option shadow-sm ${isSelected}" onclick="selectSpecificRoom(${room.room_id}, '${displayName.replace(/'/g, "\\'")}')">
+                        <img src="../assets/images/${room.image}" class="card-img-top" alt="${room.room_name}">
+                        <div class="card-body d-flex flex-column p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="fw-bold text-dark mb-0">${displayName}</h6>
+                                <span class="badge bg-light text-dark border">${room.floor || 2}F</span>
+                            </div>
+                            <div class="mb-2 small text-muted">
+                                <div class="d-flex justify-content-between mb-1"><span>Total Beds:</span> <strong>${room.total_beds}</strong></div>
+                                ${detailsHtml}
+                            </div>
+                            <div class="mt-auto text-center">
+                                <span class="badge bg-success w-100 py-2">${room.available_beds} Beds Free</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            grid.innerHTML += cardHtml;
+        });
+        
+        if (grid.innerHTML === '') {
+            grid.innerHTML = '<div class="col-12 text-center text-muted py-4"><i class="fas fa-search fa-2x mb-2 opacity-50"></i><br>No rooms match your specific bed preference on this floor.</div>';
+        }
+    }
+
+    function selectSpecificRoom(id, name) {
+        document.getElementById('specific_room_id').value = id;
+        document.getElementById('selected_room_display').innerText = name;
+        renderRoomGrid();
+        
+        let modalEl = document.getElementById('roomSelectionModal');
+        let modalObj = bootstrap.Modal.getOrCreateInstance(modalEl);
+        if(modalObj) modalObj.hide();
+    }
+
+    function clearRoomSelection() {
+        document.getElementById('specific_room_id').value = "";
+        document.getElementById('selected_room_display').innerText = "Auto Assign";
+        renderRoomGrid();
+        
+        let modalEl = document.getElementById('roomSelectionModal');
+        let modalObj = bootstrap.Modal.getOrCreateInstance(modalEl);
+        if(modalObj) modalObj.hide();
     }
 
     function togglePaymentDetails() {

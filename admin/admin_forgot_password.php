@@ -16,6 +16,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($code !== $RECOVERY_CODE) {
         $error = "Invalid Recovery Code.";
+    } elseif (!preg_match('/[a-zA-Z]/', $new_password) || !preg_match('/[0-9]/', $new_password)) {
+        $error = "Password must contain at least one letter and one number.";
     } elseif ($new_password !== $confirm_password) {
         $error = "Passwords do not match.";
     } else {

@@ -477,6 +477,7 @@ if(!in_array('cancellation_reason', $cols)) mysqli_query($conn, "ALTER TABLE res
 if(!in_array('is_archived', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
 if(!in_array('created_at', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
 if(!in_array('bed_preference', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN bed_preference VARCHAR(50) DEFAULT 'Any'");
+if(!in_array('auto_assigned', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN auto_assigned TINYINT(1) DEFAULT 1");
 
 // Ensure activity_logs columns exist (Fix for System Logs page)
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (

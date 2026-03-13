@@ -82,8 +82,10 @@ if(isset($_POST['update_profile'])){
     
     // Password Validation (Only if user typed something)
     if(!empty($new_password)){
-        if($new_password !== $confirm_password){
-        $error = "New password and confirm password do not match.";
+        if(!preg_match('/[a-zA-Z]/', $new_password) || !preg_match('/[0-9]/', $new_password)){
+            $error = "Password must contain at least one letter and one number.";
+        } elseif($new_password !== $confirm_password){
+            $error = "New password and confirm password do not match.";
         } else {
             // Check against current password
             $curr_q = mysqli_query($conn, "SELECT password FROM admin WHERE username='$admin_user'");

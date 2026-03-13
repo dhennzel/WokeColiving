@@ -94,21 +94,32 @@ if(isset($_POST['add_reservation'])){
         $gender = $_POST['new_gender'];
         $em_name = trim($_POST['new_em_name']);
         $em_num = trim($_POST['new_em_num']);
-        $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : '123456';
+        $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : '12345678';
+        
+        if(!empty($_POST['new_password'])){
+            if(strlen($raw_pass) > 8){
+                $error = "Password must be maximum 8 characters.";
+            } elseif(!preg_match('/[a-zA-Z]/', $raw_pass) || !preg_match('/[0-9]/', $raw_pass)){
+                $error = "Password must contain at least one letter and one number.";
+            }
+        }
+        
         $password = password_hash($raw_pass, PASSWORD_DEFAULT);
 
-        $check = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'");
-        if(mysqli_num_rows($check) > 0){
-            $error = "Email address already registered.";
-        } else {
-            $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, email, phone_number, gender, password, role, is_walkin, emergency_contact_name, emergency_contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?)");
-            mysqli_stmt_bind_param($stmt, "sssssssss", $lname, $fname, $mname, $email, $phone, $gender, $password, $em_name, $em_num);
-            if(mysqli_stmt_execute($stmt)){
-                $user_id = mysqli_insert_id($conn);
-                $account_msg = "Account created for $name (Pass: $raw_pass). ";
-                log_activity($conn, $user_id, "Account Created", "Walk-in account created by $admin_username");
+        if(empty($error)){
+            $check = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'");
+            if(mysqli_num_rows($check) > 0){
+                $error = "Email address already registered.";
             } else {
-                $error = "Failed to create user account.";
+                $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, email, phone_number, gender, password, role, is_walkin, emergency_contact_name, emergency_contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?)");
+                mysqli_stmt_bind_param($stmt, "sssssssss", $lname, $fname, $mname, $email, $phone, $gender, $password, $em_name, $em_num);
+                if(mysqli_stmt_execute($stmt)){
+                    $user_id = mysqli_insert_id($conn);
+                    $account_msg = "Account created for $name (Pass: $raw_pass). ";
+                    log_activity($conn, $user_id, "Account Created", "Walk-in account created by $admin_username");
+                } else {
+                    $error = "Failed to create user account.";
+                }
             }
         }
     } else {
@@ -375,9 +386,9 @@ $theme = get_theme_colors($conn);
                             </div>
                             <div class="col-md-6"><label class="small fw-bold">Emergency Contact Name</label><input type="text" name="new_em_name" class="form-control"></div>
                             <div class="col-md-6"><label class="small fw-bold">Emergency Contact Number</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: 123456"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: 12345678"></div>
                         </div>
-                        <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>123456</strong>.</small>
+                        <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>12345678</strong>.</small>
                     </div>
 
                     <div class="row">
@@ -794,7 +805,8 @@ function openRoomModal() {
     document.getElementById('modalRoomTypeDisplay').innerText = type;
     filterRoomModal(); // Apply filters
     updateModalAvailability(); // Ensure badges are correct
-    new bootstrap.Modal(document.getElementById('roomSelectionModal')).show();
+    let modalObj = bootstrap.Modal.getOrCreateInstance(document.getElementById('roomSelectionModal'));
+    modalObj.show();
 }
 
 function filterRoomModal() {
