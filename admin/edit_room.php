@@ -55,6 +55,7 @@ if(isset($_POST['update_room'])){
     // Auto-set room name based on type
     $room_name = ($room_type == 'Single') ? '1 Bed' : (($room_type == '4-Bed') ? '4 Beds' : '6 Beds');
     $floor = (int) $_POST['floor'];
+    $gender = $_POST['gender'] ?? 'Male';
     $price = isset($_POST['price']) ? (float) $_POST['price'] : 0;
     $price_upper = isset($_POST['price_upper']) ? (float) $_POST['price_upper'] : 0;
     $price_lower = isset($_POST['price_lower']) ? (float) $_POST['price_lower'] : 0;
@@ -91,8 +92,8 @@ if(isset($_POST['update_room'])){
             $price = $price_lower;
         }
 
-        $stmt = mysqli_prepare($conn, "UPDATE rooms SET room_name=?, room_number=?, room_type=?, floor=?, total_price=?, price_upper=?, price_lower=?, price_whole=?, long_term_price_upper=?, long_term_price_lower=?, long_term_price_whole=?, total_beds=?, availability=?, image=?, is_hidden=? WHERE room_id=?");
-        mysqli_stmt_bind_param($stmt, "sssidddddddissii", $room_name, $room_number, $room_type, $floor, $price, $price_upper, $price_lower, $price_whole, $lt_upper, $lt_lower, $lt_whole, $beds, $availability, $image, $is_hidden, $room_id);
+        $stmt = mysqli_prepare($conn, "UPDATE rooms SET room_name=?, room_number=?, room_type=?, floor=?, gender=?, total_price=?, price_upper=?, price_lower=?, price_whole=?, long_term_price_upper=?, long_term_price_lower=?, long_term_price_whole=?, total_beds=?, availability=?, image=?, is_hidden=? WHERE room_id=?");
+        mysqli_stmt_bind_param($stmt, "sssisdddddddissii", $room_name, $room_number, $room_type, $floor, $gender, $price, $price_upper, $price_lower, $price_whole, $lt_upper, $lt_lower, $lt_whole, $beds, $availability, $image, $is_hidden, $room_id);
         
         try {
             if(mysqli_stmt_execute($stmt)){
@@ -110,7 +111,9 @@ if(isset($_POST['update_room'])){
 }
 
 // Fetch Pending Counts for Sidebar
-$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
+$pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
+$pending_res = $pending_res_q + $pending_pay_q;
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
@@ -255,7 +258,7 @@ $theme = get_theme_colors($conn);
                         <form method="POST" enctype="multipart/form-data">
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Room Number</label>
-                                <input type="text" name="room_number" class="form-control" value="<?= htmlspecialchars($room['room_number'] ?? '') ?>" required>
+                                <input type="text" name="room_number" class="form-control" value="<?= htmlspecialchars(!empty($room['room_number']) ? $room['room_number'] : $room['room_name']) ?>" required>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Floor Level</label>
@@ -267,12 +270,19 @@ $theme = get_theme_colors($conn);
                                 </select>
                             </div>
                             <div class="row">
-                                <div class="col-md-6 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label fw-bold">Room Type</label>
                                     <select name="room_type" id="room_type" class="form-select" required onchange="togglePriceFields()">
                                         <option value="Single" <?= $room['room_type'] == 'Single' ? 'selected' : '' ?>>1 Bed</option>
                                         <option value="4-Bed" <?= $room['room_type'] == '4-Bed' ? 'selected' : '' ?>>4 Beds</option>
                                         <option value="6-Bed" <?= $room['room_type'] == '6-Bed' ? 'selected' : '' ?>>6 Beds</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label fw-bold">Gender Restrict</label>
+                                    <select name="gender" class="form-select" required>
+                                        <option value="Male" <?= ($room['gender'] ?? '') == 'Male' ? 'selected' : '' ?>>Male Only</option>
+                                        <option value="Female" <?= ($room['gender'] ?? '') == 'Female' ? 'selected' : '' ?>>Female Only</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3" id="single_price_div">
@@ -444,6 +454,26 @@ document.addEventListener('click', function(event) {
             wrapper.classList.remove('toggled');
         }
     }
+});
+
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
 });
 </script>
 </body>

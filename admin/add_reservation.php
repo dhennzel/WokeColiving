@@ -11,7 +11,7 @@ $error = "";
 $success = "";
 
 // Fetch Users
-$users = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name, IF(middle_name IS NOT NULL AND middle_name != '', CONCAT(' ', middle_name), '')) as full_name, email FROM users ORDER BY last_name ASC");
+$users = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name, IF(middle_name IS NOT NULL AND middle_name != '', CONCAT(' ', middle_name), '')) as full_name, email, gender FROM users ORDER BY last_name ASC");
 
 // Ensure gender column exists in users table
 $check_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'gender'");
@@ -70,7 +70,9 @@ while($r = mysqli_fetch_assoc($all_rooms_q)){
 $pre_room_type = isset($_GET['room_type']) ? $_GET['room_type'] : '';
 
 // Sidebar counts
-$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
+$pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
+$pending_res = $pending_res_q + $pending_pay_q;
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
@@ -124,6 +126,9 @@ if(isset($_POST['add_reservation'])){
         }
     } else {
         $user_id = (int)$_POST['user_id'];
+        $u_q = mysqli_query($conn, "SELECT gender FROM users WHERE user_id=$user_id");
+        $u_row = mysqli_fetch_assoc($u_q);
+        $gender = $u_row['gender'] ?? 'Any';
     }
 
     if(!$error && $user_id > 0){
@@ -149,11 +154,11 @@ if(isset($_POST['add_reservation'])){
         $found_room = null;
         
         if ($specific_room_id > 0) {
-            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, daily_price_bed, daily_price_room FROM rooms WHERE room_id = ? AND is_archived=0";
+            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, daily_price_bed, daily_price_room, gender FROM rooms WHERE room_id = ? AND is_archived=0";
             $r_stmt = $conn->prepare($r_sql);
             $r_stmt->bind_param("i", $specific_room_id);
         } else {
-            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, daily_price_bed, daily_price_room FROM rooms WHERE room_type = ? AND availability = 'Available' AND is_archived=0";
+            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, daily_price_bed, daily_price_room, gender FROM rooms WHERE room_type = ? AND availability = 'Available' AND is_archived=0";
             $r_stmt = $conn->prepare($r_sql);
             $r_stmt->bind_param("s", $room_type);
         }
@@ -161,6 +166,9 @@ if(isset($_POST['add_reservation'])){
         $r_res = $r_stmt->get_result();
 
         while($room = $r_res->fetch_assoc()) {
+            if ($bed_preference != 'Whole Room' && $gender != 'Any' && $room['gender'] != $gender) {
+                continue; // Skip if room gender restriction does not match user's gender
+            }
             $rid = $room['room_id'];
             $total_capacity = $room['total_beds'];
             
@@ -171,10 +179,16 @@ if(isset($_POST['add_reservation'])){
             $occ_upper = 0; $occ_lower = 0; $occ_any = 0; $total_taken = 0;
             
             while($row_c = mysqli_fetch_assoc($res_counts)){
-                $total_taken += $row_c['cnt'];
-                if($row_c['bed_preference'] == 'Upper Bunk') $occ_upper += $row_c['cnt'];
-                elseif($row_c['bed_preference'] == 'Lower Bunk') $occ_lower += $row_c['cnt'];
-                else $occ_any += $row_c['cnt'];
+                $cnt = $row_c['cnt'];
+                if($row_c['bed_preference'] == 'Whole Room') {
+                    $total_taken += $total_capacity;
+                    $occ_any += $total_capacity;
+                } else {
+                    $total_taken += $cnt;
+                    if($row_c['bed_preference'] == 'Upper Bunk') $occ_upper += $cnt;
+                    elseif($row_c['bed_preference'] == 'Lower Bunk') $occ_lower += $cnt;
+                    else $occ_any += $cnt;
+                }
             }
             
             // If totally full, skip
@@ -361,10 +375,10 @@ $theme = get_theme_colors($conn);
 
                     <div id="existing_user_section" class="mb-3">
                         <label class="form-label fw-bold">Select User</label>
-                        <select name="user_id" class="form-select">
-                            <option value="">-- Choose User --</option>
+                        <select name="user_id" id="existing_user_id" class="form-select" onchange="checkAvailability()">
+                            <option value="" data-gender="">-- Choose User --</option>
                             <?php while($u = mysqli_fetch_assoc($users)): ?>
-                                <option value="<?= $u['user_id'] ?>"><?= $u['full_name'] ?> (<?= $u['email'] ?>)</option>
+                                <option value="<?= $u['user_id'] ?>" data-gender="<?= $u['gender'] ?>"><?= $u['full_name'] ?> (<?= $u['email'] ?>)</option>
                             <?php endwhile; ?>
                         </select>
                     </div>
@@ -379,7 +393,7 @@ $theme = get_theme_colors($conn);
                             <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09"></div>
                             <div class="col-md-6">
                                 <label class="small fw-bold">Gender</label>
-                                <select name="new_gender" class="form-select">
+                                <select name="new_gender" id="new_gender" class="form-select" onchange="checkAvailability()">
                                     <option value="Male">Male</option>
                                     <option value="Female">Female</option>
                                 </select>
@@ -492,13 +506,16 @@ $theme = get_theme_colors($conn);
                 </div>
                 <div class="row g-3" id="roomSelectionGrid">
                     <?php foreach($all_rooms as $room): ?>
-                        <div class="col-md-6 col-lg-4 room-select-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>" data-id="<?= $room['room_id'] ?>">
+                        <div class="col-md-6 col-lg-4 room-select-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>" data-gender="<?= $room['gender'] ?? 'Male' ?>" data-id="<?= $room['room_id'] ?>">
                             <div class="card room-card-option shadow-sm" onclick="selectSpecificRoom(<?= $room['room_id'] ?>, '<?= addslashes($room['room_name']) ?>')">
                                 <img src="../assets/images/<?= $room['image'] ?>" class="card-img-top" alt="<?= $room['room_name'] ?>">
                                 <div class="card-body d-flex flex-column p-3">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <h6 class="fw-bold text-dark mb-0"><?= $room['room_name'] ?></h6>
-                                        <span class="badge bg-light text-dark border"><?= $room['floor'] ?>F</span>
+                                        <div>
+                                            <span class="badge bg-light text-dark border me-1"><i class="fas fa-venus-mars"></i> <?= $room['gender'] ?? 'Male' ?></span>
+                                            <span class="badge bg-light text-dark border"><?= $room['floor'] ?>F</span>
+                                        </div>
                                     </div>
                                     <div class="mb-2 small text-muted">
                                         <div class="d-flex justify-content-between"><span>Total Beds:</span> <strong><?= $room['total_beds'] ?></strong></div>
@@ -545,6 +562,18 @@ function toggleUserSection() {
         document.querySelector('input[name="new_fname"]').required = false;
         document.querySelector('input[name="new_email"]').required = false;
     }
+}
+
+function getUserGender() {
+    if(document.getElementById('type_new').checked) {
+        return document.getElementById('new_gender').value;
+    } else {
+        const select = document.getElementById('existing_user_id');
+        if(select.selectedIndex > -1) {
+            return select.options[select.selectedIndex].getAttribute('data-gender') || '';
+        }
+    }
+    return '';
 }
 
 function updateRoomOptions() {
@@ -743,6 +772,7 @@ function checkAvailability() {
     let bedPrefEl = document.querySelector('select[name="bed_preference"]');
     let bedPref = bedPrefEl ? bedPrefEl.value : 'Any';
     let statusSpan = document.getElementById('availability_status');
+    let userGender = getUserGender();
 
     if(room && cin && cout) {
         statusSpan.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking availability...';
@@ -755,7 +785,7 @@ function checkAvailability() {
                 updateModalAvailability(); // Update modal badges
                 
                 // Check specific availability across all rooms of this type
-                let roomsOfType = data.filter(r => r.room_type === room);
+                let roomsOfType = data.filter(r => r.room_type === room && (bedPref === 'Whole Room' || !userGender || r.gender === userGender));
                 let hasLower = roomsOfType.some(r => r.avail_lower > 0);
                 let hasUpper = roomsOfType.some(r => r.avail_upper > 0);
                 let hasWhole = roomsOfType.some(r => r.available_beds == r.total_beds);
@@ -813,12 +843,15 @@ function filterRoomModal() {
     const floor = document.getElementById('roomModalFloorFilter').value;
     const type = document.getElementById('room_type').value;
     const items = document.querySelectorAll('.room-select-item');
+    const userGender = getUserGender();
+    const bedPref = document.querySelector('select[name="bed_preference"]').value;
     
     items.forEach(item => {
         const itemType = item.dataset.type;
         const itemFloor = item.dataset.floor;
+        const itemGender = item.dataset.gender || 'Male';
         
-        if (itemType === type && (floor === 'all' || itemFloor === floor)) {
+        if (itemType === type && (floor === 'all' || itemFloor === floor) && (bedPref === 'Whole Room' || !userGender || itemGender === userGender)) {
             item.style.display = 'block';
         } else {
             item.style.display = 'none';
@@ -922,6 +955,26 @@ window.addEventListener('DOMContentLoaded', (event) => {
         calculateTotal();
         checkAvailability();
     }
+});
+
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
 });
 </script>
 </body>

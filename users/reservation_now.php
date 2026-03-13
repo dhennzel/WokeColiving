@@ -245,11 +245,11 @@ if (isset($_POST['confirm_booking'])) {
         // Find an available room of the selected type
         $found_room = null;
         if ($specific_room_id > 0) {
-            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower FROM rooms WHERE room_id = ? AND is_archived=0";
+            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, daily_price_bed, daily_price_room, gender FROM rooms WHERE room_id = ? AND is_archived=0";
             $r_stmt = $conn->prepare($r_sql);
             $r_stmt->bind_param("i", $specific_room_id);
         } else {
-            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower FROM rooms WHERE room_type = ? AND availability = 'Available' AND is_archived=0";
+            $r_sql = "SELECT room_id, total_beds, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, daily_price_bed, daily_price_room, gender FROM rooms WHERE room_type = ? AND availability = 'Available' AND is_archived=0";
             $r_stmt = $conn->prepare($r_sql);
             $r_stmt->bind_param("s", $troom);
         }
@@ -257,6 +257,9 @@ if (isset($_POST['confirm_booking'])) {
         $r_res = $r_stmt->get_result();
 
         while($room = $r_res->fetch_assoc()) {
+            if ($bed_preference != 'Whole Room' && $room['gender'] != $user_gender) {
+                continue; // Skip if room gender restriction does not match user's gender
+            }
             $rid = $room['room_id'];
             $capacity = $room['total_beds'];
             
@@ -266,10 +269,16 @@ if (isset($_POST['confirm_booking'])) {
             
             $occ_lower = 0; $occ_upper = 0; $occ_any = 0; $total_booked = 0;
             while($row_o = mysqli_fetch_assoc($res_occ)){
-                $total_booked += $row_o['cnt'];
-                if($row_o['bed_preference'] == 'Lower Bunk') $occ_lower += $row_o['cnt'];
-                elseif($row_o['bed_preference'] == 'Upper Bunk') $occ_upper += $row_o['cnt'];
-                else $occ_any += $row_o['cnt'];
+                $cnt = $row_o['cnt'];
+                if($row_o['bed_preference'] == 'Whole Room') {
+                    $total_booked += $capacity;
+                    $occ_any += $capacity;
+                } else {
+                    $total_booked += $cnt;
+                    if($row_o['bed_preference'] == 'Lower Bunk') $occ_lower += $cnt;
+                    elseif($row_o['bed_preference'] == 'Upper Bunk') $occ_upper += $cnt;
+                    else $occ_any += $cnt;
+                }
             }
 
             if(($capacity - $total_booked) > 0){
@@ -527,7 +536,7 @@ if (isset($_POST['confirm_booking'])) {
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($user_gender) ?>" readonly>
                                 <input type="hidden" name="gender" value="<?= htmlspecialchars($user_gender) ?>">
                             <?php else: ?>
-                                <select name="gender" class="form-select" required>
+                                <select name="gender" class="form-select" required onchange="checkRealTimeAvailability()">
                                     <option value="" disabled selected>Select Gender</option>
                                     <option value="Male">Male</option>
                                     <option value="Female">Female</option>
@@ -627,7 +636,7 @@ if (isset($_POST['confirm_booking'])) {
                             <small id="availability_status" class="fw-bold mt-1 d-block"></small>
                         </div>
 
-                        <div class="mb-3" id="specific_room_selection_div" style="display:none;">
+                        <div class="mb-3" id="specific_room_selection_div">
                             <label class="form-label">Select Specific Room (Optional)</label>
                             <div class="d-flex align-items-center gap-2">
                                 <button type="button" class="btn btn-outline-success btn-sm" onclick="openRoomSelectionModal()"><i class="fas fa-door-open me-1"></i> Choose Room</button>
@@ -901,8 +910,17 @@ function confirmReservation() {
         let bedPrefEl = document.querySelector('[name="bed_preference"]');
         let bedPref = bedPrefEl ? bedPrefEl.value : 'Any';
         let statusSpan = document.getElementById('availability_status');
+        let genderEl = document.querySelector('[name="gender"]');
+        let userGender = genderEl ? genderEl.value : '';
 
         if(room && cin && cout) {
+            if(!userGender) {
+                statusSpan.innerHTML = '<i class="fas fa-exclamation-circle"></i> Please select your Sex/Gender first';
+                statusSpan.className = 'fw-bold mt-1 d-block text-warning';
+                clearRoomSelection();
+                return;
+            }
+
             statusSpan.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking availability...';
             statusSpan.className = 'fw-bold mt-1 d-block text-muted';
 
@@ -911,8 +929,8 @@ function confirmReservation() {
                 .then(response => response.json())
                 .then(data => {
                     window.availableRoomsData = data;
-                    // Filter rooms of selected type
-                    let roomsOfType = data.filter(r => r.room_type === room);
+                    // Filter rooms of selected type and matching gender
+                    let roomsOfType = data.filter(r => r.room_type === room && (bedPref === 'Whole Room' || r.gender === userGender));
                     
                     // Check specific availability across all rooms of this type
                     let hasLower = roomsOfType.some(r => r.avail_lower > 0);
@@ -941,11 +959,9 @@ function confirmReservation() {
                     if(available) {
                         statusSpan.innerHTML = '<i class="fas fa-check-circle"></i> Available';
                         statusSpan.className = 'fw-bold mt-1 d-block text-success';
-                        document.getElementById('specific_room_selection_div').style.display = 'block';
                     } else {
                         statusSpan.innerHTML = '<i class="fas fa-times-circle"></i> Fully Booked (Waitlist available on submit)';
                         statusSpan.className = 'fw-bold mt-1 d-block text-danger';
-                        document.getElementById('specific_room_selection_div').style.display = 'none';
                         clearRoomSelection();
                     }
                 });
@@ -968,9 +984,16 @@ function confirmReservation() {
         let type = document.getElementById('troom').value;
         let cin = document.getElementById('cin').value;
         let cout = document.getElementById('cout').value;
+        let genderEl = document.querySelector('[name="gender"]');
+        let userGender = genderEl ? genderEl.value : '';
         
         if(!type || !cin || !cout) {
             Swal.fire('Incomplete Details', 'Please select a room type, check-in, and check-out dates first.', 'warning');
+            return;
+        }
+
+        if(!userGender) {
+            Swal.fire('Incomplete Details', 'Please select your Sex/Gender first.', 'warning');
             return;
         }
         
@@ -1000,12 +1023,14 @@ function confirmReservation() {
         const floorFilter = document.getElementById('roomModalFloorFilter').value;
         const bedPref = document.querySelector('[name="bed_preference"]')?.value || 'Any';
         const selectedId = document.getElementById('specific_room_id').value;
+        const genderEl = document.querySelector('[name="gender"]');
+        const userGender = genderEl ? genderEl.value : '';
 
         grid.innerHTML = '';
 
         if(!window.availableRoomsData) return;
 
-        let filteredRooms = window.availableRoomsData.filter(r => r.room_type === type);
+        let filteredRooms = window.availableRoomsData.filter(r => r.room_type === type && (bedPref === 'Whole Room' || r.gender === userGender));
 
         if(floorFilter !== 'all') {
             filteredRooms = filteredRooms.filter(r => r.floor == floorFilter);
@@ -1027,6 +1052,13 @@ function confirmReservation() {
 
             let displayName = room.room_number ? `Room ${room.room_number}` : (!isNaN(room.room_name) ? `Room ${room.room_name}` : room.room_name);
             let isSelected = selectedId == room.room_id ? 'selected' : '';
+            
+            let genderIcon = room.gender === 'Female' ? 'fa-venus text-danger' : 'fa-mars text-primary';
+            let genderText = room.gender === 'Female' ? 'Female Only' : 'Male Only';
+            if (bedPref === 'Whole Room') {
+                genderIcon = 'fa-venus-mars text-success';
+                genderText = 'Any (Whole Room)';
+            }
 
             let detailsHtml = '';
             if(room.room_type !== 'Single') {
@@ -1041,7 +1073,10 @@ function confirmReservation() {
                         <div class="card-body d-flex flex-column p-3">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <h6 class="fw-bold text-dark mb-0">${displayName}</h6>
-                                <span class="badge bg-light text-dark border">${room.floor || 2}F</span>
+                                <div>
+                                    <span class="badge bg-light text-dark border me-1"><i class="fas ${genderIcon}"></i> ${genderText}</span>
+                                    <span class="badge bg-light text-dark border">${room.floor || 2}F</span>
+                                </div>
                             </div>
                             <div class="mb-2 small text-muted">
                                 <div class="d-flex justify-content-between mb-1"><span>Total Beds:</span> <strong>${room.total_beds}</strong></div>

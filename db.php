@@ -27,6 +27,14 @@ if(mysqli_num_rows($check_admin_role) == 0) {
     mysqli_query($conn, "UPDATE admin SET role='Super Admin' LIMIT 1"); // Default first admin to Super Admin
 }
 
+$check_admin_fname = mysqli_query($conn, "SHOW COLUMNS FROM admin LIKE 'first_name'");
+if(mysqli_num_rows($check_admin_fname) == 0) {
+    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN first_name VARCHAR(50) DEFAULT ''");
+    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN last_name VARCHAR(50) DEFAULT ''");
+    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN email VARCHAR(100) DEFAULT ''");
+    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN phone_number VARCHAR(20) DEFAULT ''");
+}
+
 // Ensure room pricing columns exist
 $cols = mysqli_query($conn, "SHOW COLUMNS FROM rooms");
 $existing_cols = [];
@@ -41,6 +49,7 @@ if(!in_array('long_term_price_whole', $existing_cols)) mysqli_query($conn, "ALTE
 if(!in_array('daily_price_bed', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN daily_price_bed DECIMAL(10,2) DEFAULT 0.00");
 if(!in_array('daily_price_room', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN daily_price_room DECIMAL(10,2) DEFAULT 0.00");
 if(!in_array('is_archived', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
+if(!in_array('gender', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN gender ENUM('Male', 'Female', 'Any') DEFAULT 'Any'");
 if(!in_array('display_order', $existing_cols)) {
     mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN display_order INT DEFAULT 0");
     // Initialize order based on current sorting to avoid disruption
@@ -179,7 +188,8 @@ function log_activity($conn, $user_id, $action, $details = "") {
     $role = 'System';
     
     if(isset($_SESSION['admin_username'])){
-        $performer = $_SESSION['admin_username'];
+        $fname = trim($_SESSION['admin_full_name'] ?? '');
+        $performer = !empty($fname) ? $fname . ' (' . $_SESSION['admin_username'] . ')' : $_SESSION['admin_username'];
         $role = $_SESSION['admin_role'] ?? 'Admin';
     } elseif(isset($_SESSION['user_id'])) {
         $performer = 'User';
@@ -497,6 +507,9 @@ if(!in_array('role', $al_cols)) mysqli_query($conn, "ALTER TABLE activity_logs A
 mysqli_query($conn, "ALTER TABLE reservations MODIFY COLUMN status ENUM('Pending', 'Verifying', 'Approved', 'Cancelled', 'Completed') DEFAULT 'Pending'");
 mysqli_query($conn, "UPDATE reservations SET status='Pending' WHERE status = '' OR status IS NULL");
 
+// Ensure payments table supports Cancelled status
+mysqli_query($conn, "ALTER TABLE payments MODIFY COLUMN payment_status ENUM('Paid','Unpaid','Cancelled') DEFAULT 'Unpaid'");
+
 // Ensure payments table has is_penalized column
 $pay_cols_check = mysqli_query($conn, "SHOW COLUMNS FROM payments");
 $pay_cols = [];
@@ -678,13 +691,21 @@ function get_room_occupancy_status($conn, $room_id) {
         return 'Maintenance';
     }
     
-    // Count current occupants (Approved or Pending reservations that overlap with current date)
-    $occ_q = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM reservations 
-        WHERE room_id=$room_id AND status IN ('Approved', 'Pending') 
-        AND start_date <= CURDATE() AND end_date > CURDATE()");
-    $occupied = mysqli_fetch_assoc($occ_q)['cnt'];
-    
     $total_beds = $room['total_beds'];
+    
+    // Count current occupants (Approved or Pending reservations that overlap with current date)
+    $occ_q = mysqli_query($conn, "SELECT bed_preference, COUNT(*) as cnt FROM reservations 
+        WHERE room_id=$room_id AND status IN ('Approved', 'Pending') 
+        AND start_date <= CURDATE() AND end_date > CURDATE() GROUP BY bed_preference");
+        
+    $occupied = 0;
+    while($row = mysqli_fetch_assoc($occ_q)) {
+        if ($row['bed_preference'] == 'Whole Room') {
+            $occupied += $total_beds;
+        } else {
+            $occupied += $row['cnt'];
+        }
+    }
     
     if ($occupied == 0) {
         return 'Vacant';
@@ -764,7 +785,16 @@ function get_all_rooms_with_occupancy($conn, $show_hidden = false) {
         $keys = get_room_key_info($conn, $room_id);
         $row['key_info'] = !empty($keys) ? $keys[0] : null; // For backward compatibility, provide first key
         $row['all_keys'] = $keys; // Provide all keys in a new field
-        $row['occupied_count'] = count($row['occupants']);
+        
+        $occupied_count = 0;
+        foreach($row['occupants'] as $occ) {
+            if($occ['bed_preference'] == 'Whole Room') {
+                $occupied_count += $row['total_beds'];
+            } else {
+                $occupied_count += 1;
+            }
+        }
+        $row['occupied_count'] = $occupied_count;
         
         // Calculate available beds
         $row['available_beds'] = max(0, $row['total_beds'] - $row['occupied_count']);

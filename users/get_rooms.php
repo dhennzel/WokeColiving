@@ -35,10 +35,16 @@ while($room = mysqli_fetch_assoc($rooms_query)) {
         
         $occ_lower = 0; $occ_upper = 0; $occ_any = 0; $total_booked = 0;
         while($row_o = mysqli_fetch_assoc($q_occ)){
-            $total_booked += $row_o['cnt'];
-            if($row_o['bed_preference'] == 'Lower Bunk') $occ_lower += $row_o['cnt'];
-            elseif($row_o['bed_preference'] == 'Upper Bunk') $occ_upper += $row_o['cnt'];
-            else $occ_any += $row_o['cnt'];
+            $cnt = $row_o['cnt'];
+            if($row_o['bed_preference'] == 'Whole Room') {
+                $total_booked += $total_beds;
+                $occ_any += $total_beds;
+            } else {
+                $total_booked += $cnt;
+                if($row_o['bed_preference'] == 'Lower Bunk') $occ_lower += $cnt;
+                elseif($row_o['bed_preference'] == 'Upper Bunk') $occ_upper += $cnt;
+                else $occ_any += $cnt;
+            }
         }
         
         $avail_total = max(0, $total_beds - $total_booked);

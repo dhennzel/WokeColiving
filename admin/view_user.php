@@ -272,11 +272,13 @@ if(isset($_GET['pay_status']) || isset($_GET['start_date']) || isset($_GET['end_
 }
 
 // Fetch User-Specific Pending Counts for Tabs
-$user_pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE user_id=$uid AND status='Pending'"))['c'];
-$user_pending_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid'"))['c'];
+$user_pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE user_id=$uid AND status IN ('Pending', 'Verifying')"))['c'];
+$user_pending_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL"))['c'];
 
 // Fetch Pending Counts for Sidebar
-$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
+$pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
+$pending_res = $pending_res_q + $pending_pay_q;
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
@@ -807,6 +809,7 @@ $theme = get_theme_colors($conn);
                             <option value="">All Status</option>
                             <option value="Paid" <?= $pay_status_filter == 'Paid' ? 'selected' : '' ?>>Paid</option>
                             <option value="Unpaid" <?= $pay_status_filter == 'Unpaid' ? 'selected' : '' ?>>Unpaid</option>
+                            <option value="Cancelled" <?= $pay_status_filter == 'Cancelled' ? 'selected' : '' ?>>Cancelled</option>
                         </select>
                         <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-filter"></i></button>
                         <?php if($pay_status_filter || $start_date || $end_date): ?>
@@ -826,14 +829,15 @@ $theme = get_theme_colors($conn);
                                 <th>Method</th>
                                 <th>Amount</th>
                                 <th>Status</th>
-                                <th class="text-end">Details</th>
+                                <th>Details</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php 
                             $total_amount = 0;
                             while($pay = mysqli_fetch_assoc($pay_query)): 
-                                $total_amount += $pay['amount'];
+                                if($pay['payment_status'] != 'Cancelled') $total_amount += $pay['amount'];
                             ?>
                             <?php
                                 $is_overdue = ($pay['payment_status'] == 'Unpaid' && strtotime($pay['payment_date']) < strtotime('-5 days'));
@@ -856,24 +860,50 @@ $theme = get_theme_colors($conn);
                                 <td><?= htmlspecialchars($pay['payment_method']) ?></td>
                                 <td class="fw-bold">₱<?= number_format($pay['amount'], 2) ?></td>
                                 <td>
-                                    <span class="badge <?= $pay['payment_status'] == 'Paid' ? 'bg-success' : 'bg-warning text-dark' ?>"><?= $pay['payment_status'] ?></span>
+                                    <?php 
+                                        $p_status_class = 'bg-warning text-dark';
+                                        if($pay['payment_status'] == 'Paid') $p_status_class = 'bg-success';
+                                        elseif($pay['payment_status'] == 'Cancelled') $p_status_class = 'bg-danger';
+                                    ?>
+                                    <span class="badge <?= $p_status_class ?> position-relative">
+                                        <?= $pay['payment_status'] ?>
+                                        <?php if($pay['payment_status'] == 'Unpaid' && !empty($pay['proof_image'])): ?>
+                                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
+                                        <?php endif; ?>
+                                    </span>
                                     <?php if($is_overdue): ?><br><small class="text-danger fw-bold">Overdue</small><?php endif; ?>
+                                    <?php if($pay['payment_status'] == 'Unpaid' && !empty($pay['proof_image'])): ?><br><small class="text-danger fw-bold mt-1 d-block" style="font-size:0.7rem;"><i class="fas fa-exclamation-circle me-1"></i>Review Proof</small><?php endif; ?>
+                                </td>
+                                <td>
+                                    <a href="payment_details.php?id=<?= $pay['payment_id'] ?>" class="btn btn-sm btn-outline-primary position-relative">
+                                        <i class="fas fa-eye"></i> View
+                                        <?php if($pay['payment_status'] == 'Unpaid' && !empty($pay['proof_image'])): ?>
+                                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
+                                        <?php endif; ?>
+                                    </a>
                                 </td>
                                 <td class="text-end">
                                     <?php if($pay['payment_status'] == 'Unpaid'): ?>
-                                        <a href="booking_management.php?action=mark_paid&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success me-1" title="Confirm Payment" onclick="confirmAction(event, this.href, 'Mark this payment as Paid?')"><i class="fas fa-check"></i></a>
+                                        <div class="d-flex justify-content-end gap-1">
+                                            <a href="booking_management.php?action=mark_paid&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" title="Approve Payment" onclick="confirmAction(event, this.href, 'Approve this payment as Paid?')"><i class="fas fa-check"></i></a>
+                                            <?php if(!empty($pay['proof_image'])): ?>
+                                                <a href="booking_management.php?action=reject_payment&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-warning text-dark" title="Reject Payment Proof (Re-upload)" onclick="confirmAction(event, this.href, 'Reject this payment proof? The guest will have to re-upload.')"><i class="fas fa-undo"></i></a>
+                                            <?php endif; ?>
+                                            <a href="booking_management.php?action=cancel_payment&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" title="Cancel Payment" onclick="confirmAction(event, this.href, 'Cancel this payment? Use this if the guest no longer wants to continue.')"><i class="fas fa-times"></i></a>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="text-muted small">-</span>
                                     <?php endif; ?>
-                                    <a href="payment_details.php?id=<?= $pay['payment_id'] ?>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</a>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
                             <?php if(mysqli_num_rows($pay_query) == 0): ?>
-                                <tr><td colspan="8" class="text-center text-muted">No payment history found.</td></tr>
+                                <tr><td colspan="9" class="text-center text-muted">No payment history found.</td></tr>
                             <?php else: ?>
                                 <tr class="table-light fw-bold border-top">
                                     <td colspan="5" class="text-end text-uppercase text-secondary">Total Amount:</td>
                                     <td class="text-success fs-6">₱<?= number_format($total_amount, 2) ?></td>
-                                    <td colspan="2"></td>
+                                    <td colspan="3"></td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>
@@ -1214,6 +1244,26 @@ function checkUpdates() {
     });
 }
 setInterval(checkUpdates, 3000); // Check every 3 seconds
+
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
+});
 </script>
 </body>
 </html>

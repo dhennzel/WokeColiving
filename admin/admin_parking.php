@@ -17,6 +17,21 @@ if (isset($_POST['add_parking_reservation'])) {
     $start_date = $_POST['start_date'];
     $billing_type = $_POST['billing_type'];
 
+    // Validate: Check if user already has an active parking reservation
+    $check_user_q = mysqli_query($conn, "SELECT id FROM parking_reservations WHERE user_id=$user_id AND status='Active'");
+    if (mysqli_num_rows($check_user_q) > 0) {
+        header("Location: admin_parking.php?msg=user_has_slot");
+        exit;
+    }
+
+    // Validate: Check if slot is actually available
+    $check_slot_q = mysqli_query($conn, "SELECT status FROM parking_slots WHERE id=$slot_id");
+    $slot_status_row = mysqli_fetch_assoc($check_slot_q);
+    if ($slot_status_row['status'] !== 'Available') {
+        header("Location: admin_parking.php?msg=slot_occupied");
+        exit;
+    }
+
     // Get slot details
     $slot_q = mysqli_query($conn, "SELECT * FROM parking_slots WHERE id=$slot_id");
     $slot = mysqli_fetch_assoc($slot_q);
@@ -73,22 +88,26 @@ if (isset($_GET['action']) && $_GET['action'] == 'end') {
 }
 
 // Fetch Data for Display
-$slots_q = mysqli_query($conn, "SELECT * FROM parking_slots WHERE is_archived=0 ORDER BY slot_type, slot_name");
+$slots_q = mysqli_query($conn, "
+    SELECT ps.*, CONCAT(u.first_name, ' ', u.last_name) as occupant_name 
+    FROM parking_slots ps 
+    LEFT JOIN parking_reservations pr ON ps.id = pr.slot_id AND pr.status = 'Active'
+    LEFT JOIN users u ON pr.user_id = u.user_id 
+    WHERE ps.is_archived = 0 
+    ORDER BY ps.slot_type, ps.slot_name
+");
 $parking_slots = ['Car' => [], 'Motorcycle' => []];
 while ($row = mysqli_fetch_assoc($slots_q)) {
     $parking_slots[$row['slot_type']][] = $row;
 }
 
 $reservations_q = mysqli_query($conn, "SELECT pr.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, ps.slot_name, ps.slot_type FROM parking_reservations pr JOIN users u ON pr.user_id = u.user_id JOIN parking_slots ps ON pr.slot_id = ps.id WHERE pr.status = 'Active' ORDER BY pr.start_date DESC");
-$users_q = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name) as full_name FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM reservations WHERE status='Approved') ORDER BY last_name ASC");
-$avail_slots_q = mysqli_query($conn, "SELECT id, slot_name, slot_type FROM parking_slots WHERE status='Available' AND is_archived=0 ORDER BY slot_type, slot_name");
-$available_slots_grouped = ['Car' => [], 'Motorcycle' => []];
-while($s = mysqli_fetch_assoc($avail_slots_q)){
-    $available_slots_grouped[$s['slot_type']][] = $s;
-}
+$users_q = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name) as full_name FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM reservations WHERE status='Approved') AND user_id NOT IN (SELECT user_id FROM parking_reservations WHERE status='Active') ORDER BY last_name ASC");
 
 // Sidebar counts
-$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
+$pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
+$pending_res = $pending_res_q + $pending_pay_q;
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
@@ -124,6 +143,8 @@ $theme = get_theme_colors($conn);
         .slot-select-card:hover { border-color: #ccc; background-color: #f9f9f9; transform: translateY(-2px); }
         .slot-select-card.selected { border-color: var(--primary-green); background-color: #e8f5e9; }
         .slot-select-card.selected i { color: var(--primary-green) !important; }
+        .slot-select-card.disabled { opacity: 0.6; cursor: not-allowed; background-color: #f8f9fa; }
+        .slot-select-card.disabled:hover { transform: none; box-shadow: none; border-color: transparent; }
     </style>
 </head>
 <body>
@@ -213,30 +234,48 @@ $theme = get_theme_colors($conn);
             </div>
 
             <?php if(isset($_GET['msg'])): ?>
-                <div class="alert alert-success"><?= $_GET['msg'] == 'added' ? 'Reservation added.' : 'Reservation ended.' ?></div>
+            <?php
+                $msg_class = 'alert-success';
+                $msg_text = '';
+                if($_GET['msg'] == 'added') { $msg_text = 'Parking reservation created successfully.'; }
+                elseif($_GET['msg'] == 'ended') { $msg_text = 'Parking reservation ended successfully.'; }
+                elseif($_GET['msg'] == 'user_has_slot') { $msg_class = 'alert-danger'; $msg_text = 'Failed: This user already has an active parking reservation.'; }
+                elseif($_GET['msg'] == 'slot_occupied') { $msg_class = 'alert-danger'; $msg_text = 'Failed: This parking slot is already occupied.'; }
+            ?>
+            <?php if($msg_text): ?><div class="alert <?= $msg_class ?>"><?= $msg_text ?></div><?php endif; ?>
             <?php endif; ?>
 
             <!-- Slot Monitoring -->
             <div class="card card-custom p-4 mb-4">
                 <h5 class="fw-bold text-secondary mb-3">Slot Monitoring</h5>
-                <h6 class="fw-bold"><i class="fas fa-car me-2 text-primary"></i>Car Slots (4)</h6>
+                <h6 class="fw-bold"><i class="fas fa-car me-2 text-primary"></i>Car Slots (<?= count($parking_slots['Car']) ?>)</h6>
                 <div class="row g-3 mb-3">
                     <?php foreach($parking_slots['Car'] as $slot): ?>
-                    <div class="col">
-                        <div class="slot-card <?= strtolower($slot['status']) ?>">
+                    <div class="col-xl-2 col-lg-3 col-md-4 col-6">
+                        <div class="slot-card <?= strtolower($slot['status']) ?> h-100 d-flex flex-column justify-content-center">
                             <div class="fw-bold"><?= $slot['slot_name'] ?></div>
-                            <div class="small"><?= $slot['status'] ?></div>
+                            <div class="small mb-1"><?= $slot['status'] ?></div>
+                            <?php if($slot['status'] == 'Occupied'): ?>
+                                <div class="mt-auto border-top border-dark border-opacity-10 pt-1 text-truncate small fw-bold" style="font-size: 0.75rem;" title="<?= htmlspecialchars($slot['occupant_name'] ?? '') ?>">
+                                    <i class="fas fa-user-circle me-1"></i><?= htmlspecialchars($slot['occupant_name'] ?? 'Unknown') ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?php endforeach; ?>
                 </div>
-                <h6 class="fw-bold"><i class="fas fa-motorcycle me-2 text-warning"></i>Motorcycle Slots (7)</h6>
+                <h6 class="fw-bold"><i class="fas fa-motorcycle me-2 text-warning"></i>Motorcycle Slots (<?= count($parking_slots['Motorcycle']) ?>)</h6>
                 <div class="row g-3">
                     <?php foreach($parking_slots['Motorcycle'] as $slot): ?>
-                    <div class="col">
-                        <div class="slot-card <?= strtolower($slot['status']) ?>">
+                    <div class="col-xl-2 col-lg-3 col-md-4 col-6">
+                        <div class="slot-card <?= strtolower($slot['status']) ?> h-100 d-flex flex-column justify-content-center">
                             <div class="fw-bold"><?= $slot['slot_name'] ?></div>
-                            <div class="small"><?= $slot['status'] ?></div>
+                            <div class="small mb-1"><?= $slot['status'] ?></div>
+                            <?php if($slot['status'] == 'Occupied'): ?>
+                                <div class="mt-auto border-top border-dark border-opacity-10 pt-1 text-truncate small fw-bold" style="font-size: 0.75rem;" title="<?= htmlspecialchars($slot['occupant_name'] ?? '') ?>">
+                                    <i class="fas fa-user-circle me-1"></i><?= htmlspecialchars($slot['occupant_name'] ?? 'Unknown') ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?php endforeach; ?>
@@ -308,15 +347,20 @@ $theme = get_theme_colors($conn);
                         <div class="tab-content border rounded p-3 bg-light" style="max-height: 300px; overflow-y: auto;">
                             <div class="tab-pane fade show active" id="car_slots" role="tabpanel">
                                 <div class="row g-2">
-                                    <?php if(empty($available_slots_grouped['Car'])): ?>
-                                        <div class="col-12 text-center text-muted py-3">No available car slots.</div>
+                                    <?php if(empty($parking_slots['Car'])): ?>
+                                        <div class="col-12 text-center text-muted py-3">No car slots configured.</div>
                                     <?php else: ?>
-                                        <?php foreach($available_slots_grouped['Car'] as $slot): ?>
+                                        <?php foreach($parking_slots['Car'] as $slot): ?>
                                             <div class="col-md-4 col-6">
-                                                <div class="card slot-select-card h-100" onclick="selectSlot(this, <?= $slot['id'] ?>)">
+                                                <div class="card slot-select-card h-100 <?= $slot['status'] == 'Occupied' ? 'disabled' : '' ?>" <?= $slot['status'] == 'Available' ? "onclick='selectSlot(this, {$slot['id']})'" : "" ?>>
                                                     <div class="card-body text-center p-2">
                                                         <i class="fas fa-car fa-2x text-secondary mb-2"></i>
                                                         <div class="fw-bold small"><?= $slot['slot_name'] ?></div>
+                                                        <?php if($slot['status'] == 'Occupied'): ?>
+                                                            <div class="badge bg-danger mt-1 d-block text-truncate" title="<?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?>"><?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?></div>
+                                                        <?php else: ?>
+                                                            <div class="badge bg-success mt-1 d-block">Available</div>
+                                                        <?php endif; ?>
                                                     </div>
                                                 </div>
                                             </div>
@@ -326,15 +370,20 @@ $theme = get_theme_colors($conn);
                             </div>
                             <div class="tab-pane fade" id="motor_slots" role="tabpanel">
                                 <div class="row g-2">
-                                    <?php if(empty($available_slots_grouped['Motorcycle'])): ?>
-                                        <div class="col-12 text-center text-muted py-3">No available motorcycle slots.</div>
+                                    <?php if(empty($parking_slots['Motorcycle'])): ?>
+                                        <div class="col-12 text-center text-muted py-3">No motorcycle slots configured.</div>
                                     <?php else: ?>
-                                        <?php foreach($available_slots_grouped['Motorcycle'] as $slot): ?>
+                                        <?php foreach($parking_slots['Motorcycle'] as $slot): ?>
                                             <div class="col-md-4 col-6">
-                                                <div class="card slot-select-card h-100" onclick="selectSlot(this, <?= $slot['id'] ?>)">
+                                                <div class="card slot-select-card h-100 <?= $slot['status'] == 'Occupied' ? 'disabled' : '' ?>" <?= $slot['status'] == 'Available' ? "onclick='selectSlot(this, {$slot['id']})'" : "" ?>>
                                                     <div class="card-body text-center p-2">
                                                         <i class="fas fa-motorcycle fa-2x text-secondary mb-2"></i>
                                                         <div class="fw-bold small"><?= $slot['slot_name'] ?></div>
+                                                        <?php if($slot['status'] == 'Occupied'): ?>
+                                                            <div class="badge bg-danger mt-1 d-block text-truncate" title="<?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?>"><?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?></div>
+                                                        <?php else: ?>
+                                                            <div class="badge bg-success mt-1 d-block">Available</div>
+                                                        <?php endif; ?>
                                                     </div>
                                                 </div>
                                             </div>
@@ -420,6 +469,26 @@ function endParkingReservation(id, tenantName, slotName, slotType) {
         }
     });
 }
+
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
+});
 </script>
 </body>
 </html>

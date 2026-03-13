@@ -66,7 +66,9 @@ foreach ($rooms as $room) {
 }
 
 // Sidebar Counts
-$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
+$pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
+$pending_res = $pending_res_q + $pending_pay_q;
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
@@ -304,9 +306,15 @@ $theme = get_theme_colors($conn);
                                 // Specifics
                                 $taken_upper = 0; $taken_lower = 0; $taken_any = 0;
                                 foreach($room['occupants'] as $o) {
-                                    if($o['bed_preference'] == 'Upper Bunk') $taken_upper++;
-                                    elseif($o['bed_preference'] == 'Lower Bunk') $taken_lower++;
-                                    else $taken_any++;
+                                    if($o['bed_preference'] == 'Whole Room') {
+                                        $taken_any += $total;
+                                    } elseif($o['bed_preference'] == 'Upper Bunk') {
+                                        $taken_upper++;
+                                    } elseif($o['bed_preference'] == 'Lower Bunk') {
+                                        $taken_lower++;
+                                    } else {
+                                        $taken_any++;
+                                    }
                                 }
                                 
                                 $cap_half = floor($total / 2); // Assuming equal split for simplicity in display
@@ -431,6 +439,26 @@ $theme = get_theme_colors($conn);
             }
         });
     }
+
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
+});
 </script>
 </body>
 </html>

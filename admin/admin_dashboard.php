@@ -43,8 +43,10 @@ $total_earnings_query = mysqli_query($conn, "SELECT SUM(amount) AS total FROM pa
 $total_earnings = mysqli_fetch_assoc($total_earnings_query)['total'] ?? 0;
 
 // Stats: Counts
-$pending_count_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM reservations WHERE status='Pending'");
-$pending_count = mysqli_fetch_assoc($pending_count_query)['count'];
+$pending_count_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM reservations WHERE status IN ('Pending', 'Verifying')");
+$pending_count_res = mysqli_fetch_assoc($pending_count_query)['count'];
+$pending_count_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS count FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['count'];
+$pending_count = $pending_count_res + $pending_count_pay;
 
 $approved_count_query = mysqli_query($conn, "SELECT COUNT(DISTINCT user_id) AS count FROM reservations WHERE status='Approved'");
 $approved_count = mysqli_fetch_assoc($approved_count_query)['count'];
@@ -59,8 +61,19 @@ $cap_q = mysqli_query($conn, "SELECT SUM(total_beds) as total FROM rooms WHERE a
 $total_capacity = mysqli_fetch_assoc($cap_q)['total'] ?? 0;
 
 // 2. Total Occupied (Active Approved and Pending Reservations)
-$occ_q = mysqli_query($conn, "SELECT COUNT(*) as occupied FROM reservations WHERE status IN ('Approved', 'Pending') AND start_date <= '$today' AND end_date > '$today'");
-$total_occupied = mysqli_fetch_assoc($occ_q)['occupied'] ?? 0;
+$occ_q = mysqli_query($conn, "SELECT bed_preference, room_id, COUNT(*) as cnt FROM reservations WHERE status IN ('Approved', 'Pending') AND start_date <= '$today' AND end_date > '$today' GROUP BY room_id, bed_preference");
+
+$total_occupied = 0;
+while ($row = mysqli_fetch_assoc($occ_q)) {
+    if ($row['bed_preference'] == 'Whole Room') {
+        $r_id = $row['room_id'];
+        $cap_q2 = mysqli_query($conn, "SELECT total_beds FROM rooms WHERE room_id=$r_id");
+        $t_beds = mysqli_fetch_assoc($cap_q2)['total_beds'] ?? 1;
+        $total_occupied += $t_beds;
+    } else {
+        $total_occupied += $row['cnt'];
+    }
+}
 
 $occupancy_rate = ($total_capacity > 0) ? round(($total_occupied / $total_capacity) * 100) : 0;
 
@@ -120,10 +133,16 @@ if(mysqli_num_rows($check_col_hidden) == 0) {
             $occ_upper = 0; $occ_lower = 0; $occ_any = 0;
             $total_room_occ = 0;
             while($ro = mysqli_fetch_assoc($ro_q)){
-                $total_room_occ += $ro['cnt'];
-                if($ro['bed_preference'] == 'Upper Bunk') $occ_upper += $ro['cnt'];
-                elseif($ro['bed_preference'] == 'Lower Bunk') $occ_lower += $ro['cnt'];
-                else $occ_any += $ro['cnt'];
+                $cnt = $ro['cnt'];
+                if($ro['bed_preference'] == 'Whole Room') {
+                    $total_room_occ += $total_beds;
+                    $occ_any += $total_beds;
+                } else {
+                    $total_room_occ += $cnt;
+                    if($ro['bed_preference'] == 'Upper Bunk') $occ_upper += $cnt;
+                    elseif($ro['bed_preference'] == 'Lower Bunk') $occ_lower += $cnt;
+                    else $occ_any += $cnt;
+                }
             }
             
             $cap_lower = ceil($total_beds / 2);
@@ -876,6 +895,26 @@ function checkUpdates() {
     });
 }
 setInterval(checkUpdates, 3000); // Check every 3 seconds
+
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
+});
 </script>
 </body>
 </html>

@@ -10,46 +10,63 @@ if (!isset($_GET['id'])) { header("Location: my_reservations.php"); exit; }
 $reservation_id = (int)$_GET['id'];
 
 // Verify ownership and status
-$check = mysqli_query($conn, "SELECT r.*, rm.room_type, rm.room_name FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id WHERE r.reservation_id=$reservation_id AND r.user_id=$user_id AND r.status IN ('Pending', 'Verifying')");
+$check = mysqli_query($conn, "SELECT r.*, rm.room_type, rm.room_name FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id WHERE r.reservation_id=$reservation_id AND r.user_id=$user_id AND r.status IN ('Pending', 'Verifying', 'Approved')");
 $res_data = mysqli_fetch_assoc($check);
 
 if(!$res_data){ header("Location: my_reservations.php"); exit; }
 
-// Get unpaid payment
-$pay_q = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id=$reservation_id AND payment_status='Unpaid' LIMIT 1");
-$payment = mysqli_fetch_assoc($pay_q);
+// Get all unpaid payments for this reservation individually
+$pay_q = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id=$reservation_id AND payment_status='Unpaid' ORDER BY payment_date ASC");
+$unpaid_bills = [];
+while($row = mysqli_fetch_assoc($pay_q)) {
+    $unpaid_bills[] = $row;
+}
 
-if(!$payment){ header("Location: my_reservations.php?msg=already_paid"); exit; }
+if(empty($unpaid_bills)){ header("Location: my_reservations.php?msg=already_paid"); exit; }
 
 $error = "";
 if(isset($_POST['submit_payment'])){
-    $method = $_POST['payment_method'];
-    $ref_number = $_POST['ref_number'] ?? null;
-    $proof_filename = null;
-
-    if ($method == 'GCash') {
-        if (empty($ref_number)) { $error = "GCash Reference Number is required."; }
-        if (isset($_FILES['proof_image']) && $_FILES['proof_image']['error'] == 0) {
-            $target_dir = "../uploads/proofs/";
-            if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-            $proof_filename = time() . '_' . basename($_FILES["proof_image"]["name"]);
-            if (!move_uploaded_file($_FILES["proof_image"]["tmp_name"], $target_dir . $proof_filename)) {
-                $error = "Error uploading proof.";
-            }
-        } else { $error = "Proof of payment is required for GCash."; }
-    }
-
-    if(!$error){
-        $status = ($method == 'GCash' || $method == 'PayPal') ? 'Paid' : 'Unpaid';
-        $stmt = mysqli_prepare($conn, "UPDATE payments SET payment_method=?, payment_status=?, reference_number=?, proof_image=?, payment_date=NOW() WHERE payment_id=?");
-        mysqli_stmt_bind_param($stmt, "ssssi", $method, $status, $ref_number, $proof_filename, $payment['payment_id']);
+    if(empty($_POST['selected_payments'])){
+        $error = "Please select at least one bill to pay.";
+    } else {
+        $valid_ids = array_column($unpaid_bills, 'payment_id');
+        $selected_ids = array_map('intval', $_POST['selected_payments']);
+        $final_ids = array_intersect($selected_ids, $valid_ids);
         
-        if(mysqli_stmt_execute($stmt)){
-            log_activity($conn, $user_id, "Payment Submitted", "Reservation #$reservation_id via $method");
-            trigger_update($conn);
-            header("Location: my_reservations.php?msg=payment_submitted");
-            exit;
-        } else { $error = "Database error."; }
+        if(empty($final_ids)) {
+            $error = "Invalid bills selected.";
+        } else {
+            $payment_ids_str = implode(',', $final_ids);
+            
+            $method = $_POST['payment_method'];
+            $ref_number = $_POST['ref_number'] ?? null;
+            $proof_filename = null;
+        
+            if ($method == 'GCash') {
+                if (empty($ref_number)) { $error = "GCash Reference Number is required."; }
+                if (isset($_FILES['proof_image']) && $_FILES['proof_image']['error'] == 0) {
+                    $target_dir = "../uploads/proofs/";
+                    if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+                    $proof_filename = time() . '_' . basename($_FILES["proof_image"]["name"]);
+                    if (!move_uploaded_file($_FILES["proof_image"]["tmp_name"], $target_dir . $proof_filename)) {
+                        $error = "Error uploading proof.";
+                    }
+                } else { $error = "Proof of payment is required for GCash."; }
+            }
+        
+            if(!$error){
+                $status = ($method == 'GCash' || $method == 'PayPal') ? 'Paid' : 'Unpaid';
+                $stmt = mysqli_prepare($conn, "UPDATE payments SET payment_method=?, payment_status=?, reference_number=?, proof_image=?, payment_date=NOW() WHERE payment_id IN ($payment_ids_str)");
+                mysqli_stmt_bind_param($stmt, "ssss", $method, $status, $ref_number, $proof_filename);
+                
+                if(mysqli_stmt_execute($stmt)){
+                    log_activity($conn, $user_id, "Payment Submitted", "Reservation #$reservation_id via $method for " . count($final_ids) . " bill(s)");
+                    trigger_update($conn);
+                    header("Location: my_reservations.php?msg=payment_submitted");
+                    exit;
+                } else { $error = "Database error."; }
+            }
+        }
     }
 }
 ?>
@@ -60,6 +77,7 @@ if(isset($_POST['submit_payment'])){
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root { --primary-green: #2E7D32; --dark-green: #1B5E20; --accent-yellow: #FBC02D; --light-bg: #f8f9fa; }
         body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
@@ -74,6 +92,7 @@ if(isset($_POST['submit_payment'])){
         body.night-mode .form-control, body.night-mode .form-select { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
         body.night-mode .form-control:focus, body.night-mode .form-select:focus { background-color: #333; color: #fff; }
         body.night-mode .bg-light { background-color: #2c2c2c !important; }
+        body.night-mode .border { border-color: #444 !important; }
     </style>
 </head>
 <body>
@@ -90,12 +109,35 @@ if(isset($_POST['submit_payment'])){
                 <div class="alert alert-info">
                     <strong>Reservation #<?= $reservation_id ?></strong><br>
                     Room: <?= $res_data['room_name'] ?> (<?= $res_data['room_type'] ?>)<br>
-                    Amount Due: <span class="h4 fw-bold">₱<?= number_format($payment['amount'], 2) ?></span>
                 </div>
                 
                 <?php if($error) echo "<div class='alert alert-danger'>$error</div>"; ?>
 
-                <form method="POST" enctype="multipart/form-data">
+                <form method="POST" enctype="multipart/form-data" id="paymentForm" onsubmit="return validatePaymentForm()">
+                    
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">Select Bills to Pay</h5>
+                    <div class="mb-4">
+                        <?php foreach($unpaid_bills as $bill): ?>
+                        <label class="form-check custom-checkbox-box mb-2 p-3 border rounded d-flex justify-content-between align-items-center" style="cursor:pointer;" for="bill_<?= $bill['payment_id'] ?>">
+                            <div class="d-flex align-items-center">
+                                <input class="form-check-input bill-checkbox me-3 mt-0" style="width: 1.5em; height: 1.5em;" type="checkbox" name="selected_payments[]" value="<?= $bill['payment_id'] ?>" id="bill_<?= $bill['payment_id'] ?>" data-amount="<?= $bill['amount'] ?>" onchange="calculateTotal()" checked>
+                                <div>
+                                    <div class="fw-bold"><?= htmlspecialchars($bill['description']) ?></div>
+                                    <div class="small text-muted">Added: <?= date('M d, Y', strtotime($bill['payment_date'])) ?></div>
+                                </div>
+                            </div>
+                            <div class="fw-bold text-success fs-5">
+                                ₱<?= number_format($bill['amount'], 2) ?>
+                            </div>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                    
+                    <div class="alert alert-success d-flex justify-content-between align-items-center mb-4">
+                        <strong class="mb-0 fs-5">Selected Total:</strong>
+                        <span class="h3 fw-bold mb-0 text-success">₱<span id="selectedTotalDisplay">0.00</span></span>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label fw-bold">Payment Method</label>
                         <select name="payment_method" id="payment_method" class="form-select" required onchange="togglePaymentDetails()">
@@ -135,6 +177,26 @@ function togglePaymentDetails() {
     let method = document.getElementById('payment_method').value;
     document.getElementById('gcash_div').style.display = (method === 'GCash') ? 'block' : 'none';
 }
+
+function calculateTotal() {
+    let total = 0;
+    document.querySelectorAll('.bill-checkbox:checked').forEach(function(checkbox) {
+        total += parseFloat(checkbox.getAttribute('data-amount'));
+    });
+    document.getElementById('selectedTotalDisplay').innerText = total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+function validatePaymentForm() {
+    if(document.querySelectorAll('.bill-checkbox:checked').length === 0) {
+        Swal.fire('No Bills Selected', 'Please select at least one bill to pay.', 'warning');
+        return false;
+    }
+    return true;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    calculateTotal();
+});
 
 // Night Mode Logic
 if(localStorage.getItem('nightMode') === 'enabled') {

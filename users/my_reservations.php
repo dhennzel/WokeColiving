@@ -205,10 +205,10 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                                 $rid = $row['reservation_id'];
                                 $pay_chk = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM payments WHERE reservation_id=$rid AND payment_status='Unpaid'");
                                 $has_unpaid = mysqli_fetch_assoc($pay_chk)['cnt'] > 0;
-                                if($has_unpaid && ($row['status'] == 'Pending' || $row['status'] == 'Verifying')): 
+                                if($has_unpaid && in_array($row['status'], ['Pending', 'Verifying', 'Approved'])): 
                             ?>
                                 <a href="pay_reservation.php?id=<?= $rid ?>" class="btn btn-sm btn-warning rounded-pill mb-1">
-                                    <i class="fas fa-credit-card me-1"></i> Pay Now
+                                    <i class="fas fa-credit-card me-1"></i> <?= $row['status'] == 'Approved' ? 'Pay Bills / Advance' : 'Pay Now' ?>
                                 </a>
                             <?php endif; ?>
 

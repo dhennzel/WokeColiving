@@ -28,6 +28,10 @@ $admin_user = $_SESSION['admin_username'];
 $current_page = basename($_SERVER['PHP_SELF']);
 $theme = get_theme_colors($conn);
 
+// Fetch current admin info
+$admin_info_q = mysqli_query($conn, "SELECT * FROM admin WHERE username='$admin_user'");
+$admin_info = mysqli_fetch_assoc($admin_info_q);
+
 // Fetch current login bg
 $current_login_bg = 'hero.jpg';
 $q_bg = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='login_bg'");
@@ -75,6 +79,10 @@ if(isset($_POST['revert_logo'])){
 
 if(isset($_POST['update_profile'])){
     $new_username = mysqli_real_escape_string($conn, $_POST['username']);
+    $first_name = mysqli_real_escape_string($conn, $_POST['first_name']);
+    $last_name = mysqli_real_escape_string($conn, $_POST['last_name']);
+    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $phone_number = mysqli_real_escape_string($conn, $_POST['phone_number']);
     $new_password = mysqli_real_escape_string($conn, $_POST['password'] ?? '');
     $confirm_password = mysqli_real_escape_string($conn, $_POST['confirm_password'] ?? '');
     
@@ -113,7 +121,7 @@ if(isset($_POST['update_profile'])){
 
     if(!$error) {
         // Update admin credentials
-        $sql = "UPDATE admin SET username='$new_username' $pass_update_sql WHERE username='$admin_user'";
+        $sql = "UPDATE admin SET username='$new_username', first_name='$first_name', last_name='$last_name', email='$email', phone_number='$phone_number' $pass_update_sql WHERE username='$admin_user'";
         if(mysqli_query($conn, $sql)){
             // Update history username if changed
             if($admin_user !== $new_username){
@@ -126,7 +134,12 @@ if(isset($_POST['update_profile'])){
             }
 
             $_SESSION['admin_username'] = $new_username;
+            $_SESSION['admin_full_name'] = trim($first_name . ' ' . $last_name);
             $admin_user = $new_username;
+            $admin_info['first_name'] = $first_name;
+            $admin_info['last_name'] = $last_name;
+            $admin_info['email'] = $email;
+            $admin_info['phone_number'] = $phone_number;
             $message = "Profile updated successfully.";
 
             // Handle Cropped Logo Upload
@@ -239,7 +252,9 @@ if(isset($_POST['update_profile'])){
 }
 
 // Fetch Pending Counts for Sidebar
-$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
+$pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
+$pending_res = $pending_res_q + $pending_pay_q;
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
@@ -383,8 +398,24 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                                 <!-- Left Column: Credentials -->
                                 <div class="<?= is_super_admin() ? 'col-md-6 border-end' : 'col-md-12' ?>">
                                     <h5 class="text-success fw-bold mb-3"><i class="fas fa-user-shield me-2"></i>Account Credentials</h5>
+                                    
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold small">First Name</label>
+                                            <input type="text" name="first_name" class="form-control" value="<?= htmlspecialchars($admin_info['first_name'] ?? '') ?>" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold small">Last Name</label>
+                                            <input type="text" name="last_name" class="form-control" value="<?= htmlspecialchars($admin_info['last_name'] ?? '') ?>" required>
+                                        </div>
+                                    </div>
                                     <div class="mb-3">
-                                        <label class="form-label fw-bold small">Username</label>
+                                        <label class="form-label fw-bold small">Email & Phone Number</label>
+                                        <div class="input-group input-group-sm mb-2"><span class="input-group-text"><i class="fas fa-envelope"></i></span><input type="email" name="email" class="form-control" value="<?= htmlspecialchars($admin_info['email'] ?? '') ?>"></div>
+                                        <div class="input-group input-group-sm"><span class="input-group-text"><i class="fas fa-phone"></i></span><input type="text" name="phone_number" class="form-control" value="<?= htmlspecialchars($admin_info['phone_number'] ?? '') ?>"></div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold small">Login Username</label>
                                         <input type="text" name="username" class="form-control" value="<?= htmlspecialchars($admin_user) ?>" required>
                                     </div>
                                     <div class="mb-3">
@@ -598,6 +629,26 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
             }
         });
     }
+
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
+});
 </script>
 </body>
 </html>

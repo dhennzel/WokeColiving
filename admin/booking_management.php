@@ -112,6 +112,38 @@ if(isset($_GET['action'])){
         }
         header("Location: $redirect_url");
         exit;
+    } elseif($action == 'cancel_payment' && isset($_GET['pid'])){
+        $pid = (int)$_GET['pid'];
+        
+        if($target_user_id == 0) {
+            $p_q = mysqli_query($conn, "SELECT r.user_id FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE p.payment_id=$pid");
+            if($row = mysqli_fetch_assoc($p_q)) $target_user_id = $row['user_id'];
+        }
+        
+        mysqli_query($conn, "UPDATE payments SET payment_status='Cancelled' WHERE payment_id=$pid");
+        
+        if($target_user_id) {
+            log_activity($conn, $target_user_id, "Payment Cancelled", "Payment #$pid cancelled by $admin_username.");
+            send_notification($conn, $target_user_id, "❌ <strong>Payment Cancelled</strong><br>Your payment #$pid has been cancelled.", "Payment Update");
+        }
+        header("Location: $redirect_url");
+        exit;
+    } elseif($action == 'reject_payment' && isset($_GET['pid'])){
+        $pid = (int)$_GET['pid'];
+        
+        if($target_user_id == 0) {
+            $p_q = mysqli_query($conn, "SELECT r.user_id FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE p.payment_id=$pid");
+            if($row = mysqli_fetch_assoc($p_q)) $target_user_id = $row['user_id'];
+        }
+        
+        mysqli_query($conn, "UPDATE payments SET proof_image=NULL, reference_number=NULL, payment_method='Cash' WHERE payment_id=$pid");
+        
+        if($target_user_id) {
+            log_activity($conn, $target_user_id, "Payment Rejected", "Payment proof for #$pid was rejected by $admin_username.");
+            send_notification($conn, $target_user_id, "❌ <strong>Payment Rejected</strong><br>Your uploaded payment proof for Payment #$pid was rejected. Please re-upload a valid proof of payment.", "Payment Update");
+        }
+        header("Location: $redirect_url");
+        exit;
     } elseif($action == 'approve'){
         // Direct Approval using existing room_id
         $res_q = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
@@ -128,10 +160,21 @@ if(isset($_GET['action'])){
             $room_cap = mysqli_fetch_assoc($chk_room)['total_beds'];
             
             // Count overlapping reservations (excluding this one)
-            $chk_occ = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM reservations WHERE room_id=$current_room_id AND status IN ('Pending', 'Approved') AND reservation_id != $reservation_id AND start_date < '$e_date' AND end_date > '$s_date'");
-            $occ = mysqli_fetch_assoc($chk_occ)['cnt'];
+            $chk_occ = mysqli_query($conn, "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id=$current_room_id AND status IN ('Pending', 'Approved') AND reservation_id != $reservation_id AND start_date < '$e_date' AND end_date > '$s_date' GROUP BY bed_preference");
             
-            if($occ >= $room_cap){
+            $occ = 0;
+            while($row_occ = mysqli_fetch_assoc($chk_occ)) {
+                if ($row_occ['bed_preference'] == 'Whole Room') {
+                    $occ += $room_cap;
+                } else {
+                    $occ += $row_occ['cnt'];
+                }
+            }
+            
+            // Consider if the current reservation we are approving is a 'Whole Room'
+            $current_req_size = ($res_data['bed_preference'] == 'Whole Room') ? $room_cap : 1;
+
+            if(($occ + $current_req_size) > $room_cap){
                 $redirect = isset($_GET['redirect']) && $_GET['redirect'] == 'view_user' ? "view_user.php?uid=$target_user_id" : "booking_management.php";
                 $sep = (strpos($redirect, '?') === false) ? '?' : '&';
                 header("Location: $redirect{$sep}error=Room is fully booked for these dates.");
@@ -202,9 +245,13 @@ if(isset($_GET['search']) && !empty($_GET['search'])){
 }
 if(isset($_GET['status']) && !empty($_GET['status'])){
     $status_filter = $_GET['status'];
-    $where_clause .= " AND r.status = ?";
-    $params[] = $status_filter;
-    $types .= "s";
+    if($status_filter == 'Pending') {
+        $where_clause .= " AND (r.status IN ('Pending', 'Verifying') OR (SELECT COUNT(*) FROM payments p WHERE p.reservation_id = r.reservation_id AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL) > 0)";
+    } else {
+        $where_clause .= " AND r.status = ?";
+        $params[] = $status_filter;
+        $types .= "s";
+    }
 }
 if(isset($_GET['type']) && !empty($_GET['type'])){
     if($_GET['type'] == 'Walkin'){
@@ -216,7 +263,8 @@ if(isset($_GET['type']) && !empty($_GET['type'])){
 
 // Fetch Reservations with Filters
 $sql = "
-    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.do_not_renew, u.profile_image, u.is_walkin, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.do_not_renew, u.profile_image, u.is_walkin, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image,
+    (SELECT COUNT(*) FROM payments p WHERE p.reservation_id = r.reservation_id AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL) as pending_payments
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -237,7 +285,9 @@ if (!empty($params)) {
 }
 
 // Fetch Pending Counts for Sidebar
-$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
+$pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
+$pending_res = $pending_res_q + $pending_pay_q;
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
@@ -447,8 +497,8 @@ $theme = get_theme_colors($conn);
                                     <?php } else { ?>-<?php } ?>
                                 </td>
                                 <td class="text-end">
-                                    <?php if($res['status'] == 'Pending'): ?>
-                                        <a href="view_user.php?uid=<?= $res['user_id'] ?>" class="btn btn-sm btn-warning position-relative fw-bold text-dark" title="Action Required">
+                                    <?php if($res['status'] == 'Pending' || $res['status'] == 'Verifying' || $res['pending_payments'] > 0): ?>
+                                        <a href="view_user.php?uid=<?= $res['user_id'] ?><?= $res['pending_payments'] > 0 ? '&pay_status=Unpaid' : '' ?>" class="btn btn-sm btn-warning position-relative fw-bold text-dark" title="Action Required">
                                             <i class="fas fa-exclamation-circle me-1"></i> Review Request
                                             <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
                                         </a>
@@ -506,6 +556,26 @@ $theme = get_theme_colors($conn);
         });
     }
     setInterval(checkUpdates, 3000); // Check every 3 seconds
+
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
+});
 </script>
 </body>
 </html>

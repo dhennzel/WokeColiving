@@ -20,66 +20,55 @@ if(mysqli_num_rows($check_cols) == 0) {
 $error = "";
 
 if(isset($_POST['add_room'])){
-    $room_name = trim($_POST['room_name']);
-    
-    // Check for duplicate room name (case-insensitive, excluding archived rooms)
-    $check_stmt = mysqli_prepare($conn, "SELECT room_id FROM rooms WHERE LOWER(room_name) = LOWER(?) AND is_archived = 0");
-    mysqli_stmt_bind_param($check_stmt, "s", $room_name);
-    mysqli_stmt_execute($check_stmt);
-    mysqli_stmt_store_result($check_stmt);
-    if(mysqli_stmt_num_rows($check_stmt) > 0) {
-        $error = "A room with this number already exists.";
+    $room_number = trim($_POST['room_number']);
+    $room_type = trim($_POST['room_type']);
+    $room_name = ($room_type == 'Single') ? '1 Bed' : (($room_type == '4-Bed') ? '4 Beds' : '6 Beds');
+    $gender = $_POST['gender'] ?? 'Male';
+    $floor = (int) $_POST['floor'];
+    $price = isset($_POST['price']) ? (float) $_POST['price'] : 0;
+    $price_upper = isset($_POST['price_upper']) ? (float) $_POST['price_upper'] : 0;
+    $price_lower = isset($_POST['price_lower']) ? (float) $_POST['price_lower'] : 0;
+    $price_whole = isset($_POST['price_whole']) ? (float) $_POST['price_whole'] : 0;
+    $lt_upper = isset($_POST['long_term_price_upper']) ? (float) $_POST['long_term_price_upper'] : 0;
+    $lt_lower = isset($_POST['long_term_price_lower']) ? (float) $_POST['long_term_price_lower'] : 0;
+    $lt_whole = isset($_POST['long_term_price_whole']) ? (float) $_POST['long_term_price_whole'] : 0;
+    $beds = (int) $_POST['beds'];
+    $availability = "Available";
+
+    // If shared room, use lower price as the base 'total_price' for display purposes
+    if($room_type != 'Single'){
+        $price = $price_lower; 
     }
-    mysqli_stmt_close($check_stmt);
 
-    if(empty($error)) {
-        $room_type = trim($_POST['room_type']);
-        $floor = (int) $_POST['floor'];
-        $price = isset($_POST['price']) ? (float) $_POST['price'] : 0;
-        $price_upper = isset($_POST['price_upper']) ? (float) $_POST['price_upper'] : 0;
-        $price_lower = isset($_POST['price_lower']) ? (float) $_POST['price_lower'] : 0;
-        $price_whole = isset($_POST['price_whole']) ? (float) $_POST['price_whole'] : 0;
-        $lt_upper = isset($_POST['long_term_price_upper']) ? (float) $_POST['long_term_price_upper'] : 0;
-        $lt_lower = isset($_POST['long_term_price_lower']) ? (float) $_POST['long_term_price_lower'] : 0;
-        $lt_whole = isset($_POST['long_term_price_whole']) ? (float) $_POST['long_term_price_whole'] : 0;
-        $beds = (int) $_POST['beds'];
-        $availability = "Available";
+    // Image Upload
+    $image = $_FILES['image']['name'];
+    $target_dir = "../assets/images/";
 
-        // If shared room, use lower price as the base 'total_price' for display purposes
-        if($room_type != 'Single'){
-            $price = $price_lower; 
-        }
+    // Create directory if it does not exist
+    if (!is_dir($target_dir)) {
+        mkdir($target_dir, 0777, true);
+    }
+    $target = $target_dir . basename($image);
 
-        // Image Upload
-        $image = $_FILES['image']['name'];
-        $target_dir = "../assets/images/";
-
-        // Create directory if it does not exist
-        if (!is_dir($target_dir)) {
-            mkdir($target_dir, 0777, true);
-        }
-        $target = $target_dir . basename($image);
-
-        // Ensure the assets/images directory exists or create it manually if needed
-        if(move_uploaded_file($_FILES['image']['tmp_name'], $target)){
-            $stmt = mysqli_prepare($conn, "INSERT INTO rooms (room_name, room_type, floor, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, total_beds, image, availability) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            mysqli_stmt_bind_param($stmt, "ssidddddddiss", $room_name, $room_type, $floor, $price, $price_upper, $price_lower, $price_whole, $lt_upper, $lt_lower, $lt_whole, $beds, $image, $availability);
-            
-            try {
-                if(mysqli_stmt_execute($stmt)){
-                    mysqli_stmt_close($stmt);
-                    trigger_update($conn);
-                    header("Location: admin_rooms.php");
-                    exit;
-                } else {
-                    $error = "Database error: " . mysqli_stmt_error($stmt);
-                }
-            } catch (mysqli_sql_exception $e) {
-                $error = "Database error: " . $e->getMessage();
+    // Ensure the assets/images directory exists or create it manually if needed
+    if(move_uploaded_file($_FILES['image']['tmp_name'], $target)){
+        $stmt = mysqli_prepare($conn, "INSERT INTO rooms (room_name, room_number, room_type, floor, gender, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, total_beds, image, availability) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        mysqli_stmt_bind_param($stmt, "sssisdddddddiss", $room_name, $room_number, $room_type, $floor, $gender, $price, $price_upper, $price_lower, $price_whole, $lt_upper, $lt_lower, $lt_whole, $beds, $image, $availability);
+        
+        try {
+            if(mysqli_stmt_execute($stmt)){
+                mysqli_stmt_close($stmt);
+                trigger_update($conn);
+                header("Location: admin_rooms.php");
+                exit;
+            } else {
+                $error = "Database error: " . mysqli_stmt_error($stmt);
             }
-        } else {
-            $error = "Failed to upload image. Ensure 'assets/images' folder exists.";
+        } catch (mysqli_sql_exception $e) {
+            $error = "Database error: " . $e->getMessage();
         }
+    } else {
+        $error = "Failed to upload image. Ensure 'assets/images' folder exists.";
     }
 }
 
@@ -239,7 +228,7 @@ $locked_type = (isset($_GET['type']) && in_array($_GET['type'], $allowed_types))
                 </div>
                 <?php if($error){ echo "<div class='alert alert-danger'>$error</div>"; } ?>
                 <form method="POST" enctype="multipart/form-data">
-                    <div class="mb-3"><label class="form-label fw-bold">Room Number</label><input type="text" name="room_name" class="form-control" value="<?= isset($_POST['room_name']) ? htmlspecialchars($_POST['room_name']) : '' ?>" required></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Room Number</label><input type="text" name="room_number" class="form-control" required></div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">Floor Level</label>
@@ -250,7 +239,7 @@ $locked_type = (isset($_GET['type']) && in_array($_GET['type'], $allowed_types))
                                 <?php endfor; ?>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3"><label class="form-label fw-bold">Room Type</label>
+                        <div class="col-md-3 mb-3"><label class="form-label fw-bold">Room Type</label>
                         <?php if($locked_type): ?>
                             <input type="text" class="form-control" value="<?= htmlspecialchars($locked_type) ?>" readonly>
                             <input type="hidden" name="room_type" id="room_type" value="<?= htmlspecialchars($locked_type) ?>">
@@ -261,6 +250,13 @@ $locked_type = (isset($_GET['type']) && in_array($_GET['type'], $allowed_types))
                                 <option value="6-Bed">6-Bed</option>
                             </select>
                         <?php endif; ?>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-bold">Gender Restrict</label>
+                            <select name="gender" class="form-select" required>
+                                <option value="Male">Male Only</option>
+                                <option value="Female">Female Only</option>
+                            </select>
                         </div>
                         <div class="col-md-6 mb-3" id="single_price_div"><label class="form-label fw-bold">Short Term Price (₱)</label><input type="number" name="price" class="form-control" step="0.01" value="<?= $default_prices['price_single'] ?>" readonly></div>
                         <div class="col-md-6 mb-3" id="single_price_long_div" style="display:none;"><label class="form-label fw-bold">Long Term Price (₱)</label><input type="number" name="long_term_price_whole" id="lt_whole" class="form-control" step="0.01"></div>
@@ -374,6 +370,26 @@ function togglePriceFields() {
 }
 // Initialize
 togglePriceFields();
+
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
+});
 </script>
 </body>
 </html>

@@ -23,6 +23,10 @@ if(isset($_POST['add_admin'])){
         $error = "Only Super Admins can add new admins.";
     } else {
         $username = mysqli_real_escape_string($conn, $_POST['username']);
+        $first_name = mysqli_real_escape_string($conn, $_POST['first_name']);
+        $last_name = mysqli_real_escape_string($conn, $_POST['last_name']);
+        $email = mysqli_real_escape_string($conn, $_POST['email']);
+        $phone = mysqli_real_escape_string($conn, $_POST['phone_number']);
         $raw_pass = !empty($_POST['password']) ? $_POST['password'] : '12345678';
         $role = mysqli_real_escape_string($conn, $_POST['role']);
         
@@ -36,7 +40,7 @@ if(isset($_POST['add_admin'])){
             if(mysqli_num_rows($check) > 0){
                 $error = "Username already exists.";
             } else {
-                mysqli_query($conn, "INSERT INTO admin (username, password, role) VALUES ('$username', '$password', '$role')");
+                mysqli_query($conn, "INSERT INTO admin (username, password, role, first_name, last_name, email, phone_number) VALUES ('$username', '$password', '$role', '$first_name', '$last_name', '$email', '$phone')");
                 $message = "New admin added successfully.";
             }
         }
@@ -64,7 +68,9 @@ $admins = mysqli_query($conn, "SELECT * FROM admin");
 $theme = get_theme_colors($conn);
 
 // Fetch Pending Counts for Sidebar
-$pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status='Pending'"))['c'];
+$pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
+$pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
+$pending_res = $pending_res_q + $pending_pay_q;
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
@@ -141,9 +147,15 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                     <div class="card card-custom p-4 mb-4">
                         <h5 class="fw-bold mb-3">Add New Admin</h5>
                         <form method="POST">
-                            <div class="mb-3"><label class="form-label">Username</label><input type="text" name="username" class="form-control" required></div>
-                            <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" placeholder="Default: 12345678"></div>
-                            <div class="mb-3"><label class="form-label">Role</label><select name="role" class="form-select"><option value="Admin">Admin</option><option value="Super Admin">Super Admin</option></select></div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6"><label class="form-label small fw-bold">First Name</label><input type="text" name="first_name" class="form-control" required></div>
+                                <div class="col-6"><label class="form-label small fw-bold">Last Name</label><input type="text" name="last_name" class="form-control" required></div>
+                            </div>
+                            <div class="mb-3"><label class="form-label small fw-bold">Email</label><input type="email" name="email" class="form-control"></div>
+                            <div class="mb-3"><label class="form-label small fw-bold">Phone Number</label><input type="text" name="phone_number" class="form-control"></div>
+                            <div class="mb-3"><label class="form-label small fw-bold">Login Username</label><input type="text" name="username" class="form-control" required></div>
+                            <div class="mb-3"><label class="form-label small fw-bold">Login Password</label><input type="password" name="password" class="form-control" placeholder="Default: 12345678"></div>
+                            <div class="mb-3"><label class="form-label small fw-bold">Role Access</label><select name="role" class="form-select"><option value="Admin">Admin</option><option value="Super Admin">Super Admin</option></select></div>
                             <button type="submit" name="add_admin" class="btn btn-custom w-100">Add Admin</button>
                         </form>
                     </div>
@@ -152,10 +164,14 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                     <div class="card card-custom p-4">
                         <h5 class="fw-bold mb-3">Existing Admins</h5>
                         <table class="table table-hover">
-                            <thead><tr><th>Username</th><th>Role</th><th>Action</th></tr></thead>
+                            <thead><tr><th>Name / Contact</th><th>Username</th><th>Role</th><th>Action</th></tr></thead>
                             <tbody>
                                 <?php while($row = mysqli_fetch_assoc($admins)): ?>
                                 <tr>
+                                    <td>
+                                        <div class="fw-bold"><?= htmlspecialchars(trim($row['first_name'] . ' ' . $row['last_name'])) ?: '<span class="text-muted fst-italic">Not Set</span>' ?></div>
+                                        <div class="small text-muted"><?= htmlspecialchars($row['email'] ?? '') ?></div>
+                                    </td>
                                     <td><?= htmlspecialchars($row['username']) ?></td>
                                     <td><span class="badge <?= $row['role'] == 'Super Admin' ? 'bg-danger' : 'bg-primary' ?>"><?= $row['role'] ?></span></td>
                                     <td><?php if($current_role == 'Super Admin' && $row['username'] != $_SESSION['admin_username']): ?><a href="?delete=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this admin?')">Delete</a><?php endif; ?></td>
@@ -170,5 +186,26 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
+});
+</script>
 </body>
 </html>

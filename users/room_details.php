@@ -28,13 +28,19 @@ $taken_upper = 0;
 $taken_lower = 0;
 $taken_any = 0;
 $total_occupied = 0;
+$room_capacity = $room['total_beds'];
 
 while($row_occ = mysqli_fetch_assoc($occ_q)){
     $cnt = $row_occ['cnt'];
-    $total_occupied += $cnt;
-    if($row_occ['bed_preference'] == 'Upper Bunk') $taken_upper += $cnt;
-    elseif($row_occ['bed_preference'] == 'Lower Bunk') $taken_lower += $cnt;
-    else $taken_any += $cnt;
+    if($row_occ['bed_preference'] == 'Whole Room') {
+        $total_occupied += $room_capacity;
+        $taken_any += $room_capacity;
+    } else {
+        $total_occupied += $cnt;
+        if($row_occ['bed_preference'] == 'Upper Bunk') $taken_upper += $cnt;
+        elseif($row_occ['bed_preference'] == 'Lower Bunk') $taken_lower += $cnt;
+        else $taken_any += $cnt;
+    }
 }
 
 $available_beds = max(0, $room['total_beds'] - $total_occupied);
