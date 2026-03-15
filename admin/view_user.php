@@ -449,7 +449,9 @@ $theme = get_theme_colors($conn);
                 <div class="position-relative">
                     <div class="avatar-circle">
                         <?php if(!empty($user['profile_image'])): ?>
-                            <img src="../uploads/profiles/<?= $user['profile_image'] ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                            <a href="javascript:void(0)" onclick="showProfilePicture('../uploads/profiles/<?= htmlspecialchars($user['profile_image']) ?>', '<?= htmlspecialchars($user['full_name']) ?>', '<?= htmlspecialchars($user['email']) ?>', '<?= htmlspecialchars($user['phone_number']) ?>')" title="View Profile Picture">
+                                <img src="../uploads/profiles/<?= $user['profile_image'] ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                            </a>
                         <?php else: ?>
                             <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
                         <?php endif; ?>
@@ -483,9 +485,9 @@ $theme = get_theme_colors($conn);
                     <?php if($user['occupation'] == 'Student' && !empty($user['school_id_image'])): ?>
                         <div class="mt-2">
                             <span class="badge bg-info text-dark"><i class="fas fa-user-graduate me-1"></i> Student</span>
-                            <a href="../uploads/proofs/<?= htmlspecialchars($user['school_id_image']) ?>" target="_blank" class="btn btn-sm btn-outline-primary ms-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="showSchoolId('../uploads/proofs/<?= htmlspecialchars($user['school_id_image']) ?>')">
                                 <i class="fas fa-id-card me-1"></i> View School ID
-                            </a>
+                            </button>
                         </div>
                     <?php elseif($user['occupation'] == 'Student' && empty($user['school_id_image'])): ?>
                         <div class="mt-2">
@@ -620,7 +622,9 @@ $theme = get_theme_colors($conn);
                         <?php if(!empty($pending_update['school_id_image'])): ?>
                         <div class="col-md-12 mt-2">
                             <strong>New School ID:</strong><br>
-                            <a href="../uploads/proofs/<?= $pending_update['school_id_image'] ?>" target="_blank" class="btn btn-sm btn-outline-primary mt-1"><i class="fas fa-image me-1"></i> View New ID</a>
+                            <button type="button" class="btn btn-sm btn-outline-primary mt-1" onclick="showSchoolId('../uploads/proofs/<?= $pending_update['school_id_image'] ?>')">
+                                <i class="fas fa-image me-1"></i> View New ID
+                            </button>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -1046,8 +1050,42 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
+<!-- School ID Modal -->
+<div class="modal fade" id="schoolIdModal" tabindex="-1" aria-labelledby="schoolIdModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="schoolIdModalLabel">School ID</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img src="" id="schoolIdImage" class="img-fluid rounded" alt="School ID">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Picture Modal -->
+<div class="modal fade" id="profilePicModal" tabindex="-1" aria-labelledby="profilePicModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="profilePicModalLabel">Profile Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img src="" id="profilePicImage" class="img-fluid rounded-circle mb-3 shadow-sm" alt="Profile Picture" style="width: 150px; height: 150px; object-fit: cover;">
+        <h5 class="fw-bold" id="modalProfileName"></h5>
+        <p class="text-muted mb-1" id="modalProfileEmail"></p>
+        <p class="text-muted mb-0" id="modalProfilePhone"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+
 function confirmAction(e, url, msg) {
     e.preventDefault();
     const isDestructive = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('end') || msg.toLowerCase().includes('delete') || msg.toLowerCase().includes('terminate');
@@ -1231,6 +1269,21 @@ function selectApproveRoom(card, id) {
     card.classList.add('selected');
     document.getElementById('approveRoomId').value = id;
     document.getElementById('btnApproveConfirm').disabled = false;
+}
+
+function showSchoolId(imageUrl) {
+    document.getElementById('schoolIdImage').src = imageUrl;
+    var myModal = new bootstrap.Modal(document.getElementById('schoolIdModal'));
+    myModal.show();
+}
+
+function showProfilePicture(imageUrl, name, email, phone) {
+    document.getElementById('profilePicImage').src = imageUrl;
+    document.getElementById('modalProfileName').innerText = name;
+    document.getElementById('modalProfileEmail').innerText = email;
+    document.getElementById('modalProfilePhone').innerText = phone;
+    var myModal = new bootstrap.Modal(document.getElementById('profilePicModal'));
+    myModal.show();
 }
 
 // Auto Refresh Logic

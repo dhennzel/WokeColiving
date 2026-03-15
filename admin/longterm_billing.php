@@ -261,12 +261,33 @@ $theme = get_theme_colors($conn);
                                     <button class="btn btn-sm btn-custom" onclick="openBillModal(<?= $rid ?>, '<?= addslashes($row['full_name']) ?>', <?= $prev_e ?>, <?= $prev_w ?>)">
                                         <i class="fas fa-file-invoice-dollar me-2"></i>Generate Bill
                                     </button>
+                                    <button type="button" class="btn btn-sm btn-outline-info ms-1" onclick="openHistoryModal(<?= $rid ?>)">
+                                        <i class="fas fa-history me-1"></i> History
+                                    </button>
                                 </td>
                             </tr>
                             <?php } ?>
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-history me-2"></i>Utility Bill History</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="historyModalBody">
+                <!-- History content will be loaded here via AJAX -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -321,6 +342,23 @@ function openBillModal(id, name, prevE, prevW) {
     document.getElementById('e_start').value = prevE;
     document.getElementById('w_start').value = prevW;
     new bootstrap.Modal(document.getElementById('billModal')).show();
+}
+
+function openHistoryModal(resId) {
+    const modalBody = document.getElementById('historyModalBody');
+    modalBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Loading history...</p></div>';
+    
+    var myModal = new bootstrap.Modal(document.getElementById('historyModal'));
+    myModal.show();
+    
+    fetch('get_utility_history.php?reservation_id=' + resId)
+        .then(response => response.text())
+        .then(html => {
+            modalBody.innerHTML = html;
+        })
+        .catch(error => {
+            modalBody.innerHTML = '<div class="alert alert-danger">Failed to load history. Please try again.</div>';
+        });
 }
 
 function toggleMenu(e) {
