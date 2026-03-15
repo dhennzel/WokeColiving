@@ -472,8 +472,10 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                 <div class="card-body p-3" style="max-height: 400px; overflow-y: auto;">
                     <?php foreach($floors_data as $floor => $rooms): ?>
                     <?php if($floor === 'all') continue; // Skip 'all' key, JavaScript handles combining rooms for "All Floors" view ?>
-                    <div class="floor-group" data-floor="<?= $floor ?>">
-                        <h6 class="fw-bold text-muted mb-2 small text-uppercase border-bottom pb-1"><?= $floor == 2 ? '2nd' : ($floor == 3 ? '3rd' : $floor.'th') ?> Floor</h6>
+                    <div class="floor-group mb-4" data-floor="<?= $floor ?>">
+                        <h6 class="fw-bold text-success mb-3 small text-uppercase border-bottom border-success pb-2 opacity-75">
+                            <i class="fas fa-layer-group me-2"></i><?= $floor == 2 ? '2nd' : ($floor == 3 ? '3rd' : $floor.'th') ?> Floor
+                        </h6>
                         <div class="row g-2 mb-3">
                             <?php foreach($rooms as $room): ?>
                             <?php 
@@ -794,14 +796,13 @@ function filterOccupancy() {
     
     // If "All Floors" is selected, show unified sorted list
     if (floorFilter === 'all') {
-        // Hide floor headers and show all rooms sorted by room number
         groups.forEach((group, index) => {
             const items = group.querySelectorAll('.room-item');
             let visibleCount = 0;
             
-            // Hide floor header when showing "All Floors"
+            // Show floor header when showing "All Floors" so it acts as a visual divider
             const header = group.querySelector('h6');
-            if (header) header.style.display = 'none';
+            if (header) header.style.display = 'block';
             
             items.forEach(item => {
                 const status = item.dataset.status;
