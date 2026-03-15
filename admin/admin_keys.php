@@ -114,21 +114,11 @@ $theme = get_theme_colors($conn);
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="admin.css">
     <style>
-        :root { --primary-green: <?= $theme['primary'] ?>; --dark-green: <?= $theme['dark'] ?>; --accent-yellow: <?= $theme['accent'] ?>; --light-bg: #f8f9fa; }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-        #wrapper { display: flex; width: 100%; }
-        #sidebar-wrapper { width: 260px; background-color: var(--dark-green); flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-        #page-content-wrapper { flex-grow: 1; }
-        .sidebar-link { color: rgba(255,255,255,0.8); text-decoration: none; padding: 15px 25px; display: block; font-weight: 500; border-left: 5px solid transparent; }
-        .sidebar-link:hover, .sidebar-link.active { color: var(--dark-green); background-color: var(--accent-yellow); border-left-color: white; font-weight: 600; }
-        .sidebar-brand { color: var(--accent-yellow); font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.3rem; padding: 25px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
-        .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
-        
-        .card-room { border: none; border-radius: 15px; overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; cursor: pointer; }
-        .card-room:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+        .card-custom { border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); background: white; }
+        .card-room { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; background: white; }
+        .card-room:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
         .card-room img { height: 150px; object-fit: cover; width: 100%; }
         
         .key-card { border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin-bottom: 10px; transition: 0.3s; }
@@ -142,101 +132,16 @@ $theme = get_theme_colors($conn);
         .status-partial { background-color: #fff3cd; color: #856404; }
         .status-full { background-color: #f8d7da; color: #721c24; }
         .status-maintenance { background-color: #e2e3e5; color: #383d41; }
-        
-        .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
-        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
-<div id="wrapper">
-    <div id="sidebar-wrapper">
-        <div class="sidebar-brand" id="sidebar-toggle">
-            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
-            Woke Coliving
-        </div>
-        <div class="list-group list-group-flush py-3">
-            <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
-            
-            <!-- Front Desk -->
-            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="frontDeskSubmenu">
-                <a href="residents.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-users me-2"></i>Residents</span>
-                </a>
-                <a href="booking_management.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
-                    <?php if($pending_res > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_res ?></span><?php endif; ?>
-                </a>
-                <a href="admin_waitlist.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
-                    <?php if($waitlist_count > 0): ?><span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span><?php endif; ?>
-                </a>
-                <a href="admin_deletion_requests.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-user-times me-2"></i>Deletion Req</span>
-                    <?php if($del_req_count > 0): ?><span class="badge bg-danger rounded-pill"><?= $del_req_count ?></span><?php endif; ?>
-                </a>
-            </div>
-
-            <!-- Facilities -->
-            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="true"><span><i class="fas fa-building me-2"></i>Facilities</span><i class="fas fa-chevron-down small"></i></a>
-            <div class="collapse show" id="facilitiesSubmenu">
-                <a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
-                <a href="admin_room_assignment.php" class="sidebar-link ps-5"><i class="fas fa-door-open me-2"></i>Room Assignment</a>
-                <a href="admin_room_occupancy.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Room Occupancy</a>
-                <a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a>
-                <a href="admin_keys.php" class="sidebar-link ps-5 active"><i class="fas fa-key me-2"></i>Key Monitoring</a>
-            </div>
-
-            <!-- Finance & Reports -->
-            <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-file-invoice-dollar me-2"></i>Finance & Reports</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="financeSubmenu">
-                <?php if($is_super): ?>
-                <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
-                <?php endif; ?>
-                <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a>
-            </div>
-
-            <!-- Operations -->
-            <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-cogs me-2"></i>Operations</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="operationsSubmenu">
-                <a href="admin_maintenance.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center"><span><i class="fas fa-wrench me-2"></i>Maintenance</span><?php if($pending_maint > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span><?php endif; ?></a>
-                <a href="admin_housekeeping.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center"><span><i class="fas fa-broom me-2"></i>Housekeeping</span><?php if($pending_house > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_house ?></span><?php endif; ?></a>
-                <a href="admin_utilities.php" class="sidebar-link ps-5"><i class="fas fa-archive me-2"></i>Utilities Archive</a>
-            </div>
-
-            <!-- System Settings -->
-            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button"><span><i class="fas fa-cog me-2"></i>System Settings</span><i class="fas fa-chevron-down small"></i></a>
-            <div class="collapse" id="settingsSubmenu">
-                <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
-                <?php if($is_super): ?>
-                <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
-                <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
-                <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
-                <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
-                <?php endif; ?>
-            </div>
-            <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
-        </div>
-    </div>
-
-    <div id="page-content-wrapper">
-        <div class="container-fluid px-4 py-4 reveal">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div class="d-flex align-items-center">
-                    <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
-                        <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
-                    </a>
-                    <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Key Monitoring System</h4>
-                </div>
+<div class="dashboard-container">
+    <?php include 'admin_sidebar.php'; ?>
+    <div class="main-wrapper">
+        <?php include 'admin_topbar.php'; ?>
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Key Monitoring System</h1>
             </div>
 
             <?php if(isset($_GET['msg'])): ?>
@@ -334,6 +239,8 @@ $theme = get_theme_colors($conn);
                 </div>
             </div>
         </div>
+    </div>
+        </main>
     </div>
 </div>
 
@@ -560,6 +467,7 @@ $theme = get_theme_colors($conn);
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="admin.js"></script>
 <script>
 function openKeyModal(typeId) {
     new bootstrap.Modal(document.getElementById('key_' + typeId)).show();
@@ -621,26 +529,6 @@ function confirmUnrelease(transId, keyName, holderName) {
     myModal.show();
 }
 
-function toggleMenu(e) {
-    if(e) e.preventDefault();
-    document.getElementById("wrapper").classList.toggle("toggled");
-}
-document.getElementById("menu-toggle").addEventListener("click", toggleMenu);
-document.getElementById("sidebar-toggle").addEventListener("click", toggleMenu);
-
-// Close sidebar when clicking outside on mobile
-document.addEventListener('click', function(event) {
-    var sidebar = document.getElementById('sidebar-wrapper');
-    var toggle = document.getElementById('menu-toggle');
-    var wrapper = document.getElementById('wrapper');
-    
-    if (window.innerWidth <= 768 && wrapper.classList.contains('toggled')) {
-        if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
-            wrapper.classList.remove('toggled');
-        }
-    }
-});
-
 // Unrelease Modal functions
 function openUnreleaseModal() {
     loadReleasedKeys();
@@ -682,38 +570,6 @@ function loadReleasedKeys() {
             document.querySelector('#releasedKeysTable tbody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading data</td></tr>';
         });
 }
-
-// Auto Refresh Logic
-let lastUpdate = 0;
-function checkUpdates() {
-    fetch('../check_updates.php')
-    .then(r => r.text())
-    .then(t => {
-        if(lastUpdate == 0) lastUpdate = t;
-        else if (t > lastUpdate) location.reload();
-    });
-}
-setInterval(checkUpdates, 3000);
-
-// Parent Sidebar Badges
-document.addEventListener('DOMContentLoaded', function() {
-    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
-        let menu = document.getElementById(menuId);
-        if (menu) {
-            let badges = menu.querySelectorAll('.badge');
-            let total = 0;
-            badges.forEach(b => total += parseInt(b.innerText) || 0);
-            if (total > 0) {
-                let link = document.querySelector(`[href="#${menuId}"]`);
-                if(link) {
-                    let icon = link.querySelector('.fa-chevron-down');
-                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
-                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
-                }
-            }
-        }
-    });
-});
 </script>
 </body>
 </html>

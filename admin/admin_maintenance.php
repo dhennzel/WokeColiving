@@ -211,43 +211,9 @@ $theme = get_theme_colors($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="admin_CSS/admin_style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="admin.css">
     <style>
-        :root {
-            --primary-green: <?= $theme['primary'] ?>;
-            --dark-green: <?= $theme['dark'] ?>;
-            --accent-yellow: <?= $theme['accent'] ?>;
-            --light-bg: #f8f9fa;
-        }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-        
-        #wrapper { display: flex; width: 100%; }
-        #sidebar-wrapper { width: 260px; background-color: var(--dark-green); flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; transition: margin 0.25s ease-out; }
-        #wrapper.toggled #sidebar-wrapper { margin-left: -250px; }
-        @media (max-width: 768px) {
-            #sidebar-wrapper { margin-left: -250px; }
-            #wrapper.toggled #sidebar-wrapper { margin-left: 0; }
-        }
-        #page-content-wrapper { flex-grow: 1; }
-        .sidebar-link { color: rgba(255,255,255,0.8); text-decoration: none; padding: 15px 25px; display: block; font-weight: 500; border-left: 5px solid transparent; transition: 0.3s; }
-        .sidebar-link:hover, .sidebar-link.active { color: var(--dark-green); background-color: var(--accent-yellow); border-left-color: white; font-weight: 600; }
-        .sidebar-brand { color: var(--accent-yellow); font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.3rem; padding: 25px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
-        
-        .card-table { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
-        .table th { background-color: var(--primary-green); color: white; font-weight: 500; border: none; }
-        .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
-        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
-        .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
-        .btn-custom:hover { background-color: #f9a825; }
-        
-        #menu-toggle { display: none; }
-        #wrapper.toggled #menu-toggle { display: inline-block; }
-        @media (max-width: 768px) {
-            #menu-toggle { display: inline-block; }
-            #wrapper.toggled #menu-toggle { display: none; }
-        }
         .card-req { transition: transform 0.2s; cursor: default; border: 1px solid rgba(0,0,0,0.05); }
         .card-req:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         .req-header { background: #f8f9fa; border-bottom: 1px solid #eee; padding: 15px; }
@@ -263,113 +229,14 @@ $theme = get_theme_colors($conn);
 </head>
 <body>
 
-<div id="wrapper">
-    <!-- Sidebar -->
-    <div id="sidebar-wrapper">
-        <div class="sidebar-brand" id="sidebar-toggle">
-            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
-            Woke Coliving
-        </div>
-        <div class="list-group list-group-flush py-3">
-            <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
-            
-            <!-- Front Desk -->
-            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="frontDeskSubmenu">
-                <a href="residents.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-users me-2"></i>Residents</span>
-                </a>
-                <a href="booking_management.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
-                    <?php if($pending_res > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_res ?></span><?php endif; ?>
-                </a>
-                <a href="admin_waitlist.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
-                    <?php if($waitlist_count > 0): ?><span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span><?php endif; ?>
-                </a>
-                <a href="admin_deletion_requests.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-user-times me-2"></i>Deletion Req</span>
-                    <?php if($del_req_count > 0): ?><span class="badge bg-danger rounded-pill"><?= $del_req_count ?></span><?php endif; ?>
-                </a>
+<div class="dashboard-container">
+    <?php include 'admin_sidebar.php'; ?>
+    <div class="main-wrapper">
+        <?php include 'admin_topbar.php'; ?>
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Maintenance Management</h1>
             </div>
-
-            <!-- Facilities -->
-            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-building me-2"></i>Facilities</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="facilitiesSubmenu">
-                <a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
-                <a href="admin_room_assignment.php" class="sidebar-link ps-5"><i class="fas fa-door-open me-2"></i>Room Assignment</a>
-                <a href="admin_room_occupancy.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Room Occupancy</a>
-                <a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a>
-                <a href="admin_keys.php" class="sidebar-link ps-5"><i class="fas fa-key me-2"></i>Key Monitoring</a>
-            </div>
-
-            <!-- Finance & Reports -->
-            <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-file-invoice-dollar me-2"></i>Finance & Reports</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="financeSubmenu">
-                <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
-                <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
-                <?php endif; ?>
-                <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a>
-            </div>
-
-            <!-- Operations -->
-            <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="true">
-                <span><i class="fas fa-cogs me-2"></i>Operations</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse show" id="operationsSubmenu">
-                <a href="admin_maintenance.php" class="sidebar-link ps-5 active d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-wrench me-2"></i>Maintenance</span>
-                    <?php if($pending_maint > 0): ?>
-                        <span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span>
-                    <?php endif; ?>
-                </a>
-                <a href="admin_housekeeping.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-broom me-2"></i>Housekeeping</span>
-                    <?php if($pending_house > 0): ?>
-                        <span class="badge bg-danger rounded-pill"><?= $pending_house ?></span>
-                    <?php endif; ?>
-                </a>
-                <a href="admin_utilities.php" class="sidebar-link ps-5"><i class="fas fa-archive me-2"></i>Utilities Archive</a>
-            </div>
-
-            <!-- System Settings -->
-            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-cog me-2"></i>System Settings</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="settingsSubmenu">
-                <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
-                <?php if(($_SESSION['admin_role'] ?? 'Admin') == 'Super Admin'): ?>
-                <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
-                <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
-                <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
-                <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
-                <?php endif; ?>
-            </div>
-
-            <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
-        </div>
-    </div>
-
-    <!-- Page Content -->
-    <div id="page-content-wrapper">
-        <div class="container-fluid px-4 py-4 reveal">
-    <div class="d-flex align-items-center mb-4">
-        <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
-            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
-        </a>
-        <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Maintenance Management</h4>
-    </div>
 
     <?php if(isset($_GET['msg']) && $_GET['msg']=='moved') echo "<div class='alert alert-success'>Tenant moved temporarily.</div>"; ?>
     <?php if(isset($_GET['msg']) && $_GET['msg']=='full') echo "<div class='alert alert-danger'>Target room is full. Move failed.</div>"; ?>
@@ -712,6 +579,8 @@ $theme = get_theme_colors($conn);
             </div>
         </div>
     </div>
+        </main>
+    </div>
 </div>
 
 <!-- Hidden Return Form -->
@@ -721,6 +590,7 @@ $theme = get_theme_colors($conn);
 </form>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="admin.js"></script>
 <script>
 function openGroupModal(status) {
     new bootstrap.Modal(document.getElementById('modal_' + status)).show();

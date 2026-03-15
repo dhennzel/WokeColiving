@@ -151,120 +151,17 @@ $theme = get_theme_colors($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="admin_CSS/admin_style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        :root {
-            --primary-green: <?= $theme['primary'] ?>;
-            --dark-green: <?= $theme['dark'] ?>;
-            --accent-yellow: <?= $theme['accent'] ?>;
-            --light-bg: #f8f9fa;
-        }
-    </style>
+    <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-<div id="wrapper">
-    <!-- Sidebar -->
-    <div id="sidebar-wrapper">
-        <div class="sidebar-brand" id="sidebar-toggle">
-            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
-            Woke Coliving
-        </div>
-        <div class="list-group list-group-flush py-3">
-            <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
-            
-            <!-- Front Desk -->
-            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="frontDeskSubmenu">
-                <a href="residents.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-users me-2"></i>Residents</span>
-                </a>
-                <a href="booking_management.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
-                    <?php if($pending_res > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_res ?></span><?php endif; ?>
-                </a>
-                <a href="admin_waitlist.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-list-ol me-2"></i>Waitlist</span>
-                    <?php if($waitlist_count > 0): ?><span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span><?php endif; ?>
-                </a>
-                <a href="admin_deletion_requests.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-user-times me-2"></i>Deletion Req</span>
-                    <?php if($del_req_count > 0): ?><span class="badge bg-danger rounded-pill"><?= $del_req_count ?></span><?php endif; ?>
-                </a>
-            </div>
-
-            <!-- Facilities -->
-            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-building me-2"></i>Facilities</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="facilitiesSubmenu">
-                <a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
-                <a href="admin_room_assignment.php" class="sidebar-link ps-5"><i class="fas fa-door-open me-2"></i>Room Assignment</a>
-                <a href="admin_room_occupancy.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Room Occupancy</a>
-                <a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a>
-                <a href="admin_keys.php" class="sidebar-link ps-5"><i class="fas fa-key me-2"></i>Key Monitoring</a>
-            </div>
-
-            <!-- Finance & Reports -->
-            <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-file-invoice-dollar me-2"></i>Finance & Reports</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="financeSubmenu">
-                <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
-                <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a>
-            </div>
-
-            <!-- Operations -->
-            <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-cogs me-2"></i>Operations</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="operationsSubmenu">
-                <a href="admin_maintenance.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-wrench me-2"></i>Maintenance</span>
-                    <?php if($pending_maint > 0): ?>
-                        <span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span>
-                    <?php endif; ?>
-                </a>
-                <a href="admin_housekeeping.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-broom me-2"></i>Housekeeping</span>
-                    <?php if($pending_house > 0): ?>
-                        <span class="badge bg-danger rounded-pill"><?= $pending_house ?></span>
-                    <?php endif; ?>
-                </a>
-                <a href="admin_utilities.php" class="sidebar-link ps-5"><i class="fas fa-archive me-2"></i>Utilities Archive</a>
-            </div>
-
-            <!-- System Settings -->
-            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="true">
-                <span><i class="fas fa-cog me-2"></i>System Settings</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse show" id="settingsSubmenu">
-                <a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a>
-                <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
-                <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
-                <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
-                <a href="backup.php" class="sidebar-link ps-5 active"><i class="fas fa-database me-2"></i>Backup</a>
-            </div>
-
-            <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
-        </div>
-    </div>
-
-    <!-- Page Content -->
-    <div id="page-content-wrapper">
-        <div class="container-fluid px-4 py-4 reveal">
-            <div class="d-flex align-items-center mb-4">
-                <a href="#" id="menu-toggle" class="text-decoration-none me-3" title="Toggle Menu">
-                    <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="rounded-circle shadow-sm">
-                </a>
-                <h4 class="fw-bold mb-0" style="color: var(--dark-green);">System Backup & Archive</h4>
+<div class="dashboard-container">
+    <?php include 'admin_sidebar.php'; ?>
+    <div class="main-wrapper">
+        <?php include 'admin_topbar.php'; ?>
+        <main class="main-content">
+            <div class="page-header">
+                <h1>System Backup & Archive</h1>
             </div>
             
             <?php if($message): ?>
@@ -281,7 +178,7 @@ $theme = get_theme_colors($conn);
                 </div>
             <?php endif; ?>
 
-            <div class="card card-custom p-4">
+            <div class="card bg-white shadow-sm border-0 rounded-4 p-4">
                 <div class="d-flex gap-3 mb-4">
                     <a href="?action=backup_db" class="btn btn-success fw-bold"><i class="fas fa-database me-2"></i>Backup Database (SQL)</a>
                     <a href="?action=backup_files" class="btn btn-warning text-dark fw-bold"><i class="fas fa-file-archive me-2"></i>Source Code (ZIP)</a>
@@ -339,29 +236,12 @@ $theme = get_theme_colors($conn);
             </div>
         </div>
     </div>
+        </main>
+    </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="admin.js"></script>
 <script>
-function toggleMenu(e) {
-    if(e) e.preventDefault();
-    document.getElementById("wrapper").classList.toggle("toggled");
-}
-document.getElementById("menu-toggle").addEventListener("click", toggleMenu);
-document.getElementById("sidebar-toggle").addEventListener("click", toggleMenu);
-
-// Close sidebar when clicking outside on mobile
-document.addEventListener('click', function(event) {
-    var sidebar = document.getElementById('sidebar-wrapper');
-    var toggle = document.getElementById('menu-toggle');
-    var wrapper = document.getElementById('wrapper');
-    
-    if (window.innerWidth <= 768 && wrapper.classList.contains('toggled')) {
-        if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
-            wrapper.classList.remove('toggled');
-        }
-    }
-});
-
 function confirmLink(e, url, msg) {
     e.preventDefault();
     Swal.fire({
@@ -376,26 +256,6 @@ function confirmLink(e, url, msg) {
         if (result.isConfirmed) window.location.href = url;
     });
 }
-
-// Parent Sidebar Badges
-document.addEventListener('DOMContentLoaded', function() {
-    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
-        let menu = document.getElementById(menuId);
-        if (menu) {
-            let badges = menu.querySelectorAll('.badge');
-            let total = 0;
-            badges.forEach(b => total += parseInt(b.innerText) || 0);
-            if (total > 0) {
-                let link = document.querySelector(`[href="#${menuId}"]`);
-                if(link) {
-                    let icon = link.querySelector('.fa-chevron-down');
-                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
-                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
-                }
-            }
-        }
-    });
-});
 </script>
 </body>
 </html>
