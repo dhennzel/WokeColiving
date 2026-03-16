@@ -17,6 +17,13 @@
         border-color: #333 !important;
     }
 
+    /* Floating Profile Widget for Hidden Navbar */
+    body.night-mode .top-navbar.hidden-navbar .navbar-right {
+        background-color: #1e1e1e !important;
+        border-color: #444 !important;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5) !important;
+    }
+
     body.night-mode .card,
     body.night-mode .card-custom,
     body.night-mode .card-room,

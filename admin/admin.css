@@ -278,10 +278,26 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
         padding-top: 8px; /* Subtle hover feedback */
 }
 
-.navbar-left, .navbar-right {
+.navbar-left {
     display: flex;
     align-items: center;
     gap: 20px;
+}
+
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.top-navbar.hidden-navbar .navbar-right {
+    transform: translateY(85px); /* Offsets the -70px margin so it floats back into view */
+    background-color: var(--bg-white);
+    padding: 6px 20px;
+    border-radius: 50rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .icon-btn {
