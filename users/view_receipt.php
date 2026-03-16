@@ -52,26 +52,87 @@ $theme = get_theme_colors($conn);
     <style>
         :root { --primary-green: <?= $theme['primary'] ?>; --dark-green: <?= $theme['dark'] ?>; --accent-yellow: <?= $theme['accent'] ?>; }
         body { background: #eef2f5; font-family: 'Poppins', sans-serif; color: #333; }
-        .receipt-container { width: 100%; max-width: 850px; background: #fff; margin: 40px auto; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow: hidden; }
-        .receipt-header { background-color: var(--dark-green); color: white; padding: 40px; border-bottom: 10px solid var(--accent-yellow); }
+        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
+        
+        .receipt-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+        
+        .receipt-container { 
+            width: 100%; 
+            max-width: 850px; 
+            background: #fff; 
+            border-radius: 20px; 
+            box-shadow: 0 12px 28px rgba(46, 125, 50, 0.12); 
+            overflow: hidden; 
+            border: 1px solid rgba(255,255,255,0.8);
+        }
+        .receipt-header { 
+            background: linear-gradient(135deg, var(--primary-green), #209158); 
+            color: white; 
+            padding: 30px 40px; 
+            position: relative;
+        }
+        .receipt-header::after {
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 10px;
+            background: linear-gradient(90deg, var(--accent-yellow) 0%, #f9a825 100%);
+        }
+        .logo { width: 70px; height: 70px; object-fit: cover; border-radius: 50%; border: 3px solid var(--accent-yellow); }
         .receipt-body { padding: 40px; }
         .info-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888; font-weight: 600; margin-bottom: 5px; }
         .table-custom { width: 100%; margin-bottom: 1rem; border-collapse: collapse; }
         .table-custom th { text-align: left; padding: 15px; background-color: #f8f9fa; color: var(--dark-green); border-bottom: 2px solid var(--primary-green); }
         .table-custom td { padding: 15px; border-bottom: 1px solid #eee; }
-        .total-section { background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 20px; }
+        .total-section { background-color: rgba(46, 125, 50, 0.05); padding: 25px; border-radius: 15px; margin-top: 20px; border: 1px solid rgba(46, 125, 50, 0.1); }
         .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
         .total-row.final { font-size: 1.3rem; font-weight: bold; color: var(--dark-green); border-top: 1px solid #ddd; padding-top: 10px; }
         .sig-box { border: 2px dashed #ddd; padding: 15px; display: inline-block; margin-top: 10px; border-radius: 10px; background: #fafafa; }
         .sig-img { max-height: 60px; }
+        
+        /* 3D Action Buttons */
+        .btn-success {
+            background: linear-gradient(135deg, var(--primary-green), #43a047) !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            border: 1px solid rgba(255,255,255,0.3) !important;
+            box-shadow: 0 4px 0 #1b5e20, 0 6px 12px rgba(0,0,0,0.15) !important;
+            transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+            text-transform: uppercase !important;
+        }
+        .btn-success:hover { transform: translateY(2px) !important; box-shadow: 0 2px 0 #1b5e20, 0 4px 8px rgba(0,0,0,0.1) !important; }
+        .btn-success:active { transform: translateY(4px) !important; box-shadow: 0 0 0 transparent !important; }
+        
+        .btn-secondary {
+            background: #f8f9fa !important;
+            color: #333333 !important;
+            font-weight: 700 !important;
+            border: 1px solid #ced4da !important;
+            box-shadow: 0 4px 0 #adb5bd, 0 6px 12px rgba(0,0,0,0.1) !important;
+            transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+            text-transform: uppercase !important;
+        }
+        .btn-secondary:hover { transform: translateY(2px) !important; box-shadow: 0 2px 0 #adb5bd, 0 4px 8px rgba(0,0,0,0.05) !important; color: var(--primary-green) !important; }
+        .btn-secondary:active { transform: translateY(4px) !important; box-shadow: 0 0 0 transparent !important; }
+
         /* Print Styles - Forces Light Mode for paper */
         @media print { 
+            @page { size: A4 portrait; margin: 10mm; }
             .no-print { display: none !important; } 
-            body, body.night-mode { background: #fff !important; color: #333 !important; }
-            .receipt-container, body.night-mode .receipt-container { box-shadow: none; border: 1px solid #ddd; margin: 0; width: 100%; max-width: 100%; background: #fff !important; } 
-            body.night-mode .table-custom th, body.night-mode .total-section, body.night-mode .sig-box { background-color: #f8f9fa !important; color: #333 !important; }
-            body.night-mode .table-custom td { border-bottom: 1px solid #eee; color: #333 !important;}
+            body, body.night-mode, html { height: 100vh; background: #fff !important; color: #333 !important; padding: 0 !important; margin: 0 !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .receipt-wrapper { padding: 0 !important; display: block !important; min-height: auto; }
+            .receipt-container, body.night-mode .receipt-container { box-shadow: none; border: none; margin: 0; width: 100%; max-width: 100%; background: #fff !important; } 
+            .receipt-body { padding: 20px !important; }
+            .table-custom th, .table-custom td { padding: 8px 10px !important; font-size: 0.9rem !important; }
+            .total-section { padding: 15px !important; background-color: rgba(52, 184, 117, 0.05) !important; border: 1px solid rgba(52, 184, 117, 0.2) !important; }
+            body.night-mode .table-custom th, body.night-mode .table-custom td { border-bottom: 1px solid #eee !important; color: #333 !important;}
             body.night-mode .total-row.final { color: var(--dark-green) !important; border-top: 1px solid #ddd !important; }
+            .mb-5 { margin-bottom: 1.5rem !important; }
+            .mt-5 { margin-top: 1.5rem !important; }
         }
         /* Night Mode Styles for Receipt */
         body.night-mode { background: #121212; color: #e0e0e0; }
@@ -89,13 +150,13 @@ $theme = get_theme_colors($conn);
     </style>
 </head>
 <body>
-<div class="container">
+<div class="receipt-wrapper">
     <div class="receipt-container">
         <div class="receipt-header d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
-                <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width:70px; height:70px; border-radius:50%; border:3px solid var(--accent-yellow);" class="me-3">
+                <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" class="logo me-3">
                 <div>
-                    <div class="h4 fw-bold mb-0">Woke Coliving INC</div>
+                    <div class="h4 fw-bold mb-0 font-monospace">Woke Coliving INC</div>
                     <div class="small opacity-75">123 Coliving Street, City Center</div>
                 </div>
             </div>
@@ -165,10 +226,12 @@ $theme = get_theme_colors($conn);
                 </div>
             </div>
         </div>
-        <div class="card-footer bg-light p-3 text-center no-print">
-            <button onclick="window.print()" class="btn btn-success rounded-pill px-4 fw-bold"><i class="fas fa-print me-2"></i>Print Receipt</button>
-            <a href="my_reservations.php" class="btn btn-secondary rounded-pill px-4 fw-bold ms-2">Back</a>
-        </div>
+    </div>
+    
+    <!-- Floating Actions -->
+    <div class="position-fixed bottom-0 end-0 m-4 no-print d-flex gap-2">
+        <button onclick="window.print()" class="btn btn-success rounded-pill px-4 fw-bold"><i class="fas fa-print me-2"></i>Print</button>
+        <a href="my_reservations.php" class="btn btn-secondary rounded-pill px-4 fw-bold">Back</a>
     </div>
 </div>
 <script>
