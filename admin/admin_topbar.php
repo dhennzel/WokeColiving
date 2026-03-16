@@ -84,8 +84,12 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
             </div>
             <div class="dropdown-menu" id="profileMenu">
                 <a href="admin_profile.php"><i class="fas fa-user"></i> My Profile</a>
+                <a href="#" id="adminNightModeToggle"><i class="fas fa-moon"></i> Night Mode</a>
                 <a href="admin_logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
             </div>
         </div>
     </div>
 </header>
+<script>
+    window.currentAdminUser = "<?= htmlspecialchars($admin_name ?? 'admin', ENT_QUOTES, 'UTF-8') ?>";
+</script>

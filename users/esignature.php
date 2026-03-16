@@ -162,11 +162,12 @@ if(isset($_POST['signature_data'])){
         });
 
         // Night Mode Logic
-        if(localStorage.getItem('nightMode') === 'enabled') {
+        const currentUserId = "<?= $user_id ?>";
+        if(localStorage.getItem('nightMode_' + currentUserId) === 'enabled') {
             document.body.classList.add('night-mode');
         }
         window.addEventListener('storage', (e) => {
-            if (e.key === 'nightMode') {
+            if (e.key === 'nightMode_' + currentUserId) {
                 if (e.newValue === 'enabled') document.body.classList.add('night-mode');
                 else document.body.classList.remove('night-mode');
             }

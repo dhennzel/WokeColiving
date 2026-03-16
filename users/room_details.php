@@ -332,13 +332,14 @@ if(isset($_SESSION['user_id'])){
     });
 
     // Night Mode Logic
-    if(localStorage.getItem('nightMode') === 'enabled') {
+    const currentUserId = "<?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : '' ?>";
+    if(currentUserId && localStorage.getItem('nightMode_' + currentUserId) === 'enabled') {
         document.body.classList.add('night-mode');
     }
 
     // Sync Night Mode across tabs
     window.addEventListener('storage', (e) => {
-        if (e.key === 'nightMode') {
+        if (currentUserId && e.key === 'nightMode_' + currentUserId) {
             if (e.newValue === 'enabled') document.body.classList.add('night-mode');
             else document.body.classList.remove('night-mode');
         }

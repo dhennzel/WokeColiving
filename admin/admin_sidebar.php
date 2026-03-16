@@ -103,9 +103,5 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
             <a href="backup.php" class="nav-item <?= $current_page == 'backup.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-database" style="width: 25px;"></i><span>Backup</span></a>
             <?php endif; ?>
         </div>
-
-        <a href="admin_logout.php" class="nav-item mt-4" style="color: #dc3545;">
-            <i class="fas fa-sign-out-alt"></i><span>Logout</span>
-        </a>
     </nav>
 </aside>

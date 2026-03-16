@@ -124,14 +124,21 @@ $theme = get_theme_colors($conn);
         .key-card { border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin-bottom: 10px; transition: 0.3s; }
         .key-card:hover { background-color: #f8f9fa; border-color: var(--primary-green); }
         
-        .occupant-card { border-left: 4px solid var(--primary-green); background: #f8f9fa; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; }
-        .occupant-card.pending { border-left-color: #ffc107; background: #fff8e1; }
-        
         .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
         .status-vacant { background-color: #d4edda; color: #155724; }
         .status-partial { background-color: #fff3cd; color: #856404; }
         .status-full { background-color: #f8d7da; color: #721c24; }
         .status-maintenance { background-color: #e2e3e5; color: #383d41; }
+        
+        .room-card-clickable {
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 2px solid transparent;
+        }
+        .room-card-clickable:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+            border-color: var(--primary-green) !important;
+        }
     </style>
 </head>
 <body>
@@ -280,12 +287,9 @@ $theme = get_theme_colors($conn);
                         if($room['occupancy_status'] == 'Fully Occupied') $status_class = 'status-full';
                         elseif($room['occupancy_status'] == 'Partially Occupied') $status_class = 'status-partial';
                         elseif($room['occupancy_status'] == 'Maintenance') $status_class = 'status-maintenance';
-
-                        $key_info = $room['key_info'];
-                        $is_released = $key_info && $key_info['key_status'] == 'Released';
                     ?>
                     <div class="col-md-6 col-lg-4 key-item" data-floor="<?= $room['floor'] ?>">
-                        <div class="card card-custom h-100">
+                        <div class="card card-custom h-100 room-card-clickable" style="overflow: hidden; cursor: pointer;" onclick="openRoomKeysModal(this)" data-room-id="<?= $room['room_id'] ?>" data-room-name="<?= htmlspecialchars($room_display, ENT_QUOTES) ?>" data-keys="<?= htmlspecialchars(json_encode($room['all_keys'] ?? []), ENT_QUOTES, 'UTF-8') ?>">
                             <img src="../assets/images/<?= $room['image'] ?>" style="height: 150px; object-fit: cover; width: 100%;">
                             <div class="card-body d-flex flex-column">
                                 <!-- Room Header -->
@@ -314,58 +318,9 @@ $theme = get_theme_colors($conn);
                                     </div>
                                 </div>
 
-                                <!-- Current Occupants -->
-                                <div>
-                                    <small class="text-muted fw-bold"><i class="fas fa-users me-1"></i> Current Occupants</small>
-                                    <?php if(empty($room['occupants'])): ?>
-                                        <p class="text-muted small mb-0 mt-2">No current occupants</p>
-                                    <?php else: ?>
-                                        <div style="max-height: 120px; overflow-y: auto;" class="mt-2">
-                                            <?php foreach($room['occupants'] as $occupant): ?>
-                                            <div class="occupant-card <?= $occupant['status'] == 'Pending' ? 'pending' : '' ?>">
-                                                <div class="d-flex justify-content-between align-items-start">
-                                                    <div><strong><?= $occupant['full_name'] ?></strong></div>
-                                                    <small class="text-muted"><?= date('M d', strtotime($occupant['end_date'])) ?></small>
-                                                </div>
-                                            </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-
-                                <!-- Key Status Section -->
-                                <div class="mt-auto pt-3 border-top">
-                                    <div class="mb-2">
-                                        <small class="text-muted fw-bold"><i class="fas fa-key me-1"></i> KEY STATUS</small>
-                                    </div>
-                                    <div style="max-height: 140px; overflow-y: auto;">
-                                    <?php if(!empty($room['all_keys'])): ?>
-                                        <?php foreach($room['all_keys'] as $key): ?>
-                                            <div class="d-flex justify-content-between align-items-center p-2 rounded mb-1" style="background-color: <?= $key['key_status'] == 'Available' ? '#e8f5e9' : '#fff3cd' ?>;">
-                                                <div class="small">
-                                                    <strong class="text-dark"><?= htmlspecialchars($key['key_name']) ?></strong>
-                                                    <?php if($key['key_status'] == 'Released'): ?>
-                                                        <div class="text-muted text-truncate" style="max-width: 120px;" title="<?= htmlspecialchars($key['key_holder_name']) ?>">
-                                                            <i class="fas fa-user-tag me-1"></i>
-                                                            <?= htmlspecialchars($key['key_holder_name']) ?>
-                                                        </div>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <?php if($key['key_status'] == 'Available'): ?>
-                                                    <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 0.7rem;" onclick="openReleaseModal(<?= $key['key_id'] ?>, '<?= addslashes(htmlspecialchars($key['key_name'])) ?>', <?= $room['room_id'] ?>, '<?= addslashes(htmlspecialchars($room_display)) ?>')">
-                                                        Release
-                                                    </button>
-                                                <?php else: ?>
-                                                    <button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.7rem;" onclick="confirmUnrelease(<?= $key['trans_id'] ?>, '<?= addslashes(htmlspecialchars($key['key_name'])) ?>', '<?= addslashes(htmlspecialchars($key['key_holder_name'])) ?>')">
-                                                        Return
-                                                    </button>
-                                                <?php endif; ?>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <p class="text-muted small mb-0">No keys configured for this room.</p>
-                                    <?php endif; ?>
-                                    </div>
+                                <!-- Actions -->
+                                <div class="mt-auto pt-3 border-top text-center text-success fw-bold small pb-1">
+                                    <i class="fas fa-key me-1"></i> Click to Manage Keys
                                 </div>
                             </div>
                         </div>
@@ -466,6 +421,24 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
+<!-- Room Keys Modal -->
+<div class="modal fade" id="roomKeysModal" tabindex="-1" aria-hidden="true" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-key me-2"></i>Key Status: <span id="keysModalRoomName"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light p-4" id="keysModalContent">
+                <!-- Content loaded via JS -->
+            </div>
+            <div class="modal-footer bg-light border-top-0">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
@@ -488,6 +461,9 @@ function filterKeys(select, typeId) {
 }
 
 function openReleaseModal(id, name, roomId, roomName) {
+    var keysModalObj = bootstrap.Modal.getInstance(document.getElementById('roomKeysModal'));
+    if (keysModalObj) keysModalObj.hide();
+
     document.getElementById('modalKeyId').value = id;
     document.getElementById('modalKeyName').innerText = name;
     document.getElementById('modalRoomName').innerText = roomName;
@@ -532,11 +508,60 @@ function openReleaseModal(id, name, roomId, roomName) {
 }
 
 function confirmUnrelease(transId, keyName, holderName) {
+    var keysModalObj = bootstrap.Modal.getInstance(document.getElementById('roomKeysModal'));
+    if (keysModalObj) keysModalObj.hide();
+
     document.getElementById('unreleaseKeyName').innerText = keyName;
     document.getElementById('unreleaseHolderName').innerText = holderName;
     document.getElementById('confirmUnreleaseBtn').href = `?action=return&id=${transId}`;
     var myModal = new bootstrap.Modal(document.getElementById('confirmUnreleaseModal'));
     myModal.show();
+}
+
+function openRoomKeysModal(element) {
+    const roomId = element.getAttribute('data-room-id');
+    const roomName = element.getAttribute('data-room-name');
+    const keys = JSON.parse(element.getAttribute('data-keys') || '[]');
+    
+    document.getElementById('keysModalRoomName').innerText = roomName;
+    const content = document.getElementById('keysModalContent');
+    
+    if (keys.length === 0) {
+        content.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-key fa-3x mb-3 opacity-25"></i><h6 class="fw-bold">No Keys Configured</h6><p class="small">There are no keys registered for this room.</p></div>';
+    } else {
+        let html = '<div class="d-flex flex-column gap-2">';
+        keys.forEach(key => {
+            let bgColor = key.key_status === 'Available' ? '#d4edda' : '#fff3cd';
+            let borderColor = key.key_status === 'Available' ? '#c3e6cb' : '#ffeeba';
+            let actionBtn = '';
+            
+            if (key.key_status === 'Available') {
+                actionBtn = `<button class="btn btn-sm btn-primary rounded-pill px-3" onclick="event.stopPropagation(); openReleaseModal(${key.key_id}, '${key.key_name.replace(/'/g, "\\'")}', ${roomId}, '${roomName.replace(/'/g, "\\'")}')"><i class="fas fa-sign-out-alt me-1"></i> Release</button>`;
+            } else {
+                actionBtn = `<button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation(); confirmUnrelease(${key.trans_id}, '${key.key_name.replace(/'/g, "\\'")}', '${key.key_holder_name.replace(/'/g, "\\'")}')"><i class="fas fa-undo me-1"></i> Return</button>`;
+            }
+
+            let holderInfo = key.key_status === 'Released' 
+                ? `<div class="text-muted small mt-1"><i class="fas fa-user-tag me-1"></i>${key.key_holder_name}</div>` 
+                : `<div class="text-success small mt-1"><i class="fas fa-check-circle me-1"></i>Available in desk</div>`;
+            
+            html += `
+            <div class="p-3 border rounded shadow-sm d-flex justify-content-between align-items-center" style="background-color: ${bgColor}; border-color: ${borderColor} !important;">
+                <div>
+                    <strong class="text-dark mb-0 d-block"><i class="fas fa-key me-2 text-secondary"></i>${key.key_name}</strong>
+                    ${holderInfo}
+                </div>
+                <div>
+                    ${actionBtn}
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+        content.innerHTML = html;
+    }
+    
+    const keysModal = new bootstrap.Modal(document.getElementById('roomKeysModal'));
+    keysModal.show();
 }
 
 // Unrelease Modal functions

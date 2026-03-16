@@ -101,14 +101,13 @@ $theme = get_theme_colors($conn);
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="admin.css">
     <style>
         :root {
             --primary-green: <?= $theme['primary'] ?>;
             --dark-green: <?= $theme['dark'] ?>;
             --accent-yellow: <?= $theme['accent'] ?>;
         }
-        body { background: #eef2f5; font-family: 'Poppins', sans-serif; color: #333; }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
         
         .receipt-wrapper {
             min-height: 100vh;
@@ -123,17 +122,17 @@ $theme = get_theme_colors($conn);
             max-width: 850px;
             background: #fff;
             padding: 0;
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.8);
             border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            box-shadow: 0 12px 28px rgba(46, 125, 50, 0.12);
             overflow: hidden;
             position: relative;
         }
         
         .receipt-header {
-            background-color: var(--dark-green);
+            background: linear-gradient(135deg, var(--primary-green), #209158);
             color: white;
-            padding: 40px;
+            padding: 30px 40px;
             position: relative;
         }
         
@@ -144,7 +143,7 @@ $theme = get_theme_colors($conn);
             left: 0;
             width: 100%;
             height: 10px;
-            background-color: var(--accent-yellow);
+            background: linear-gradient(90deg, var(--accent-yellow) 0%, #f9a825 100%);
         }
 
         .logo { width: 70px; height: 70px; object-fit: cover; border-radius: 50%; border: 3px solid var(--accent-yellow); }
@@ -160,7 +159,7 @@ $theme = get_theme_colors($conn);
         .table-custom td { padding: 15px; border-bottom: 1px solid #eee; vertical-align: middle; }
         .table-custom tr:last-child td { border-bottom: none; }
         
-        .total-section { background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 20px; }
+        .total-section { background-color: rgba(46, 125, 50, 0.05); padding: 25px; border-radius: 15px; margin-top: 20px; border: 1px solid rgba(46, 125, 50, 0.1); }
         .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem; }
         .total-row.final { font-size: 1.3rem; font-weight: bold; color: var(--dark-green); border-top: 1px solid #ddd; padding-top: 10px; margin-bottom: 0; }
         
@@ -168,11 +167,17 @@ $theme = get_theme_colors($conn);
         .sig-img { max-height: 60px; }
         
         @media print {
-            body { background: #fff; }
+            @page { size: A4 portrait; margin: 10mm; }
+            body, html { height: 100vh; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .receipt-wrapper { padding: 0; display: block; }
             .receipt-container { box-shadow: none; border-radius: 0; max-width: 100%; }
             .no-print { display: none !important; }
-            .receipt-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .receipt-body { padding: 20px !important; }
+            .table-custom th, .table-custom td { padding: 8px 10px !important; font-size: 0.9rem !important; }
+            .total-section { padding: 15px !important; background-color: rgba(52, 184, 117, 0.05) !important; border: 1px solid rgba(52, 184, 117, 0.2) !important; }
+            .mb-5 { margin-bottom: 1.5rem !important; }
+            .mt-5 { margin-top: 1.5rem !important; }
         }
     </style>
 </head>
@@ -334,6 +339,11 @@ $theme = get_theme_colors($conn);
 </div>
 
 <script>
+const currentAdminUser = "<?= htmlspecialchars($_SESSION['admin_username'] ?? 'admin', ENT_QUOTES) ?>";
+if(localStorage.getItem('adminNightMode_' + currentAdminUser) === 'enabled') {
+    document.body.classList.add('night-mode');
+}
+
 function confirmResetSig() {
     Swal.fire({
         title: 'Reset Signature?',

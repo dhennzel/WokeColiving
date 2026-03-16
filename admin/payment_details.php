@@ -58,52 +58,46 @@ if(!empty($payment['user_id'])){
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="admin.css">
     <style>
         :root {
             --primary-green: <?= $theme['primary'] ?>;
             --dark-green: <?= $theme['dark'] ?>;
             --accent-yellow: <?= $theme['accent'] ?>;
-            --light-bg: #f8f9fa;
-        }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); color: #333; }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-
-        /* Sidebar Styles */
-        #wrapper { display: flex; width: 100%; }
-        #sidebar-wrapper { width: 260px; background-color: var(--dark-green); flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; transition: margin 0.25s ease-out; }
-        #wrapper.toggled #sidebar-wrapper { margin-left: -250px; }
-        #page-content-wrapper { flex-grow: 1; }
-        .sidebar-link { color: rgba(255,255,255,0.8); text-decoration: none; padding: 15px 25px; display: block; font-weight: 500; border-left: 5px solid transparent; transition: 0.3s; }
-        .sidebar-link:hover, .sidebar-link.active { color: var(--dark-green); background-color: var(--accent-yellow); border-left-color: white; font-weight: 600; }
-        .sidebar-brand { color: var(--accent-yellow); font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.3rem; padding: 25px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
-        
-        @media (max-width: 768px) { 
-            #sidebar-wrapper { margin-left: -250px; } 
-            #wrapper.toggled #sidebar-wrapper { margin-left: 0; } 
         }
 
-        .main-container { max-width: 850px; margin: 40px auto; padding: 0 20px; }
-        
         .card-custom { 
-            border: none; 
+            border: 1px solid rgba(255, 255, 255, 0.8);
             border-radius: 20px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
+            box-shadow: 0 12px 28px rgba(46, 125, 50, 0.12); 
             background: white; 
             overflow: hidden;
+            max-width: 850px;
+            margin: 0 auto;
         }
         
         .card-header-custom {
-            background-color: var(--dark-green);
+            background: linear-gradient(135deg, var(--primary-green), #209158);
             color: white;
             padding: 25px 30px;
-            border-bottom: 5px solid var(--accent-yellow);
+            position: relative;
+        }
+        
+        .card-header-custom::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background: linear-gradient(90deg, var(--accent-yellow) 0%, #f9a825 100%);
         }
         
         .info-group { margin-bottom: 25px; }
         .info-label { 
             font-size: 0.75rem; 
             text-transform: uppercase; 
-            letter-spacing: 1.5px; 
+            letter-spacing: 1px; 
             color: #888; 
             font-weight: 600; 
             margin-bottom: 5px; 
@@ -123,106 +117,40 @@ if(!empty($payment['user_id'])){
             font-size: 0.9rem;
             padding: 8px 15px;
             border-radius: 50px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
         
-        .btn-back {
-            background: white;
-            color: var(--dark-green);
-            border: 2px solid var(--dark-green);
-            border-radius: 50px;
-            padding: 8px 25px;
-            font-weight: 600;
-            transition: 0.3s;
-        }
-        .btn-back:hover {
-            background: var(--dark-green);
-            color: white;
+        .proof-image {
+            max-width: 100%;
+            height: auto;
+            max-height: 400px;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
         
         @media print {
+            @page { size: A4 portrait; margin: 10mm; }
+            body, html { height: 100vh; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .no-print { display: none !important; }
-            .card-custom { box-shadow: none; border: 1px solid #ddd; }
-            #sidebar-wrapper { display: none; }
-            #page-content-wrapper { margin: 0; padding: 0; width: 100%; }
-            .main-container { max-width: 100%; margin: 0; padding: 0; }
+            .dashboard-container, .main-wrapper, .main-content { display: block !important; padding: 0 !important; overflow: visible !important; height: auto !important; }
+            .sidebar, .top-navbar { display: none !important; }
+            .card-custom { box-shadow: none; border: none; border-radius: 0; margin: 0 !important; max-width: 100%; }
+            .card-body { padding: 20px !important; }
         }
     </style>
 </head>
 <body>
 
-<div id="wrapper">
-    <div id="sidebar-wrapper" class="no-print">
-        <div class="sidebar-brand" onclick="location.href='admin_dashboard.php'">
-            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning"> Woke Coliving
-        </div>
-        <div class="list-group list-group-flush py-3">
-            <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
-            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'true' : 'false' ?>">
-                <span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'show' : '' ?>" id="frontDeskSubmenu">
-                <a href="booking_management.php" class="sidebar-link ps-5 active d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-calendar-check me-2"></i>Bookings</span>
-                    <?php if($pending_res > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_res ?></span><?php endif; ?>
-                </a>
-                <a href="admin_deletion_requests.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-user-times me-2"></i>Deletion Req</span>
-                    <?php if($del_req_count > 0): ?><span class="badge bg-danger rounded-pill"><?= $del_req_count ?></span><?php endif; ?>
-                </a>
-            </div>
-
-            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? 'true' : 'false' ?>">
-                <span><i class="fas fa-building me-2"></i>Facilities</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse <?= in_array($current_page, ['admin_rooms.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'add_room.php', 'edit_room.php']) ? 'show' : '' ?>" id="facilitiesSubmenu">
-                <a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a>
-                <a href="admin_room_assignment.php" class="sidebar-link ps-5"><i class="fas fa-door-open me-2"></i>Room Assignment</a>
-                <a href="admin_room_occupancy.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Room Occupancy</a>
-                <a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a>
-                <a href="admin_keys.php" class="sidebar-link ps-5"><i class="fas fa-key me-2"></i>Key Monitoring</a>
-            </div>
-
-            <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? '' : 'collapsed' ?>" role="button" aria-expanded="<?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? 'true' : 'false' ?>">
-                <span><i class="fas fa-file-invoice-dollar me-2"></i>Finance & Reports</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'admin_parking_reports.php']) ? 'show' : '' ?>" id="financeSubmenu">
-                <a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a>
-                <a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-file-invoice me-2"></i>Long-term Billing</a>
-                <a href="admin_parking_reports.php" class="sidebar-link ps-5"><i class="fas fa-car me-2"></i>Parking Reports</a>
-            </div>
-
-            <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-cogs me-2"></i>Operations</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="operationsSubmenu">
-                <a href="admin_maintenance.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-wrench me-2"></i>Maintenance</span>
-                    <?php if($pending_maint > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span><?php endif; ?>
-                </a>
-            </div>
-            
-            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button">
-                <span><i class="fas fa-cog me-2"></i>System Settings</span>
-                <i class="fas fa-chevron-down small"></i>
-            </a>
-            <div class="collapse" id="settingsSubmenu">
-                <a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a>
-                <a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a>
-                <a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a>
-                <a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a>
-            </div>
-            <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
-        </div>
-    </div>
-    
-    <div id="page-content-wrapper">
-        <div class="container-fluid px-4 py-4">
-            <div class="d-flex justify-content-between align-items-center mb-4 no-print">
-                <a href="<?= $back_url ?>" class="btn btn-back text-decoration-none"><i class="fas fa-arrow-left me-2"></i>Back</a>
+<div class="dashboard-container">
+    <?php include 'admin_sidebar.php'; ?>
+    <div class="main-wrapper">
+        <?php include 'admin_topbar.php'; ?>
+        <main class="main-content">
+            <div class="d-flex justify-content-between align-items-center mb-4 no-print" style="max-width: 850px; margin: 0 auto;">
+                <a href="<?= $back_url ?>" class="btn btn-outline-secondary rounded-pill px-4 fw-bold"><i class="fas fa-arrow-left me-2"></i>Back</a>
             </div>
 
             <div class="card card-custom">
@@ -282,26 +210,29 @@ if(!empty($payment['user_id'])){
                             <?php endif; ?>
                         </div>
                     </div>
-                </div>
-                
-                <div class="card-footer bg-light p-3 text-center border-top no-print">
-                    <button onclick="window.print()" class="btn btn-success rounded-pill px-4 fw-bold"><i class="fas fa-print me-2"></i>Print Details</button>
+                    
+                    <?php if(!empty($payment['proof_image'])): ?>
+                    <h5 class="fw-bold text-secondary mb-4 border-bottom pb-2 mt-3 no-print">Payment Proof</h5>
+                    <div class="text-center no-print">
+                        <a href="../uploads/proofs/<?= htmlspecialchars($payment['proof_image']) ?>" target="_blank" title="Click to view full size">
+                            <img src="../uploads/proofs/<?= htmlspecialchars($payment['proof_image']) ?>" class="proof-image" alt="Proof of Payment">
+                        </a>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
-        </div>
+            
+            <!-- Floating Actions -->
+            <div class="position-fixed bottom-0 end-0 m-4 no-print d-flex gap-2">
+                <button onclick="window.print()" class="btn btn-success rounded-pill shadow-lg px-4 fw-bold"><i class="fas fa-print me-2"></i>Print</button>
+            </div>
+        </main>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="admin.js"></script>
 <script>
-    const menuToggle = document.getElementById("menu-toggle");
-    if (menuToggle) {
-        menuToggle.addEventListener("click", function(e) { 
-            e.preventDefault(); 
-            document.getElementById("wrapper").classList.toggle("toggled"); 
-        });
-    }
-
     // Auto Refresh Logic
     let lastUpdate = 0;
     function checkUpdates() {
