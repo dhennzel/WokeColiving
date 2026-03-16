@@ -253,12 +253,10 @@ if(isset($_GET['status']) && !empty($_GET['status'])){
         $types .= "s";
     }
 }
-if(isset($_GET['type']) && !empty($_GET['type'])){
-    if($_GET['type'] == 'Walkin'){
-        $where_clause .= " AND u.is_walkin = 1";
-    } elseif($_GET['type'] == 'Ordinary'){
-        $where_clause .= " AND u.is_walkin = 0";
-    }
+if(isset($_GET['gender']) && !empty($_GET['gender'])){
+    $where_clause .= " AND u.gender = ?";
+    $params[] = $_GET['gender'];
+    $types .= "s";
 }
 if(isset($_GET['term']) && !empty($_GET['term'])){
     $term_filter = $_GET['term'];
@@ -338,10 +336,10 @@ $theme = get_theme_colors($conn);
                             <option value="Approved" <?= (isset($_GET['status']) && $_GET['status']=='Approved')?'selected':'' ?>>Approved</option>
                             <option value="Cancelled" <?= (isset($_GET['status']) && $_GET['status']=='Cancelled')?'selected':'' ?>>Cancelled</option>
                         </select>
-                        <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
-                            <option value="">All Types</option>
-                            <option value="Ordinary" <?= (isset($_GET['type']) && $_GET['type']=='Ordinary')?'selected':'' ?>>Ordinary</option>
-                            <option value="Walkin" <?= (isset($_GET['type']) && $_GET['type']=='Walkin')?'selected':'' ?>>Walk-in</option>
+                        <select name="gender" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Genders</option>
+                            <option value="Male" <?= (isset($_GET['gender']) && $_GET['gender']=='Male')?'selected':'' ?>>Male</option>
+                            <option value="Female" <?= (isset($_GET['gender']) && $_GET['gender']=='Female')?'selected':'' ?>>Female</option>
                         </select>
                         <select name="term" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">All Terms</option>
