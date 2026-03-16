@@ -217,9 +217,11 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 /* Main Content Wrapper */
 .main-wrapper {
     flex: 1;
+    min-width: 0; /* Prevents wide data tables from stretching the screen horizontally */
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: scroll; /* Forces a persistent scrollbar so the navbar width never jumps */
+    overflow-x: hidden;
 }
 
 /* Top Navbar */
@@ -232,14 +234,19 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     justify-content: space-between;
     padding: 0 30px;
     box-shadow: var(--shadow-sm);
-    z-index: 90;
-        transition: margin-top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-        user-select: none; /* Prevents text highlighting on double click */
-    }
+    z-index: 1020;
+    position: sticky;
+    top: 0;
+    width: 100%; /* Explicitly locks the navbar width */
+
+    transition: margin-top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    user-select: none; /* Prevents text highlighting on double click */
+}
     
     .top-navbar.hidden-navbar {
         margin-top: -70px; /* Hides the navbar completely */
-    }
+        position: relative; /* Removes sticky behavior so it scrolls away */
+}
     
     .navbar-restore-trigger {
         position: fixed;
@@ -289,15 +296,17 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     align-items: center;
     gap: 20px;
     transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    padding: 6px 20px;
+    border-radius: 50rem;
+    background-color: transparent;
+    border: 1px solid transparent;
 }
 
 .top-navbar.hidden-navbar .navbar-right {
-    transform: translateY(85px); /* Offsets the -70px margin so it floats back into view */
     background-color: var(--bg-white);
-    padding: 6px 20px;
-    border-radius: 50rem;
     box-shadow: var(--shadow-md);
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.05);
+    transform: translateY(80px); /* Drops it visually onto the content */
 }
 
 .icon-btn {
@@ -418,7 +427,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 .main-content {
     flex: 1;
     padding: 30px;
-    overflow-y: auto;
+    overflow-y: visible; /* Scrolling moved to main-wrapper */
 }
 
 .page-header {
