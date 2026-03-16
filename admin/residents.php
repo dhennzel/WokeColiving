@@ -72,17 +72,51 @@ $theme = get_theme_colors($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="admin_CSS/admin_style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="admin.css">
+    <style>
+        :root { 
+            --primary-green: <?= $theme['primary'] ?>; 
+            --dark-green: <?= $theme['dark'] ?>; 
+            --accent-yellow: <?= $theme['accent'] ?>; 
+            --light-bg: #f8f9fa; 
+        }
+    </style>
 </head>
 <body>
-<div class="dashboard-container">
-    <?php include 'admin_sidebar.php'; ?>
-    <div class="main-wrapper">
-        <?php include 'admin_topbar.php'; ?>
-        <main class="main-content">
-            <div class="page-header d-flex justify-content-between align-items-center">
-                <h1>Residents Directory</h1>
+<div id="wrapper">
+    <!-- Sidebar -->
+    <div id="sidebar-wrapper">
+        <div class="sidebar-brand" onclick="location.href='admin_dashboard.php'"><img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning"> Woke Coliving</div>
+        <div class="list-group list-group-flush py-3">
+            <a href="admin_dashboard.php" class="sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
+            <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button" aria-expanded="true"><span><i class="fas fa-concierge-bell me-2"></i>Front Desk</span><i class="fas fa-chevron-down small"></i></a>
+            <div class="collapse show" id="frontDeskSubmenu">
+                <a href="residents.php" class="sidebar-link ps-5 active d-flex justify-content-between align-items-center"><span><i class="fas fa-users me-2"></i>Residents</span></a>
+                <a href="booking_management.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center"><span><i class="fas fa-calendar-check me-2"></i>Bookings</span><?php if($pending_res > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_res ?></span><?php endif; ?></a>
+                <a href="admin_waitlist.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center"><span><i class="fas fa-list-ol me-2"></i>Waitlist</span><?php if($waitlist_count > 0): ?><span class="badge bg-warning text-dark rounded-pill"><?= $waitlist_count ?></span><?php endif; ?></a>
+                <a href="admin_deletion_requests.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center"><span><i class="fas fa-user-times me-2"></i>Deletion Req</span><?php if($del_req_count > 0): ?><span class="badge bg-danger rounded-pill"><?= $del_req_count ?></span><?php endif; ?></a>
+            </div>
+            <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button"><span><i class="fas fa-building me-2"></i>Facilities</span><i class="fas fa-chevron-down small"></i></a>
+            <div class="collapse" id="facilitiesSubmenu"><a href="admin_rooms.php" class="sidebar-link ps-5"><i class="fas fa-bed me-2"></i>Manage Rooms</a><a href="admin_room_assignment.php" class="sidebar-link ps-5"><i class="fas fa-door-open me-2"></i>Room Assignment</a><a href="admin_room_occupancy.php" class="sidebar-link ps-5"><i class="fas fa-users me-2"></i>Room Occupancy</a><a href="admin_parking.php" class="sidebar-link ps-5"><i class="fas fa-parking me-2"></i>Parkings</a><a href="admin_keys.php" class="sidebar-link ps-5"><i class="fas fa-key me-2"></i>Key Monitoring</a></div>
+            <a href="#financeSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button"><span><i class="fas fa-file-invoice-dollar me-2"></i>Finance & Reports</span><i class="fas fa-chevron-down small"></i></a>
+            <div class="collapse" id="financeSubmenu"><?php if($is_super): ?><a href="profit_report.php" class="sidebar-link ps-5"><i class="fas fa-chart-line me-2"></i>Profit Report</a><?php endif; ?><a href="longterm_billing.php" class="sidebar-link ps-5"><i class="fas fa-receipt me-2"></i>Billing</a></div>
+            <a href="#operationsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button"><span><i class="fas fa-cogs me-2"></i>Operations</span><i class="fas fa-chevron-down small"></i></a>
+            <div class="collapse" id="operationsSubmenu"><a href="admin_maintenance.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center"><span><i class="fas fa-wrench me-2"></i>Maintenance</span><?php if($pending_maint > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span><?php endif; ?></a><a href="admin_housekeeping.php" class="sidebar-link ps-5 d-flex justify-content-between align-items-center"><span><i class="fas fa-broom me-2"></i>Housekeeping</span><?php if($pending_house > 0): ?><span class="badge bg-danger rounded-pill"><?= $pending_house ?></span><?php endif; ?></a><a href="admin_utilities.php" class="sidebar-link ps-5"><i class="fas fa-archive me-2"></i>Utilities Archive</a></div>
+            <a href="#settingsSubmenu" data-bs-toggle="collapse" class="sidebar-link d-flex justify-content-between align-items-center" role="button"><span><i class="fas fa-cog me-2"></i>System Settings</span><i class="fas fa-chevron-down small"></i></a>
+            <div class="collapse" id="settingsSubmenu"><a href="admin_profile.php" class="sidebar-link ps-5"><i class="fas fa-user-shield me-2"></i>Admin Profile</a><?php if($is_super): ?><a href="admin_roles.php" class="sidebar-link ps-5"><i class="fas fa-users-cog me-2"></i>Manage Roles</a><a href="manage_hero.php" class="sidebar-link ps-5"><i class="fas fa-image me-2"></i>Hero Image</a><a href="system_logs.php" class="sidebar-link ps-5"><i class="fas fa-list-alt me-2"></i>System Logs</a><a href="backup.php" class="sidebar-link ps-5"><i class="fas fa-database me-2"></i>Backup</a><?php endif; ?></div>
+            <a href="admin_logout.php" class="sidebar-link text-warning mt-4"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
+        </div>
+    </div>
+
+    <!-- Page Content -->
+    <div id="page-content-wrapper">
+        <div class="container-fluid px-4 py-4 reveal">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <a href="#" id="menu-toggle" class="text-decoration-none me-3"><img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px;" class="rounded-circle shadow-sm"></a>
+                    <h4 class="fw-bold mb-0" style="color: var(--dark-green);">Residents Directory</h4>
+                </div>
                 <div class="d-flex gap-2">
                     <form method="GET" class="d-flex">
                         <input type="text" name="search" class="form-control form-control-sm me-2" placeholder="Search residents..." value="<?= htmlspecialchars($search) ?>">
@@ -211,7 +245,66 @@ $theme = get_theme_colors($conn);
             </div>
         </div>
     </div>
-        </main>
+</div>
+
+<!-- View Resident Modal -->
+<div class="modal fade" id="viewResidentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-id-card me-2"></i>Resident Profile</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex align-items-center mb-4 pb-3 border-bottom">
+                    <div class="user-avatar shadow-sm me-3" id="modalUserAvatar" style="width: 80px; height: 80px; font-size: 2.5rem;">
+                        <!-- Image or Initials -->
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-1 text-dark" id="modalUserName">Name</h4>
+                        <div class="d-flex gap-2" id="modalUserBadges">
+                            <!-- Badges -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-address-book me-2"></i>Contact Details</h6>
+                        <p class="mb-1 text-muted small">Email</p>
+                        <p class="fw-bold mb-2" id="modalUserEmail">-</p>
+                        
+                        <p class="mb-1 text-muted small">Phone Number</p>
+                        <p class="fw-bold mb-2" id="modalUserPhone">-</p>
+                        
+                        <p class="mb-1 text-muted small">Date Joined</p>
+                        <p class="fw-bold mb-0" id="modalUserJoined">-</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-info-circle me-2"></i>Personal Info</h6>
+                        <div class="row">
+                            <div class="col-6"><p class="mb-1 text-muted small">Gender</p><p class="fw-bold mb-2" id="modalUserGender">-</p></div>
+                            <div class="col-6"><p class="mb-1 text-muted small">Occupation</p><p class="fw-bold mb-2" id="modalUserOccupation">-</p></div>
+                        </div>
+                        <p class="mb-1 text-muted small">Company / School</p>
+                        <p class="fw-bold mb-2" id="modalUserCompany">-</p>
+                        <p class="mb-1 text-muted small">Address</p>
+                        <p class="fw-bold mb-0" id="modalUserAddress">-</p>
+                    </div>
+                    <div class="col-12 mt-4 pt-3 border-top">
+                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-ambulance me-2"></i>Emergency Contact</h6>
+                        <div class="row">
+                            <div class="col-md-6"><p class="mb-1 text-muted small">Name</p><p class="fw-bold mb-2" id="modalUserEmergencyName">-</p></div>
+                            <div class="col-md-6"><p class="mb-1 text-muted small">Number</p><p class="fw-bold mb-0" id="modalUserEmergencyPhone">-</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <a href="#" id="modalBtnFullProfile" class="btn btn-outline-primary me-auto"><i class="fas fa-external-link-alt me-1"></i> Full History & Bookings</a>
+                <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -276,8 +369,13 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="admin.js"></script>
 <script>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    document.getElementById("menu-toggle").addEventListener("click", function(e) { e.preventDefault(); document.getElementById("wrapper").classList.toggle("toggled"); });
+=======
+>>>>>>> 7d54ef7a9337fc7ae65f8c12788f9b5cc4f935e3
     const currentAdminUser = "<?= htmlspecialchars($_SESSION['admin_username'] ?? 'admin') ?>";
     const viewStorageKey = 'residentsView_' + currentAdminUser;
 
@@ -354,6 +452,10 @@ $theme = get_theme_colors($conn);
 
         new bootstrap.Modal(document.getElementById('viewResidentModal')).show();
     }
+<<<<<<< HEAD
+=======
+>>>>>>> 81f7535ae1ae18e72ed61d1a856e96f0288310d2
+>>>>>>> 7d54ef7a9337fc7ae65f8c12788f9b5cc4f935e3
 
     function confirmDeleteUser(e) {
         e.preventDefault();
@@ -370,6 +472,26 @@ $theme = get_theme_colors($conn);
             if (result.isConfirmed) form.submit();
         });
     }
+
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
+});
 </script>
 </body>
 </html>

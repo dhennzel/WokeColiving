@@ -64,7 +64,7 @@ if(!in_array('display_order', $existing_cols)) {
 
 if (!function_exists('get_theme_colors')) {
 function get_theme_colors($conn) {
-    $theme = ['primary' => '#34B875', 'dark' => '#1B5E20', 'accent' => '#FFB700'];
+    $theme = ['primary' => '#2E7D32', 'dark' => '#1B5E20', 'accent' => '#FBC02D'];
 
     $q = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key IN ('theme_primary', 'theme_dark', 'theme_accent')");
     if($q){

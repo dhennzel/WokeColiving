@@ -28,6 +28,7 @@ if (isset($current_page)) {
         $search_placeholder = 'Search logs...';
     }
 }
+<<<<<<< HEAD
 
 // Calculate accurate total notifications based on all modules
 $top_pending_res = $pending_res ?? ($pending_count ?? 0);
@@ -35,6 +36,8 @@ $top_pending_maint = $pending_maint ?? 0;
 $top_pending_house = $pending_house ?? 0;
 $top_del_req = $del_req_count ?? 0;
 $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_house + $top_del_req;
+=======
+>>>>>>> 7d54ef7a9337fc7ae65f8c12788f9b5cc4f935e3
 ?>
 <div id="navbar-restore-trigger" class="navbar-restore-trigger" title="Restore Navbar">
     <i class="fas fa-chevron-down"></i>

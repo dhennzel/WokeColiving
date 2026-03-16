@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+<<<<<<< HEAD
     // --- Top Navbar Hide/Show Logic ---
     const topNavbar = document.querySelector('.top-navbar');
     const restoreTrigger = document.getElementById('navbar-restore-trigger');
@@ -63,6 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+=======
+>>>>>>> 7d54ef7a9337fc7ae65f8c12788f9b5cc4f935e3
     // --- Profile Dropdown Logic ---
     const profileToggle = document.getElementById('profileToggle');
     const profileMenu = document.getElementById('profileMenu');
