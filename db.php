@@ -35,6 +35,12 @@ if(mysqli_num_rows($check_admin_fname) == 0) {
     mysqli_query($conn, "ALTER TABLE admin ADD COLUMN phone_number VARCHAR(20) DEFAULT ''");
 }
 
+// Ensure admin has a profile image column for individual avatars
+$check_admin_pfp = mysqli_query($conn, "SHOW COLUMNS FROM admin LIKE 'profile_image'");
+if(mysqli_num_rows($check_admin_pfp) == 0) {
+    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN profile_image VARCHAR(255) DEFAULT NULL");
+}
+
 // Ensure room pricing columns exist
 $cols = mysqli_query($conn, "SHOW COLUMNS FROM rooms");
 $existing_cols = [];

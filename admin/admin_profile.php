@@ -132,6 +132,53 @@ if(isset($_POST['update_profile'])){
             if(!empty($new_password)){
                 mysqli_query($conn, "INSERT INTO admin_password_history (username, password) VALUES ('$new_username', '$new_password')");
             }
+            
+            // Handle Admin Profile Image Upload (Personal)
+            if(isset($_POST['cropped_profile_data']) && !empty($_POST['cropped_profile_data'])){
+                $data = $_POST['cropped_profile_data'];
+                list($type, $data) = explode(';', $data);
+                list(, $data)      = explode(',', $data);
+                $data = base64_decode($data);
+                
+                $target_dir = "../uploads/profiles/";
+                if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+                
+                $new_filename = "admin_" . $admin_info['id'] . "_" . time() . ".png";
+                $target_file = $target_dir . $new_filename;
+                
+                if(file_put_contents($target_file, $data)){
+                    $old_img = $admin_info['profile_image'] ?? '';
+                    if(!empty($old_img) && file_exists("../uploads/profiles/" . $old_img)){
+                        @unlink("../uploads/profiles/" . $old_img);
+                    }
+                    
+                    $val = mysqli_real_escape_string($conn, $new_filename);
+                    mysqli_query($conn, "UPDATE admin SET profile_image='$val' WHERE username='$new_username'");
+                    $admin_info['profile_image'] = $val;
+                } else {
+                    $error = "Failed to upload personal profile picture.";
+                }
+            } elseif(isset($_FILES['admin_profile_image']) && $_FILES['admin_profile_image']['error'] == 0){
+                $target_dir = "../uploads/profiles/";
+                if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+                
+                $file_ext = strtolower(pathinfo($_FILES["admin_profile_image"]["name"], PATHINFO_EXTENSION));
+                $new_filename = "admin_" . $admin_info['id'] . "_" . time() . "." . $file_ext;
+                $target_file = $target_dir . $new_filename;
+                
+                if(move_uploaded_file($_FILES["admin_profile_image"]["tmp_name"], $target_file)){
+                    $old_img = $admin_info['profile_image'] ?? '';
+                    if(!empty($old_img) && file_exists("../uploads/profiles/" . $old_img)){
+                        @unlink("../uploads/profiles/" . $old_img);
+                    }
+                    
+                    $val = mysqli_real_escape_string($conn, $new_filename);
+                    mysqli_query($conn, "UPDATE admin SET profile_image='$val' WHERE username='$new_username'");
+                    $admin_info['profile_image'] = $val;
+                } else {
+                    $error = "Failed to upload personal profile picture.";
+                }
+            }
 
             $_SESSION['admin_username'] = $new_username;
             $_SESSION['admin_full_name'] = trim($first_name . ' ' . $last_name);
@@ -394,11 +441,28 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                         <?php if($error) echo "<div class='alert alert-danger'>$error</div>"; ?>
                         <form method="POST" enctype="multipart/form-data">
                             <input type="hidden" name="cropped_logo_data" id="cropped_logo_data">
+                            <input type="hidden" name="cropped_profile_data" id="cropped_profile_data">
                             <div class="row g-5">
                                 <!-- Left Column: Credentials -->
                                 <div class="<?= is_super_admin() ? 'col-md-6 border-end' : 'col-md-12' ?>">
                                     <h5 class="text-success fw-bold mb-3"><i class="fas fa-user-shield me-2"></i>Account Credentials</h5>
                                     
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold small">Personal Profile Picture</label>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <?php
+                                                $my_avatar = "https://ui-avatars.com/api/?name=" . urlencode($admin_info['username']) . "&background=2DC08F&color=fff";
+                                                if (!empty($admin_info['profile_image']) && file_exists("../uploads/profiles/" . $admin_info['profile_image'])) {
+                                                    $my_avatar = "../uploads/profiles/" . $admin_info['profile_image'] . "?v=" . time();
+                                                }
+                                            ?>
+                                            <img src="<?= htmlspecialchars($my_avatar) ?>" id="admin_profile_preview" class="rounded-circle border shadow-sm" style="width: 50px; height: 50px; object-fit: cover;">
+                                            <div class="flex-grow-1">
+                                                <input type="file" name="admin_profile_image" id="admin_profile_image" class="form-control form-control-sm" accept="image/*">
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div class="row g-2 mb-3">
                                         <div class="col-md-6">
                                             <label class="form-label fw-bold small">First Name</label>
@@ -519,7 +583,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header text-white" style="background-color: var(--primary-green);">
-                <h5 class="modal-title fw-bold"><i class="fas fa-crop me-2"></i>Crop Logo</h5>
+                <h5 class="modal-title fw-bold"><i class="fas fa-crop me-2"></i>Crop Image</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center">
@@ -573,25 +637,43 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
     let cropper;
     const image = document.getElementById('image-to-crop');
     const input = document.getElementById('logo_input');
+    const profileInput = document.getElementById('admin_profile_image');
     const modal = new bootstrap.Modal(document.getElementById('cropModal'));
+    let currentCropTarget = '';
 
-    input.addEventListener('change', function(e) {
+    if (input) {
+        input.addEventListener('change', function(e) { handleCropChange(e, 'logo'); });
+    }
+    
+    if (profileInput) {
+        profileInput.addEventListener('change', function(e) { handleCropChange(e, 'profile'); });
+    }
+
+    function handleCropChange(e, target) {
         const files = e.target.files;
         if (files && files.length > 0) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 image.src = e.target.result;
+                currentCropTarget = target;
                 modal.show();
                 if(cropper) cropper.destroy();
                 setTimeout(() => { cropper = new Cropper(image, { aspectRatio: 1, viewMode: 1 }); }, 200);
             };
             reader.readAsDataURL(files[0]);
         }
-    });
+    }
 
     document.getElementById('crop-btn').addEventListener('click', function() {
         const canvas = cropper.getCroppedCanvas({ width: 500, height: 500 });
-        document.getElementById('cropped_logo_data').value = canvas.toDataURL('image/png');
+        const dataUrl = canvas.toDataURL('image/png');
+        if (currentCropTarget === 'logo') {
+            document.getElementById('cropped_logo_data').value = dataUrl;
+            document.querySelector('img[src*="WokeLogo.jpg"]').src = dataUrl;
+        } else if (currentCropTarget === 'profile') {
+            document.getElementById('cropped_profile_data').value = dataUrl;
+            document.getElementById('admin_profile_preview').src = dataUrl;
+        }
         modal.hide();
     });
 
@@ -607,7 +689,9 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
         root.style.setProperty('--accent-yellow', aInput.value);
     }
 
-    [pInput, dInput, aInput].forEach(input => input.addEventListener('input', updateTheme));
+    [pInput, dInput, aInput].forEach(input => {
+        if (input) input.addEventListener('input', updateTheme);
+    });
 
     // Login Background Preview
     const loginBgInput = document.getElementById('login_bg_input');

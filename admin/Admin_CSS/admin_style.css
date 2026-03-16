@@ -85,8 +85,23 @@ h1, h2, h3, h4, h5 {
     box-shadow: 0 5px 20px rgba(0,0,0,0.05); 
     background: white; 
 }
+<<<<<<< HEAD
 .card-form {
     padding: 40px;
+=======
+.sidebar-link {
+    color: rgba(255, 255, 255, 0.75);
+    text-decoration: none;
+    padding: 14px 25px;
+    display: block;
+    font-weight: 600; /* Bolder navigation links */
+    font-size: 0.95rem;
+    border-left: 4px solid transparent;
+    border-radius: 50rem; /* Pill shape */
+    margin: 4px 15px; /* Margin to show the pill shape */
+    transition: transform 0.3s ease, background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    will-change: transform, background;
+>>>>>>> 81f7535ae1ae18e72ed61d1a856e96f0288310d2
 }
 .btn-custom { 
     background-color: var(--accent-yellow); 

@@ -361,13 +361,6 @@ function openHistoryModal(resId) {
         });
 }
 
-function toggleMenu(e) {
-    if(e) e.preventDefault();
-    document.getElementById("wrapper").classList.toggle("toggled");
-}
-document.getElementById("menu-toggle").addEventListener("click", toggleMenu);
-document.getElementById("sidebar-toggle").addEventListener("click", toggleMenu);
-
 // Auto Refresh Logic
 let lastUpdate = 0;
 function checkUpdates() {

@@ -461,7 +461,7 @@ $theme = get_theme_colors($conn);
                     <?php endif; ?>
                 </div>
                 <div class="flex-grow-1">
-                    <h3 class="fw-bold mb-1 text-dark"><?= htmlspecialchars($user['full_name']) ?></h3>
+                    <h3 class="fw-bold mb-1 text-dark"><?= htmlspecialchars(ucwords(strtolower($user['full_name']))) ?></h3>
                     <div class="d-flex flex-wrap gap-3 text-muted small">
                         <span><i class="fas fa-envelope me-1"></i> <?= htmlspecialchars($user['email']) ?></span>
                         <span><i class="fas fa-phone me-1"></i> <?= htmlspecialchars($user['phone_number']) ?></span>
@@ -647,7 +647,7 @@ $theme = get_theme_colors($conn);
                                     <th>Room</th>
                                     <th>End Date</th>
                                     <th>Days Left</th>
-                                    <th class="text-end">Action</th>
+                                    <th class="text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -666,7 +666,7 @@ $theme = get_theme_colors($conn);
                                     </td>
                                     <td><?= $exp['end_date'] ?></td>
                                     <td class="<?= $text_class ?>"><?= $status_text ?></td>
-                                    <td class="text-end">
+                                    <td class="text-center">
                                         <button onclick="renewContract(<?= $exp['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt me-1"></i> Renew</button>
                                         <a href="booking_management.php?action=terminate&id=<?= $exp['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract? This will mark it as Completed.')"><i class="fas fa-file-contract me-1"></i> End Contract</a>
                                     </td>
@@ -715,7 +715,7 @@ $theme = get_theme_colors($conn);
                                         <th>Dates</th>
                                         <th>Status</th>
                                         <th>Total</th>
-                                        <th class="text-end">Actions</th>
+                                        <th class="text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -749,7 +749,7 @@ $theme = get_theme_colors($conn);
                                             <span class="badge <?= $badge ?>"><?= $row['status'] ?></span>
                                         </td>
                                         <td>₱<?= number_format($row['total_price'], 2) ?></td>
-                                        <td class="text-end">
+                                        <td class="text-center">
                                             <?php if($row['status'] == 'Pending'): ?>
                                                 <a href="booking_management.php?action=verify&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-info text-white" onclick="confirmAction(event, this.href, 'Move this reservation to Verifying status?')" title="Verify"><i class="fas fa-search"></i></a>
                                                 <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')" title="Reject"><i class="fas fa-times"></i></a>
@@ -761,7 +761,7 @@ $theme = get_theme_colors($conn);
                                                     // Check Signature
                                                     $has_sig = !empty($row['signature_image']);
                                                 ?>
-                                                <div class="d-flex justify-content-end gap-1">
+                                                <div class="d-flex justify-content-center gap-1">
                                                     <?php if(!empty($row['extended_from'])): ?>
                                                         <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this extension?')" title="Approve"><i class="fas fa-check"></i></a>
                                                     <?php elseif(isset($row['auto_assigned']) && $row['auto_assigned'] == 1): ?>
@@ -772,7 +772,7 @@ $theme = get_theme_colors($conn);
                                                     <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')" title="Reject"><i class="fas fa-times"></i></a>
                                                 </div>
                                                 <?php if(!$is_paid || !$has_sig): ?>
-                                                    <div class="small text-danger mt-1 text-end" style="font-size: 0.7rem;">
+                                                    <div class="small text-danger mt-1 text-center" style="font-size: 0.7rem;">
                                                         <i class="fas fa-exclamation-triangle"></i> <?= !$is_paid ? 'Unpaid' : '' ?> <?= (!$is_paid && !$has_sig) ? '&' : '' ?> <?= !$has_sig ? 'No Sig' : '' ?>
                                                     </div>
                                                 <?php endif; ?>
@@ -834,7 +834,7 @@ $theme = get_theme_colors($conn);
                                 <th>Amount</th>
                                 <th>Status</th>
                                 <th>Details</th>
-                                <th class="text-end">Actions</th>
+                                <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -886,9 +886,9 @@ $theme = get_theme_colors($conn);
                                         <?php endif; ?>
                                     </a>
                                 </td>
-                                <td class="text-end">
+                                <td class="text-center">
                                     <?php if($pay['payment_status'] == 'Unpaid'): ?>
-                                        <div class="d-flex justify-content-end gap-1">
+                                        <div class="d-flex justify-content-center gap-1">
                                             <a href="booking_management.php?action=mark_paid&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" title="Approve Payment" onclick="confirmAction(event, this.href, 'Approve this payment as Paid?')"><i class="fas fa-check"></i></a>
                                             <?php if(!empty($pay['proof_image'])): ?>
                                                 <a href="booking_management.php?action=reject_payment&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-warning text-dark" title="Reject Payment Proof (Re-upload)" onclick="confirmAction(event, this.href, 'Reject this payment proof? The guest will have to re-upload.')"><i class="fas fa-undo"></i></a>

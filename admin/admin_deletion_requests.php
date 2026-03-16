@@ -217,15 +217,15 @@ $theme = get_theme_colors($conn);
                 <?php if(mysqli_num_rows($query) > 0): ?>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>User</th><th>Email</th><th>Joined</th><th>Requested</th><th class="text-end">Action</th></tr></thead>
+                        <thead><tr><th>User</th><th>Email</th><th>Joined</th><th>Requested</th><th class="text-center">Action</th></tr></thead>
                         <tbody>
                             <?php while($row = mysqli_fetch_assoc($query)): ?>
                             <tr>
-                                <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
+                                <td class="fw-bold"><?= htmlspecialchars(ucwords(strtolower($row['full_name']))) ?></td>
                                 <td><?= htmlspecialchars($row['email']) ?></td>
                                 <td><?= date('M d, Y', strtotime($row['user_joined'])) ?></td>
                                 <td><?= date('M d, Y H:i', strtotime($row['created_at'])) ?></td>
-                                <td class="text-end">
+                                <td class="text-center">
                                     <form method="POST" class="d-inline" onsubmit="confirmAction(event, 'approve')">
                                         <input type="hidden" name="request_id" value="<?= $row['request_id'] ?>">
                                         <input type="hidden" name="user_id" value="<?= $row['user_id'] ?>">

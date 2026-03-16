@@ -825,26 +825,6 @@ const Toast = Swal.mixin({
 Toast.fire({ icon: 'success', title: 'Tenant returned to original room successfully' });
 <?php endif; ?>
 
-function toggleMenu(e) {
-    if(e) e.preventDefault();
-    document.getElementById("wrapper").classList.toggle("toggled");
-}
-document.getElementById("menu-toggle").addEventListener("click", toggleMenu);
-document.getElementById("sidebar-toggle").addEventListener("click", toggleMenu);
-
-// Close sidebar when clicking outside on mobile
-document.addEventListener('click', function(event) {
-    var sidebar = document.getElementById('sidebar-wrapper');
-    var toggle = document.getElementById('menu-toggle');
-    var wrapper = document.getElementById('wrapper');
-    
-    if (window.innerWidth <= 768 && wrapper.classList.contains('toggled')) {
-        if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
-            wrapper.classList.remove('toggled');
-        }
-    }
-});
-
 // Auto Refresh Logic
 let lastUpdate = 0;
 function checkUpdates() {

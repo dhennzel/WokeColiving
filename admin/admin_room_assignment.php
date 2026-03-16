@@ -87,6 +87,7 @@ $theme = get_theme_colors($conn);
     <link rel="stylesheet" href="admin_CSS/admin_style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
+<<<<<<< HEAD
         :root {
             --primary-green: <?= $theme['primary'] ?>;
             --dark-green: <?= $theme['dark'] ?>;
@@ -94,6 +95,8 @@ $theme = get_theme_colors($conn);
             --light-bg: #f8f9fa;
         }
         .user-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--primary-green); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+=======
+>>>>>>> 81f7535ae1ae18e72ed61d1a856e96f0288310d2
         .card-room-select { transition: transform 0.2s; cursor: default; }
         .card-room-select:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

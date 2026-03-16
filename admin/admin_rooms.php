@@ -187,7 +187,12 @@ $theme = get_theme_colors($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<<<<<<< HEAD
     <link rel="stylesheet" href="admin_CSS/admin_style.css">
+=======
+    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="Admin_CSS/admin_style.css">
+>>>>>>> 81f7535ae1ae18e72ed61d1a856e96f0288310d2
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -196,6 +201,32 @@ $theme = get_theme_colors($conn);
             --dark-green: <?= $theme['dark'] ?>;
             --accent-yellow: <?= $theme['accent'] ?>;
             --light-bg: #f8f9fa;
+        }
+        
+        .card-room {
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 16px;
+            overflow: hidden;
+            background: #ffffff;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card-room:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .card-room img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+        }
+        .card-room-summary {
+            cursor: pointer;
+        }
+        .price-tag {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-green);
         }
     </style>
 </head>
@@ -324,7 +355,7 @@ $theme = get_theme_colors($conn);
                     <div class="col-md-4" data-type="<?= $type ?>">
                         <div class="card card-room card-room-summary h-100" onclick="openTypeModal('<?= md5($type) ?>')">
                             <img src="../assets/images/<?= $image ?>" alt="<?= $type ?>">
-                            <div class="card-body text-center">
+                            <div class="card-body text-center d-flex flex-column">
                                 <h3 class="fw-bold text-dark mb-2"><?= $type ?></h3>
                                 <?php if($type != 'Single'): ?>
                                     <div class="mb-2">
@@ -334,11 +365,11 @@ $theme = get_theme_colors($conn);
                                 <?php else: ?>
                                     <p class="price-tag mb-2">₱<?= number_format($price, 2) ?> <small class="text-muted fs-6">/mo</small></p>
                                 <?php endif; ?>
-                                <div class="d-flex justify-content-center gap-3 text-muted small mb-3">
+                                <div class="d-flex justify-content-center gap-3 text-muted small mb-3 mt-auto">
                                     <span><i class="fas fa-door-open me-1"></i> <?= count($rooms_in_type) ?> Rooms</span>
                                     <span><i class="fas fa-bed me-1"></i> <?= $type_total_beds ?> Beds</span>
                                 </div>
-                                <div class="alert <?= $type_avail_beds > 0 ? 'alert-success' : 'alert-danger' ?> py-2 mb-0 fw-bold">
+                                <div class="alert <?= $type_avail_beds > 0 ? 'alert-success' : 'alert-danger' ?> py-2 mb-0 fw-bold w-100">
                                     <?= $type_avail_beds ?> Beds Available
                                 </div>
                             </div>

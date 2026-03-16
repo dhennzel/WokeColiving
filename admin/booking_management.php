@@ -498,10 +498,11 @@ $theme = get_theme_colors($conn);
                                 <td>
                                     <?php
                                         $s = $res['status'];
-                                        $b_class = 'badge-pending';
-                                        if($s == 'Approved') $b_class = 'badge-approved';
-                                        elseif($s == 'Cancelled') $b_class = 'badge-cancelled';
-                                        elseif($s == 'Verifying') $b_class = 'badge-verifying';
+                                        $b_class = 'bg-secondary';
+                                        if($s == 'Pending') $b_class = 'bg-warning text-dark';
+                                        elseif($s == 'Approved') $b_class = 'bg-success text-white';
+                                        elseif($s == 'Cancelled') $b_class = 'bg-danger text-white';
+                                        elseif($s == 'Verifying') $b_class = 'bg-info text-white';
                                     ?>
                                     <span class="badge <?= $b_class ?> rounded-pill px-3"><?= $s ?></span>
                                 </td>

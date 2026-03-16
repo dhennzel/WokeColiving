@@ -779,7 +779,17 @@ function checkAvailability() {
         statusSpan.className = 'fw-bold mt-1 d-block text-muted';
 
         fetch(`../users/get_rooms.php?checkin=${cin}&checkout=${cout}`)
-            .then(response => response.json())
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    if (text.toLowerCase().includes('<html')) {
+                        window.location.reload();
+                    }
+                    throw new Error("Invalid response from server");
+                }
+            })
             .then(data => {
                 availableRoomsData = data; // Store for modal
                 updateModalAvailability(); // Update modal badges

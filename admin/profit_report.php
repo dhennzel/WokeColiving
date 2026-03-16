@@ -514,7 +514,7 @@ new Chart(ctx, {
         datasets: [{
             label: 'Total Earnings (₱)',
             data: earnings,
-            borderColor: '<?= $theme['primary'] ?>',
+            borderColor: <?= json_encode($theme['primary']) ?>,
             backgroundColor: 'rgba(46, 125, 50, 0.1)',
             borderWidth: 2,
             fill: true,
@@ -567,9 +567,9 @@ new Chart(ctxPie, {
         datasets: [{
             data: roomTypeData.map(item => item.earnings),
             backgroundColor: [
-                '<?= $theme['primary'] ?>',
-                '<?= $theme['accent'] ?>',
-                '<?= $theme['dark'] ?>',
+                <?= json_encode($theme['primary']) ?>,
+                <?= json_encode($theme['accent']) ?>,
+                <?= json_encode($theme['dark']) ?>,
                 '#81C784',
                 '#FFF176'
             ],
