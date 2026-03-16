@@ -1,0 +1,281 @@
+/* =========================================
+   Eco-Modern Minimalism Design Tokens
+   ========================================= */
+:root {
+    /* Colors */
+    --bg-color: #F8F9FA;
+    --primary-color: #34B875; /* Vibrant Teal-Green */
+    --accent-color: #FFB700;  /* Warm Golden-Yellow */
+    --text-main: #2C3E50;
+    --text-muted: #7F8C8D;
+    --white: #FFFFFF;
+    --border-color: #EAECEE;
+
+    /* Typography */
+    --font-family: 'Poppins', sans-serif;
+    
+    /* Timings & Shadows */
+    --transition-fast: 0.2s ease;
+    --transition-smooth: 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+    --box-shadow-base: 0 10px 30px rgba(42, 92, 67, 0.08);
+    --box-shadow-hover: 0 15px 40px rgba(42, 92, 67, 0.15);
+}
+
+/* =========================================
+   Global Reset & Base Styles
+   ========================================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 5%;
+}
+
+/* =========================================
+   Navigation
+   ========================================= */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 5%;
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+.nav-brand {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 2rem;
+}
+
+.nav-links a {
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 500;
+    transition: color var(--transition-fast);
+}
+
+.nav-links a:hover {
+    color: var(--accent-color);
+}
+
+/* =========================================
+   Buttons
+   ========================================= */
+button {
+    font-family: var(--font-family);
+    font-weight: 600;
+    border: none;
+    border-radius: 50px;
+    padding: 0.8rem 2rem;
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn-accent {
+    background-color: var(--accent-color);
+    color: var(--primary-color);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+button:hover {
+    transform: translateY(-2px);
+}
+
+/* =========================================
+   Hero & Search Bar
+   ========================================= */
+.hero {
+    text-align: center;
+    padding: 6rem 5% 4rem;
+    background: linear-gradient(180deg, rgba(42,92,67,0.05) 0%, var(--bg-color) 100%);
+}
+
+.hero h1 {
+    font-size: 3rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.hero p {
+    color: var(--text-muted);
+    max-width: 600px;
+    margin: 0 auto 3rem;
+    font-size: 1.1rem;
+}
+
+.search-bar {
+    display: flex;
+    gap: 1rem;
+    background: var(--white);
+    padding: 1rem;
+    border-radius: 50px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.search-input {
+    flex: 1;
+    border: 1px solid var(--border-color);
+    border-radius: 50px;
+    padding: 0.8rem 1.5rem;
+    font-family: var(--font-family);
+    outline: none;
+    transition: border-color var(--transition-fast);
+}
+
+.search-input:focus {
+    border-color: var(--primary-color);
+}
+
+/* =========================================
+   Room Cards Grid
+   ========================================= */
+.rooms-section {
+    padding: 4rem 0 6rem;
+}
+
+.section-title {
+    text-align: center;
+    color: var(--primary-color);
+    margin-bottom: 3rem;
+    font-size: 2rem;
+}
+
+.room-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.room-card {
+    background: var(--white);
+    border-radius: 20px;
+    overflow: hidden;
+    transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
+    cursor: pointer;
+}
+
+.shadow-hover {
+    box-shadow: var(--box-shadow-base);
+}
+
+.shadow-hover:hover {
+    box-shadow: var(--box-shadow-hover);
+    transform: translateY(-8px);
+}
+
+.placeholder-img {
+    height: 200px;
+    background-color: var(--border-color); /* Acts as an image placeholder */
+}
+
+.room-info {
+    padding: 1.5rem;
+}
+
+.badge {
+    display: inline-block;
+    background: rgba(42, 92, 67, 0.1);
+    color: var(--primary-color);
+    padding: 0.3rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.room-title {
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+    font-size: 1.2rem;
+}
+
+.room-price {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.price-period {
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+/* =========================================
+   Footer
+   ========================================= */
+.footer {
+    background-color: var(--primary-color);
+    color: var(--white);
+    text-align: center;
+    padding: 3rem 5%;
+}
+
+.footer h2 {
+    margin-bottom: 0.5rem;
+    color: var(--accent-color);
+}
+
+.footer p {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* =========================================
+   Animations & Micro-interactions
+   ========================================= */
+.animate-fade-in {
+    animation: fadeIn 0.8s ease-out forwards;
+}
+
+/* States for IntersectionObserver */
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.scroll-reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Staggered entry delays */
+.stagger-1 { transition-delay: 0.1s; }
+.stagger-2 { transition-delay: 0.2s; }
+.stagger-3 { transition-delay: 0.3s; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
