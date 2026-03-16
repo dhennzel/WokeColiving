@@ -636,16 +636,6 @@ if (isset($_POST['confirm_booking'])) {
                             <small id="availability_status" class="fw-bold mt-1 d-block"></small>
                         </div>
 
-                        <div class="mb-3" id="specific_room_selection_div">
-                            <label class="form-label">Select Specific Room (Optional)</label>
-                            <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-outline-success btn-sm" onclick="openRoomSelectionModal()"><i class="fas fa-door-open me-1"></i> Choose Room</button>
-                                <span id="selected_room_display" class="fw-bold text-success ms-2">Auto Assign</span>
-                            </div>
-                            <input type="hidden" name="specific_room_id" id="specific_room_id" value="">
-                            <small class="text-muted d-block mt-1">If no room is selected, the system will auto-assign one for you.</small>
-                        </div>
-
                         <div class="mb-3" id="bed_pref_div" style="display:none;">
                             <label class="form-label">Bed Preference</label>
                             <?php if(isset($_GET['bed_preference']) && in_array($_GET['bed_preference'], ['Lower Bunk', 'Upper Bunk'])): ?>
@@ -786,40 +776,6 @@ if (isset($_POST['confirm_booking'])) {
     </form>
 </div>
 
-<!-- Room Selection Modal -->
-<div class="modal fade" id="roomSelectionModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold"><i class="fas fa-door-open me-2"></i>Select a Room</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body bg-light">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <p class="mb-0">Showing available rooms for: <strong id="modalRoomTypeDisplay"></strong></p>
-                    <div class="d-flex align-items-center">
-                        <label class="small fw-bold me-2 text-muted">Filter Floor:</label>
-                        <select id="roomModalFloorFilter" class="form-select form-select-sm" style="width: 120px;" onchange="renderRoomGrid()">
-                            <option value="all">All Floors</option>
-                            <?php for($i=2; $i<=7; $i++): ?>
-                                <option value="<?= $i ?>"><?= $i ?>th Floor</option>
-                            <?php endfor; ?>
-                        </select>
-                    </div>
-                </div>
-                <div class="row g-3" id="userRoomSelectionGrid">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <div class="me-auto">
-                    <button type="button" class="btn btn-sm btn-link text-decoration-none text-danger fw-bold" onclick="clearRoomSelection()">Clear Selection (Auto Assign)</button>
-                </div>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Notification Sound -->
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -919,7 +875,6 @@ function confirmReservation() {
             if(!userGender) {
                 statusSpan.innerHTML = '<i class="fas fa-exclamation-circle"></i> Please select your Sex/Gender first';
                 statusSpan.className = 'fw-bold mt-1 d-block text-warning';
-                clearRoomSelection();
                 return;
             }
 
@@ -964,7 +919,6 @@ function confirmReservation() {
                     } else {
                         statusSpan.innerHTML = '<i class="fas fa-times-circle"></i> Fully Booked (Waitlist available on submit)';
                         statusSpan.className = 'fw-bold mt-1 d-block text-danger';
-                        clearRoomSelection();
                     }
                 });
         }
@@ -980,143 +934,6 @@ function confirmReservation() {
             let bedSelect = document.querySelector('select[name="bed_preference"]');
             if(bedSelect) bedSelect.value = 'Any';
         }
-    }
-
-    function openRoomSelectionModal() {
-        let type = document.getElementById('troom').value;
-        let cin = document.getElementById('cin').value;
-        let cout = document.getElementById('cout').value;
-        let genderEl = document.querySelector('[name="gender"]');
-        let userGender = genderEl ? genderEl.value : '';
-        
-        if(!type || !cin || !cout) {
-            Swal.fire('Incomplete Details', 'Please select a room type, check-in, and check-out dates first.', 'warning');
-            return;
-        }
-
-        if(!userGender) {
-            Swal.fire('Incomplete Details', 'Please select your Sex/Gender first.', 'warning');
-            return;
-        }
-        
-        document.getElementById('modalRoomTypeDisplay').innerText = type;
-        
-        let modalEl = document.getElementById('roomSelectionModal');
-        let modalObj = bootstrap.Modal.getOrCreateInstance(modalEl);
-        modalObj.show();
-        
-        const grid = document.getElementById('userRoomSelectionGrid');
-        grid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-success" role="status"></div><p class="mt-2 text-muted">Loading available rooms...</p></div>';
-
-        fetch(`get_rooms.php?checkin=${cin}&checkout=${cout}`)
-            .then(response => response.json())
-            .then(data => {
-                window.availableRoomsData = data;
-                renderRoomGrid();
-            })
-            .catch(error => {
-                grid.innerHTML = '<div class="col-12 text-center text-danger py-4"><i class="fas fa-exclamation-circle fa-2x mb-2"></i><br>Error loading rooms. Please try again.</div>';
-            });
-    }
-
-    function renderRoomGrid() {
-        const grid = document.getElementById('userRoomSelectionGrid');
-        const type = document.getElementById('troom').value;
-        const floorFilter = document.getElementById('roomModalFloorFilter').value;
-        const bedPref = document.querySelector('[name="bed_preference"]')?.value || 'Any';
-        const selectedId = document.getElementById('specific_room_id').value;
-        const genderEl = document.querySelector('[name="gender"]');
-        const userGender = genderEl ? genderEl.value : '';
-
-        grid.innerHTML = '';
-
-        if(!window.availableRoomsData) return;
-
-        let filteredRooms = window.availableRoomsData.filter(r => r.room_type === type && (bedPref === 'Whole Room' || r.gender === userGender));
-
-        if(floorFilter !== 'all') {
-            filteredRooms = filteredRooms.filter(r => r.floor == floorFilter);
-        }
-
-        if(filteredRooms.length === 0) {
-            grid.innerHTML = '<div class="col-12 text-center text-muted py-4">No rooms available for the selected criteria.</div>';
-            return;
-        }
-
-        filteredRooms.forEach(room => {
-            let isAvailable = false;
-            if (bedPref === 'Lower Bunk') isAvailable = room.avail_lower > 0;
-            else if (bedPref === 'Upper Bunk') isAvailable = room.avail_upper > 0;
-            else if (bedPref === 'Whole Room') isAvailable = (room.available_beds == room.total_beds);
-            else isAvailable = (room.available_beds > 0);
-
-            if(!isAvailable) return;
-
-            let displayName = room.room_number ? `Room ${room.room_number}` : (!isNaN(room.room_name) ? `Room ${room.room_name}` : room.room_name);
-            let isSelected = selectedId == room.room_id ? 'selected' : '';
-            
-            let genderIcon = room.gender === 'Female' ? 'fa-venus text-danger' : 'fa-mars text-primary';
-            let genderText = room.gender === 'Female' ? 'Female Only' : 'Male Only';
-            if (bedPref === 'Whole Room') {
-                genderIcon = 'fa-venus-mars text-success';
-                genderText = 'Any (Whole Room)';
-            }
-
-            let detailsHtml = '';
-            if(room.room_type !== 'Single') {
-                detailsHtml += `<div class="d-flex justify-content-between"><span class="text-muted">Upper:</span> <span class="${room.avail_upper > 0 ? 'text-success fw-bold' : 'text-danger'}">${room.avail_upper} left</span></div>`;
-                detailsHtml += `<div class="d-flex justify-content-between"><span class="text-muted">Lower:</span> <span class="${room.avail_lower > 0 ? 'text-success fw-bold' : 'text-danger'}">${room.avail_lower} left</span></div>`;
-            }
-
-            let cardHtml = `
-                <div class="col-md-6 col-lg-4">
-                    <div class="card room-card-option shadow-sm ${isSelected}" onclick="selectSpecificRoom(${room.room_id}, '${displayName.replace(/'/g, "\\'")}')">
-                        <img src="../assets/images/${room.image}" class="card-img-top" alt="${room.room_name}">
-                        <div class="card-body d-flex flex-column p-3">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="fw-bold text-dark mb-0">${displayName}</h6>
-                                <div>
-                                    <span class="badge bg-light text-dark border me-1"><i class="fas ${genderIcon}"></i> ${genderText}</span>
-                                    <span class="badge bg-light text-dark border">${room.floor || 2}F</span>
-                                </div>
-                            </div>
-                            <div class="mb-2 small text-muted">
-                                <div class="d-flex justify-content-between mb-1"><span>Total Beds:</span> <strong>${room.total_beds}</strong></div>
-                                ${detailsHtml}
-                            </div>
-                            <div class="mt-auto text-center">
-                                <span class="badge bg-success w-100 py-2">${room.available_beds} Beds Free</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            grid.innerHTML += cardHtml;
-        });
-        
-        if (grid.innerHTML === '') {
-            grid.innerHTML = '<div class="col-12 text-center text-muted py-4"><i class="fas fa-search fa-2x mb-2 opacity-50"></i><br>No rooms match your specific bed preference on this floor.</div>';
-        }
-    }
-
-    function selectSpecificRoom(id, name) {
-        document.getElementById('specific_room_id').value = id;
-        document.getElementById('selected_room_display').innerText = name;
-        renderRoomGrid();
-        
-        let modalEl = document.getElementById('roomSelectionModal');
-        let modalObj = bootstrap.Modal.getOrCreateInstance(modalEl);
-        if(modalObj) modalObj.hide();
-    }
-
-    function clearRoomSelection() {
-        document.getElementById('specific_room_id').value = "";
-        document.getElementById('selected_room_display').innerText = "Auto Assign";
-        renderRoomGrid();
-        
-        let modalEl = document.getElementById('roomSelectionModal');
-        let modalObj = bootstrap.Modal.getOrCreateInstance(modalEl);
-        if(modalObj) modalObj.hide();
     }
 
     function togglePaymentDetails() {

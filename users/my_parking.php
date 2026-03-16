@@ -48,6 +48,9 @@ $theme = get_theme_colors($conn);
         body.night-mode .text-dark { color: #e0e0e0 !important; }
         body.night-mode .text-muted { color: #b0b0b0 !important; }
         body.night-mode .table { color: #e0e0e0; }
+        body.night-mode .table thead th { background-color: #1f1f1f; border-color: #333; }
+        body.night-mode .table td, body.night-mode .table th { background-color: #1e1e1e; border-color: #333; }
+        body.night-mode .table-hover tbody tr:hover > * { background-color: #2c2c2c; }
     </style>
 </head>
 <body class="<?= ($user_info['night_mode'] == 1) ? 'night-mode' : '' ?>">
