@@ -28,7 +28,17 @@ if (isset($current_page)) {
         $search_placeholder = 'Search logs...';
     }
 }
+
+// Calculate accurate total notifications based on all modules
+$top_pending_res = $pending_res ?? ($pending_count ?? 0);
+$top_pending_maint = $pending_maint ?? 0;
+$top_pending_house = $pending_house ?? 0;
+$top_del_req = $del_req_count ?? 0;
+$total_notifications = $top_pending_res + $top_pending_maint + $top_pending_house + $top_del_req;
 ?>
+<div id="navbar-restore-trigger" class="navbar-restore-trigger" title="Restore Navbar">
+    <i class="fas fa-chevron-down"></i>
+</div>
 <header class="top-navbar">
     <div class="navbar-left">
         <form action="<?= htmlspecialchars($search_action) ?>" method="GET" class="search-bar d-none d-md-flex">
@@ -38,12 +48,33 @@ if (isset($current_page)) {
     </div>
     
     <div class="navbar-right">
-        <button class="icon-btn notification-btn">
-            <i class="fas fa-bell"></i>
-            <?php if(isset($pending_count) && $pending_count > 0): ?>
-                <span class="badge"><?= $pending_count ?></span>
-            <?php endif; ?>
-        </button>
+        <div class="dropdown">
+            <button class="icon-btn notification-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-bell"></i>
+                <?php if($total_notifications > 0): ?>
+                    <span class="badge"><?= $total_notifications ?></span>
+                <?php endif; ?>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-3" style="width: 260px;">
+                <li class="px-3 py-2 border-bottom bg-light fw-bold small text-muted text-uppercase">Pending Actions</li>
+                <?php if($total_notifications > 0): ?>
+                    <?php if($top_pending_res > 0): ?>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="booking_management.php?status=Pending"><span class="small fw-bold"><i class="fas fa-calendar-check text-warning me-2"></i> Bookings & Payments</span> <span class="badge bg-warning text-dark rounded-pill" style="box-shadow: none !important;"><?= $top_pending_res ?></span></a></li>
+                    <?php endif; ?>
+                    <?php if($top_pending_maint > 0): ?>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_maintenance.php"><span class="small fw-bold"><i class="fas fa-wrench text-danger me-2"></i> Maintenance</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_pending_maint ?></span></a></li>
+                    <?php endif; ?>
+                    <?php if($top_pending_house > 0): ?>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_housekeeping.php"><span class="small fw-bold"><i class="fas fa-broom text-info me-2"></i> Housekeeping</span> <span class="badge bg-info text-dark rounded-pill" style="box-shadow: none !important;"><?= $top_pending_house ?></span></a></li>
+                    <?php endif; ?>
+                    <?php if($top_del_req > 0): ?>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_deletion_requests.php"><span class="small fw-bold"><i class="fas fa-user-times text-danger me-2"></i> Deletion Requests</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_del_req ?></span></a></li>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <li><span class="dropdown-item text-muted small text-center py-3">No pending actions</span></li>
+                <?php endif; ?>
+            </ul>
+        </div>
         
         <div class="profile-dropdown">
             <div class="profile-toggle" id="profileToggle">

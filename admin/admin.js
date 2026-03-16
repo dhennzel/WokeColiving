@@ -27,6 +27,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Top Navbar Hide/Show Logic ---
+    const topNavbar = document.querySelector('.top-navbar');
+    const restoreTrigger = document.getElementById('navbar-restore-trigger');
+
+    if (topNavbar && restoreTrigger) {
+        // Double click to hide
+        topNavbar.addEventListener('dblclick', (e) => {
+            // Don't trigger if clicking inside an interactive element
+            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('a') || e.target.closest('.profile-dropdown')) {
+                return;
+            }
+            
+            // Clear text selection in case user highlighted text accidentally
+            if (window.getSelection) {
+                window.getSelection().removeAllRanges();
+            }
+
+            topNavbar.classList.add('hidden-navbar');
+            restoreTrigger.classList.add('show-trigger');
+            localStorage.setItem('topNavbarHidden', 'true');
+        });
+
+        // Click pull-tab to restore
+        restoreTrigger.addEventListener('click', () => {
+            topNavbar.classList.remove('hidden-navbar');
+            restoreTrigger.classList.remove('show-trigger');
+            localStorage.setItem('topNavbarHidden', 'false');
+        });
+
+        // Initialize state from local storage
+        if (localStorage.getItem('topNavbarHidden') === 'true') {
+            topNavbar.classList.add('hidden-navbar');
+            restoreTrigger.classList.add('show-trigger');
+        }
+    }
+
     // --- Profile Dropdown Logic ---
     const profileToggle = document.getElementById('profileToggle');
     const profileMenu = document.getElementById('profileMenu');
