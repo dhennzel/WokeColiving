@@ -727,7 +727,7 @@ function get_room_occupancy_status($conn, $room_id) {
 if (!function_exists('get_room_occupants')) {
 function get_room_occupants($conn, $room_id) {
     $query = mysqli_query($conn, "
-        SELECT r.reservation_id, r.start_date, r.end_date, r.bed_preference, r.status,
+        SELECT r.reservation_id, r.start_date, r.end_date, r.bed_preference, r.status, u.gender,
                u.user_id, u.first_name, u.last_name, u.middle_name, u.profile_image,
                CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name
         FROM reservations r
@@ -838,7 +838,7 @@ function return_room_key($conn, $trans_id) {
         mysqli_query($conn, "UPDATE key_transactions SET status='Returned', returned_at=NOW() WHERE id=$trans_id");
         mysqli_query($conn, "UPDATE `keys` SET status='Available' WHERE id=$key_id");
         
-        send_notification($conn, $t['user_id'], "🔑 <strong>Key Returned</strong><br>Key has been marked as returned.", "Key System");
+        send_notification($conn, $t['user_id'], "🔑 <strong>Key Returned</strong><br>Your key has been marked as returned.", "Key System");
         trigger_update($conn);
         return true;
     }

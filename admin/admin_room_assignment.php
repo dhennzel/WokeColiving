@@ -87,6 +87,7 @@ $theme = get_theme_colors($conn);
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="admin.css">
     <style>
+        .user-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--primary-green); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         .card-room-select { transition: transform 0.2s; cursor: default; }
         .card-room-select:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -258,6 +259,23 @@ $theme = get_theme_colors($conn);
                                 } else {
                                     $avail_upper = 0; $avail_lower = 0;
                                 }
+
+                                // Determine room gender based on occupants
+                                $occupant_genders = array_column($room['occupants'], 'gender');
+                                $occupant_genders = array_filter($occupant_genders);
+                                $unique_genders = array_unique($occupant_genders);
+                                $room_gender_status = $room['gender']; // Default to room's setting
+                                $gender_icon = 'fa-question-circle';
+
+                                if (count($unique_genders) === 1) {
+                                    $room_gender_status = $unique_genders[0];
+                                }
+
+                                if ($room_gender_status == 'Female') {
+                                    $gender_icon = 'fa-venus text-danger';
+                                } elseif ($room_gender_status == 'Male') {
+                                    $gender_icon = 'fa-mars text-primary';
+                                }
                             ?>
                             <div class="col-md-4 col-lg-3 room-card-item" data-floor="<?= $room['floor'] ?>">
                                 <div class="card card-room-select h-100 shadow-sm border-0">
@@ -265,7 +283,10 @@ $theme = get_theme_colors($conn);
                                     <div class="card-body p-3 d-flex flex-column">
                                         <div class="d-flex justify-content-between align-items-start mb-2">
                                             <h6 class="fw-bold mb-0"><?= $room_display ?></h6>
-                                            <span class="badge bg-light text-dark border"><?= $room['floor'] ?>F</span>
+                                            <div>
+                                                <span class="badge bg-light text-dark border" title="<?= $room_gender_status ?> Room"><i class="fas <?= $gender_icon ?>"></i></span>
+                                                <span class="badge bg-light text-dark border"><?= $room['floor'] ?>F</span>
+                                            </div>
                                         </div>
                                         <div class="mb-3">
                                             <?php if($room['availability'] == 'Maintenance'): ?>

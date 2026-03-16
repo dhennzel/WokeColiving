@@ -313,13 +313,6 @@ $theme = get_theme_colors($conn);
     </style>
 </head>
 <body>
-<script>
-    const currentAdminUser = "<?= htmlspecialchars($admin_username ?? 'admin', ENT_QUOTES, 'UTF-8') ?>";
-    window.currentAdminUser = currentAdminUser;
-    if(localStorage.getItem('adminNightMode_' + currentAdminUser) === 'enabled') {
-        document.body.classList.add('night-mode');
-    }
-</script>
 <div class="dashboard-container">
     <?php include 'admin_sidebar.php'; ?>
     <div class="main-wrapper">
@@ -346,7 +339,7 @@ $theme = get_theme_colors($conn);
                     <?php endif; ?>
                 </div>
                 <div class="flex-grow-1">
-                    <h3 class="fw-bold mb-1 text-dark"><?= htmlspecialchars(ucwords(strtolower($user['full_name']))) ?></h3>
+                    <h3 class="fw-bold mb-1 text-dark"><?= htmlspecialchars($user['full_name']) ?></h3>
                     <div class="d-flex flex-wrap gap-3 text-muted small">
                         <span><i class="fas fa-envelope me-1"></i> <?= htmlspecialchars($user['email']) ?></span>
                         <span><i class="fas fa-phone me-1"></i> <?= htmlspecialchars($user['phone_number']) ?></span>
@@ -532,7 +525,7 @@ $theme = get_theme_colors($conn);
                                     <th>Room</th>
                                     <th>End Date</th>
                                     <th>Days Left</th>
-                                    <th class="text-center">Action</th>
+                                    <th class="text-end">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -551,7 +544,7 @@ $theme = get_theme_colors($conn);
                                     </td>
                                     <td><?= $exp['end_date'] ?></td>
                                     <td class="<?= $text_class ?>"><?= $status_text ?></td>
-                                    <td class="text-center">
+                                    <td class="text-end">
                                         <button onclick="renewContract(<?= $exp['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt me-1"></i> Renew</button>
                                         <a href="booking_management.php?action=terminate&id=<?= $exp['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract? This will mark it as Completed.')"><i class="fas fa-file-contract me-1"></i> End Contract</a>
                                     </td>
@@ -600,7 +593,7 @@ $theme = get_theme_colors($conn);
                                         <th>Dates</th>
                                         <th>Status</th>
                                         <th>Total</th>
-                                        <th class="text-center">Actions</th>
+                                        <th class="text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -634,30 +627,28 @@ $theme = get_theme_colors($conn);
                                             <span class="badge <?= $badge ?>"><?= $row['status'] ?></span>
                                         </td>
                                         <td>₱<?= number_format($row['total_price'], 2) ?></td>
-                                        <td class="text-center">
-                                            <?php if($row['status'] == 'Pending'): ?>
-                                                <a href="booking_management.php?action=verify&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-info text-white" onclick="confirmAction(event, this.href, 'Move this reservation to Verifying status?')" title="Verify"><i class="fas fa-search"></i></a>
-                                                <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')" title="Reject"><i class="fas fa-times"></i></a>
-                                            <?php elseif($row['status'] == 'Verifying'): ?>
+                                        <td class="text-end">
+                                            <?php if($row['status'] == 'Pending' || $row['status'] == 'Verifying'): ?>
                                                 <?php
                                                     // Check Payment
                                                     $pay_chk = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM payments WHERE reservation_id=".$row['reservation_id']." AND payment_status='Paid'");
                                                     $is_paid = mysqli_fetch_assoc($pay_chk)['cnt'] > 0;
                                                     // Check Signature
                                                     $has_sig = !empty($row['signature_image']);
+                                                    $is_pending = $row['status'] == 'Pending';
                                                 ?>
-                                                <div class="d-flex justify-content-center gap-1">
+                                                <div class="d-flex justify-content-end gap-1">
                                                     <?php if(!empty($row['extended_from'])): ?>
                                                         <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this extension?')" title="Approve"><i class="fas fa-check"></i></a>
-                                                    <?php elseif(isset($row['auto_assigned']) && $row['auto_assigned'] == 1): ?>
-                                                        <button type="button" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, '<?= $row['room_type'] ?>')" title="Approve & Assign Room"><i class="fas fa-check"></i></button>
                                                     <?php else: ?>
-                                                        <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this reservation?')" title="Approve"><i class="fas fa-check"></i></a>
+                                                        <button type="button" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, '<?= $row['room_type'] ?>', <?= $row['room_id'] ?>)" title="Approve & Assign Room"><i class="fas fa-check"></i> Approve</button>
                                                     <?php endif; ?>
                                                     <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')" title="Reject"><i class="fas fa-times"></i></a>
                                                 </div>
-                                                <?php if(!$is_paid || !$has_sig): ?>
-                                                    <div class="small text-danger mt-1 text-center" style="font-size: 0.7rem;">
+                                                <?php if($is_pending): ?>
+                                                    <div class="small text-warning mt-1 text-end" style="font-size: 0.7rem;"><i class="fas fa-clock"></i> Pending Review</div>
+                                                <?php elseif(!$is_paid || !$has_sig): ?>
+                                                    <div class="small text-danger mt-1 text-end" style="font-size: 0.7rem;">
                                                         <i class="fas fa-exclamation-triangle"></i> <?= !$is_paid ? 'Unpaid' : '' ?> <?= (!$is_paid && !$has_sig) ? '&' : '' ?> <?= !$has_sig ? 'No Sig' : '' ?>
                                                     </div>
                                                 <?php endif; ?>
@@ -719,7 +710,7 @@ $theme = get_theme_colors($conn);
                                 <th>Amount</th>
                                 <th>Status</th>
                                 <th>Details</th>
-                                <th class="text-center">Actions</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -771,9 +762,9 @@ $theme = get_theme_colors($conn);
                                         <?php endif; ?>
                                     </a>
                                 </td>
-                                <td class="text-center">
+                                <td class="text-end">
                                     <?php if($pay['payment_status'] == 'Unpaid'): ?>
-                                        <div class="d-flex justify-content-center gap-1">
+                                        <div class="d-flex justify-content-end gap-1">
                                             <a href="booking_management.php?action=mark_paid&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" title="Approve Payment" onclick="confirmAction(event, this.href, 'Approve this payment as Paid?')"><i class="fas fa-check"></i></a>
                                             <?php if(!empty($pay['proof_image'])): ?>
                                                 <a href="booking_management.php?action=reject_payment&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-warning text-dark" title="Reject Payment Proof (Re-upload)" onclick="confirmAction(event, this.href, 'Reject this payment proof? The guest will have to re-upload.')"><i class="fas fa-undo"></i></a>
@@ -916,7 +907,7 @@ $theme = get_theme_colors($conn);
                             $is_full = $avail <= 0;
                         ?>
                         <div class="col-md-4 col-lg-3 approve-room-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>">
-                            <div class="card card-room-select h-100 shadow-sm" onclick="selectApproveRoom(this, <?= $room['room_id'] ?>)">
+                            <div class="card card-room-select h-100 shadow-sm" id="room_select_<?= $room['room_id'] ?>" onclick="selectApproveRoom(this, <?= $room['room_id'] ?>)">
                                 <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>">
                                 <div class="card-body p-2 text-center">
                                     <div class="fw-bold"><?= $room['room_name'] ?></div>
@@ -1127,13 +1118,24 @@ function confirmBulkPaid() {
 
 let currentApproveType = '';
 
-function openApproveModal(resId, type) {
+function openApproveModal(resId, type, currentRoomId = null) {
     document.getElementById('approveResId').value = resId;
     document.getElementById('modalRoomType').innerText = type;
     currentApproveType = type;
     
     filterApproveRooms();
     new bootstrap.Modal(document.getElementById('approveRoomModal')).show();
+
+    // Reset and select current if available
+    document.querySelectorAll('.card-room-select').forEach(c => c.classList.remove('selected'));
+    document.getElementById('approveRoomId').value = "";
+    document.getElementById('btnApproveConfirm').disabled = true;
+
+    // Highlight current room selection
+    if(currentRoomId) {
+        const card = document.getElementById('room_select_' + currentRoomId);
+        if(card) selectApproveRoom(card, currentRoomId);
+    }
 }
 
 function filterApproveRooms() {

@@ -149,7 +149,7 @@ if(isset($_GET['action'])){
         $res_q = mysqli_query($conn, "SELECT * FROM reservations WHERE reservation_id=$reservation_id");
         $res_data = mysqli_fetch_assoc($res_q);
         
-        if($res_data && $res_data['status'] == 'Verifying'){
+        if($res_data && in_array($res_data['status'], ['Pending', 'Verifying'])){
             $target_user_id = $res_data['user_id'];
             $current_room_id = $res_data['room_id'];
             $s_date = $res_data['start_date'];
