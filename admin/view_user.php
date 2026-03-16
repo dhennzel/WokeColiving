@@ -313,6 +313,13 @@ $theme = get_theme_colors($conn);
     </style>
 </head>
 <body>
+<script>
+    const currentAdminUser = "<?= htmlspecialchars($admin_username ?? 'admin', ENT_QUOTES, 'UTF-8') ?>";
+    window.currentAdminUser = currentAdminUser;
+    if(localStorage.getItem('adminNightMode_' + currentAdminUser) === 'enabled') {
+        document.body.classList.add('night-mode');
+    }
+</script>
 <div class="dashboard-container">
     <?php include 'admin_sidebar.php'; ?>
     <div class="main-wrapper">

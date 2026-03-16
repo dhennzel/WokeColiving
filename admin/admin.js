@@ -81,6 +81,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Admin Night Mode Toggle ---
+    const adminNightModeToggle = document.getElementById('adminNightModeToggle');
+    const adminUser = window.currentAdminUser || 'admin';
+    const nightModeKey = 'adminNightMode_' + adminUser;
+
+    // Initialize state globally immediately on load so it works on every page
+    if (localStorage.getItem(nightModeKey) === 'enabled') {
+        document.body.classList.add('night-mode');
+    }
+
+    if (adminNightModeToggle) {
+        adminNightModeToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.body.classList.toggle('night-mode');
+            const isNight = document.body.classList.contains('night-mode');
+            localStorage.setItem(nightModeKey, isNight ? 'enabled' : 'disabled');
+            
+            // Toggle icon and text
+            if (isNight) {
+                adminNightModeToggle.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
+            } else {
+                adminNightModeToggle.innerHTML = '<i class="fas fa-moon"></i> Night Mode';
+            }
+        });
+
+        if (localStorage.getItem(nightModeKey) === 'enabled') {
+            adminNightModeToggle.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
+        }
+    }
+
     // --- Modal Handling Logic ---
     const actionModal = document.getElementById('actionModal');
     const openModalBtn = document.getElementById('openModalBtn');

@@ -1,4 +1,5 @@
 /* admin.css - Woke Coliving Admin Dashboard */
+@import url('admin_night_mode.css');
 
 :root {
     /* FIXED: Added missing dark green variable for 3D buttons and headers */

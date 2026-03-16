@@ -339,6 +339,11 @@ $theme = get_theme_colors($conn);
 </div>
 
 <script>
+const currentAdminUser = "<?= htmlspecialchars($_SESSION['admin_username'] ?? 'admin', ENT_QUOTES) ?>";
+if(localStorage.getItem('adminNightMode_' + currentAdminUser) === 'enabled') {
+    document.body.classList.add('night-mode');
+}
+
 function confirmResetSig() {
     Swal.fire({
         title: 'Reset Signature?',

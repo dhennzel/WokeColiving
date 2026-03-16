@@ -257,13 +257,14 @@ function checkUpdates() {
 setInterval(checkUpdates, 3000); // Check every 3 seconds
 
 // Night Mode Logic
-if(localStorage.getItem('nightMode') === 'enabled') {
+const currentUserId = "<?= $user_id ?>";
+if(localStorage.getItem('nightMode_' + currentUserId) === 'enabled') {
     document.body.classList.add('night-mode');
 }
 
 // Sync Night Mode across tabs
 window.addEventListener('storage', (e) => {
-    if (e.key === 'nightMode') {
+    if (e.key === 'nightMode_' + currentUserId) {
         if (e.newValue === 'enabled') document.body.classList.add('night-mode');
         else document.body.classList.remove('night-mode');
     }

@@ -244,7 +244,8 @@ setInterval(fetchNotifications, 5000);
 fetchNotifications(); // Initial load
 
 // Night Mode Logic
-if(localStorage.getItem('nightMode') === 'enabled') {
+const currentUserId = "<?= $user_id ?>";
+if(localStorage.getItem('nightMode_' + currentUserId) === 'enabled') {
     document.body.classList.add('night-mode');
 }
 </script>

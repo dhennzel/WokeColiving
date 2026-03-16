@@ -545,17 +545,18 @@ if(isset($_SESSION['user_id'])){
     fetchNotifications(); // Initial load
 
     // Night Mode Logic
+    const currentUserId = "<?= $_SESSION['user_id'] ?>";
     <?php if(isset($_SESSION['night_mode'])): ?>
         // Sync LocalStorage with DB preference
-        if(<?= $_SESSION['night_mode'] ?> === 1) localStorage.setItem('nightMode', 'enabled');
-        else localStorage.setItem('nightMode', 'disabled');
+        if(<?= $_SESSION['night_mode'] ?> === 1) localStorage.setItem('nightMode_' + currentUserId, 'enabled');
+        else localStorage.setItem('nightMode_' + currentUserId, 'disabled');
     <?php else: ?>
-        if(localStorage.getItem('nightMode') === 'enabled') document.body.classList.add('night-mode');
+        if(localStorage.getItem('nightMode_' + currentUserId) === 'enabled') document.body.classList.add('night-mode');
     <?php endif; ?>
 
     // Sync Night Mode across tabs
     window.addEventListener('storage', (e) => {
-        if (e.key === 'nightMode') {
+        if (e.key === 'nightMode_' + currentUserId) {
             if (e.newValue === 'enabled') document.body.classList.add('night-mode');
             else document.body.classList.remove('night-mode');
         }

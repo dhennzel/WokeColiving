@@ -326,6 +326,7 @@ $theme = get_theme_colors($conn);
     <link rel="stylesheet" href="admin_CSS/admin_style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="Admin_JS/add_reservation.js"></script>
+    <link rel="stylesheet" href="admin.css">
     <style>
         :root {
             --primary-green: <?= $theme['primary'] ?>;
@@ -344,12 +345,19 @@ $theme = get_theme_colors($conn);
     </style>
 </head>
 <body>
+<script>
+    const currentAdminUser = "<?= htmlspecialchars($admin_username ?? 'admin', ENT_QUOTES, 'UTF-8') ?>";
+    window.currentAdminUser = currentAdminUser; // Supply var to admin.js
+    if(localStorage.getItem('adminNightMode_' + currentAdminUser) === 'enabled') {
+        document.body.classList.add('night-mode');
+    }
+</script>
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card card-form">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="fw-bold mb-0" style="color: #1B5E20;">Create Manual Reservation</h3>
+                    <h3 class="fw-bold mb-0 text-success">Create Manual Reservation</h3>
                     <a href="admin_dashboard.php" class="btn btn-outline-secondary rounded-pill">&larr; Back</a>
                 </div>
 
@@ -543,6 +551,7 @@ $theme = get_theme_colors($conn);
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="admin.js"></script>
 <script>
 const roomPrices = <?= json_encode($room_prices_js) ?>;
 
