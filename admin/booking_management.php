@@ -260,6 +260,16 @@ if(isset($_GET['type']) && !empty($_GET['type'])){
         $where_clause .= " AND u.is_walkin = 0";
     }
 }
+if(isset($_GET['term']) && !empty($_GET['term'])){
+    $term_filter = $_GET['term'];
+    if($term_filter == 'Long'){
+        $where_clause .= " AND r.months >= 6";
+    } elseif($term_filter == 'Short'){
+        $where_clause .= " AND r.months < 6 AND DATEDIFF(r.end_date, r.start_date) >= 28";
+    } elseif($term_filter == 'Daily'){
+        $where_clause .= " AND DATEDIFF(r.end_date, r.start_date) < 28";
+    }
+}
 
 // Fetch Reservations with Filters
 $sql = "
@@ -332,6 +342,12 @@ $theme = get_theme_colors($conn);
                             <option value="">All Types</option>
                             <option value="Ordinary" <?= (isset($_GET['type']) && $_GET['type']=='Ordinary')?'selected':'' ?>>Ordinary</option>
                             <option value="Walkin" <?= (isset($_GET['type']) && $_GET['type']=='Walkin')?'selected':'' ?>>Walk-in</option>
+                        </select>
+                        <select name="term" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Terms</option>
+                            <option value="Long" <?= (isset($_GET['term']) && $_GET['term']=='Long')?'selected':'' ?>>Long-term</option>
+                            <option value="Short" <?= (isset($_GET['term']) && $_GET['term']=='Short')?'selected':'' ?>>Short-term</option>
+                            <option value="Daily" <?= (isset($_GET['term']) && $_GET['term']=='Daily')?'selected':'' ?>>Daily</option>
                         </select>
                         <input type="text" name="search" class="form-control form-control-sm" placeholder="Search..." value="<?= $_GET['search'] ?? '' ?>">
                         <button class="btn btn-sm btn-custom"><i class="fas fa-search"></i></button>

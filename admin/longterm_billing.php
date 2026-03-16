@@ -154,12 +154,33 @@ $theme = get_theme_colors($conn);
                                     <button class="btn btn-sm btn-custom" onclick="openBillModal(<?= $rid ?>, '<?= addslashes($row['full_name']) ?>', <?= $prev_e ?>, <?= $prev_w ?>)">
                                         <i class="fas fa-file-invoice-dollar me-2"></i>Generate Bill
                                     </button>
+                                    <button type="button" class="btn btn-sm btn-outline-info ms-1" onclick="openHistoryModal(<?= $rid ?>)">
+                                        <i class="fas fa-history me-1"></i> History
+                                    </button>
                                 </td>
                             </tr>
                             <?php } ?>
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-history me-2"></i>Utility Bill History</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="historyModalBody">
+                <!-- History content will be loaded here via AJAX -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -218,6 +239,55 @@ function openBillModal(id, name, prevE, prevW) {
     document.getElementById('w_start').value = prevW;
     new bootstrap.Modal(document.getElementById('billModal')).show();
 }
+
+function openHistoryModal(resId) {
+    const modalBody = document.getElementById('historyModalBody');
+    modalBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Loading history...</p></div>';
+    
+    var myModal = new bootstrap.Modal(document.getElementById('historyModal'));
+    myModal.show();
+    
+    fetch('get_utility_history.php?reservation_id=' + resId)
+        .then(response => response.text())
+        .then(html => {
+            modalBody.innerHTML = html;
+        })
+        .catch(error => {
+            modalBody.innerHTML = '<div class="alert alert-danger">Failed to load history. Please try again.</div>';
+        });
+}
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php')
+    .then(r => r.text())
+    .then(t => {
+        if(lastUpdate == 0) lastUpdate = t;
+        else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000); // Check every 3 seconds
+
+// Parent Sidebar Badges
+document.addEventListener('DOMContentLoaded', function() {
+    ['frontDeskSubmenu', 'operationsSubmenu'].forEach(menuId => {
+        let menu = document.getElementById(menuId);
+        if (menu) {
+            let badges = menu.querySelectorAll('.badge');
+            let total = 0;
+            badges.forEach(b => total += parseInt(b.innerText) || 0);
+            if (total > 0) {
+                let link = document.querySelector(`[href="#${menuId}"]`);
+                if(link) {
+                    let icon = link.querySelector('.fa-chevron-down');
+                    if(icon) icon.insertAdjacentHTML('beforebegin', `<span class="badge bg-danger rounded-pill me-2 parent-badge">${total}</span>`);
+                    link.addEventListener('click', function() { let b = this.querySelector('.parent-badge'); if(b) b.style.setProperty('display', 'none', 'important'); });
+                }
+            }
+        }
+    });
+});
 </script>
 </body>
 </html>

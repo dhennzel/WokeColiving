@@ -557,12 +557,12 @@ if (isset($_POST['confirm_booking'])) {
                             <?php endif; ?>
                         </div>
                         <div class="mb-3" id="company_div" style="display: none;">
-                            <label class="form-label">Company Name*</label>
+                            <label class="form-label" id="company_label">Company / School Name*</label>
                             <?php if(!empty($user_company)): ?>
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($user_company) ?>" readonly>
                                 <input type="hidden" name="company" value="<?= htmlspecialchars($user_company) ?>">
                             <?php else: ?>
-                                <input type="text" name="company" id="company" class="form-control" placeholder="Enter your company name" required>
+                                <input type="text" name="company" id="company" class="form-control" placeholder="Enter your company or school name" required>
                             <?php endif; ?>
                         </div>
                         <!-- School ID Upload for Students -->
@@ -848,30 +848,32 @@ function toggleCompanyField() {
     var labelName = document.getElementById('label_emergency_name');
     var labelNumber = document.getElementById('label_emergency_number');
     
+    var companyLabel = document.getElementById('company_label');
+
     if (occupation && occupation.value === 'Employed') {
         companyDiv.style.display = 'block';
+        schoolIdDiv.style.display = 'none';
         if(companyInput) companyInput.required = true;
+        if(schoolIdInput) schoolIdInput.required = false;
+        if(companyLabel) companyLabel.innerText = "Company Name*";
+        if(companyInput) companyInput.placeholder = "Enter your company name";
         if(labelName) labelName.innerText = "Emergency Contact/Boss Name*";
         if(labelNumber) labelNumber.innerText = "Emergency Contact/Boss Contact Number*";
+    } else if (occupation && occupation.value === 'Student') {
+        companyDiv.style.display = 'block'; // Show for student
+        schoolIdDiv.style.display = 'block';
+        if(companyInput) companyInput.required = true;
+        if(schoolIdInput) schoolIdInput.required = <?= empty($user_school_id_image) ? 'true' : 'false' ?>;
+        if(companyLabel) companyLabel.innerText = "School Name*";
+        if(companyInput) companyInput.placeholder = "Enter your school name";
+        if(labelName) labelName.innerText = "Guardian Name*";
+        if(labelNumber) labelNumber.innerText = "Guardian Contact Number*";
     } else {
         companyDiv.style.display = 'none';
-        if(companyInput) companyInput.required = false;
-        if (occupation && occupation.value === 'Student') {
-            if(labelName) labelName.innerText = "Guardian Name*";
-            if(labelNumber) labelNumber.innerText = "Guardian Contact Number*";
-        } else {
-            if(labelName) labelName.innerText = "Emergency Contact Name*";
-            if(labelNumber) labelNumber.innerText = "Emergency Contact Number*";
-        }
-    }
-    
-    // Toggle School ID field for students
-    if (occupation && occupation.value === 'Student') {
-        schoolIdDiv.style.display = 'block';
-        if(schoolIdInput) schoolIdInput.required = true;
-    } else {
         schoolIdDiv.style.display = 'none';
-        if(schoolIdInput) schoolIdInput.required = false;
+        if(companyInput) companyInput.required = false;
+        if(labelName) labelName.innerText = "Emergency Contact Name*";
+        if(labelNumber) labelNumber.innerText = "Emergency Contact Number*";
     }
 }
 
