@@ -179,52 +179,6 @@ $u_query = mysqli_query($conn, "
 $user_info = mysqli_fetch_assoc($u_query);
 $user_info['full_name'] = $user_info['last_name'] . ', ' . $user_info['first_name'] . (!empty($user_info['middle_name']) ? ' ' . $user_info['middle_name'] : '');
 
-// Check for Outdated System Data using centralized function
-$compliance = check_system_compliance($conn, $user_id);
-$is_outdated = $compliance['is_outdated'];
-$update_reasons = $compliance['reasons'];
-$user_schema = $compliance['schema'];
-
-// Handle System Update Action
-if(isset($_GET['action']) && $_GET['action'] == 'system_update'){
-    // Fetch existing columns first
-    $user_columns_q = mysqli_query($conn, "SHOW COLUMNS FROM users");
-    $existing_user_columns = [];
-    while($col = mysqli_fetch_assoc($user_columns_q)) {
-        $existing_user_columns[] = $col['Field'];
-    }
-
-    // 0. Add missing columns to the database if they don't exist
-    // This ensures that new features defined in the schema are added to the DB.
-    // Note: The database user needs ALTER privileges for this to work.
-    foreach ($user_schema as $column => $details) {
-        if (!in_array($column, $existing_user_columns)) {
-            mysqli_query($conn, "ALTER TABLE users ADD COLUMN `$column` " . $details['type']);
-        }
-    }
-    // Re-fetch user info and existing columns after potential schema changes
-    $u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
-    $user_info = mysqli_fetch_assoc($u_query);
-    
-    $user_columns_q = mysqli_query($conn, "SHOW COLUMNS FROM users");
-    $existing_user_columns = [];
-    while($col = mysqli_fetch_assoc($user_columns_q)) {
-        $existing_user_columns[] = $col['Field'];
-    }
-
-
-    // 2. Initialize new/NULL columns based on schema
-    foreach ($user_schema as $column => $details) {
-        if (in_array($column, $existing_user_columns) && is_null($user_info[$column])) {
-            mysqli_query($conn, "UPDATE users SET `$column` = " . $details['default'] . " WHERE user_id=$user_id AND `$column` IS NULL");
-        }
-    }
-    
-    $_SESSION['swal'] = ['title' => 'System Updated', 'text' => 'Account data synchronized successfully.', 'icon' => 'success'];
-    header("Location: profile.php");
-    exit;
-}
-
 // Handle Mark as Read
 if(isset($_GET['read_all'])){
     mysqli_query($conn, "UPDATE notifications SET is_read=1 WHERE user_id=$user_id");
@@ -261,14 +215,6 @@ try {
     if($w_q) $c_wait = mysqli_fetch_assoc($w_q)['c'];
 } catch(Exception $e){}
 
-// Fetch System Updates History
-$sys_updates = [];
-$su_q = mysqli_query($conn, "SELECT * FROM system_updates ORDER BY release_date DESC LIMIT 10");
-if($su_q){
-    while($row = mysqli_fetch_assoc($su_q)){
-        $sys_updates[] = $row;
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -447,9 +393,8 @@ if($su_q){
         </div>
 
         <!-- Other Request -->
-        <?php if(isset($user_info['other_request_feature']) && $user_info['other_request_feature'] == 1): ?>
         <div class="col-md-3 reveal delay-8" data-card-id="other_request">
-            <a href="https://www.facebook.com/WOKEES/" target="_blank" class="text-decoration-none">
+            <a href="https://www.facebook.com/messages/t/109786470426283" target="_blank" class="text-decoration-none">
                 <div class="card profile-card h-100 p-5 text-center">
                     <div class="icon-box"><i class="fab fa-facebook-messenger"></i></div>
                     <h4 class="fw-bold text-dark mb-3">Other Request</h4>
@@ -457,7 +402,6 @@ if($su_q){
                 </div>
             </a>
         </div>
-        <?php endif; ?>
 
         <!-- User Customization -->
         <div class="col-md-3 reveal delay-9" data-card-id="customization">
@@ -470,96 +414,10 @@ if($su_q){
             </a>
         </div>
 
-        <!-- System Update -->
-        <div class="col-md-3 reveal delay-10" data-card-id="update">
-            <a href="javascript:void(0)" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#systemUpdateModal">
-                <div class="card profile-card h-100 p-5 text-center">
-                    <?php if($is_outdated): ?>
-                        <div class="position-absolute top-0 end-0 m-3 p-2 bg-danger rounded-circle shadow border border-white" title="Update Required"></div>
-                    <?php endif; ?>
-                    <div class="icon-box"><i class="fas fa-sync-alt"></i></div>
-                    <h4 class="fw-bold text-dark mb-3">System Update</h4>
-                    <p class="text-muted small">Update your account to the latest system features.</p>
-                </div>
-            </a>
-        </div>
     </div>
 
 </div>
 <br><br>
-
-<!-- System Update Modal -->
-<div class="modal fade" id="systemUpdateModal" tabindex="-1" data-bs-backdrop="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-0">
-                <h5 class="modal-title fw-bold"><i class="fas fa-sync-alt me-2 text-primary"></i>System Update</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center">
-                <?php if($is_outdated): ?>
-                <div id="update-content">
-                    <div class="mb-3">
-                        <i class="fas fa-cogs text-muted" style="font-size: 3rem; opacity: 0.5;"></i>
-                    </div>
-                    <h5 class="fw-bold">Synchronize Account Data</h5>
-                    <p class="text-muted small mb-4">This action will standardize your profile information and ensure all system fields are initialized correctly.</p>
-                    
-                    <div class="alert alert-light border text-start small">
-                        <strong><i class="fas fa-star text-warning me-1"></i> What's New & Updates:</strong>
-                        <ul class="mb-0 ps-3 mt-1">
-                            <?php foreach($update_reasons as $reason): ?>
-                                <li><?= htmlspecialchars($reason) ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                </div>
-                <div id="update-progress" style="display:none;" class="py-4">
-                    <h5 class="fw-bold text-success mb-3">Updating System...</h5>
-                    <div class="progress" style="height: 20px;">
-                        <div id="sys-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%"></div>
-                    </div>
-                    <p class="text-muted small mt-2">Please wait while we synchronize your data.</p>
-                </div>
-                <?php else: ?>
-                <div class="py-4">
-                    <div class="mb-3">
-                        <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
-                    </div>
-                    <h5 class="fw-bold">System Up to Date</h5>
-                    <p class="text-muted small">Your account data is synchronized with the latest system version.</p>
-                    
-                    <?php if(!empty($sys_updates)): ?>
-                    <div class="text-start border-top pt-3 mt-3">
-                        <h6 class="fw-bold text-primary mb-3"><i class="fas fa-bullhorn me-2"></i>What's New & Version History</h6>
-                        <div class="list-group list-group-flush small" style="max-height: 250px; overflow-y: auto;">
-                            <?php foreach($sys_updates as $update): ?>
-                            <div class="list-group-item px-0 bg-transparent">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <strong class="mb-1 text-dark"><?= htmlspecialchars($update['title']) ?></strong>
-                                    <span class="badge bg-light text-dark border">v<?= htmlspecialchars($update['version']) ?></span>
-                                </div>
-                                <p class="mb-1 text-muted"><?= htmlspecialchars($update['description']) ?></p>
-                                <small class="text-secondary"><i class="far fa-calendar-alt me-1"></i> <?= date('M d, Y', strtotime($update['release_date'])) ?></small>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-            </div>
-            <div class="modal-footer border-0 justify-content-center" id="update-footer">
-                <?php if($is_outdated): ?>
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" onclick="startSystemUpdate()" class="btn btn-primary rounded-pill px-4">Confirm Update</button>
-                <?php else: ?>
-                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- Customization Modal -->
 <div class="modal fade" id="customizationModal" tabindex="-1">
@@ -582,7 +440,6 @@ if($su_q){
                         <i class="fas fa-chevron-right text-muted"></i>
                     </button>
                     <?php endif; ?>
-                    <?php if(!$is_outdated): ?>
                     <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
                         <span><i class="fas fa-key fa-fw me-3 text-warning"></i>Change Password</span>
                         <i class="fas fa-chevron-right text-muted"></i>
@@ -595,7 +452,6 @@ if($su_q){
                         <span><i class="fas fa-user-times fa-fw me-3 text-danger"></i>Delete Account</span>
                         <i class="fas fa-chevron-right text-muted"></i>
                     </button>
-                    <?php endif; ?>
                     <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                         <span><i class="fas fa-moon fa-fw me-3 text-primary"></i>Night Mode</span>
                         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="nightModeSwitch" <?= ($user_info['night_mode'] == 1) ? 'checked' : '' ?> onchange="toggleNightMode()"></div>
@@ -631,12 +487,10 @@ if($su_q){
                             <input class="form-check-input" type="checkbox" id="show-archives" checked onchange="toggleCard('archives')">
                             <label class="form-check-label small" for="show-archives">Archives</label>
                         </div>
-                        <?php if(isset($user_info['other_request_feature']) && $user_info['other_request_feature'] == 1): ?>
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" id="show-other_request" checked onchange="toggleCard('other_request')">
                             <label class="form-check-label small" for="show-other_request">Other Request</label>
                         </div>
-                        <?php endif; ?>
                         <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="resetDashboardLayout()">Reset Layout</button>
                     </div>
                 </div>
@@ -965,25 +819,6 @@ if($su_q){
                 });
             }
         });
-    }
-
-    function startSystemUpdate() {
-        document.getElementById('update-content').style.display = 'none';
-        document.getElementById('update-footer').style.display = 'none';
-        document.getElementById('update-progress').style.display = 'block';
-        
-        let width = 0;
-        const bar = document.getElementById('sys-progress-bar');
-        const interval = setInterval(() => {
-            width += 2;
-            bar.style.width = width + '%';
-            if(width >= 100) {
-                clearInterval(interval);
-                setTimeout(() => {
-                    window.location.href = 'profile.php?action=system_update';
-                }, 500);
-            }
-        }, 30);
     }
 
     // Sync Night Mode across tabs
