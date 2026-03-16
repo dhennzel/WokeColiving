@@ -47,6 +47,12 @@ $query = mysqli_query($conn, "
     FROM users u WHERE $where ORDER BY u.last_name ASC
 ");
 
+// Fetch into array to allow multiple iterations for different views
+$residents = [];
+while($row = mysqli_fetch_assoc($query)){
+    $residents[] = $row;
+}
+
 // Sidebar Counts
 $pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
 $pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
@@ -83,18 +89,28 @@ $theme = get_theme_colors($conn);
                         <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
                     </form>
                     <a href="add_reservation.php" class="btn btn-sm btn-custom"><i class="fas fa-user-plus me-1"></i> Add Resident</a>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="padding-left: 10px; padding-right: 10px;">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
+                            <li><a class="dropdown-item fw-bold" href="#" id="btnViewTable" onclick="setView('table', event)"><i class="fas fa-list me-2 text-muted"></i> Default Table</a></li>
+                            <li><a class="dropdown-item fw-bold" href="#" id="btnViewCards" onclick="setView('cards', event)"><i class="fas fa-th-large me-2 text-muted"></i> Cards View</a></li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 
             <?php if($msg) echo "<div class='alert alert-success'>$msg</div>"; ?>
             <?php if($error) echo "<div class='alert alert-danger'>$error</div>"; ?>
 
-            <div class="card card-table p-4">
+            <!-- Table View -->
+            <div class="card card-table p-4" id="tableView">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead><tr><th>Resident</th><th>Contact</th><th>Status</th><th>Joined</th><th class="text-end">Action</th></tr></thead>
                         <tbody>
-                            <?php while($row = mysqli_fetch_assoc($query)): ?>
+                            <?php foreach($residents as $row): ?>
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
@@ -125,7 +141,7 @@ $theme = get_theme_colors($conn);
                                 </td>
                                 <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
                                 <td class="text-end">
-                                    <a href="view_user.php?uid=<?= $row['user_id'] ?>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</a>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-user='<?= htmlspecialchars(json_encode($row), ENT_QUOTES, 'UTF-8') ?>' onclick="openResidentModal(this)"><i class="fas fa-eye"></i> View</button>
                                     <?php if($is_super): ?>
                                     <form method="POST" class="d-inline" onsubmit="confirmDeleteUser(event)">
                                         <input type="hidden" name="user_id" value="<?= $row['user_id'] ?>">
@@ -135,22 +151,210 @@ $theme = get_theme_colors($conn);
                                     <?php endif; ?>
                                 </td>
                             </tr>
-                            <?php endwhile; ?>
-                            <?php if(mysqli_num_rows($query) == 0): ?>
+                            <?php endforeach; ?>
+                            <?php if(empty($residents)): ?>
                                 <tr><td colspan="5" class="text-center text-muted py-4">No residents found.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            <!-- Cards View -->
+            <div class="row g-4" id="cardsView" style="display: none;">
+                <?php foreach($residents as $row): ?>
+                <div class="col-md-4 col-lg-3">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body text-center d-flex flex-column align-items-center">
+                            <div class="user-avatar mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+                                <?php if(!empty($row['profile_image'])): ?>
+                                    <img src="../uploads/profiles/<?= $row['profile_image'] ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                                <?php else: ?>
+                                    <?= strtoupper(substr($row['full_name'], 0, 1)) ?>
+                                <?php endif; ?>
+                            </div>
+                            <h5 class="fw-bold mb-1"><?= htmlspecialchars($row['full_name']) ?></h5>
+                            <p class="text-muted small mb-2"><?= htmlspecialchars($row['email']) ?></p>
+                            <p class="text-muted small mb-3"><i class="fas fa-phone me-1"></i> <?= htmlspecialchars($row['phone_number']) ?></p>
+                            <div class="mb-3 mt-auto">
+                                <?php if($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
+                                <?php else: 
+                                    $m = $row['res_months'];
+                                    $d = $row['res_days'];
+                                    $lbl = 'Registered'; $cls = 'bg-secondary';
+
+                                    if($m >= 6) { $lbl = 'Long-Term'; $cls = 'bg-primary'; }
+                                    elseif($d !== null && $d < 28) { $lbl = 'Daily'; $cls = 'bg-warning text-dark'; }
+                                    elseif($d !== null) { $lbl = 'Short-Term'; $cls = 'bg-success'; }
+
+                                    if($row['is_walkin']) { if($lbl == 'Registered') { $lbl = 'Walk-in'; $cls = 'bg-info text-dark'; } else { $lbl .= '/Walk-in'; } }
+                                    echo "<span class='badge $cls'>$lbl</span>";
+                                endif; ?>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-white border-top border-light d-flex justify-content-between p-3 gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary flex-fill" data-user='<?= htmlspecialchars(json_encode($row), ENT_QUOTES, 'UTF-8') ?>' onclick="openResidentModal(this)"><i class="fas fa-eye"></i> View</button>
+                            <?php if($is_super): ?>
+                            <form method="POST" onsubmit="confirmDeleteUser(event)" class="flex-fill m-0">
+                                <input type="hidden" name="user_id" value="<?= $row['user_id'] ?>">
+                                <input type="hidden" name="delete_user" value="1">
+                                <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="fas fa-trash"></i> Delete</button>
+                            </form>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+                <?php if(empty($residents)): ?>
+                    <div class="col-12 text-center text-muted py-4">No residents found.</div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
         </main>
     </div>
 </div>
+
+<!-- View Resident Modal -->
+<div class="modal fade" id="viewResidentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-id-card me-2"></i>Resident Profile</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex align-items-center mb-4 pb-3 border-bottom">
+                    <div class="user-avatar shadow-sm me-3" id="modalUserAvatar" style="width: 80px; height: 80px; font-size: 2.5rem;">
+                        <!-- Image or Initials -->
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-1 text-dark" id="modalUserName">Name</h4>
+                        <div class="d-flex gap-2" id="modalUserBadges">
+                            <!-- Badges -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-address-book me-2"></i>Contact Details</h6>
+                        <p class="mb-1 text-muted small">Email</p>
+                        <p class="fw-bold mb-2" id="modalUserEmail">-</p>
+                        
+                        <p class="mb-1 text-muted small">Phone Number</p>
+                        <p class="fw-bold mb-2" id="modalUserPhone">-</p>
+                        
+                        <p class="mb-1 text-muted small">Date Joined</p>
+                        <p class="fw-bold mb-0" id="modalUserJoined">-</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-info-circle me-2"></i>Personal Info</h6>
+                        <div class="row">
+                            <div class="col-6"><p class="mb-1 text-muted small">Gender</p><p class="fw-bold mb-2" id="modalUserGender">-</p></div>
+                            <div class="col-6"><p class="mb-1 text-muted small">Occupation</p><p class="fw-bold mb-2" id="modalUserOccupation">-</p></div>
+                        </div>
+                        <p class="mb-1 text-muted small">Company / School</p>
+                        <p class="fw-bold mb-2" id="modalUserCompany">-</p>
+                        <p class="mb-1 text-muted small">Address</p>
+                        <p class="fw-bold mb-0" id="modalUserAddress">-</p>
+                    </div>
+                    <div class="col-12 mt-4 pt-3 border-top">
+                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-ambulance me-2"></i>Emergency Contact</h6>
+                        <div class="row">
+                            <div class="col-md-6"><p class="mb-1 text-muted small">Name</p><p class="fw-bold mb-2" id="modalUserEmergencyName">-</p></div>
+                            <div class="col-md-6"><p class="mb-1 text-muted small">Number</p><p class="fw-bold mb-0" id="modalUserEmergencyPhone">-</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <a href="#" id="modalBtnFullProfile" class="btn btn-outline-primary me-auto"><i class="fas fa-external-link-alt me-1"></i> Full History & Bookings</a>
+                <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
+    const currentAdminUser = "<?= htmlspecialchars($_SESSION['admin_username'] ?? 'admin') ?>";
+    const viewStorageKey = 'residentsView_' + currentAdminUser;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const view = localStorage.getItem(viewStorageKey) || 'table';
+        setView(view);
+    });
+
+    function setView(viewType, event = null) {
+        if (event) event.preventDefault();
+        
+        const tableView = document.getElementById('tableView');
+        const cardsView = document.getElementById('cardsView');
+        const btnTable = document.getElementById('btnViewTable');
+        const btnCards = document.getElementById('btnViewCards');
+
+        if (viewType === 'cards') {
+            tableView.style.display = 'none';
+            cardsView.style.display = 'flex';
+            btnCards.classList.add('bg-light', 'text-success');
+            btnTable.classList.remove('bg-light', 'text-success');
+            localStorage.setItem(viewStorageKey, 'cards');
+        } else {
+            tableView.style.display = 'block';
+            cardsView.style.display = 'none';
+            btnTable.classList.add('bg-light', 'text-success');
+            btnCards.classList.remove('bg-light', 'text-success');
+            localStorage.setItem(viewStorageKey, 'table');
+        }
+    }
+
+    function openResidentModal(btn) {
+        const user = JSON.parse(btn.getAttribute('data-user'));
+        
+        // Avatar
+        const avatarContainer = document.getElementById('modalUserAvatar');
+        if (user.profile_image) {
+            avatarContainer.innerHTML = `<img src="../uploads/profiles/${user.profile_image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        } else {
+            avatarContainer.innerHTML = user.full_name.charAt(0).toUpperCase();
+        }
+
+        // Basic details
+        document.getElementById('modalUserName').innerText = user.full_name;
+        document.getElementById('modalUserEmail').innerText = user.email || 'N/A';
+        document.getElementById('modalUserPhone').innerText = user.phone_number || 'N/A';
+        
+        const joinedDate = new Date(user.created_at);
+        document.getElementById('modalUserJoined').innerText = joinedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+        // Personal Info
+        document.getElementById('modalUserGender').innerText = user.gender || 'Not Specified';
+        document.getElementById('modalUserOccupation').innerText = user.occupation || 'Not Specified';
+        document.getElementById('modalUserCompany').innerText = user.company || 'Not Specified';
+        document.getElementById('modalUserAddress').innerText = user.address || 'Not Specified';
+        
+        // Emergency
+        document.getElementById('modalUserEmergencyName').innerText = user.emergency_contact_name || 'Not Specified';
+        document.getElementById('modalUserEmergencyPhone').innerText = user.emergency_contact_number || 'Not Specified';
+
+        // Badges
+        let badgesHtml = '';
+        if (user.do_not_renew == 1) badgesHtml += '<span class="badge bg-danger">Do Not Renew</span>';
+        else {
+            let m = parseInt(user.res_months) || 0;
+            let d = user.res_days ? parseInt(user.res_days) : null;
+            let lbl = 'Registered', cls = 'bg-secondary';
+            if (m >= 6) { lbl = 'Long-Term'; cls = 'bg-primary'; } else if (d !== null && d < 28) { lbl = 'Daily'; cls = 'bg-warning text-dark'; } else if (d !== null) { lbl = 'Short-Term'; cls = 'bg-success'; }
+            if (user.is_walkin == 1) { if (lbl === 'Registered') { lbl = 'Walk-in'; cls = 'bg-info text-dark'; } else { lbl += '/Walk-in'; } }
+            badgesHtml += `<span class="badge ${cls}">${lbl}</span>`;
+        }
+        document.getElementById('modalUserBadges').innerHTML = badgesHtml;
+        document.getElementById('modalBtnFullProfile').href = `view_user.php?uid=${user.user_id}`;
+
+        new bootstrap.Modal(document.getElementById('viewResidentModal')).show();
+    }
+
     function confirmDeleteUser(e) {
         e.preventDefault();
         const form = e.target;

@@ -1,15 +1,40 @@
 <?php
 $admin_name = $_SESSION['admin_username'] ?? 'Admin';
+
+// Fetch Admin Profile Image
+$admin_avatar = "https://ui-avatars.com/api/?name=" . urlencode($admin_name) . "&background=2DC08F&color=fff";
+if (isset($conn) && isset($_SESSION['admin_username'])) {
+    $q_admin_avatar = mysqli_query($conn, "SELECT profile_image FROM admin WHERE username='" . mysqli_real_escape_string($conn, $_SESSION['admin_username']) . "'");
+    if ($row_admin_avatar = mysqli_fetch_assoc($q_admin_avatar)) {
+        if (!empty($row_admin_avatar['profile_image']) && file_exists("../uploads/profiles/" . $row_admin_avatar['profile_image'])) {
+            $admin_avatar = "../uploads/profiles/" . $row_admin_avatar['profile_image'] . "?v=" . time();
+        }
+    }
+}
+
+// Contextual Search Action
+$search_action = 'residents.php';
+$search_placeholder = 'Search residents...';
+
+if (isset($current_page)) {
+    if ($current_page == 'booking_management.php') {
+        $search_action = 'booking_management.php';
+        $search_placeholder = 'Search bookings...';
+    } elseif ($current_page == 'admin_utilities.php') {
+        $search_action = 'admin_utilities.php';
+        $search_placeholder = 'Search archives...';
+    } elseif ($current_page == 'system_logs.php') {
+        $search_action = 'system_logs.php';
+        $search_placeholder = 'Search logs...';
+    }
+}
 ?>
 <header class="top-navbar">
     <div class="navbar-left">
-        <button id="sidebarToggle" class="icon-btn">
-            <i class="fas fa-bars"></i>
-        </button>
-        <div class="search-bar d-none d-md-flex">
+        <form action="<?= htmlspecialchars($search_action) ?>" method="GET" class="search-bar d-none d-md-flex">
             <i class="fas fa-search"></i>
-            <input type="text" placeholder="Search anything...">
-        </div>
+            <input type="search" name="search" placeholder="<?= htmlspecialchars($search_placeholder) ?>" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" autocomplete="off">
+        </form>
     </div>
     
     <div class="navbar-right">
@@ -22,7 +47,7 @@ $admin_name = $_SESSION['admin_username'] ?? 'Admin';
         
         <div class="profile-dropdown">
             <div class="profile-toggle" id="profileToggle">
-                <img src="https://ui-avatars.com/api/?name=<?= urlencode($admin_name) ?>&background=2DC08F&color=fff" alt="Admin Profile" class="profile-img">
+                <img src="<?= htmlspecialchars($admin_avatar) ?>" alt="Admin Profile" class="profile-img">
                 <span class="profile-name d-none d-md-inline"><?= htmlspecialchars($admin_name) ?></span>
                 <i class="fas fa-chevron-down"></i>
             </div>

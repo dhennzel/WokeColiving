@@ -783,8 +783,20 @@ if($su_q){
 
     function fetchNotifications() {
         fetch('get_notifications.php')
-            .then(response => response.json())
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    // If the response is an HTML page (like a login redirect), force a reload
+                    if (text.toLowerCase().includes('<html')) {
+                        window.location.reload();
+                    }
+                    throw e;
+                }
+            })
             .then(data => {
+                if (!data) return;
                 // Update Badge
                 const bell = document.getElementById('notifDropdown');
                 let badge = document.getElementById('notifBadge');
@@ -930,7 +942,17 @@ if($su_q){
                     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                     body: 'delete_profile_image=1'
                 })
-                .then(response => response.json())
+                .then(response => response.text())
+                .then(text => {
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        if (text.toLowerCase().includes('<html')) {
+                            window.location.reload();
+                        }
+                        throw new Error("Invalid response");
+                    }
+                })
                 .then(data => {
                     if (data.success) {
                         window.location.reload();
@@ -1031,7 +1053,17 @@ if($su_q){
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: 'cropped_image_data=' + encodeURIComponent(base64data)
             })
-            .then(response => response.json())
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    if (text.toLowerCase().includes('<html')) {
+                        window.location.reload();
+                    }
+                    throw new Error("Invalid response from server");
+                }
+            })
             .then(data => {
                 if (data.success) {
                     window.location.reload();
