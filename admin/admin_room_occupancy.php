@@ -23,18 +23,22 @@ if(isset($_GET['fetch_history']) && isset($_GET['room_id'])){
     ");
     
     if(mysqli_num_rows($hist_q) > 0){
-        echo '<div class="table-responsive"><table class="table table-sm table-hover small mb-0">';
-        echo '<thead class="table-light"><tr><th>Name</th><th>Dates</th><th>Status</th></tr></thead><tbody>';
+        echo '<div class="card border-0 shadow-sm"><div class="table-responsive"><table class="table table-hover align-middle mb-0">';
+        echo '<thead class="table-light"><tr><th>Guest Name</th><th>Dates Stayed</th><th>Status</th></tr></thead><tbody>';
         while($row = mysqli_fetch_assoc($hist_q)){
+            $badge = 'bg-secondary';
+            if($row['status'] == 'Completed') $badge = 'bg-primary';
+            elseif($row['status'] == 'Approved') $badge = 'bg-success';
+            
             echo '<tr>';
-            echo '<td class="fw-bold">'.htmlspecialchars($row['full_name']).'</td>';
-            echo '<td>'.date('M d, Y', strtotime($row['start_date'])).' - '.date('M d, Y', strtotime($row['end_date'])).'</td>';
-            echo '<td><span class="badge bg-secondary">'.$row['status'].'</span></td>';
+            echo '<td class="fw-bold text-dark">'.htmlspecialchars($row['full_name']).'</td>';
+            echo '<td class="small text-muted"><i class="fas fa-calendar-day me-1"></i> '.date('M d, Y', strtotime($row['start_date'])).' &rarr; '.date('M d, Y', strtotime($row['end_date'])).'</td>';
+            echo '<td><span class="badge '.$badge.' rounded-pill px-3">'.$row['status'].'</span></td>';
             echo '</tr>';
         }
-        echo '</tbody></table></div>';
+        echo '</tbody></table></div></div>';
     } else {
-        echo '<div class="text-center text-muted py-4"><i class="fas fa-history fa-2x mb-2 opacity-25"></i><p class="mb-0 small">No past occupants found.</p></div>';
+        echo '<div class="text-center text-muted py-5"><i class="fas fa-history fa-3x mb-3 opacity-25"></i><h6 class="mb-0 fw-bold">No History Found</h6><p class="small">This room has no past occupants.</p></div>';
     }
     exit;
 }
@@ -140,6 +144,16 @@ $theme = get_theme_colors($conn);
         .status-partial { background-color: #fff3cd; color: #856404; }
         .status-full { background-color: #f8d7da; color: #721c24; }
         .status-maintenance { background-color: #e2e3e5; color: #383d41; }
+        
+        .room-card-clickable {
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 2px solid transparent;
+        }
+        .room-card-clickable:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+            border-color: var(--primary-green) !important;
+        }
     </style>
 </head>
 <body>
@@ -276,21 +290,21 @@ $theme = get_theme_colors($conn);
 <?php foreach($grouped_rooms as $type => $rooms_in_type): ?>
 <div class="modal fade" id="occupancy_<?= md5($type) ?>" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
-        <div class="modal-content bg-light">
-            <div class="modal-header bg-white">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
                 <h5 class="modal-title fw-bold text-success"><i class="fas fa-users me-2"></i><?= $type ?> Occupancy</h5>
-                <div class="d-flex align-items-center me-3">
-                    <label class="small fw-bold me-2 text-muted">Filter:</label>
-                    <select class="form-select form-select-sm" onchange="filterOccupancyRooms(this, '<?= md5($type) ?>')">
+                <div class="d-flex align-items-center me-3 ms-auto">
+                    <label class="small fw-bold me-2 text-white opacity-75">Filter:</label>
+                    <select class="form-select form-select-sm border-0 shadow-sm" onchange="filterOccupancyRooms(this, '<?= md5($type) ?>')" style="width: 120px;">
                         <option value="all">All Floors</option>
                         <?php for($i=2; $i<=7; $i++): ?>
                             <option value="<?= $i ?>"><?= $i ?>th Floor</option>
                         <?php endfor; ?>
                     </select>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4">
+            <div class="modal-body bg-light p-4">
                 <div class="row g-4">
                     <?php foreach($rooms_in_type as $room): 
                         // Make room display name consistent with admin_rooms.php
@@ -316,9 +330,9 @@ $theme = get_theme_colors($conn);
                         }
                     ?>
                     <div class="col-md-6 col-lg-4 occupancy-room-item" data-floor="<?= $floor ?>" data-status="<?= $room['occupancy_status'] ?>" data-name="<?= strtolower($room_display) ?>" data-occupants="<?= $occupant_names_str ?>">
-                        <div class="card card-custom h-100" style="overflow: hidden;">
+                        <div class="card card-custom h-100 room-card-clickable" style="overflow: hidden; cursor: pointer;" onclick="openRoomOccupantsModal(this)" data-room-name="<?= htmlspecialchars($room_display, ENT_QUOTES) ?>" data-occupants="<?= htmlspecialchars(json_encode($room['occupants']), ENT_QUOTES, 'UTF-8') ?>">
                             <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room_display ?>" style="height: 150px; object-fit: cover; width: 100%;">
-                            <div class="card-body">
+                            <div class="card-body d-flex flex-column">
                                 <!-- Room Header -->
                                 <div class="d-flex justify-content-between align-items-start mb-3">
                                     <div>
@@ -347,41 +361,10 @@ $theme = get_theme_colors($conn);
                                     </div>
                                 </div>
 
-                                <!-- Current Occupants -->
-                                <div>
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <small class="text-muted fw-bold"><i class="fas fa-users me-1"></i> Current Occupants</small>
-                                        <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.7rem;" onclick="viewHistory(<?= $room['room_id'] ?>, '<?= addslashes($room_display) ?>')"><i class="fas fa-history me-1"></i> History</button>
-                                    </div>
-                                    <?php if(empty($room['occupants'])): ?>
-                                        <p class="text-muted small mb-0">No current occupants</p>
-                                    <?php else: ?>
-                                        <div style="max-height: 150px; overflow-y: auto;">
-                                            <?php foreach($room['occupants'] as $occupant): 
-                                                $bed_class = 'bed-any';
-                                                $bed_icon = 'fa-random';
-                                                if($occupant['bed_preference'] == 'Upper Bunk') { $bed_class = 'bed-upper'; $bed_icon = 'fa-arrow-up'; }
-                                                elseif($occupant['bed_preference'] == 'Lower Bunk') { $bed_class = 'bed-lower'; $bed_icon = 'fa-arrow-down'; }
-                                            ?>
-                                            <div class="occupant-card <?= $occupant['status'] == 'Pending' ? 'pending' : '' ?>">
-                                                <div class="d-flex justify-content-between align-items-start">
-                                                    <div>
-                                                        <strong><?= $occupant['full_name'] ?></strong>
-                                                        <span class="badge <?= $bed_class ?> bed-icon ms-1" title="<?= $occupant['bed_preference'] ?>">
-                                                            <i class="fas <?= $bed_icon ?>"></i>
-                                                        </span>
-                                                        <?php if($occupant['status'] == 'Pending'): ?>
-                                                            <span class="badge bg-warning text-dark small ms-1">Pending</span>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                    <small class="text-muted">
-                                                        <?= date('M d', strtotime($occupant['start_date'])) ?> - <?= date('M d, Y', strtotime($occupant['end_date'])) ?>
-                                                    </small>
-                                                </div>
-                                            </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    <?php endif; ?>
+                                <!-- Actions -->
+                                <div class="mt-auto d-flex justify-content-between align-items-center pt-3 border-top">
+                                    <small class="text-success fw-bold"><i class="fas fa-users me-1"></i> View Occupants</small>
+                                    <button class="btn btn-sm btn-outline-secondary py-1 px-3 rounded-pill position-relative z-3" style="font-size: 0.75rem;" onclick="event.stopPropagation(); viewHistory(<?= $room['room_id'] ?>, '<?= addslashes($room_display) ?>')"><i class="fas fa-history me-1"></i> History</button>
                                 </div>
 
                             </div>
@@ -397,17 +380,35 @@ $theme = get_theme_colors($conn);
 
 <!-- History Modal -->
 <div class="modal fade" id="historyModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Room History: <span id="histRoomName"></span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-history me-2"></i>Room History: <span id="histRoomName"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-0" id="histContent">
+            <div class="modal-body bg-light p-4" id="histContent">
                 <!-- Content loads here -->
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            <div class="modal-footer bg-light border-top-0">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Room Occupants Modal -->
+<div class="modal fade" id="roomOccupantsModal" tabindex="-1" aria-hidden="true" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-users me-2"></i>Occupants: <span id="occModalRoomName"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light p-0" id="occModalContent">
+                <!-- Content loaded via JS -->
+            </div>
+            <div class="modal-footer bg-light border-top-0">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -432,6 +433,50 @@ function filterOccupancyRooms(select, typeId) {
             item.style.display = 'none';
         }
     });
+}
+
+function openRoomOccupantsModal(element) {
+    const roomName = element.getAttribute('data-room-name');
+    const occupants = JSON.parse(element.getAttribute('data-occupants'));
+    
+    document.getElementById('occModalRoomName').innerText = roomName;
+    const content = document.getElementById('occModalContent');
+    
+    if (occupants.length === 0) {
+        content.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-user-slash fa-3x mb-3 opacity-25"></i><h6 class="fw-bold">No Occupants</h6><p class="small">This room is currently vacant.</p></div>';
+    } else {
+        let html = '<div class="list-group list-group-flush">';
+        occupants.forEach(occ => {
+            let bedClass = 'bg-secondary';
+            let bedIcon = 'fa-random';
+            if(occ.bed_preference === 'Upper Bunk') { bedClass = 'bg-info text-dark'; bedIcon = 'fa-arrow-up'; }
+            else if(occ.bed_preference === 'Lower Bunk') { bedClass = 'bg-primary'; bedIcon = 'fa-arrow-down'; }
+            
+            let statusBadge = occ.status === 'Pending' ? '<span class="badge bg-warning text-dark ms-2">Pending</span>' : '';
+            let avatarHtml = occ.profile_image ? `<img src="../uploads/profiles/${occ.profile_image}" class="rounded-circle shadow-sm" style="width: 50px; height: 50px; object-fit: cover;">` : `<div class="rounded-circle shadow-sm bg-success text-white d-flex align-items-center justify-content-center fw-bold" style="width: 50px; height: 50px; font-size: 1.2rem;">${occ.full_name.charAt(0).toUpperCase()}</div>`;
+            let linkUrl = `view_user.php?uid=${occ.user_id}`;
+            
+            let d1 = new Date(occ.start_date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+            let d2 = new Date(occ.end_date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+
+            html += `
+            <a href="${linkUrl}" class="list-group-item list-group-item-action d-flex align-items-center p-4 border-bottom">
+                ${avatarHtml}
+                <div class="ms-3 flex-grow-1">
+                    <h6 class="mb-1 fw-bold text-dark">${occ.full_name} ${statusBadge}</h6>
+                    <div class="text-muted small"><i class="fas fa-calendar-alt me-1"></i> ${d1} - ${d2}</div>
+                </div>
+                <div class="text-end ms-2">
+                    <span class="badge ${bedClass} rounded-pill px-3 py-2"><i class="fas ${bedIcon} me-1"></i> ${occ.bed_preference}</span>
+                </div>
+            </a>`;
+        });
+        html += '</div>';
+        content.innerHTML = html;
+    }
+    
+    const occModal = new bootstrap.Modal(document.getElementById('roomOccupantsModal'));
+    occModal.show();
 }
 
 function viewHistory(roomId, roomName) {
