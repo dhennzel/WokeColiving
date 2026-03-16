@@ -254,14 +254,27 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
         z-index: 1040; /* Below Bootstrap modal (1055) and backdrop (1050) */
         font-size: 1.2rem;
         box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-        transition: top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), padding 0.2s ease;
+        transition: top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), padding 0.2s ease, opacity 0.3s ease;
     }
     
     .navbar-restore-trigger.show-trigger {
-        top: 0;
+        top: -40px; /* Hidden off-screen by default */
+        opacity: 0; 
     }
     
-    .navbar-restore-trigger:hover {
+    /* Large invisible hitbox area at the top center of the screen */
+    .navbar-restore-trigger.show-trigger::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: -50px;
+        right: -50px;
+        height: 50px;
+    }
+    
+    .navbar-restore-trigger.show-trigger:hover {
+        top: 0;
+        opacity: 1;
         padding-top: 8px; /* Subtle hover feedback */
 }
 
