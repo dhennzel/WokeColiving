@@ -4,6 +4,7 @@ include("../db.php");
 
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     http_response_code(403);
+    echo json_encode(['error' => 'Unauthorized']);
     exit;
 }
 

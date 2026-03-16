@@ -10,8 +10,8 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
 ?>
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <div class="logo-placeholder">
-            <i class="fas fa-leaf"></i>
+        <div class="logo-placeholder" id="sidebarToggle" title="Toggle Sidebar">
+            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" alt="Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">
         </div>
         <span class="brand-name">Woke Coliving</span>
     </div>
@@ -27,10 +27,10 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
             <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0; margin-left: 10px;"></i>
         </a>
         <div class="collapse <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'show' : '' ?>" id="frontDeskSubmenu">
-            <a href="residents.php" class="nav-item <?= in_array($current_page, ['residents.php', 'view_user.php']) ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
+            <a href="residents.php" class="nav-item <?= $current_page == 'residents.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-users" style="width: 25px;"></i><span>Residents</span>
             </a>
-            <a href="booking_management.php" class="nav-item <?= $current_page == 'booking_management.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
+            <a href="booking_management.php" class="nav-item <?= in_array($current_page, ['booking_management.php', 'view_user.php']) ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-calendar-check" style="width: 25px;"></i><span>Bookings</span>
                 <?php if($p_res > 0): ?><span class="nav-badge"><?= $p_res ?></span><?php endif; ?>
             </a>
@@ -89,12 +89,11 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
         </div>
 
         <!-- System Settings -->
-        <a href="#settingsSubmenu" data-bs-toggle="collapse" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_profile.php', 'admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? '' : 'collapsed' ?>">
+        <a href="#settingsSubmenu" data-bs-toggle="collapse" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? '' : 'collapsed' ?>">
             <div><i class="fas fa-cog"></i><span>Settings</span></div>
             <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0; margin-left: 10px;"></i>
         </a>
-        <div class="collapse <?= in_array($current_page, ['admin_profile.php', 'admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? 'show' : '' ?>" id="settingsSubmenu">
-            <a href="admin_profile.php" class="nav-item <?= $current_page == 'admin_profile.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-user-shield" style="width: 25px;"></i><span>Admin Profile</span></a>
+        <div class="collapse <?= in_array($current_page, ['admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? 'show' : '' ?>" id="settingsSubmenu">
             <?php if($is_super): ?>
             <a href="admin_roles.php" class="nav-item <?= $current_page == 'admin_roles.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-users-cog" style="width: 25px;"></i><span>Manage Roles</span></a>
             <a href="manage_hero.php" class="nav-item <?= $current_page == 'manage_hero.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-image" style="width: 25px;"></i><span>Hero Image</span></a>

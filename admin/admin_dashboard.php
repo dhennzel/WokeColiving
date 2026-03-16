@@ -512,7 +512,7 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                             <td><?= $exp['end_date'] ?></td>
                             <td class="<?= $text_class ?>"><?= $status_text ?></td>
                             <td class="text-end">
-                                <button onclick="renewContract(<?= $exp['reservation_id'] ?>, <?= $exp['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt me-1"></i> Renew</button>
+                                <button onclick="renewContract(<?= $exp['reservation_id'] ?>, <?= (int)$exp['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt me-1"></i> Renew</button>
                                 <a href="booking_management.php?action=terminate&id=<?= $exp['reservation_id'] ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract? This will mark it as Completed.')"><i class="fas fa-file-contract me-1"></i> End Contract</a>
                             </td>
                         </tr>
@@ -542,10 +542,10 @@ const earningsChart = new Chart(ctx, {
     data: {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
         datasets: [{
-            label: '<?= $is_super ? 'Earnings (₱)' : 'Bookings (Count)' ?>',
+            label: <?= json_encode($is_super ? 'Earnings (₱)' : 'Bookings (Count)') ?>,
             data: <?= $is_super ? 'earningsData' : 'bookingsData' ?>,
-            borderColor: '<?= $is_super ? $theme['primary'] : $theme['accent'] ?>',
-            backgroundColor: '<?= $is_super ? 'rgba(46, 125, 50, 0.1)' : 'rgba(251, 192, 45, 0.1)' ?>',
+            borderColor: <?= json_encode($is_super ? $theme['primary'] : $theme['accent']) ?>,
+            backgroundColor: <?= json_encode($is_super ? 'rgba(46, 125, 50, 0.1)' : 'rgba(251, 192, 45, 0.1)') ?>,
             borderWidth: 2,
             fill: true,
             tension: 0.4
@@ -579,15 +579,15 @@ function updateChart() {
     
     if(filter === 'earnings') {
         title.innerText = 'Monthly Earnings';
-        earningsChart.data.datasets[0].label = 'Earnings (₱)';
+        earningsChart.data.datasets[0].label = 'Earnings (\u20B1)';
         earningsChart.data.datasets[0].data = earningsData;
-        earningsChart.data.datasets[0].borderColor = '<?= $theme['primary'] ?>';
+        earningsChart.data.datasets[0].borderColor = <?= json_encode($theme['primary']) ?>;
         earningsChart.data.datasets[0].backgroundColor = 'rgba(46, 125, 50, 0.1)';
     } else {
         title.innerText = 'New Bookings';
         earningsChart.data.datasets[0].label = 'Bookings (Count)';
         earningsChart.data.datasets[0].data = bookingsData;
-        earningsChart.data.datasets[0].borderColor = '<?= $theme['accent'] ?>';
+        earningsChart.data.datasets[0].borderColor = <?= json_encode($theme['accent']) ?>;
         earningsChart.data.datasets[0].backgroundColor = 'rgba(251, 192, 45, 0.1)';
     }
     earningsChart.update();

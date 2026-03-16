@@ -501,7 +501,17 @@ function openReleaseModal(id, name, roomId, roomName) {
     select.innerHTML = '<option value="">Loading...</option>';
     
     fetch('get_room_tenants.php?room_id=' + roomId)
-        .then(response => response.json())
+        .then(response => response.text())
+        .then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                if (text.toLowerCase().includes('<html')) {
+                    window.location.reload();
+                }
+                throw new Error("Invalid JSON response");
+            }
+        })
         .then(data => {
             select.innerHTML = '<option value="">-- Choose Tenant --</option>';
             if (data.length === 0) {
@@ -544,7 +554,17 @@ function openRoom501UnreleaseModal() {
 
 function loadReleasedKeys() {
     fetch('get_released_keys.php')
-        .then(response => response.json())
+        .then(response => response.text())
+        .then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                if (text.toLowerCase().includes('<html')) {
+                    window.location.reload();
+                }
+                throw new Error("Invalid JSON response");
+            }
+        })
         .then(data => {
             const tbody = document.querySelector('#releasedKeysTable tbody');
             if (data.length === 0) {

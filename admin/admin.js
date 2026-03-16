@@ -15,6 +15,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Open sidebar when clicking any nav item while collapsed
+    if (sidebar) {
+        const navItems = sidebar.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                if (sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.remove('collapsed');
+                }
+            });
+        });
+    }
+
     // --- Profile Dropdown Logic ---
     const profileToggle = document.getElementById('profileToggle');
     const profileMenu = document.getElementById('profileMenu');
