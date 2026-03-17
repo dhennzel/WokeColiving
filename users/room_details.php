@@ -108,6 +108,8 @@ if(isset($_SESSION['user_id'])){
         body.night-mode .text-dark { color: #e0e0e0 !important; }
         body.night-mode .text-muted { color: #b0b0b0 !important; }
         body.night-mode .border { border-color: #444 !important; }
+        body.night-mode .utility-block { background-color: #2c2c2c !important; border-color: #444 !important; color: #e0e0e0 !important; }
+        body.night-mode .navbar-user .nav-link, body.night-mode .navbar-user .navbar-brand, body.night-mode .navbar-user .text-muted { color: #34B875 !important; }
     </style>
 </head>
 <body

@@ -521,6 +521,8 @@ if (isset($_POST['confirm_booking'])) {
         body.night-mode .form-control[type="file"] { color: #34B875 !important; }
         body.night-mode .form-control::file-selector-button { background-color: #1e1e1e !important; color: #34B875 !important; border-color: #444 !important; }
         body.night-mode .form-control:hover::file-selector-button { background-color: #333 !important; }
+        body.night-mode .utility-block { background-color: #2c2c2c !important; border-color: #444 !important; color: #e0e0e0 !important; }
+        body.night-mode .navbar-user .nav-link, body.night-mode .navbar-user .navbar-brand, body.night-mode .navbar-user .text-muted { color: #34B875 !important; }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
