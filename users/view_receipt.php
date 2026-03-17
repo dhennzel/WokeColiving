@@ -135,21 +135,21 @@ $theme = get_theme_colors($conn);
             .mt-5 { margin-top: 1.5rem !important; }
         }
         /* Night Mode Styles for Receipt */
-        body.night-mode { background: #121212; color: #e0e0e0; }
-        body.night-mode .receipt-container { background: #1e1e1e; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
-        body.night-mode .table-custom th { background-color: #2c2c2c; color: #e0e0e0; border-bottom: 2px solid var(--primary-green); }
-        body.night-mode .table-custom td { border-bottom: 1px solid #333; color: #e0e0e0; }
-        body.night-mode .total-section { background-color: #2c2c2c; }
-        body.night-mode .total-row.final { color: var(--accent-yellow); border-top: 1px solid #444; }
-        body.night-mode .sig-box { background: #2c2c2c; border-color: #444; }
+        body.night-mode { background: #121212 !important; color: #e0e0e0 !important; }
+        body.night-mode .receipt-container { background: #1e1e1e !important; box-shadow: 0 15px 35px rgba(0,0,0,0.5) !important; border-color: #333 !important; }
+        body.night-mode .table-custom th { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-bottom: 2px solid var(--primary-green) !important; }
+        body.night-mode .table-custom td { border-bottom: 1px solid #333 !important; color: #e0e0e0 !important; }
+        body.night-mode .total-section { background-color: #2c2c2c !important; border-color: #333 !important; }
+        body.night-mode .total-row.final { color: var(--accent-yellow) !important; border-top: 1px solid #444 !important; }
+        body.night-mode .sig-box { background: #2c2c2c !important; border-color: #444 !important; }
         body.night-mode .card-footer { background-color: #1f1f1f !important; border-top: 1px solid #333; }
         body.night-mode .text-muted { color: #b0b0b0 !important; }
         body.night-mode .text-secondary { color: #e0e0e0 !important; }
-        body.night-mode .info-label { color: #bbb; }
+        body.night-mode .info-label { color: #bbb !important; }
         body.night-mode .border-dark { border-color: #e0e0e0 !important; } /* Fixes the authorized by underline */
     </style>
 </head>
-<body>
+<body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
 <div class="receipt-wrapper">
     <div class="receipt-container">
         <div class="receipt-header d-flex justify-content-between align-items-center">

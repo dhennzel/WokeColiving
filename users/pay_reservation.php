@@ -85,17 +85,21 @@ if(isset($_POST['submit_payment'])){
         .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
 
         /* Night Mode Styles */
-        body.night-mode { background-color: #121212; color: #e0e0e0; }
+        body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
         body.night-mode .navbar { background: #1f1f1f !important; }
-        body.night-mode .card-custom { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
-        body.night-mode .alert-info { background-color: #2c2c2c; border-color: #333; color: #e0e0e0; }
-        body.night-mode .form-control, body.night-mode .form-select { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
-        body.night-mode .form-control:focus, body.night-mode .form-select:focus { background-color: #333; color: #fff; }
-        body.night-mode .bg-light { background-color: #2c2c2c !important; }
+        body.night-mode .card-custom { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
+        body.night-mode .alert-info { background-color: #2c2c2c !important; border-color: #333 !important; color: #e0e0e0 !important; }
+        body.night-mode .form-control, body.night-mode .form-select { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-color: #444 !important; }
+        body.night-mode .form-control:focus, body.night-mode .form-select:focus { background-color: #333 !important; color: #fff !important; border-color: var(--primary-green) !important; }
+        body.night-mode .bg-light, body.night-mode .bg-white { background-color: #2c2c2c !important; color: #e0e0e0 !important; }
         body.night-mode .border { border-color: #444 !important; }
+        body.night-mode .text-dark { color: #e0e0e0 !important; }
+        body.night-mode .form-control[type="file"] { color: #34B875 !important; }
+        body.night-mode .form-control::file-selector-button { background-color: #1e1e1e !important; color: #34B875 !important; border-color: #444 !important; }
+        body.night-mode .form-control:hover::file-selector-button { background-color: #333 !important; }
     </style>
 </head>
-<body>
+<body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
 <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container">
         <a class="navbar-brand fw-bold" href="../index.php">Woke Coliving INC</a>

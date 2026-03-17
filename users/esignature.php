@@ -49,13 +49,13 @@ if(isset($_POST['signature_data'])){
         canvas { border: 2px dashed #ccc; cursor: crosshair; background: #fff; }
 
         /* Night Mode Styles */
-        body.night-mode { background-color: #121212 !important; color: #e0e0e0; }
-        body.night-mode .card { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
+        body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
+        body.night-mode .card { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
         body.night-mode .text-muted { color: #b0b0b0 !important; }
         /* Canvas remains white for signature contrast */
     </style>
 </head>
-<body class="bg-light">
+<body class="bg-light <?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
     <div class="container mt-5">
         <div class="card shadow-sm p-4 mx-auto" style="max-width: 600px;">
             <h3 class="text-center mb-3">Sign Your Lease</h3>

@@ -100,10 +100,17 @@ if(isset($_SESSION['user_id'])){
     <style>
         body { overflow: hidden; height: 100vh; }
         .room-img { width: 100%; height: 350px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+
+        /* Night Mode Overrides */
+        body.night-mode { background-color: #121212 !important; color: #e0e0e0; }
+        body.night-mode .card, body.night-mode .card-custom { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
+        body.night-mode .bg-light { background-color: #2c2c2c !important; }
+        body.night-mode .text-dark { color: #e0e0e0 !important; }
+        body.night-mode .text-muted { color: #b0b0b0 !important; }
+        body.night-mode .border { border-color: #444 !important; }
     </style>
 </head>
-<body>
-
+<body
 <!-- NAVBAR -->
 <nav class="navbar navbar-expand-lg navbar-user fixed-top">
     <div class="container">

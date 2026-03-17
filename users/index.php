@@ -187,6 +187,25 @@ if(isset($_SESSION['user_id'])){
         }
         .scroll-top-btn.visible { opacity: 1; visibility: visible; transform: translateY(0); }
         .scroll-top-btn:hover { background: rgba(42, 154, 96, 0.9); transform: translateY(-5px); box-shadow: 0 8px 25px rgba(52, 184, 117, 0.3); color: white; }
+
+        /* Night Mode Styles */
+        body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
+        body.night-mode .navbar.scrolled { background: rgba(30, 30, 30, 0.95) !important; border-bottom: 2px solid var(--primary-green) !important; }
+        body.night-mode .navbar.scrolled .nav-link, body.night-mode .navbar.scrolled .navbar-brand { color: #34B875 !important; }
+        body.night-mode .card, body.night-mode .room-card, body.night-mode .feature-card, body.night-mode .contact-card, body.night-mode .amenity-card { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
+        body.night-mode .bg-white { background-color: #1e1e1e !important; }
+        body.night-mode .bg-light { background-color: #2c2c2c !important; }
+        body.night-mode .text-dark { color: #e0e0e0 !important; }
+        body.night-mode .text-muted { color: #b0b0b0 !important; }
+        body.night-mode .section-title { color: #e0e0e0 !important; }
+        body.night-mode .slider-btn { background-color: #2c2c2c !important; border-color: #444 !important; color: #e0e0e0 !important; }
+        body.night-mode .slider-btn:hover { background-color: #444 !important; color: var(--primary-green) !important; }
+        body.night-mode .form-control { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-color: #444 !important; }
+        body.night-mode .form-control:focus { background-color: #333 !important; color: #fff !important; }
+        body.night-mode footer { background-color: #1a1a1a !important; }
+        body.night-mode .contact-card .bg-success { background-color: #1b5e20 !important; }
+        body.night-mode .amenity-icon { background: rgba(255, 255, 255, 0.1) !important; }
+        body.night-mode .amenity-card:hover .amenity-icon { background: var(--primary-green) !important; color: #fff !important; }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">

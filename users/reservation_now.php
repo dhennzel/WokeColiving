@@ -503,8 +503,27 @@ if (isset($_POST['confirm_booking'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="users_CSS/app.css">
+    <style>
+        /* Night Mode Styles */
+        body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
+        body.night-mode .navbar-user { background: #1f1f1f !important; border-bottom: 1px solid #333 !important; }
+        body.night-mode .card, body.night-mode .card-custom { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
+        body.night-mode .card-header { background-color: #2c2c2c !important; border-bottom-color: #333 !important; }
+        body.night-mode .form-control, body.night-mode .form-select { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-color: #444 !important; }
+        body.night-mode .form-control:focus, body.night-mode .form-select:focus { background-color: #333 !important; color: #fff !important; border-color: var(--primary-green) !important; }
+        body.night-mode .bg-light, body.night-mode .bg-white { background-color: #2c2c2c !important; color: #e0e0e0 !important; }
+        body.night-mode .text-dark { color: #e0e0e0 !important; }
+        body.night-mode .text-muted { color: #b0b0b0 !important; }
+        body.night-mode .border, body.night-mode .border-bottom, body.night-mode .border-top { border-color: #444 !important; }
+        body.night-mode .form-control[readonly] { background-color: #1a1a1a !important; color: #888 !important; border-color: #333 !important; }
+        body.night-mode .form-check-label { color: #e0e0e0 !important; }
+        body.night-mode hr { border-color: #444 !important; }
+        body.night-mode .form-control[type="file"] { color: #34B875 !important; }
+        body.night-mode .form-control::file-selector-button { background-color: #1e1e1e !important; color: #34B875 !important; border-color: #444 !important; }
+        body.night-mode .form-control:hover::file-selector-button { background-color: #333 !important; }
+    </style>
 </head>
-<body>
+<body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
 <div class="container py-5 animate-fade-in">
     <?php if(!empty($error)): ?>
     <div class="alert alert-danger">
