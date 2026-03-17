@@ -113,32 +113,32 @@ $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['searc
 if($search) $active_modal = 'searchResults'; // Optional: Handle search visibility if needed
 
 // Fetch Maintenance Archive
-$m_sql = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name FROM maintenance_requests m JOIN users u ON m.user_id = u.user_id LEFT JOIN rooms r ON m.room_id = r.room_id WHERE m.status IN ('Completed', 'Cancelled')";
-if($search) $m_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR m.description LIKE '%$search%')";
+$m_sql = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name, r.room_number FROM maintenance_requests m JOIN users u ON m.user_id = u.user_id LEFT JOIN rooms r ON m.room_id = r.room_id WHERE m.status IN ('Completed', 'Cancelled')";
+if($search) $m_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR r.room_number LIKE '%$search%' OR m.description LIKE '%$search%')";
 $m_sql .= " ORDER BY m.created_at DESC";
 $maintenance_query = mysqli_query($conn, $m_sql);
 
 // Fetch Housekeeping Archive
-$h_sql = "SELECT h.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name FROM housekeeping_requests h JOIN users u ON h.user_id = u.user_id LEFT JOIN rooms r ON h.room_id = r.room_id WHERE h.status IN ('Completed', 'Cancelled')";
-if($search) $h_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR h.description LIKE '%$search%')";
+$h_sql = "SELECT h.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name, r.room_number FROM housekeeping_requests h JOIN users u ON h.user_id = u.user_id LEFT JOIN rooms r ON h.room_id = r.room_id WHERE h.status IN ('Completed', 'Cancelled')";
+if($search) $h_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR r.room_name LIKE '%$search%' OR r.room_number LIKE '%$search%' OR h.description LIKE '%$search%')";
 $h_sql .= " ORDER BY h.created_at DESC";
 $housekeeping_query = mysqli_query($conn, $h_sql);
 
 // Fetch Archived Rooms
-$r_sql = "SELECT * FROM rooms WHERE is_archived='1'";
-if($search) $r_sql .= " AND (room_name LIKE '%$search%' OR room_type LIKE '%$search%')";
+$r_sql = "SELECT * FROM rooms WHERE is_archived='1' OR status = 'Maintenance'";
+if($search) $r_sql .= " AND (room_name LIKE '%$search%' OR room_number LIKE '%$search%' OR room_type LIKE '%$search%')";
 $r_sql .= " ORDER BY room_name ASC";
 $archived_rooms_query = mysqli_query($conn, $r_sql);
 
 // Fetch Transaction Reports (All Paid Payments)
-$t_sql = "SELECT p.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status='Paid'";
-if($search) $t_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%' OR p.reference_number LIKE '%$search%')";
+$t_sql = "SELECT p.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, rm.room_name, rm.room_number FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status='Paid'";
+if($search) $t_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR rm.room_number LIKE '%$search%' OR p.description LIKE '%$search%' OR p.reference_number LIKE '%$search%')";
 $t_sql .= " ORDER BY p.payment_date DESC";
 $transactions_query = mysqli_query($conn, $t_sql);
 
 // Fetch Paid Utility Bills
-$u_sql = "SELECT p.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, rm.room_name FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status = 'Paid' AND p.description LIKE 'Utility Bill%'";
-if($search) $u_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR p.description LIKE '%$search%')";
+$u_sql = "SELECT p.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, rm.room_name, rm.room_number FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id JOIN users u ON r.user_id = u.user_id JOIN rooms rm ON r.room_id = rm.room_id WHERE p.payment_status = 'Paid' AND p.description LIKE 'Utility Bill%'";
+if($search) $u_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '%$search%' OR rm.room_name LIKE '%$search%' OR rm.room_number LIKE '%$search%' OR p.description LIKE '%$search%')";
 $u_sql .= " ORDER BY p.payment_date DESC";
 $utility_bills_query = mysqli_query($conn, $u_sql);
 
@@ -304,7 +304,7 @@ $theme = get_theme_colors($conn);
 
                         <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalRooms">
                             <i class="fas fa-bed"></i>
-                            <h3>Archived Rooms</h3>
+                            <h3>Archived & Maint.</h3>
                         </div>
 
                         <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalReports">
@@ -343,7 +343,7 @@ $theme = get_theme_colors($conn);
                             <tr>
                                 <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
                                 <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
-                                <td><?= htmlspecialchars($row['room_name']) ?></td>
+                                <td><?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?></td>
                                 <td><?= htmlspecialchars($row['description']) ?></td>
                                 <td><span class="badge <?= $row['status'] == 'Completed' ? 'bg-success' : 'bg-secondary' ?>"><?= $row['status'] ?></span></td>
                                 <td><?= $row['scheduled_date'] ? date('M d, Y', strtotime($row['scheduled_date'])) : '-' ?></td>
@@ -390,7 +390,7 @@ $theme = get_theme_colors($conn);
                             <tr>
                                 <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
                                 <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
-                                <td><?= htmlspecialchars($row['room_name']) ?></td>
+                                <td><?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?></td>
                                 <td><?= htmlspecialchars($row['description']) ?></td>
                                 <td><span class="badge <?= $row['status'] == 'Completed' ? 'bg-success' : 'bg-secondary' ?>"><?= $row['status'] ?></span></td>
                                 <td><?= $row['scheduled_date'] ? date('M d, Y', strtotime($row['scheduled_date'])) : '-' ?></td>
@@ -422,7 +422,7 @@ $theme = get_theme_colors($conn);
 </div>
 
 <div class="modal fade" id="modalBilling" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold"><i class="fas fa-file-invoice-dollar me-2"></i>Utility Bills</h5>
@@ -439,7 +439,7 @@ $theme = get_theme_colors($conn);
                             <tr>
                                 <td><?= date('M d, Y', strtotime($row['payment_date'])) ?></td>
                                 <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
-                                <td><?= htmlspecialchars($row['room_name']) ?></td>
+                                <td><?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?></td>
                                 <td class="small text-muted"><?= htmlspecialchars($row['description']) ?></td>
                                 <td class="text-end fw-bold text-success">₱<?= number_format($row['amount'], 2) ?></td>
                             </tr>
@@ -459,20 +459,23 @@ $theme = get_theme_colors($conn);
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="fas fa-bed me-2"></i>Archived Rooms</h5>
+                <h5 class="modal-title fw-bold"><i class="fas fa-bed me-2"></i>Archived & Maintenance Rooms</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Image</th><th>Room Name</th><th>Type</th><th>Price</th><th class="text-end">Actions</th></tr></thead>
+                        <thead><tr><th>Image</th><th>Room Name</th><th>Type</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
                         <tbody>
                             <?php while($row = mysqli_fetch_assoc($archived_rooms_query)): ?>
                             <tr>
-                                <td><img src="../assets/images/<?= $row['image'] ?>" style="width: 50px; height: 50px; object-fit: cover;" class="rounded"></td>
-                                <td class="fw-bold"><?= htmlspecialchars($row['room_name']) ?></td>
-                                <td><?= $row['room_type'] ?></td>
-                                <td>₱<?= number_format($row['total_price'], 2) ?></td>
+                                <td><img src="../assets/images/<?= $row['image'] ?>" style="width: 60px; height: 60px; object-fit: cover;" class="rounded shadow-sm"></td>
+                                <td class="fw-bold"><?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?></td>
+                                <td><span class="badge bg-light text-dark border"><?= $row['room_type'] ?></span></td>
+                                <td>
+                                    <?php if($row['is_archived']): ?><span class="badge bg-secondary">Archived</span><?php endif; ?>
+                                    <?php if($row['status'] == 'Maintenance'): ?><span class="badge bg-danger">Maintenance</span><?php endif; ?>
+                                </td>
                                 <td class="text-end">
                                     <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this room?')">
                                         <input type="hidden" name="id" value="<?= $row['room_id'] ?>">
@@ -490,7 +493,7 @@ $theme = get_theme_colors($conn);
                             </tr>
                             <?php endwhile; ?>
                             <?php if(mysqli_num_rows($archived_rooms_query) == 0): ?>
-                                <tr><td colspan="5" class="text-center text-muted py-3">No archived rooms found.</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted py-3">No archived or maintenance rooms found.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -516,7 +519,7 @@ $theme = get_theme_colors($conn);
                             <tr>
                                 <td><?= date('M d, Y', strtotime($row['payment_date'])) ?></td>
                                 <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
-                                <td><?= htmlspecialchars($row['room_name']) ?></td>
+                                <td><?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?></td>
                                 <td class="small text-muted"><?= htmlspecialchars($row['description'] ?? '') ?></td>
                                 <td><?= $row['payment_method'] ?></td>
                                 <td class="text-end fw-bold text-success">₱<?= number_format($row['amount'], 2) ?></td>

@@ -16,6 +16,7 @@ if (isset($_POST['add_parking_reservation'])) {
     $slot_id = (int)$_POST['slot_id'];
     $start_date = $_POST['start_date'];
     $billing_type = $_POST['billing_type'];
+    $payment_method = $_POST['payment_method'];
 
     // Validate: Check if user already has an active parking reservation
     $check_user_q = mysqli_query($conn, "SELECT id FROM parking_reservations WHERE user_id=$user_id AND status='Active'");
@@ -60,8 +61,8 @@ if (isset($_POST['add_parking_reservation'])) {
     $active_res_q = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id=$user_id AND status='Approved' ORDER BY end_date DESC LIMIT 1");
     if ($active_res_row = mysqli_fetch_assoc($active_res_q)) {
         $room_res_id = $active_res_row['reservation_id'];
-        $pay_stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'Cash', 'Unpaid', NOW(), ?)");
-        mysqli_stmt_bind_param($pay_stmt, "ids", $room_res_id, $cost, $desc);
+        $pay_stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, 'Unpaid', NOW(), ?)");
+        mysqli_stmt_bind_param($pay_stmt, "idss", $room_res_id, $cost, $payment_method, $desc);
         mysqli_stmt_execute($pay_stmt);
     }
 
@@ -101,7 +102,16 @@ while ($row = mysqli_fetch_assoc($slots_q)) {
     $parking_slots[$row['slot_type']][] = $row;
 }
 
-$reservations_q = mysqli_query($conn, "SELECT pr.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, ps.slot_name, ps.slot_type FROM parking_reservations pr JOIN users u ON pr.user_id = u.user_id JOIN parking_slots ps ON pr.slot_id = ps.id WHERE pr.status = 'Active' ORDER BY pr.start_date DESC");
+$reservations_q = mysqli_query($conn, "
+    SELECT pr.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, ps.slot_name, ps.slot_type,
+    (SELECT proof_image FROM payments WHERE description LIKE CONCAT('%(Parking ID: ', pr.id, ')') AND proof_image IS NOT NULL ORDER BY payment_id DESC LIMIT 1) as proof_image,
+    (SELECT payment_date FROM payments WHERE description LIKE CONCAT('%(Parking ID: ', pr.id, ')') AND proof_image IS NOT NULL ORDER BY payment_id DESC LIMIT 1) as proof_date
+    FROM parking_reservations pr 
+    JOIN users u ON pr.user_id = u.user_id 
+    JOIN parking_slots ps ON pr.slot_id = ps.id 
+    WHERE pr.status = 'Active' 
+    ORDER BY pr.start_date DESC
+");
 $users_q = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name) as full_name FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM reservations WHERE status='Approved') AND user_id NOT IN (SELECT user_id FROM parking_reservations WHERE status='Active') ORDER BY last_name ASC");
 
 // Sidebar counts
@@ -205,7 +215,7 @@ $theme = get_theme_colors($conn);
                 <h5 class="fw-bold text-secondary mb-3">Active Parking Reservations</h5>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Tenant</th><th>Slot</th><th>Billing</th><th>Start Date</th><th class="text-end">Action</th></tr></thead>
+                        <thead><tr><th>Tenant</th><th>Slot</th><th>Billing</th><th>Start Date</th><th>Proof</th><th class="text-end">Action</th></tr></thead>
                         <tbody>
                             <?php while($row = mysqli_fetch_assoc($reservations_q)): ?>
                             <tr>
@@ -213,6 +223,20 @@ $theme = get_theme_colors($conn);
                                 <td><?= $row['slot_name'] ?> (<?= $row['slot_type'] ?>)</td>
                                 <td><?= $row['billing_type'] ?></td>
                                 <td><?= date('M d, Y', strtotime($row['start_date'])) ?></td>
+                                <td>
+                                    <?php if(!empty($row['proof_image'])): ?>
+                                        <button type="button" class="btn btn-sm btn-outline-info" onclick="viewProof('../uploads/proofs/<?= htmlspecialchars($row['proof_image']) ?>')">
+                                            <i class="fas fa-image"></i> View
+                                        </button>
+                                        <?php if(!empty($row['proof_date'])): ?>
+                                            <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                                                <i class="fas fa-clock me-1"></i><?= date('M d', strtotime($row['proof_date'])) ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="text-muted small">-</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-end">
                                     <button type="button" class="btn btn-sm btn-danger" onclick="endParkingReservation(<?= $row['id'] ?>, '<?= htmlspecialchars($row['full_name']) ?>', '<?= htmlspecialchars($row['slot_name']) ?>', '<?= $row['slot_type'] ?>')">End Reservation</button>
                                 </td>
@@ -327,6 +351,13 @@ $theme = get_theme_colors($conn);
                                 <option value="Daily">Daily</option>
                             </select>
                         </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label fw-bold small text-muted">PAYMENT METHOD</label>
+                            <select name="payment_method" class="form-select" required>
+                                <option value="Cash">Cash</option>
+                                <option value="GCash">GCash</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -334,6 +365,21 @@ $theme = get_theme_colors($conn);
                     <button type="submit" name="add_parking_reservation" class="btn btn-success fw-bold" onclick="return validateSlot()">Confirm Reservation</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Proof View Modal -->
+<div class="modal fade" id="viewProofModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Proof of Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="proofImageFull" src="" class="img-fluid rounded border">
+            </div>
         </div>
     </div>
 </div>
@@ -389,6 +435,12 @@ function endParkingReservation(id, tenantName, slotName, slotType) {
             window.location.href = '?action=end&id=' + id;
         }
     });
+}
+
+function viewProof(url) {
+    document.getElementById('proofImageFull').src = url;
+    var myModal = new bootstrap.Modal(document.getElementById('viewProofModal'));
+    myModal.show();
 }
 
 // Parent Sidebar Badges
