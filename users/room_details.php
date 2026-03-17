@@ -98,6 +98,7 @@ if(isset($_SESSION['user_id'])){
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="users_CSS/app.css">
     <style>
+        body { overflow: hidden; height: 100vh; }
         .room-img { width: 100%; height: 350px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
     </style>
 </head>
@@ -135,8 +136,8 @@ if(isset($_SESSION['user_id'])){
     </div>
 </nav>
 
-<div class="container animate-fade-in" style="margin-top: 100px; margin-bottom: 50px;">
-    <div class="card card-custom p-4 border-0 shadow-sm">
+<div class="container animate-fade-in d-flex align-items-center justify-content-center" style="height: 100vh; padding-top: 70px;">
+    <div class="card card-custom p-4 border-0 shadow-sm w-100" style="max-height: calc(100vh - 100px); overflow-y: auto;">
         <div class="row g-5 align-items-center">
             <div class="col-lg-6 anim-trigger delay-1">
                 <img src="../assets/images/<?= $room['image'] ?>" class="room-img shadow-sm" alt="<?= $room['room_name'] ?>">
