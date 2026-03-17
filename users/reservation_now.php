@@ -128,6 +128,7 @@ if(isset($_GET['bed_preference'])){
 // Handle Submission
 if (isset($_POST['confirm_booking'])) {
         $troom = $_POST['troom'] ?? '';
+        $pre_room = $troom; // Persist room selection
         $cin = $_POST['cin'] ?? '';
         $cout = $_POST['cout'] ?? '';
         $bed_preference = $_POST['bed_preference'] ?? 'Any';
@@ -135,6 +136,16 @@ if (isset($_POST['confirm_booking'])) {
         $agree_rules = isset($_POST['agree_rules']);
         $agree_fees = isset($_POST['agree_fees']);
         $typed_signature = trim($_POST['typed_signature'] ?? '');
+
+        // Persist user input for form reload on error
+        $user_gender = $_POST['gender'] ?? $user_gender;
+        $user_occupation = $_POST['occupation'] ?? $user_occupation;
+        $user_company = $_POST['company'] ?? $user_company;
+        $user_address = $_POST['address'] ?? $user_address;
+        $user_emergency_contact_name = $_POST['emergency_contact_name'] ?? $user_emergency_contact_name;
+        $user_emergency_contact_number = $_POST['emergency_contact_number'] ?? $user_emergency_contact_number;
+        
+        $pre_bed = $bed_preference; // Persist bed preference
 
         if (empty($troom)) {
             $error = "Please select a valid room type.";
@@ -598,7 +609,7 @@ if (isset($_POST['confirm_booking'])) {
                             <label class="form-label">Occupation Status*</label>
                             <?php if(!empty($user_occupation)): ?>
                                 <input type="text" class="form-control" id="occupation" value="<?= htmlspecialchars($user_occupation) ?>" readonly>
-                                <input type="hidden" name="occupation" value="<?= htmlspecialchars($user_occupation) ?>">
+                                <input type="hidden" name="occupation" value="<?= htmlspecialchars($user_occupation) ?>" id="occupation_hidden">
                             <?php else: ?>
                                 <select name="occupation" id="occupation" class="form-select" required onchange="toggleCompanyField()">
                                     <option value="" disabled selected>Select Status</option>
@@ -652,7 +663,7 @@ if (isset($_POST['confirm_booking'])) {
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_number) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_number" value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
                             <?php else: ?>
-                                <input type="text" name="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required>
+                                <input type="text" name="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
@@ -706,6 +717,7 @@ if (isset($_POST['confirm_booking'])) {
                         <div class="mb-3">
                             <label class="form-label">Duration</label>
                             <select id="duration_select" class="form-select" onchange="updateCheckoutDate()">
+                                <option value="" disabled selected>Select Duration</option>
                                 <option value="1">Short Term (1 Month)</option>
                                 <option value="6">Long Term (6 Months Contract)</option>
                                 <option value="Daily">Daily</option>
@@ -751,10 +763,11 @@ if (isset($_POST['confirm_booking'])) {
                         <!-- Payment Method -->
                         <div class="mb-3">
                             <label class="form-label">Payment Method</label>
+                            <?php $pm = $_POST['payment_method'] ?? 'Cash'; ?>
                             <select name="payment_method" id="payment_method" class="form-select" required onchange="togglePaymentDetails()">
-                                <option value="Cash">Cash (Pay at Property)</option>
-                                <option value="GCash">GCash</option>
-                                <option value="PayPal">PayPal</option>
+                                <option value="Cash" <?= $pm == 'Cash' ? 'selected' : '' ?>>Cash (Pay at Property)</option>
+                                <option value="GCash" <?= $pm == 'GCash' ? 'selected' : '' ?>>GCash</option>
+                                <option value="PayPal" <?= $pm == 'PayPal' ? 'selected' : '' ?>>PayPal</option>
                             </select>
                         </div>
 

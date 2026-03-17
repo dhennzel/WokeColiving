@@ -3,6 +3,13 @@ include '../db.php';
 
 $error = "";
 
+$lname = "";
+$fname = "";
+$mname = "";
+$gender = "";
+$email = "";
+$phone = "";
+
 if (isset($_POST['register'])) {
     $lname = trim($_POST['lname']);
     $fname = trim($_POST['fname']);
@@ -10,6 +17,7 @@ if (isset($_POST['register'])) {
     $lname = mysqli_real_escape_string($conn, $lname);
     $fname = mysqli_real_escape_string($conn, $fname);
     $mname = mysqli_real_escape_string($conn, $mname);
+    $gender = mysqli_real_escape_string($conn, $_POST['gender']);
     $email = mysqli_real_escape_string($conn, trim($_POST['email']));
     $phone = mysqli_real_escape_string($conn, trim($_POST['phone']));
     $raw_pass = $_POST['password'];
@@ -26,7 +34,7 @@ if (isset($_POST['register'])) {
         $error = "Email address is already registered."; 
     } else {
         $pass = password_hash($raw_pass, PASSWORD_DEFAULT);
-        $sql = "INSERT INTO users (last_name, first_name, middle_name, email, phone_number, password) VALUES ('$lname', '$fname', '$mname', '$email', '$phone', '$pass')";
+        $sql = "INSERT INTO users (last_name, first_name, middle_name, gender, email, phone_number, password) VALUES ('$lname', '$fname', '$mname', '$gender', '$email', '$phone', '$pass')";
         
         try {
             if(mysqli_query($conn, $sql)){
@@ -62,15 +70,23 @@ if (isset($_POST['register'])) {
         <?php if ($error) { echo "<div class='alert alert-danger py-2 small mb-3'>$error</div>"; } ?>
         <form method="POST">
             <div class="row g-2 mb-2">
-                <div class="col-4"><input type="text" name="lname" class="form-control" placeholder="Last Name" required></div>
-                <div class="col-4"><input type="text" name="fname" class="form-control" placeholder="First Name" required></div>
-                <div class="col-4"><input type="text" name="mname" class="form-control" placeholder="Middle Name"></div>
+                <div class="col-4"><input type="text" name="lname" class="form-control" placeholder="Last Name" required value="<?= htmlspecialchars($lname) ?>"></div>
+                <div class="col-4"><input type="text" name="fname" class="form-control" placeholder="First Name" required value="<?= htmlspecialchars($fname) ?>"></div>
+                <div class="col-4"><input type="text" name="mname" class="form-control" placeholder="Middle Name" value="<?= htmlspecialchars($mname) ?>"></div>
             </div>
             <div class="mb-2">
-                <input type="email" name="email" class="form-control" placeholder="Email Address" required>
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="gender" id="gender_male" value="Male" required <?= $gender == 'Male' ? 'checked' : '' ?>>
+                    <label class="btn btn-outline-success" for="gender_male">Male</label>
+                    <input type="radio" class="btn-check" name="gender" id="gender_female" value="Female" required <?= $gender == 'Female' ? 'checked' : '' ?>>
+                    <label class="btn btn-outline-success" for="gender_female">Female</label>
+                </div>
             </div>
             <div class="mb-2">
-                <input type="text" name="phone" class="form-control" placeholder="Phone Number (e.g. 09xxxxxxxxx)" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required>
+                <input type="email" name="email" class="form-control" placeholder="Email Address" required value="<?= htmlspecialchars($email) ?>">
+            </div>
+            <div class="mb-2">
+                <input type="text" name="phone" class="form-control" placeholder="Phone Number (e.g. 09xxxxxxxxx)" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($phone) ?>">
             </div>
             <div class="mb-3">
                 <input type="password" name="password" class="form-control" placeholder="Password" required>

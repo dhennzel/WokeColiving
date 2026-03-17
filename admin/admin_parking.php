@@ -103,9 +103,7 @@ while ($row = mysqli_fetch_assoc($slots_q)) {
 }
 
 $reservations_q = mysqli_query($conn, "
-    SELECT pr.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, ps.slot_name, ps.slot_type,
-    (SELECT proof_image FROM payments WHERE description LIKE CONCAT('%(Parking ID: ', pr.id, ')') AND proof_image IS NOT NULL ORDER BY payment_id DESC LIMIT 1) as proof_image,
-    (SELECT payment_date FROM payments WHERE description LIKE CONCAT('%(Parking ID: ', pr.id, ')') AND proof_image IS NOT NULL ORDER BY payment_id DESC LIMIT 1) as proof_date
+    SELECT pr.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, ps.slot_name, ps.slot_type
     FROM parking_reservations pr 
     JOIN users u ON pr.user_id = u.user_id 
     JOIN parking_slots ps ON pr.slot_id = ps.id 
@@ -215,7 +213,7 @@ $theme = get_theme_colors($conn);
                 <h5 class="fw-bold text-secondary mb-3">Active Parking Reservations</h5>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Tenant</th><th>Slot</th><th>Billing</th><th>Start Date</th><th>Proof</th><th class="text-end">Action</th></tr></thead>
+                        <thead><tr><th>Tenant</th><th>Slot</th><th>Billing</th><th>Start Date</th><th class="text-end">Action</th></tr></thead>
                         <tbody>
                             <?php while($row = mysqli_fetch_assoc($reservations_q)): ?>
                             <tr>
@@ -223,20 +221,6 @@ $theme = get_theme_colors($conn);
                                 <td><?= $row['slot_name'] ?> (<?= $row['slot_type'] ?>)</td>
                                 <td><?= $row['billing_type'] ?></td>
                                 <td><?= date('M d, Y', strtotime($row['start_date'])) ?></td>
-                                <td>
-                                    <?php if(!empty($row['proof_image'])): ?>
-                                        <button type="button" class="btn btn-sm btn-outline-info" onclick="viewProof('../uploads/proofs/<?= htmlspecialchars($row['proof_image']) ?>')">
-                                            <i class="fas fa-image"></i> View
-                                        </button>
-                                        <?php if(!empty($row['proof_date'])): ?>
-                                            <div class="small text-muted mt-1" style="font-size: 0.75rem;">
-                                                <i class="fas fa-clock me-1"></i><?= date('M d', strtotime($row['proof_date'])) ?>
-                                            </div>
-                                        <?php endif; ?>
-                                    <?php else: ?>
-                                        <span class="text-muted small">-</span>
-                                    <?php endif; ?>
-                                </td>
                                 <td class="text-end">
                                     <button type="button" class="btn btn-sm btn-danger" onclick="endParkingReservation(<?= $row['id'] ?>, '<?= htmlspecialchars($row['full_name']) ?>', '<?= htmlspecialchars($row['slot_name']) ?>', '<?= $row['slot_type'] ?>')">End Reservation</button>
                                 </td>
@@ -369,21 +353,6 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
-<!-- Proof View Modal -->
-<div class="modal fade" id="viewProofModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Proof of Payment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center">
-                <img id="proofImageFull" src="" class="img-fluid rounded border">
-            </div>
-        </div>
-    </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
@@ -435,12 +404,6 @@ function endParkingReservation(id, tenantName, slotName, slotType) {
             window.location.href = '?action=end&id=' + id;
         }
     });
-}
-
-function viewProof(url) {
-    document.getElementById('proofImageFull').src = url;
-    var myModal = new bootstrap.Modal(document.getElementById('viewProofModal'));
-    myModal.show();
 }
 
 // Parent Sidebar Badges

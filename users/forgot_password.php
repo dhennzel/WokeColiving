@@ -7,7 +7,7 @@ $error = "";
 if (isset($_POST['reset_request'])) {
     $email = trim($_POST['email']);
     
-    $stmt = mysqli_prepare($conn, "SELECT user_id, full_name FROM users WHERE email=?");
+    $stmt = mysqli_prepare($conn, "SELECT user_id, CONCAT(first_name, ' ', last_name) as full_name FROM users WHERE email=?");
     mysqli_stmt_bind_param($stmt, "s", $email);
     mysqli_stmt_execute($stmt);
     $res = mysqli_stmt_get_result($stmt);
