@@ -272,11 +272,11 @@ try {
         
         <div class="d-flex align-items-center gap-3 ms-auto">
         <!-- Notification Dropdown -->
-        <div class="dropdown anim-trigger">
-            <a href="#" class="text-white text-decoration-none position-relative me-3" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+        <div class="dropdown d-flex align-items-center">
+            <a href="#" class="nav-link p-0 position-relative" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-bell fa-lg"></i>
                 <?php if($unread_count > 0): ?>
-                    <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;">
+                    <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.55rem; padding: 0.25rem 0.4rem;">
                         <?= $unread_count ?>
                         <span class="visually-hidden">unread messages</span>
                     </span>
@@ -706,8 +706,9 @@ try {
                     if(!badge) {
                         badge = document.createElement('span');
                         badge.id = 'notifBadge';
-                        badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
-                        badge.style.fontSize = '0.6rem';
+                        badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light';
+                        badge.style.fontSize = '0.55rem';
+                        badge.style.padding = '0.25rem 0.4rem';
                         bell.appendChild(badge);
                     }
                     badge.innerHTML = `${data.unread_count} <span class="visually-hidden">unread messages</span>`;
