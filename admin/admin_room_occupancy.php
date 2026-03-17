@@ -44,7 +44,27 @@ if(isset($_GET['fetch_history']) && isset($_GET['room_id'])){
 }
 
 // Fetch all rooms with occupancy information
-$rooms = get_all_rooms_with_occupancy($conn);
+$raw_rooms = get_all_rooms_with_occupancy($conn);
+
+// Deduplicate by Room Name
+$rooms = [];
+$seen_names = [];
+foreach ($raw_rooms as $room) {
+    // Determine the true display name
+    $name = !empty($room['room_number']) ? trim($room['room_number']) : trim($room['room_name']);
+    $display_key = strtolower($name);
+
+    if (!isset($seen_names[$display_key])) {
+        $seen_names[$display_key] = count($rooms);
+        $rooms[] = $room;
+    } else {
+        // If it's a duplicate, keep the one that actually has the tenants
+        $idx = $seen_names[$display_key];
+        if ($room['occupied_count'] > $rooms[$idx]['occupied_count']) {
+            $rooms[$idx] = $room;
+        }
+    }
+}
 
 // Group rooms by type
 $grouped_rooms = [];

@@ -103,6 +103,7 @@ if(isset($_SESSION['user_id'])){
 
         /* Night Mode Overrides */
         body.night-mode { background-color: #121212 !important; color: #e0e0e0; }
+        body.night-mode .navbar-user { background: #1f1f1f !important; border-bottom: 1px solid #333 !important; }
         body.night-mode .card, body.night-mode .card-custom { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
         body.night-mode .bg-light { background-color: #2c2c2c !important; }
         body.night-mode .text-dark { color: #e0e0e0 !important; }
@@ -110,6 +111,8 @@ if(isset($_SESSION['user_id'])){
         body.night-mode .border { border-color: #444 !important; }
         body.night-mode .utility-block { background-color: #2c2c2c !important; border-color: #444 !important; color: #e0e0e0 !important; }
         body.night-mode .navbar-user .nav-link, body.night-mode .navbar-user .navbar-brand, body.night-mode .navbar-user .text-muted { color: #34B875 !important; }
+        body.night-mode .navbar-toggler { border-color: rgba(255,255,255,0.5); }
+        body.night-mode .navbar-toggler-icon { filter: invert(1) brightness(200%); }
         body.night-mode::-webkit-scrollbar, body.night-mode *::-webkit-scrollbar { width: 8px; height: 8px; }
         body.night-mode::-webkit-scrollbar-track, body.night-mode *::-webkit-scrollbar-track { background: #121212 !important; }
         body.night-mode::-webkit-scrollbar-thumb, body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }

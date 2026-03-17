@@ -129,7 +129,27 @@ $q_prices = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key L
 while($row = mysqli_fetch_assoc($q_prices)){ $default_prices[$row['setting_key']] = (float)$row['setting_value']; }
 
 // Fetch all rooms using centralized function for accurate occupancy data
-$rooms = get_all_rooms_with_occupancy($conn);
+$raw_rooms = get_all_rooms_with_occupancy($conn);
+
+// Deduplicate by Room Name
+$rooms = [];
+$seen_names = [];
+foreach ($raw_rooms as $room) {
+    // Determine the true display name
+    $name = !empty($room['room_number']) ? trim($room['room_number']) : trim($room['room_name']);
+    $display_key = strtolower($name);
+
+    if (!isset($seen_names[$display_key])) {
+        $seen_names[$display_key] = count($rooms);
+        $rooms[] = $room;
+    } else {
+        // If it's a duplicate, keep the one that actually has the tenants
+        $idx = $seen_names[$display_key];
+        if ($room['occupied_count'] > $rooms[$idx]['occupied_count']) {
+            $rooms[$idx] = $room;
+        }
+    }
+}
 
 // Group rooms by type
 $grouped_rooms = [];

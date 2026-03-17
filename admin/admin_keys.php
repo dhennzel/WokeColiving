@@ -53,7 +53,45 @@ if (isset($_GET['action']) && $_GET['action'] == 'return' && isset($_GET['id']))
 $show_hidden = true; // Always show hidden rooms on this page
 
 // Fetch all rooms with occupancy and key info
-$all_rooms = get_all_rooms_with_occupancy($conn, $show_hidden);
+$raw_rooms = get_all_rooms_with_occupancy($conn, $show_hidden);
+
+// Filter out duplicate rooms and safely merge keys
+$clean_rooms = [];
+foreach ($raw_rooms as $room) {
+    $r_id = $room['room_id'];
+    
+    if (!isset($clean_rooms[$r_id])) {
+        // First time seeing this room. Re-index keys by key_id so we don't double-count later.
+        $unique_keys = [];
+        if (!empty($room['all_keys'])) {
+            foreach ($room['all_keys'] as $k) {
+                $unique_keys[$k['key_id']] = $k; 
+            }
+        }
+        $room['all_keys'] = $unique_keys;
+        $clean_rooms[$r_id] = $room;
+    } else {
+        // Room duplicate found! Update occupancy if this row has the real tenant data
+        if ($room['occupied_count'] > $clean_rooms[$r_id]['occupied_count']) {
+            $clean_rooms[$r_id]['occupied_count'] = $room['occupied_count'];
+            $clean_rooms[$r_id]['occupancy_status'] = $room['occupancy_status'];
+        }
+        
+        // Safely add keys without duplicating them (This fixes the 31 instead of 30 issue)
+        if (!empty($room['all_keys'])) {
+            foreach ($room['all_keys'] as $k) {
+                $clean_rooms[$r_id]['all_keys'][$k['key_id']] = $k;
+            }
+        }
+    }
+}
+
+// Reset the arrays back to normal so the rest of your page can read them perfectly
+foreach ($clean_rooms as &$room) {
+    $room['all_keys'] = array_values($room['all_keys'] ?? []);
+}
+unset($room);
+$all_rooms = array_values($clean_rooms);
 
 // Map bed preference to keys
 foreach ($all_rooms as &$room) {
