@@ -536,6 +536,85 @@ $check_col_rn = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'room_number'"
 if(mysqli_num_rows($check_col_rn) == 0) {
     mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN room_number VARCHAR(50) DEFAULT NULL AFTER room_name");
 }
+// Migration: Ensure room_number is populated for existing rooms by copying room_name if room_number is empty
+// This helps migrating old data where the number was stored in the name field
+mysqli_query($conn, "UPDATE rooms SET room_number = room_name WHERE (room_number IS NULL OR room_number = '') AND room_name != ''");
+
+// --- FIX DUPLICATE ROOM NUMBERS (ONE-TIME MIGRATION) ---
+// Check if this migration has run before
+$migration_check_dupes = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='migration_fix_dupe_rooms_v2'");
+if(mysqli_num_rows($migration_check_dupes) == 0) {
+    // Find groups of duplicate room numbers
+    $dupe_query = mysqli_query($conn, "SELECT room_number, COUNT(room_id) as cnt FROM rooms WHERE room_number IS NOT NULL AND room_number != '' GROUP BY room_number HAVING cnt > 1");
+    if ($dupe_query) {
+        while ($dupe = mysqli_fetch_assoc($dupe_query)) {
+            $num = mysqli_real_escape_string($conn, $dupe['room_number']);
+            // Get all rooms with this number, ordered by ID to keep the oldest one
+            $rooms_q = mysqli_query($conn, "SELECT room_id FROM rooms WHERE room_number = '$num' ORDER BY room_id ASC");
+            $original_room = mysqli_fetch_assoc($rooms_q); // Skip first (keep original)
+            while ($room_to_fix = mysqli_fetch_assoc($rooms_q)) {
+                $rid = $room_to_fix['room_id'];
+                try {
+                    // Try to delete duplicate room
+                    mysqli_query($conn, "DELETE FROM rooms WHERE room_id = $rid");
+                    mysqli_query($conn, "DELETE FROM `keys` WHERE type='Room' AND reference_id=$rid");
+                } catch (mysqli_sql_exception $e) {
+                    // If linked to reservation, archive and rename instead
+                    $new_num = $num . '_dup_' . $rid;
+                    mysqli_query($conn, "UPDATE rooms SET room_number = '$new_num', is_archived = 1 WHERE room_id = $rid");
+                }
+            }
+        }
+    }
+   
+    // Mark migration as complete
+    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('migration_fix_dupe_rooms_v2', '1')");
+}
+
+// --- CLEANUP DUPLICATES FOR 4-BED & 6-BED (ONE-TIME MIGRATION V3) ---
+$migration_check_v3 = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='migration_cleanup_v3'");
+if(mysqli_num_rows($migration_check_v3) == 0) {
+    // Deduplicate 4-Bed and 6-Bed rooms based on room_number to reach target counts
+    $target_types = ['4-Bed', '6-Bed'];
+    
+    foreach($target_types as $type) {
+        // Find room numbers that appear more than once for this type
+        $dupes_q = mysqli_query($conn, "SELECT room_number FROM rooms WHERE room_type='$type' AND is_archived=0 GROUP BY room_number HAVING COUNT(*) > 1");
+        
+        if($dupes_q){
+            while($d = mysqli_fetch_assoc($dupes_q)) {
+                $num = mysqli_real_escape_string($conn, $d['room_number']);
+                // Find all rooms with this number, prioritize keeping ones with reservations or older ID
+                $rooms_q = mysqli_query($conn, "
+                    SELECT r.room_id, (SELECT COUNT(*) FROM reservations WHERE room_id = r.room_id) as usage_count 
+                    FROM rooms r 
+                    WHERE r.room_number = '$num' AND r.room_type = '$type' AND r.is_archived=0 
+                    ORDER BY usage_count DESC, r.room_id ASC
+                ");
+                
+                $first = true;
+                while($row = mysqli_fetch_assoc($rooms_q)) {
+                    if($first) {
+                        $first = false; // Keep the best candidate
+                        continue;
+                    }
+                    
+                    // Delete the duplicate (or archive if it has data)
+                    $rid = $row['room_id'];
+                    if($row['usage_count'] == 0) {
+                        mysqli_query($conn, "DELETE FROM rooms WHERE room_id=$rid");
+                        try { mysqli_query($conn, "DELETE FROM `keys` WHERE type='Room' AND reference_id=$rid"); } catch(Exception $e){}
+                    } else {
+                        $new_num = $num . "_archived_" . $rid;
+                        mysqli_query($conn, "UPDATE rooms SET room_number='$new_num', is_archived=1 WHERE room_id=$rid");
+                    }
+                }
+            }
+        }
+    }
+    
+    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('migration_cleanup_v3', '1')");
+}
 
 // Ensure users table has split name columns (Migration from full_name)
 $check_user_cols = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'last_name'");

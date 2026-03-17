@@ -107,7 +107,7 @@ if(isset($_POST['schedule_cleaning'])){
 }
 
 // Fetch All Requests
-$query = "SELECT h.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name 
+$query = "SELECT h.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name, r.room_number 
           FROM housekeeping_requests h 
           LEFT JOIN users u ON h.user_id = u.user_id 
           LEFT JOIN rooms r ON h.room_id = r.room_id 
@@ -240,15 +240,20 @@ $theme = get_theme_colors($conn);
         <div class="modal-content bg-light">
             <div class="modal-header bg-white">
                 <h5 class="modal-title fw-bold"><i class="fas fa-broom me-2"></i><?= $status ?> Housekeeping Requests</h5>
+                <div class="ms-auto me-3">
+                    <input type="text" class="form-control form-control-sm" placeholder="Filter by Room..." onkeyup="filterHousekeeping(this, 'list_<?= $status ?>')">
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="row g-4">
-                    <?php foreach($items as $row): ?>
-                    <div class="col-md-6 col-lg-4">
+                <div class="row g-4" id="list_<?= $status ?>">
+                    <?php foreach($items as $row): 
+                        $search_tags = strtolower((!empty($row['room_number']) ? 'Room ' . $row['room_number'] : $row['room_name']) . ' ' . ($row['room_number'] ?? '') . ' ' . $row['room_name']);
+                    ?>
+                    <div class="col-md-6 col-lg-4 housekeeping-item" data-search="<?= htmlspecialchars($search_tags) ?>">
                         <div class="card card-req h-100 border-0 shadow-sm">
                             <div class="req-header d-flex justify-content-between align-items-center">
-                                <span class="fw-bold text-success"><i class="fas fa-door-open me-1"></i> <?= $row['room_name'] ?></span>
+                                <span class="fw-bold text-success"><i class="fas fa-door-open me-1"></i> <?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?></span>
                                 <small class="text-muted"><?= date('M d, Y', strtotime($row['created_at'])) ?></small>
                             </div>
                             <div class="req-body d-flex flex-column h-100">
@@ -348,7 +353,7 @@ $theme = get_theme_colors($conn);
                                     <div class="card room-select-card h-100" onclick="selectRoom(this, <?= $room['room_id'] ?>)">
                                         <img src="../assets/images/<?= $room['image'] ?>">
                                         <div class="card-body p-2 text-center">
-                                            <div class="fw-bold small"><?= $room['room_name'] ?></div>
+                                            <div class="fw-bold small"><?= !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room['room_number']) : htmlspecialchars($room['room_name']) ?></div>
                                             <div class="badge bg-light text-dark border mt-1"><?= $room['floor'] ?>F</div>
                                             <?php if($room['availability'] == 'Maintenance'): ?>
                                                 <div class="badge bg-danger mt-1">Maintenance</div>
@@ -417,7 +422,7 @@ $theme = get_theme_colors($conn);
                                 <div class="col-md-4 col-lg-3 room-item-filter" data-floor="<?= $room['floor'] ?>">
                                     <div class="card card-req h-100 border-0 shadow-sm auto-select-card" onclick="toggleAutoSelect(this, <?= $room['room_id'] ?>)" style="cursor: pointer; transition: transform 0.2s;">
                                         <div class="req-header d-flex justify-content-between align-items-center">
-                                            <span class="fw-bold text-success"><i class="fas fa-door-open me-1"></i> <?= $room['room_name'] ?></span>
+                                            <span class="fw-bold text-success"><i class="fas fa-door-open me-1"></i> <?= !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room['room_number']) : htmlspecialchars($room['room_name']) ?></span>
                                             <span class="badge bg-light text-dark border"><?= $room['floor'] ?>F</span>
                                         </div>
                                         <div class="req-body">
@@ -521,6 +526,21 @@ function filterRooms(select, containerId) {
             item.style.display = 'none';
         }
     });
+}
+
+function filterHousekeeping(input, containerId) {
+    const filter = input.value.toLowerCase();
+    const container = document.getElementById(containerId);
+    const items = container.getElementsByClassName('housekeeping-item');
+    
+    for (let i = 0; i < items.length; i++) {
+        const searchData = items[i].getAttribute('data-search');
+        if (searchData && searchData.includes(filter)) {
+            items[i].style.display = "";
+        } else {
+            items[i].style.display = "none";
+        }
+    }
 }
 </script>
 </body>

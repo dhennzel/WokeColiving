@@ -42,13 +42,13 @@ if(isset($_POST['add_room'])){
     }
 
     // Check for duplicate room number before proceeding
-    $check_stmt = mysqli_prepare($conn, "SELECT room_id FROM rooms WHERE room_number = ? AND is_archived = 0");
+    $check_stmt = mysqli_prepare($conn, "SELECT room_id FROM rooms WHERE room_number = ?");
     mysqli_stmt_bind_param($check_stmt, "s", $room_number);
     mysqli_stmt_execute($check_stmt);
     mysqli_stmt_store_result($check_stmt);
 
     if (mysqli_stmt_num_rows($check_stmt) > 0) {
-        $error = "A room with number '$room_number' already exists.";
+        $error = "A room with number '$room_number' already exists (it may be in the archive). Please use a unique room number.";
         mysqli_stmt_close($check_stmt);
     } else {
         mysqli_stmt_close($check_stmt); // Close statement before continuing

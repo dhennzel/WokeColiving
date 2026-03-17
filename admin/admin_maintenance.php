@@ -155,7 +155,7 @@ if(isset($_POST['auto_schedule_maintenance'])){
 }
 
 // Fetch All Requests
-$query = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name 
+$query = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name, r.room_number 
           FROM maintenance_requests m 
           LEFT JOIN users u ON m.user_id = u.user_id 
           LEFT JOIN rooms r ON m.room_id = r.room_id 
@@ -306,10 +306,13 @@ $theme = get_theme_colors($conn);
         <div class="modal-content bg-light">
             <div class="modal-header bg-white">
                 <h5 class="modal-title fw-bold"><i class="fas fa-tools me-2"></i><?= $status ?> Maintenance Requests</h5>
+                <div class="ms-auto me-3">
+                    <input type="text" class="form-control form-control-sm" placeholder="Filter by Room..." onkeyup="filterMaintenance(this, 'list_<?= $status ?>')">
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="row g-4">
+                <div class="row g-4" id="list_<?= $status ?>">
                     <?php foreach($items as $row): 
                         // Check for active reservation and move status
                         $uid = $row['user_id'] ?? 0;
@@ -328,11 +331,12 @@ $theme = get_theme_colors($conn);
                                 $move_btn = '<button type="button" class="btn btn-sm btn-info text-white w-100 mt-1" onclick="openMoveModal('.$rid.', \''.addslashes($row['full_name']).'\')" title="Move Tenant"><i class="fas fa-exchange-alt me-1"></i> Move Tenant</button>';
                             }
                         }
+                        $search_tags = strtolower((!empty($row['room_number']) ? 'Room ' . $row['room_number'] : $row['room_name']) . ' ' . ($row['room_number'] ?? '') . ' ' . $row['room_name']);
                     ?>
-                    <div class="col-md-6 col-lg-4">
+                    <div class="col-md-6 col-lg-4 maintenance-item" data-search="<?= htmlspecialchars($search_tags) ?>">
                         <div class="card card-req h-100 border-0 shadow-sm">
                             <div class="req-header d-flex justify-content-between align-items-center">
-                                <span class="fw-bold text-success"><i class="fas fa-door-open me-1"></i> <?= $row['room_name'] ?></span>
+                                <span class="fw-bold text-success"><i class="fas fa-door-open me-1"></i> <?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?></span>
                                 <small class="text-muted"><?= date('M d, Y', strtotime($row['created_at'])) ?></small>
                             </div>
                             <div class="req-body d-flex flex-column h-100">
@@ -407,7 +411,10 @@ $theme = get_theme_colors($conn);
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="fw-bold text-secondary mb-0">Select Room</h6>
+                        <div>
+                            <h6 class="fw-bold text-secondary mb-0">Select Room</h6>
+                            <small class="text-primary fw-bold" id="selected_tenant_display" style="display:none;"></small>
+                        </div>
                         <div class="d-flex align-items-center">
                             <label class="small fw-bold me-2 text-muted">Filter:</label>
                             <select class="form-select form-select-sm" style="width: 120px;" onchange="filterRooms(this, 'scheduleRoomContainer')">
@@ -434,12 +441,16 @@ $theme = get_theme_colors($conn);
                         <?php $first=true; foreach($grouped_rooms as $type => $rooms): $tid = md5($type); ?>
                         <div class="tab-pane fade <?= $first?'show active':'' ?>" id="content-<?=$tid?>" role="tabpanel">
                             <div class="row g-3">
-                                <?php foreach($rooms as $room): ?>
+                                <?php foreach($rooms as $room): 
+                                    $t_names = [];
+                                    if(!empty($room['occupants'])) { foreach($room['occupants'] as $occ) $t_names[] = $occ['full_name']; }
+                                    $t_str = !empty($t_names) ? implode(", ", $t_names) : "Vacant";
+                                ?>
                                 <div class="col-md-4 col-lg-3 room-item-filter" data-floor="<?= $room['floor'] ?>">
-                                    <div class="card room-select-card h-100" onclick="selectRoom(this, <?= $room['room_id'] ?>)">
+                                    <div class="card room-select-card h-100" onclick="selectRoom(this, <?= $room['room_id'] ?>)" data-tenants="<?= htmlspecialchars($t_str, ENT_QUOTES) ?>">
                                         <img src="../assets/images/<?= $room['image'] ?>">
                                         <div class="card-body p-2 text-center">
-                                            <div class="fw-bold small"><?= $room['room_name'] ?></div>
+                                            <div class="fw-bold small"><?= !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room['room_number']) : htmlspecialchars($room['room_name']) ?></div>
                                             <div class="badge bg-light text-dark border mt-1"><?= $room['floor'] ?>F</div>
                                             <?php if($room['availability'] == 'Maintenance'): ?>
                                                 <div class="badge bg-danger mt-1">Maintenance</div>
@@ -503,7 +514,7 @@ $theme = get_theme_colors($conn);
                                 <div class="col-md-4 col-lg-3 room-item-filter" data-floor="<?= $room['floor'] ?>">
                                     <div class="card card-req h-100 border-0 shadow-sm auto-select-card" onclick="toggleAutoSelect(this, <?= $room['room_id'] ?>)" style="cursor: pointer; transition: transform 0.2s;">
                                         <div class="req-header d-flex justify-content-between align-items-center">
-                                            <span class="fw-bold text-success"><i class="fas fa-door-open me-1"></i> <?= $room['room_name'] ?></span>
+                                            <span class="fw-bold text-success"><i class="fas fa-door-open me-1"></i> <?= !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room['room_number']) : htmlspecialchars($room['room_name']) ?></span>
                                             <span class="badge bg-light text-dark border"><?= $room['floor'] ?>F</span>
                                         </div>
                                         <div class="req-body">
@@ -623,6 +634,13 @@ function selectRoom(card, id) {
     card.classList.add('selected');
     document.getElementById('selected_room_id').value = id;
     document.getElementById('selection_msg').style.display = 'none';
+    
+    const tenants = card.getAttribute('data-tenants');
+    const display = document.getElementById('selected_tenant_display');
+    if(display) {
+        display.style.display = 'block';
+        display.innerHTML = '<i class="fas fa-user-tag me-1"></i> Tenant(s): ' + tenants;
+    }
 }
 
 function validateSelection() {
@@ -726,6 +744,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+function filterMaintenance(input, containerId) {
+    const filter = input.value.toLowerCase();
+    const container = document.getElementById(containerId);
+    const items = container.getElementsByClassName('maintenance-item');
+    
+    for (let i = 0; i < items.length; i++) {
+        const searchData = items[i].getAttribute('data-search');
+        if (searchData && searchData.includes(filter)) {
+            items[i].style.display = "";
+        } else {
+            items[i].style.display = "none";
+        }
+    }
+}
 </script>
 </body>
 </html>

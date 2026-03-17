@@ -55,6 +55,22 @@ $show_hidden = true; // Always show hidden rooms on this page
 // Fetch all rooms with occupancy and key info
 $all_rooms = get_all_rooms_with_occupancy($conn, $show_hidden);
 
+// Map bed preference to keys
+foreach ($all_rooms as &$room) {
+    if (!empty($room['all_keys']) && !empty($room['occupants'])) {
+        $bed_map = [];
+        foreach ($room['occupants'] as $occ) {
+            $bed_map[$occ['user_id']] = $occ['bed_preference'];
+        }
+        foreach ($room['all_keys'] as &$key) {
+            if ($key['key_status'] == 'Released' && isset($key['key_holder_id']) && isset($bed_map[$key['key_holder_id']])) {
+                $key['holder_bed'] = $bed_map[$key['key_holder_id']];
+            }
+        }
+    }
+}
+unset($room, $key);
+
 // Group rooms by type
 $grouped_rooms = [];
 $room_type_order = ['Single', '4-Bed', '6-Bed']; // To maintain order
@@ -147,7 +163,7 @@ $theme = get_theme_colors($conn);
     <div class="main-wrapper">
         <?php include 'admin_topbar.php'; ?>
         <main class="main-content">
-            <div class="page-header">
+            <div class="page-header d-flex justify-content-between align-items-center">
                 <h1>Key Monitoring System</h1>
             </div>
 
@@ -541,8 +557,9 @@ function openRoomKeysModal(element) {
                 actionBtn = `<button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation(); confirmUnrelease(${key.trans_id}, '${key.key_name.replace(/'/g, "\\'")}', '${key.key_holder_name.replace(/'/g, "\\'")}')"><i class="fas fa-undo me-1"></i> Return</button>`;
             }
 
-            let holderInfo = key.key_status === 'Released' 
-                ? `<div class="text-muted small mt-1"><i class="fas fa-user-tag me-1"></i>${key.key_holder_name}</div>` 
+            let holderInfo = key.key_status === 'Released'
+                ? `<div class="text-muted small mt-1"><i class="fas fa-user-tag me-1"></i><a href="view_user.php?uid=${key.key_holder_id}" class="text-decoration-none fw-bold" target="_blank">${key.key_holder_name}</a>
+                   ${key.holder_bed ? `<div class="small text-primary mt-1 ms-3"><i class="fas fa-bed me-1"></i>${key.holder_bed}</div>` : ''}</div>`
                 : `<div class="text-success small mt-1"><i class="fas fa-check-circle me-1"></i>Available in desk</div>`;
             
             html += `
@@ -600,7 +617,8 @@ function loadReleasedKeys() {
                 <tr>
                     <td><strong>${row.room_number || row.room_name || 'N/A'}</strong></td>
                     <td><code>${row.key_name}</code></td>
-                    <td>${row.holder_name}</td>
+                    <td>${row.holder_name}
+                        ${row.bed_preference ? `<br><small class="text-muted"><i class="fas fa-bed me-1"></i>${row.bed_preference}</small>` : ''}</td>
                     <td>${new Date(row.released_at).toLocaleDateString()}</td>
                     <td>
                         <button type="button" class="btn btn-sm btn-danger" onclick="confirmUnrelease(${row.trans_id}, '${row.key_name.replace(/'/g, "\\'")}', '${row.holder_name.replace(/'/g, "\\'")}')">

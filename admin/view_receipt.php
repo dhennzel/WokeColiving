@@ -47,7 +47,7 @@ if(isset($_POST['request_signature'])){
 
 // Fetch Reservation & User & Room Details
 $query = "
-    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, u.is_walkin, u.emergency_contact_name, u.emergency_contact_number, rm.room_name, rm.room_type, rm.floor
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, u.is_walkin, u.emergency_contact_name, u.emergency_contact_number, rm.room_name, rm.room_number, rm.room_type, rm.floor
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -224,7 +224,7 @@ $theme = get_theme_colors($conn);
                 </div>
                 <div class="col-md-4">
                     <div class="info-label">Room Details</div>
-                    <div class="info-value"><?= $data['room_name'] ?></div>
+                    <div class="info-value"><?= !empty($data['room_number']) ? 'Room ' . htmlspecialchars($data['room_number']) : htmlspecialchars($data['room_name']) ?></div>
                     <div class="small text-muted"><?= $data['room_type'] ?> (Floor <?= $data['floor'] ?>)</div>
                     <div class="small text-muted">Bed: <?= $data['bed_preference'] ?></div>
                 </div>

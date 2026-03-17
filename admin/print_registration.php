@@ -11,7 +11,7 @@ if(!isset($_GET['id'])) die("Invalid Request");
 $id = (int)$_GET['id'];
 
 // Fetch Reservation Info
-$query = "SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, u.gender, u.is_walkin, rm.room_name, rm.room_type, rm.total_price as room_price 
+$query = "SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, u.gender, u.is_walkin, rm.room_name, rm.room_number, rm.room_type, rm.total_price as room_price 
           FROM reservations r 
           JOIN users u ON r.user_id = u.user_id 
           JOIN rooms rm ON r.room_id = rm.room_id 
@@ -76,7 +76,7 @@ $theme = get_theme_colors($conn);
             <div class="col-6 text-end">
                 <div class="mb-3">
                     <div class="label">Room Details</div>
-                    <div class="value"><?= $data['room_name'] ?></div>
+                    <div class="value"><?= !empty($data['room_number']) ? 'Room ' . htmlspecialchars($data['room_number']) : htmlspecialchars($data['room_name']) ?></div>
                     <div><?= $data['room_type'] ?></div>
                     <div>Bed: <?= $data['bed_preference'] ?></div>
                 </div>

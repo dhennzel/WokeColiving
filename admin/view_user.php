@@ -192,7 +192,7 @@ if(mysqli_num_rows($check_col) == 0) {
 
 // Fetch All Reservations for this User
 $res_query = mysqli_query($conn, "
-    SELECT r.*, rm.room_name, rm.room_type
+    SELECT r.*, rm.room_name, rm.room_number, rm.room_type
     FROM reservations r 
     JOIN rooms rm ON r.room_id = rm.room_id 
     WHERE r.user_id=$uid 
@@ -217,7 +217,7 @@ if($end_date){
 
 // Fetch Payment History
 $pay_query = mysqli_query($conn, "
-    SELECT p.*, r.reservation_id, rm.room_name, rm.room_type 
+    SELECT p.*, r.reservation_id, rm.room_name, rm.room_number, rm.room_type 
     FROM payments p 
     JOIN reservations r ON p.reservation_id = r.reservation_id 
     LEFT JOIN rooms rm ON r.room_id = rm.room_id 
@@ -237,7 +237,7 @@ $logs_query = mysqli_query($conn, "SELECT * FROM activity_logs WHERE user_id=$ui
 
 // Fetch Expiring Contracts for this User (Approved and ending within 7 days or already ended)
 $expiring_query = mysqli_query($conn, "
-    SELECT r.*, rm.room_name 
+    SELECT r.*, rm.room_name, rm.room_number 
     FROM reservations r 
     JOIN rooms rm ON r.room_id = rm.room_id 
     WHERE r.user_id = $uid 
@@ -255,7 +255,7 @@ $pending_del_req = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM account
 
 // Fetch Base Rooms List (Availability calculated dynamically per reservation)
 $base_rooms_list = [];
-$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor, total_beds, availability, image FROM rooms WHERE is_archived=0 ORDER BY floor ASC, room_type ASC, room_number ASC");
+$rfm_q = mysqli_query($conn, "SELECT room_id, room_number, room_name, room_type, floor, total_beds, availability, image, gender FROM rooms WHERE is_archived=0 ORDER BY floor ASC, room_type ASC, room_number ASC");
 if($rfm_q){
     while($r = mysqli_fetch_assoc($rfm_q)){
         // Calculate current occupancy for display in modal
@@ -345,6 +345,14 @@ $theme = get_theme_colors($conn);
                         <span><i class="fas fa-phone me-1"></i> <?= htmlspecialchars($user['phone_number']) ?></span>
                         <span><i class="fas fa-calendar me-1"></i> Joined <?= date('M d, Y', strtotime($user['created_at'])) ?></span>
                         <span><i class="fas fa-id-badge me-1"></i> ID: #<?= $user['user_id'] ?></span>
+                        <?php if(!empty($user['gender'])): 
+                            $gender_icon = 'fa-genderless';
+                            $gender_color = 'text-muted';
+                            if($user['gender'] == 'Male') { $gender_icon = 'fa-mars'; $gender_color = 'text-primary'; }
+                            elseif($user['gender'] == 'Female') { $gender_icon = 'fa-venus'; $gender_color = 'text-danger'; }
+                        ?>
+                        <span class="fw-bold"><i class="fas <?= $gender_icon ?> me-1 <?= $gender_color ?>"></i> <?= htmlspecialchars($user['gender']) ?></span>
+                        <?php endif; ?>
                         <?php if(!empty($user['occupation'])): ?>
                             <span><i class="fas fa-briefcase me-1"></i> <?= htmlspecialchars($user['occupation']) ?></span>
                         <?php endif; ?>
@@ -536,8 +544,8 @@ $theme = get_theme_colors($conn);
                                     $text_class = $days_left <= 0 ? "text-danger fw-bold" : "text-warning fw-bold";
                                 ?>
                                 <tr>
-                                    <td>
-                                        <?= htmlspecialchars($exp['room_name']) ?>
+                                    <td class="fw-bold">
+                                        <?= !empty($exp['room_number']) ? 'Room ' . htmlspecialchars($exp['room_number']) : htmlspecialchars($exp['room_name']) ?>
                                         <?php if(!empty($exp['bed_preference']) && $exp['bed_preference'] != 'Any'): ?>
                                             <div class="small text-muted"><i class="fas fa-bed"></i> <?= $exp['bed_preference'] ?></div>
                                         <?php endif; ?>
@@ -600,8 +608,8 @@ $theme = get_theme_colors($conn);
                                     <?php while($row = mysqli_fetch_assoc($res_query)): ?>
                                     <tr>
                                         <td>#<?= $row['reservation_id'] ?></td>
-                                        <td>
-                                            <?= $row['room_name'] ?> <small class="text-muted">(<?= $row['room_type'] ?>)</small>
+                                        <td class="fw-bold">
+                                            <?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?> <small class="text-muted fw-normal">(<?= $row['room_type'] ?>)</small>
                                             <?php if(!empty($row['bed_preference']) && $row['bed_preference'] != 'Any'): ?>
                                                 <div class="badge bg-light text-dark border mt-1"><i class="fas fa-bed me-1"></i> <?= $row['bed_preference'] ?></div>
                                             <?php endif; ?>
@@ -641,7 +649,7 @@ $theme = get_theme_colors($conn);
                                                     <?php if(!empty($row['extended_from'])): ?>
                                                         <a href="booking_management.php?action=approve&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" onclick="confirmAction(event, this.href, 'Approve this extension?')" title="Approve"><i class="fas fa-check"></i></a>
                                                     <?php else: ?>
-                                                        <button type="button" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, '<?= $row['room_type'] ?>', <?= $row['room_id'] ?>)" title="Approve & Assign Room"><i class="fas fa-check"></i> Approve</button>
+                                                        <button type="button" class="btn btn-sm btn-success" onclick="openApproveModal(<?= $row['reservation_id'] ?>, '<?= $row['room_type'] ?>', <?= $row['room_id'] ?>, '<?= htmlspecialchars($user['gender'] ?? '') ?>')" title="Approve & Assign Room"><i class="fas fa-check"></i> Approve</button>
                                                     <?php endif; ?>
                                                     <a href="booking_management.php?action=reject&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" onclick="confirmAction(event, this.href, 'Reject this reservation?')" title="Reject"><i class="fas fa-times"></i></a>
                                                 </div>
@@ -723,7 +731,7 @@ $theme = get_theme_colors($conn);
                                 $is_overdue = ($pay['payment_status'] == 'Unpaid' && strtotime($pay['payment_date']) < strtotime('-5 days'));
                                 $row_class = $is_overdue ? 'table-danger' : '';
                                 $desc = !empty($pay['description']) ? $pay['description'] : 'Room Payment';
-                                $room_info = $pay['room_name'] ? htmlspecialchars($pay['room_name']) . ' <small class="text-muted">('.$pay['room_type'].')</small>' : '<span class="text-muted">Unknown Room</span>';
+                                $room_info = !empty($pay['room_number']) ? 'Room ' . htmlspecialchars($pay['room_number']) : ($pay['room_name'] ? htmlspecialchars($pay['room_name']) : '<span class="text-muted">Unknown Room</span>');
                             ?>
                             <tr class="<?= $row_class ?>">
                                 <td>
@@ -906,12 +914,17 @@ $theme = get_theme_colors($conn);
                             $avail = $room['total_beds'] - $room['occupied'];
                             $is_full = $avail <= 0;
                         ?>
-                        <div class="col-md-4 col-lg-3 approve-room-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>">
+                        <div class="col-md-4 col-lg-3 approve-room-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>" data-gender="<?= $room['gender'] ?? 'Male' ?>">
                             <div class="card card-room-select h-100 shadow-sm" id="room_select_<?= $room['room_id'] ?>" onclick="selectApproveRoom(this, <?= $room['room_id'] ?>)">
                                 <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>">
                                 <div class="card-body p-2 text-center">
-                                    <div class="fw-bold"><?= $room['room_name'] ?></div>
+                                    <div class="fw-bold"><?= !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room['room_number']) : htmlspecialchars($room['room_name']) ?></div>
                                     <div class="small text-muted"><?= $room['room_type'] ?> &bull; <?= $room['floor'] ?>F</div>
+                                    <?php if (($room['gender'] ?? 'Any') == 'Male'): ?>
+                                        <div class="badge bg-primary mt-1"><i class="fas fa-male me-1"></i> Male Only</div>
+                                    <?php elseif (($room['gender'] ?? 'Any') == 'Female'): ?>
+                                        <div class="badge bg-danger mt-1"><i class="fas fa-female me-1"></i> Female Only</div>
+                                    <?php endif; ?>
                                     <div class="badge <?= $is_full ? 'bg-secondary' : 'bg-success' ?> mt-1"><?= $is_full ? 'Full' : $avail . ' Beds Free' ?></div>
                                 </div>
                             </div>
@@ -1117,11 +1130,13 @@ function confirmBulkPaid() {
 }
 
 let currentApproveType = '';
+let currentUserGender = '';
 
-function openApproveModal(resId, type, currentRoomId = null) {
+function openApproveModal(resId, type, currentRoomId = null, userGender = '') {
     document.getElementById('approveResId').value = resId;
     document.getElementById('modalRoomType').innerText = type;
     currentApproveType = type;
+    currentUserGender = userGender;
     
     filterApproveRooms();
     new bootstrap.Modal(document.getElementById('approveRoomModal')).show();
@@ -1145,8 +1160,9 @@ function filterApproveRooms() {
     items.forEach(item => {
         const itemType = item.getAttribute('data-type');
         const itemFloor = item.getAttribute('data-floor');
+        const itemGender = item.getAttribute('data-gender');
         
-        if (itemType === currentApproveType && (floor === 'all' || itemFloor === floor)) {
+        if (itemType === currentApproveType && (floor === 'all' || itemFloor === floor) && (!currentUserGender || itemGender === currentUserGender)) {
             item.style.display = 'block';
         } else {
             item.style.display = 'none';

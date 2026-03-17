@@ -23,7 +23,8 @@ $q = mysqli_query($conn, "
         CONCAT(u.first_name, ' ', u.last_name) as holder_name,
         u.user_id,
         r.room_name,
-        r.room_number
+        r.room_number,
+        (SELECT bed_preference FROM reservations res WHERE res.user_id = u.user_id AND res.room_id = r.room_id AND res.status = 'Approved' LIMIT 1) as bed_preference
     FROM key_transactions kt 
     JOIN `keys` k ON kt.key_id = k.id 
     LEFT JOIN rooms r ON k.reference_id = r.room_id
