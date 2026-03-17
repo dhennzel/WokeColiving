@@ -127,14 +127,18 @@ if(isset($_GET['bed_preference'])){
 
 // Handle Submission
 if (isset($_POST['confirm_booking'])) {
-        $troom = $_POST['troom'];
-        $cin = $_POST['cin'];
-        $cout = $_POST['cout'];
+        $troom = $_POST['troom'] ?? '';
+        $cin = $_POST['cin'] ?? '';
+        $cout = $_POST['cout'] ?? '';
         $bed_preference = $_POST['bed_preference'] ?? 'Any';
-        $payment_method = $_POST['payment_method'];
+        $payment_method = $_POST['payment_method'] ?? 'Cash';
         $agree_rules = isset($_POST['agree_rules']);
         $agree_fees = isset($_POST['agree_fees']);
-        $typed_signature = trim($_POST['typed_signature']);
+        $typed_signature = trim($_POST['typed_signature'] ?? '');
+
+        if (empty($troom)) {
+            $error = "Please select a valid room type.";
+        }
 
         // Update Gender if not set
         if(empty($user_gender) && isset($_POST['gender'])){
@@ -226,24 +230,11 @@ if (isset($_POST['confirm_booking'])) {
         $months = max(1, round($days_total / 30)); 
 
         // Handle GCash Payment Details & Upload
+        // Handle GCash via Dragonpay - No manual proof needed
         if ($payment_method == 'GCash') {
-            $ref_number = $_POST['ref_number'];
-            if (empty($ref_number)) {
-                $error = "GCash Reference Number is required for GCash payments.";
-            }
-            if (isset($_FILES['proof_image']) && $_FILES['proof_image']['error'] == 0) {
-                $target_dir = "../uploads/proofs/";
-                if (!is_dir($target_dir)) {
-                    mkdir($target_dir, 0777, true);
-                }
-                $proof_filename = time() . '_' . basename($_FILES["proof_image"]["name"]);
-                $target_file = $target_dir . $proof_filename;
-                if (!move_uploaded_file($_FILES["proof_image"]["tmp_name"], $target_file)) {
-                    $error = "Sorry, there was an error uploading your proof of payment.";
-                }
-            } else {
-                $error = "Proof of payment is required for GCash payments.";
-            }
+            // We set placeholder values because the actual payment happens on Dragonpay
+            $ref_number = 'PENDING_DRAGONPAY'; 
+            $proof_filename = null; 
         }
         
         $specific_room_id = isset($_POST['specific_room_id']) ? (int)$_POST['specific_room_id'] : 0;
@@ -430,8 +421,8 @@ if (isset($_POST['confirm_booking'])) {
                 }
 
                 if ($exec_result) {
-                    // Insert Payment Record
-                    $pay_status = ($payment_method == 'GCash' || $payment_method == 'PayPal') ? 'Paid' : 'Unpaid';
+                    // GCash is now set to 'Unpaid' until the Dragonpay postback confirms the payment
+                    $pay_status = ($payment_method == 'PayPal') ? 'Paid' : 'Unpaid'; 
                     
                     try {
                         $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image) VALUES (?, ?, ?, ?, NOW(), ?, ?)");
@@ -466,9 +457,42 @@ if (isset($_POST['confirm_booking'])) {
                     // 2. Notify Admin (Simulated by sending to ID 1 or specific email)
                     // send_notification($conn, 1, "New Reservation from User #$user_id for $troom", "Admin Alert");
 
-                    $_SESSION['swal'] = ['title' => 'Success!', 'text' => 'Reservation successful!', 'icon' => 'success'];
-                    header("Location: my_reservations.php");
-                    exit;
+                    // 🚀 DRAGONPAY REDIRECT LOGIC
+                    if ($payment_method == 'GCash') {
+                        $merchant_id = 'YOUR_MERCHANT_ID'; // Replace with your Dragonpay Merchant ID
+                        $secret_key  = 'YOUR_SECRET_KEY';  // Replace with your Dragonpay Password
+                        
+                        // Transaction details
+                        $txn_id      = 'RES-' . $reservation_id; // e.g., RES-142
+                        $amount      = number_format((float)$totalAmount, 2, '.', ''); // Strictly 2 decimal places (e.g., 2500.00)
+                        $ccy         = 'PHP';
+                        $description = 'Woke Coliving Reservation: ' . $troom;
+                        $email       = $user_email;
+
+                        // Create the signature
+                        $message = "$merchant_id:$txn_id:$amount:$ccy:$description:$email:$secret_key";
+                        $digest = sha1($message);
+
+                        // Build the URL (Using the test environment URL for now)
+                        $url = "https://test.dragonpay.ph/Pay.aspx?" . 
+                               "merchantid=$merchant_id" .
+                               "&txnid=$txn_id" .
+                               "&amount=$amount" .
+                               "&ccy=$ccy" .
+                               "&description=" . urlencode($description) .
+                               "&email=" . urlencode($email) .
+                               "&digest=$digest" .
+                               "&procid=GCSH";
+
+                        // Send them to Dragonpay
+                        header("Location: $url");
+                        exit;
+                    } else {
+                        // Standard redirect for Cash or PayPal
+                        $_SESSION['swal'] = ['title' => 'Success!', 'text' => 'Reservation successful!', 'icon' => 'success'];
+                        header("Location: my_reservations.php");
+                        exit;
+                    }
                 } else {
                     $error = "Database Error: " . mysqli_error($conn);
                 }
@@ -491,7 +515,8 @@ if (isset($_POST['confirm_booking'])) {
                 $show_waitlist = true;
             }
         }
-}
+    }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -537,8 +562,8 @@ if (isset($_POST['confirm_booking'])) {
         <?= $error ?>
         <?php if(isset($show_waitlist) && $show_waitlist): ?>
             <form method="POST" class="mt-2">
-                <input type="hidden" name="wl_room" value="<?= $_POST['troom'] ?>">
-                <button type="submit" name="join_waitlist" class="btn btn-sm btn-accent fw-bold mt-2">Join Waitlist for <?= $_POST['troom'] ?></button>
+                <input type="hidden" name="wl_room" value="<?= htmlspecialchars($troom) ?>">
+                <button type="submit" name="join_waitlist" class="btn btn-sm btn-accent fw-bold mt-2">Join Waitlist for <?= htmlspecialchars($troom) ?></button>
             </form>
         <?php endif; ?>
     </div>
@@ -735,25 +760,18 @@ if (isset($_POST['confirm_booking'])) {
 
                         <!-- GCash Details -->
                         <div id="gcash_div" class="mb-3 p-3 border rounded bg-light" style="display:none;">
-                            <h6 class="fw-bold text-primary"><i class="fas fa-mobile-alt me-2"></i>Pay via GCash</h6>
-                            <p class="small text-muted mb-2">Scan the QR code or send to the number below:</p>
-                            <div class="text-center mb-3">
-                                <div class="bg-white p-2 d-inline-block border rounded"><img src="../Images/gcash_qr.png" alt="GCash QR Code" style="width: 120px; height: 120px;"></div>
-                                <p class="fw-bold mt-1">0967-310-3156 (Woke Coliving)</p>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small">Amount to Pay</label>
-                                <input type="text" class="form-control" id="gcash_amount_display" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small">GCash Reference Number</label>
-                                <input type="text" name="ref_number" class="form-control" placeholder="Enter GCash Ref No.">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small">Upload Proof of Payment (Screenshot)</label>
-                                <input type="file" name="proof_image" class="form-control" accept="image/*">
-                            </div>
-                        </div>
+    <h6 class="fw-bold text-primary"><i class="fas fa-mobile-alt me-2"></i>Pay via GCash</h6>
+    <p class="small text-muted mb-2">You will be securely redirected to GCash to complete your payment.</p>
+    
+    <div class="mb-3">
+        <label class="form-label small">Amount to Pay</label>
+        <input type="text" class="form-control fw-bold text-success" id="gcash_amount_display" readonly>
+    </div>
+    
+    <div class="alert alert-info py-2 small mb-0">
+        <i class="fas fa-info-circle me-1"></i> Please do not close the browser until you are redirected back to our site.
+    </div>
+</div>
 
                         <!-- PayPal Details -->
                         <div id="paypal_div" class="mb-3 p-3 border rounded bg-light" style="display:none;">

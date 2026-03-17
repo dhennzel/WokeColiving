@@ -126,9 +126,10 @@ if(isset($_POST['add_reservation'])){
         }
     } else {
         $user_id = (int)$_POST['user_id'];
-        $u_q = mysqli_query($conn, "SELECT gender FROM users WHERE user_id=$user_id");
+        $u_q = mysqli_query($conn, "SELECT email, gender FROM users WHERE user_id=$user_id");
         $u_row = mysqli_fetch_assoc($u_q);
         $gender = $u_row['gender'] ?? 'Any';
+        $email = $u_row['email'] ?? '';
     }
 
     if(!$error && $user_id > 0){
@@ -297,11 +298,36 @@ if(isset($_POST['add_reservation'])){
                 
                 $pay_method = $_POST['payment_method'] ?? 'Cash';
                 $pay_status = $_POST['payment_status'] ?? 'Unpaid';
+                
+                if ($pay_method == 'GCash') {
+                    $pay_status = 'Unpaid'; // Force unpaid until Dragonpay verifies
+                }
+                
                 $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date) VALUES (?, ?, ?, ?, NOW())");
                 $pay_stmt->bind_param("idss", $res_id, $totalAmount, $pay_method, $pay_status);
                 $pay_stmt->execute();
                 
                 log_activity($conn, $user_id, "Walk-in Booking", "Reservation #$res_id created by $admin_username");
+                
+                // 🚀 DRAGONPAY REDIRECT LOGIC
+                if ($pay_method == 'GCash') {
+                    $merchant_id = 'YOUR_MERCHANT_ID'; // Replace with your Dragonpay Merchant ID
+                    $secret_key  = 'YOUR_SECRET_KEY';  // Replace with your Dragonpay Password
+                    
+                    $txn_id      = 'RES-' . $res_id;
+                    $amount      = number_format((float)$totalAmount, 2, '.', '');
+                    $ccy         = 'PHP';
+                    $description = 'Woke Coliving Reservation: ' . $room_type;
+                    
+                    $message = "$merchant_id:$txn_id:$amount:$ccy:$description:$email:$secret_key";
+                    $digest = sha1($message);
+
+                    $url = "https://test.dragonpay.ph/Pay.aspx?" . 
+                           "merchantid=$merchant_id&txnid=$txn_id&amount=$amount&ccy=$ccy&description=" . urlencode($description) . "&email=" . urlencode($email) . "&digest=$digest&procid=GCSH";
+
+                    header("Location: $url");
+                    exit;
+                }
                 
                 $success = $account_msg . "Reservation created successfully!";
                 $new_reservation_id = $res_id; // For JS Print Popup
@@ -458,7 +484,7 @@ $theme = get_theme_colors($conn);
                             <label class="form-label fw-bold">Payment Method</label>
                             <select name="payment_method" class="form-select">
                                 <option value="Cash">Cash</option>
-                                <option value="GCash">GCash</option>
+                                <option value="GCash">GCash (Online via Dragonpay)</option>
                                 <option value="Bank Transfer">Bank Transfer</option>
                             </select>
                         </div>

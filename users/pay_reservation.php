@@ -43,25 +43,50 @@ if(isset($_POST['submit_payment'])){
             $proof_filename = null;
         
             if ($method == 'GCash') {
-                if (empty($ref_number)) { $error = "GCash Reference Number is required."; }
-                if (isset($_FILES['proof_image']) && $_FILES['proof_image']['error'] == 0) {
-                    $target_dir = "../uploads/proofs/";
-                    if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-                    $proof_filename = time() . '_' . basename($_FILES["proof_image"]["name"]);
-                    if (!move_uploaded_file($_FILES["proof_image"]["tmp_name"], $target_dir . $proof_filename)) {
-                        $error = "Error uploading proof.";
-                    }
-                } else { $error = "Proof of payment is required for GCash."; }
+                // Replaced manual upload with Dragonpay redirect logic
+                $ref_number = 'PENDING_DRAGONPAY';
+                $proof_filename = null;
             }
         
             if(!$error){
-                $status = ($method == 'GCash' || $method == 'PayPal') ? 'Paid' : 'Unpaid';
+                // GCash is set to Unpaid until Dragonpay postback confirms the payment
+                $status = ($method == 'PayPal') ? 'Paid' : 'Unpaid';
                 $stmt = mysqli_prepare($conn, "UPDATE payments SET payment_method=?, payment_status=?, reference_number=?, proof_image=?, payment_date=NOW() WHERE payment_id IN ($payment_ids_str)");
                 mysqli_stmt_bind_param($stmt, "ssss", $method, $status, $ref_number, $proof_filename);
                 
                 if(mysqli_stmt_execute($stmt)){
                     log_activity($conn, $user_id, "Payment Submitted", "Reservation #$reservation_id via $method for " . count($final_ids) . " bill(s)");
                     trigger_update($conn);
+
+                    // 🚀 DRAGONPAY REDIRECT LOGIC
+                    if ($method == 'GCash') {
+                        $merchant_id = 'YOUR_MERCHANT_ID'; // Replace with your Dragonpay Merchant ID
+                        $secret_key  = 'YOUR_SECRET_KEY';  // Replace with your Dragonpay Password
+                        
+                        $totalAmount = 0;
+                        foreach($unpaid_bills as $bill) {
+                            if(in_array($bill['payment_id'], $final_ids)) {
+                                $totalAmount += $bill['amount'];
+                            }
+                        }
+                        
+                        $txn_id      = 'PAY-' . implode('-', $final_ids); // e.g., PAY-103-104
+                        $amount      = number_format((float)$totalAmount, 2, '.', ''); // Strictly 2 decimal places
+                        $ccy         = 'PHP';
+                        $description = 'Woke Coliving Bills Payment';
+                        
+                        $u_q = mysqli_query($conn, "SELECT email FROM users WHERE user_id=$user_id");
+                        $u_email = mysqli_fetch_assoc($u_q)['email'] ?? '';
+                        
+                        $message = "$merchant_id:$txn_id:$amount:$ccy:$description:$u_email:$secret_key";
+                        $digest = sha1($message);
+
+                        $url = "https://test.dragonpay.ph/Pay.aspx?merchantid=$merchant_id&txnid=$txn_id&amount=$amount&ccy=$ccy&description=" . urlencode($description) . "&email=" . urlencode($u_email) . "&digest=$digest&procid=GCSH";
+
+                        header("Location: $url");
+                        exit;
+                    }
+
                     header("Location: my_reservations.php?msg=payment_submitted");
                     exit;
                 } else { $error = "Database error."; }
@@ -156,18 +181,14 @@ if(isset($_POST['submit_payment'])){
                     </div>
 
                     <div id="gcash_div" class="mb-3 p-3 border rounded bg-light" style="display:none;">
-                        <h6 class="fw-bold text-primary"><i class="fas fa-mobile-alt me-2"></i>Pay via GCash</h6>
-                        <div class="text-center mb-3">
-                            <img src="../Images/gcash_qr.png" alt="GCash QR" style="width: 150px;">
-                            <p class="fw-bold mt-1">0967-310-3156 (Woke Coliving)</p>
-                        </div>
+                        <h6 class="fw-bold text-primary"><i class="fas fa-mobile-alt me-2"></i>Pay via GCash (Online)</h6>
+                        <p class="small text-muted mb-2">You will be securely redirected to GCash to complete your payment via Dragonpay.</p>
                         <div class="mb-3">
-                            <label class="form-label small">GCash Reference Number</label>
-                            <input type="text" name="ref_number" class="form-control" placeholder="Enter Ref No.">
+                            <label class="form-label small">Amount to Pay</label>
+                            <input type="text" class="form-control fw-bold text-success" id="gcash_amount_display" readonly>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label small">Upload Proof (Screenshot)</label>
-                            <input type="file" name="proof_image" class="form-control" accept="image/*">
+                        <div class="alert alert-info py-2 small mb-0">
+                            <i class="fas fa-info-circle me-1"></i> Please do not close the browser until you are redirected back to our site.
                         </div>
                     </div>
 
@@ -192,6 +213,7 @@ function calculateTotal() {
         total += parseFloat(checkbox.getAttribute('data-amount'));
     });
     document.getElementById('selectedTotalDisplay').innerText = total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('gcash_amount_display').value = '₱ ' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 
 function validatePaymentForm() {

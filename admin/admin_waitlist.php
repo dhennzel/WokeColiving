@@ -46,13 +46,26 @@ while($row = mysqli_fetch_assoc($query)){
 }
 
 // Fetch Pending Counts for Sidebar
-$pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
-$pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
+
+$query_res = mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')");
+$pending_res_q = $query_res ? (int)mysqli_fetch_assoc($query_res)['c'] : 0;
+
+$query_pay = mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL");
+$pending_pay_q = $query_pay ? (int)mysqli_fetch_assoc($query_pay)['c'] : 0;
+
 $pending_res = $pending_res_q + $pending_pay_q;
-$pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
-$pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
-$waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
-$del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
+
+$query_maint = mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'");
+$pending_maint = $query_maint ? (int)mysqli_fetch_assoc($query_maint)['c'] : 0;
+
+$query_house = mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'");
+$pending_house = $query_house ? (int)mysqli_fetch_assoc($query_house)['c'] : 0;
+
+$query_wait = mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL");
+$waitlist_count = $query_wait ? (int)mysqli_fetch_assoc($query_wait)['c'] : 0;
+
+$query_del = mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'");
+$del_req_count = $query_del ? (int)mysqli_fetch_assoc($query_del)['c'] : 0;
 
 $theme = get_theme_colors($conn);
 ?>
