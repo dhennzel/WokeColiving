@@ -453,77 +453,88 @@ try {
 
 <!-- Customization Modal -->
 <div class="modal fade" id="customizationModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content card-custom">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold"><i class="fas fa-sliders-h me-2"></i>Customization</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small">Personalize your profile experience and account settings.</p>
-                <div class="list-group">
-                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#uploadPicModal">
-                        <span><i class="fas fa-camera fa-fw me-3 text-success"></i>Change Profile Picture</span>
-                        <i class="fas fa-chevron-right text-muted"></i>
-                    </button>
-                    <?php if(!empty($user_info['profile_image'])): ?>
-                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" onclick="deleteProfilePicture()">
-                        <span><i class="fas fa-trash-alt fa-fw me-3 text-danger"></i>Delete Profile Picture</span>
-                        <i class="fas fa-chevron-right text-muted"></i>
-                    </button>
-                    <?php endif; ?>
-                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
-                        <span><i class="fas fa-key fa-fw me-3 text-warning"></i>Change Password</span>
-                        <i class="fas fa-chevron-right text-muted"></i>
-                    </button>
-                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#changeEmailModal">
-                        <span><i class="fas fa-envelope fa-fw me-3 text-info"></i>Change Email</span>
-                        <i class="fas fa-chevron-right text-muted"></i>
-                    </button>
-                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
-                        <span><i class="fas fa-user-times fa-fw me-3 text-danger"></i>Delete Account</span>
-                        <i class="fas fa-chevron-right text-muted"></i>
-                    </button>
-                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-moon fa-fw me-3 text-primary"></i>Night Mode</span>
-                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="nightModeSwitch" <?= ($user_info['night_mode'] == 1) ? 'checked' : '' ?> onchange="toggleNightMode()"></div>
+                <div class="row g-4">
+                    <!-- Left Column: Dashboard Layout -->
+                    <div class="col-md-6 border-end">
+                        <h6 class="fw-bold small mb-3 text-muted text-uppercase">Dashboard Layout</h6>
+                        <div class="list-group">
+                            <div class="list-group-item bg-light border-0 rounded">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="show-book" checked onchange="toggleCard('book')">
+                                    <label class="form-check-label small" for="show-book">Book a Room</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="show-waitlist" checked onchange="toggleCard('waitlist')">
+                                    <label class="form-check-label small" for="show-waitlist">My Waitlist</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="show-reservations" checked onchange="toggleCard('reservations')">
+                                    <label class="form-check-label small" for="show-reservations">My Reservations</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="show-parking" checked onchange="toggleCard('parking')">
+                                    <label class="form-check-label small" for="show-parking">My Parking</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="show-maintenance" checked onchange="toggleCard('maintenance')">
+                                    <label class="form-check-label small" for="show-maintenance">Maintenance</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="show-housekeeping" checked onchange="toggleCard('housekeeping')">
+                                    <label class="form-check-label small" for="show-housekeeping">Housekeeping</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="show-archives" checked onchange="toggleCard('archives')">
+                                    <label class="form-check-label small" for="show-archives">Archives</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="show-other_request" checked onchange="toggleCard('other_request')">
+                                    <label class="form-check-label small" for="show-other_request">Other Request</label>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="resetDashboardLayout()">Reset Layout</button>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="list-group-item bg-light mt-2">
-                        <h6 class="fw-bold small mb-2 text-muted text-uppercase">Dashboard Layout</h6>
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="show-book" checked onchange="toggleCard('book')">
-                            <label class="form-check-label small" for="show-book">Book a Room</label>
+                    <!-- Right Column: Account Settings -->
+                    <div class="col-md-6">
+                        <h6 class="fw-bold small mb-2 text-muted text-uppercase">Account Settings</h6>
+                        <p class="text-muted small mb-3">Personalize your profile experience.</p>
+                        <div class="list-group">
+                            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#uploadPicModal">
+                                <span><i class="fas fa-camera fa-fw me-3 text-success"></i>Change Profile Picture</span>
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </button>
+                            <?php if(!empty($user_info['profile_image'])): ?>
+                            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" onclick="deleteProfilePicture()">
+                                <span><i class="fas fa-trash-alt fa-fw me-3 text-danger"></i>Delete Profile Picture</span>
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </button>
+                            <?php endif; ?>
+                            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                <span><i class="fas fa-key fa-fw me-3 text-warning"></i>Change Password</span>
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </button>
+                            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#changeEmailModal">
+                                <span><i class="fas fa-envelope fa-fw me-3 text-info"></i>Change Email</span>
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </button>
+                            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                                <span><i class="fas fa-user-times fa-fw me-3 text-danger"></i>Delete Account</span>
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </button>
+                            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-moon fa-fw me-3 text-primary"></i>Night Mode</span>
+                                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="nightModeSwitch" <?= ($user_info['night_mode'] == 1) ? 'checked' : '' ?> onchange="toggleNightMode()"></div>
+                            </div>
                         </div>
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="show-waitlist" checked onchange="toggleCard('waitlist')">
-                            <label class="form-check-label small" for="show-waitlist">My Waitlist</label>
-                        </div>
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="show-reservations" checked onchange="toggleCard('reservations')">
-                            <label class="form-check-label small" for="show-reservations">My Reservations</label>
-                        </div>
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="show-parking" checked onchange="toggleCard('parking')">
-                            <label class="form-check-label small" for="show-parking">My Parking</label>
-                        </div>
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="show-maintenance" checked onchange="toggleCard('maintenance')">
-                            <label class="form-check-label small" for="show-maintenance">Maintenance</label>
-                        </div>
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="show-housekeeping" checked onchange="toggleCard('housekeeping')">
-                            <label class="form-check-label small" for="show-housekeeping">Housekeeping</label>
-                        </div>
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="show-archives" checked onchange="toggleCard('archives')">
-                            <label class="form-check-label small" for="show-archives">Archives</label>
-                        </div>
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="show-other_request" checked onchange="toggleCard('other_request')">
-                            <label class="form-check-label small" for="show-other_request">Other Request</label>
-                        </div>
-                        <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="resetDashboardLayout()">Reset Layout</button>
                     </div>
                 </div>
             </div>
