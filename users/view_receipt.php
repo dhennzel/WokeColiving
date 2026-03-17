@@ -147,6 +147,10 @@ $theme = get_theme_colors($conn);
         body.night-mode .text-secondary { color: #e0e0e0 !important; }
         body.night-mode .info-label { color: #bbb !important; }
         body.night-mode .border-dark { border-color: #e0e0e0 !important; } /* Fixes the authorized by underline */
+        body.night-mode::-webkit-scrollbar, body.night-mode *::-webkit-scrollbar { width: 8px; height: 8px; }
+        body.night-mode::-webkit-scrollbar-track, body.night-mode *::-webkit-scrollbar-track { background: #121212 !important; }
+        body.night-mode::-webkit-scrollbar-thumb, body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }
+        body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">

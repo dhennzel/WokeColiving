@@ -438,6 +438,10 @@ if(isset($_SESSION['user_id'])){
         body.night-mode .contact-card .bg-success { background-color: #1b5e20 !important; }
         body.night-mode .amenity-icon { background: rgba(255, 255, 255, 0.1) !important; }
         body.night-mode .amenity-card:hover .amenity-icon { background: var(--primary-green) !important; color: #fff !important; }
+        body.night-mode::-webkit-scrollbar, body.night-mode *::-webkit-scrollbar { width: 8px; height: 8px; }
+        body.night-mode::-webkit-scrollbar-track, body.night-mode *::-webkit-scrollbar-track { background: #121212 !important; }
+        body.night-mode::-webkit-scrollbar-thumb, body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }
+        body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
     </style>
 </head>
 <body>
