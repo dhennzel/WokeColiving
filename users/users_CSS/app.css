@@ -1,0 +1,353 @@
+/* Woke Coliving User App Styles */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+:root {
+    /* Core Identity Colors */
+    --app-primary: #34B875; /* Main Green */
+    --app-primary-dark: #2A9A60; /* Darker Green for hover */
+    --app-primary-light: rgba(52, 184, 117, 0.1); /* Light Green for backgrounds/glows */
+    
+    --app-secondary: #F0B429; /* Main Yellow */
+    --app-secondary-dark: #D9A020; /* Darker Yellow for hover */
+    
+    /* Surface and Typography */
+    --app-bg: #F4F7F6;
+    --app-surface: #FFFFFF;
+    --app-text: #2C3E50;
+    --app-text-muted: #7F8C8D;
+    --app-border: #E2E8F0;
+    
+    /* Geometry and Space */
+    --app-radius: 16px;
+    --app-radius-sm: 12px;
+    --app-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    --app-shadow-hover: 0 8px 30px rgba(52, 184, 117, 0.15);
+    --transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+body {
+    background-color: var(--app-bg);
+    color: var(--app-text);
+    font-family: 'Poppins', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* App-wide Navbar */
+.navbar-user {
+    background-color: var(--app-surface);
+    box-shadow: var(--app-shadow);
+    border-bottom: 2px solid var(--app-primary);
+    padding: 0.75rem 0;
+}
+.navbar-user .navbar-brand {
+    color: var(--app-primary);
+    font-weight: 700;
+}
+.navbar-user .nav-link {
+    color: var(--app-text-muted);
+    font-weight: 500;
+    transition: color var(--transition);
+}
+.navbar-user .nav-link:hover, .navbar-user .nav-link.active {
+    color: var(--app-primary);
+}
+
+/* Typography Helpers */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--app-text);
+    font-weight: 600;
+}
+
+.text-success { color: var(--app-primary) !important; }
+.text-warning { color: var(--app-secondary) !important; }
+.text-muted { color: var(--app-text-muted) !important; }
+
+/* Application Cards */
+.card-custom {
+    background: var(--app-surface);
+    border: none;
+    border-radius: var(--app-radius);
+    box-shadow: var(--app-shadow);
+    transition: all var(--transition);
+    overflow: hidden;
+}
+
+.card-custom:hover {
+    box-shadow: var(--app-shadow-hover);
+    transform: translateY(-3px);
+}
+
+.card-custom .card-header {
+    background: var(--app-surface) !important;
+    border-bottom: 1px solid var(--app-border);
+    padding: 1.5rem;
+    font-size: 1.1rem;
+    color: var(--app-primary);
+}
+
+.card-custom .card-body {
+    padding: 1.5rem;
+}
+
+/* Form Controls */
+.form-label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--app-text);
+    margin-bottom: 0.5rem;
+    transition: color var(--transition);
+}
+
+.form-control, .form-select {
+    background-color: var(--app-bg);
+    border: 2px solid transparent;
+    border-radius: var(--app-radius-sm);
+    padding: 0.8rem 1rem;
+    color: var(--app-text);
+    transition: all var(--transition);
+    font-size: 0.95rem;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--app-surface);
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 4px var(--app-primary-light);
+    outline: none;
+}
+
+.form-control:read-only {
+    background-color: #E9ECEF;
+    color: var(--app-text-muted);
+    cursor: not-allowed;
+}
+
+/* Interactive Focused State applied via JS */
+.input-wrapper.focused .form-label {
+    color: var(--app-primary);
+}
+
+/* Buttons */
+.btn-custom {
+    background-color: var(--app-primary);
+    color: #FFF;
+    border: none;
+    border-radius: 50px;
+    padding: 0.8rem 2rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all var(--transition);
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 10px var(--app-primary-light);
+}
+
+.btn-custom:hover {
+    background-color: var(--app-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(52, 184, 117, 0.3);
+    color: #FFF;
+}
+
+.btn-custom:active {
+    transform: translateY(0);
+}
+
+.btn-accent {
+    background-color: var(--app-secondary);
+    color: #1A202C;
+    border: none;
+    border-radius: 50px;
+    padding: 0.6rem 1.5rem;
+    font-weight: 600;
+    transition: all var(--transition);
+}
+
+.btn-accent:hover {
+    background-color: var(--app-secondary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(240, 180, 41, 0.3);
+}
+
+.btn-secondary-custom {
+    background-color: #ECF0F1;
+    color: var(--app-text-muted);
+    border: none;
+    border-radius: 50px;
+    padding: 0.8rem 2rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+.btn-secondary-custom:hover {
+    background-color: #BDC3C7;
+    color: var(--app-text);
+    transform: translateY(-2px);
+}
+
+/* Blocks & Utilities */
+.utility-block {
+    background: var(--app-surface);
+    border-radius: var(--app-radius-sm);
+    padding: 1.25rem;
+    border: 1px solid var(--app-border);
+    transition: border-color var(--transition);
+}
+
+.utility-block:hover {
+    border-color: var(--app-primary-light);
+}
+
+/* Animations */
+.animate-fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+}
+
+.anim-trigger {
+    transform: translateY(20px);
+}
+/* Add a new state that hides it ONLY when JS is successfully running */
+body.js-active .anim-trigger {
+    opacity: 0;
+}
+
+.animate-slide-up {
+    animation: slideUp 0.6s ease-out forwards;
+}
+
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Ripple Interaction */
+@keyframes ripple-anim {
+    0% { transform: scale(0); opacity: 1; }
+    100% { transform: scale(4); opacity: 0; }
+}
+
+/* Skeleton Loader */
+.skeleton-box {
+    display: inline-block;
+    height: 1.2em;
+    position: relative;
+    overflow: hidden;
+    background-color: var(--app-border);
+    border-radius: var(--app-radius-sm);
+    width: 100%;
+}
+.skeleton-box::after {
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,0.4) 20%, rgba(255,255,255,0.8) 60%, rgba(255,255,255,0));
+    animation: shimmer 1.5s infinite;
+    content: '';
+}
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+/* Table Styles */
+.table {
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+.table thead th {
+    background-color: var(--app-bg);
+    color: var(--app-text-muted);
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--app-border);
+    border-top: none;
+}
+.table tbody tr {
+    transition: background-color var(--transition);
+}
+.table-hover > tbody > tr:hover {
+    background-color: var(--app-primary-light);
+    color: var(--app-text);
+}
+.table td, .table th {
+    vertical-align: middle;
+    border-top-color: var(--app-border);
+    padding: 1rem;
+}
+
+/* Modal Styles */
+.modal-content {
+    background-color: var(--app-surface);
+    border: none;
+    border-radius: var(--app-radius);
+    box-shadow: var(--app-shadow-hover);
+}
+.modal-header {
+    border-bottom: 1px solid var(--app-border);
+    padding: 1.5rem;
+}
+.modal-header .modal-title {
+    color: var(--app-primary);
+}
+.modal-body {
+    padding: 1.5rem;
+}
+.modal-footer {
+    background-color: var(--app-bg);
+    border-top: 1px solid var(--app-border);
+    padding: 1rem 1.5rem;
+    border-bottom-left-radius: var(--app-radius);
+    border-bottom-right-radius: var(--app-radius);
+}
+
+/* Badge Styles */
+.badge.bg-success { background-color: var(--app-primary) !important; }
+.badge.bg-warning { background-color: var(--app-secondary) !important; color: var(--app-text) !important; }
+.badge.bg-info { background-color: #3498DB !important; }
+.badge.bg-danger { background-color: #E74C3C !important; }
+
+/* Profile Dashboard Cards */
+.profile-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem 1rem;
+    text-decoration: none;
+    color: var(--app-text);
+    position: relative;
+}
+.profile-card .icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--app-primary-light);
+    color: var(--app-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    transition: all var(--transition);
+}
+.profile-card:hover .icon-box {
+    background-color: var(--app-primary);
+    color: white;
+    transform: scale(1.1) rotate(10deg);
+}
+.profile-card h5 { font-weight: 600; margin-bottom: 0.25rem; }
+.profile-card p { font-size: 0.85rem; color: var(--app-text-muted); }
+
+/* Custom Checkbox for Payment */
+.custom-checkbox-box { background-color: var(--app-bg); border-radius: var(--app-radius-sm); transition: all var(--transition); }
+.custom-checkbox-box:hover { background-color: var(--app-primary-light); }
+.custom-checkbox-box input:checked { background-color: var(--app-primary); border-color: var(--app-primary); }
+label.form-check.custom-checkbox-box { border-color: var(--app-border); }
+label.form-check.custom-checkbox-box:has(input:checked) { border-color: var(--app-primary); background-color: var(--app-primary-light); }

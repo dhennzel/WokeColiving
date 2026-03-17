@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --app-primary: #34B875;
+    --app-secondary: #F0B429;
+    --app-text: #2C3E50;
+    --app-surface: #FFFFFF;
+    --app-bg: #F4F7F6;
+    --app-radius: 16px;
+    --app-radius-sm: 12px;
+    --transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--app-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1rem;
+}
+
+.auth-wrapper {
+    width: 100%;
+    max-width: 420px;
+    animation: fadeIn 0.6s ease-out forwards;
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+.auth-card {
+    background: var(--app-surface);
+    border-radius: var(--app-radius);
+    padding: 2.5rem;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.07);
+    border: 1px solid #E2E8F0;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.auth-header .logo {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--app-surface);
+    box-shadow: 0 0 0 4px var(--app-primary);
+    margin-bottom: 1rem;
+}
+
+.auth-header h2 {
+    color: var(--app-text);
+    font-weight: 600;
+}
+
+.form-control {
+    background-color: var(--app-bg);
+    border: 2px solid transparent;
+    border-radius: var(--app-radius-sm);
+    padding: 0.9rem 1.2rem;
+    color: var(--app-text);
+    transition: all var(--transition);
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+}
+
+.form-control:focus {
+    background-color: var(--app-surface);
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 4px rgba(52, 184, 117, 0.1);
+    outline: none;
+}
+
+.btn-custom {
+    background-color: var(--app-primary);
+    color: #FFF;
+    border: none;
+    border-radius: 50px;
+    padding: 0.9rem 2rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all var(--transition);
+    width: 100%;
+}
+
+.btn-custom:hover {
+    background-color: #2A9A60;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(52, 184, 117, 0.3);
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.auth-footer a {
+    color: var(--app-primary);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}

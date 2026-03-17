@@ -81,19 +81,19 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="users_CSS/my_reservations.css">
+    <link rel="stylesheet" href="users_CSS/app.css">
 </head>
-<body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
+<body>
 
 <!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+<nav class="navbar navbar-expand-lg navbar-user fixed-top">
     <div class="container">
         <a class="navbar-brand fw-bold d-flex align-items-center" href="../index.php">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
             Woke Coliving INC
         </a>
         <div class="d-flex align-items-center gap-3 ms-auto">
-            <a href="profile.php" class="text-white text-decoration-none fw-bold position-relative">
+            <a href="profile.php" class="nav-link fw-bold position-relative">
                 My Profile
                 <?php if($unread_count > 0): ?>
                     <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
@@ -101,23 +101,23 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                     </span>
                 <?php endif; ?>
             </a>
-            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
-            <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
+            <span class="text-muted fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
+            <a href="logout.php" class="btn btn-accent btn-sm fw-bold px-3">Logout</a>
         </div>
     </div>
 </nav>
 
-<div class="container" style="margin-top: 100px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container animate-fade-in" style="margin-top: 100px;">
+    <div class="d-flex justify-content-between align-items-center mb-4 anim-trigger">
         <div>
             <h2 class="fw-bold text-success"><i class="fas fa-suitcase me-2"></i>My Reservations</h2>
             <p class="text-muted mb-0">Welcome back, <strong><?= htmlspecialchars($user_info['full_name']) ?></strong>!</p>
         </div>
         <div>
-            <button onclick="location.reload()" class="btn btn-outline-primary fw-bold me-2 rounded-pill"><i class="fas fa-sync-alt me-2"></i>Refresh</button>
-            <button type="button" class="btn btn-outline-warning fw-bold me-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#updateInfoModal"><i class="fas fa-user-edit me-2"></i>Update Info</button>
-            <button type="button" class="btn btn-outline-success fw-bold me-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#activityLogModal"><i class="fas fa-history me-2"></i>Activity Logs</button>
-            <a href="profile.php" class="btn btn-secondary rounded-pill">&larr; Back</a>
+            <button onclick="location.reload()" class="btn btn-sm btn-secondary-custom me-2"><i class="fas fa-sync-alt me-2"></i>Refresh</button>
+            <button type="button" class="btn btn-sm btn-accent me-2" data-bs-toggle="modal" data-bs-target="#updateInfoModal"><i class="fas fa-user-edit me-2"></i>Update Info</button>
+            <button type="button" class="btn btn-sm btn-custom me-2" data-bs-toggle="modal" data-bs-target="#activityLogModal"><i class="fas fa-history me-2"></i>Activity Logs</button>
+            <a href="profile.php" class="btn btn-sm btn-secondary-custom">&larr; Back</a>
         </div>
     </div>
 
@@ -140,10 +140,10 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         </div>
     <?php } ?>
 
-    <div class="card card-custom p-4">
+    <div class="card card-custom p-4 anim-trigger delay-1">
         <?php if(mysqli_num_rows($query) > 0) { ?>
         <div class="table-responsive">
-            <table class="table align-middle">
+            <table class="table table-hover align-middle">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -207,7 +207,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                                 $has_unpaid = mysqli_fetch_assoc($pay_chk)['cnt'] > 0;
                                 if($has_unpaid && in_array($row['status'], ['Pending', 'Verifying', 'Approved'])): 
                             ?>
-                                <a href="pay_reservation.php?id=<?= $rid ?>" class="btn btn-sm btn-warning rounded-pill mb-1">
+                                <a href="pay_reservation.php?id=<?= $rid ?>" class="btn btn-sm btn-accent mb-1">
                                     <i class="fas fa-credit-card me-1"></i> <?= $row['status'] == 'Approved' ? 'Pay Bills / Advance' : 'Pay Now' ?>
                                 </a>
                             <?php endif; ?>
@@ -225,20 +225,20 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                                     }
                                 ?>
                                 <?php if($show_sign) { ?>
-                                    <a href="esignature.php?id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-success rounded-pill">
+                                    <a href="esignature.php?id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-custom">
                                         <i class="fas fa-pen-nib me-1"></i> Sign Lease
                                     </a>
                                 <?php } elseif(!empty($row['signature_image'])) { ?>
                                     <span class="badge bg-info text-dark"><i class="fas fa-file-signature"></i> Signed</span>
                                 <?php } ?>
                                 
-                                <a href="view_receipt.php?id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-dark rounded-pill ms-1">
+                                <a href="view_receipt.php?id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-secondary-custom ms-1">
                                     <i class="fas fa-file-invoice"></i> Receipt
                                 </a>
 
                                 <?php if($row['status'] == 'Approved'): ?>
                                     <!-- Extend Stay Button -->
-                                    <a href="reservation_now.php?extend_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-warning rounded-pill ms-1">
+                                    <a href="reservation_now.php?extend_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-accent ms-1">
                                         <i class="fas fa-history me-1"></i> Extend
                                     </a>
                                 <?php endif; ?>
@@ -247,11 +247,11 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                             <?php // Show Remove button for Cancelled or Past End Date (Completed)
                                 $is_past = (strtotime($end_date) < time());
                                 if($row['status'] == 'Cancelled' || ($row['status'] == 'Approved' && $is_past)) { ?>
-                                <a href="my_reservations.php?archive_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-danger rounded-pill ms-1" onclick="confirmArchive(event, this.href)">
+                                <a href="my_reservations.php?archive_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-danger ms-1" onclick="confirmArchive(event, this.href)">
                                     <i class="fas fa-archive"></i> Remove
                                 </a>
                             <?php } ?>
-                            <a href="javascript:void(0)" onclick="viewRoomDetails(<?= $row['room_id'] ?>, <?= $duration ?>, <?= $total_price ?>, '<?= addslashes($row['bed_preference'] ?? 'Any') ?>')" class="btn btn-sm btn-primary rounded-pill ms-1">
+                            <a href="javascript:void(0)" onclick="viewRoomDetails(<?= $row['room_id'] ?>, <?= $duration ?>, <?= $total_price ?>, '<?= addslashes($row['bed_preference'] ?? 'Any') ?>')" class="btn btn-sm btn-custom ms-1">
                                 <i class="fas fa-eye"></i>
                             </a>
                         </td>
@@ -268,8 +268,8 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                 </div>
                 <h4 class="fw-bold text-secondary">No Reservations Yet</h4>
                 <p class="text-muted mb-4">You haven't booked any rooms. Start your journey with us today!</p>
-                <a href="reservation_now.php" class="btn btn-success rounded-pill px-4 py-2 fw-bold shadow-sm">
-                    <i class="fas fa-search me-2"></i>Browse Rooms
+                <a href="reservation_now.php" class="btn btn-custom px-4 py-2 fw-bold">
+                    Browse Rooms
                 </a>
             </div>
         <?php } ?>
@@ -280,7 +280,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
 <!-- Activity Logs Modal -->
 <div class="modal fade" id="activityLogModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
+        <div class="modal-content card-custom">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold"><i class="fas fa-history me-2"></i>Activity History</h5>
                 <button type="button" class="btn-close no-print" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -312,8 +312,8 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                 <?php } ?>
             </div>
             <div class="modal-footer no-print">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fas fa-print me-2"></i>Print Logs</button>
+                <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-custom" onclick="window.print()"><i class="fas fa-print me-2"></i>Print Logs</button>
             </div>
         </div>
     </div>
@@ -322,7 +322,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
 <!-- Update Info Modal -->
 <div class="modal fade" id="updateInfoModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content card-custom">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold"><i class="fas fa-user-edit me-2"></i>Update Information</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -373,8 +373,8 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-custom">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -384,7 +384,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
 <!-- Room Details Modal -->
 <div class="modal fade" id="roomDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
+        <div class="modal-content card-custom">
             <div class="modal-header border-0">
                 <h5 class="modal-title fw-bold text-success">Room Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -399,7 +399,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                     <p class="text-muted mb-1" id="modalRoomType"></p>
                     <h4 class="text-success fw-bold mb-3">₱<span id="modalRoomPrice"></span> <small class="text-muted fs-6">/ month</small></h4>
                     
-                    <div class="card bg-light border-0 p-3 mb-3">
+                    <div class="utility-block p-3 mb-3">
                         <div class="d-flex justify-content-between">
                             <span class="text-muted small">Duration:</span>
                             <span class="fw-bold"><span id="modalDuration"></span> Days</span>
@@ -421,7 +421,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                 </div>
             </div>
             <div class="modal-footer border-0 justify-content-center">
-                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary-custom px-4" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -431,6 +431,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="users_JS/app.js"></script>
 <script>
     <?php if(isset($_SESSION['swal'])): ?>
     Swal.fire({

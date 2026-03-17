@@ -88,18 +88,20 @@ if(isset($_SESSION['user_id'])){
     <link rel="stylesheet" href="CSS/index.css">
     <style>
         :root {
-            --primary-green: #2E7D32;
-            --dark-green: #1B5E20;
-            --accent-yellow: #FBC02D;
-            --light-bg: #f8f9fa;
-            --text-dark: #2c3e50;
+            --primary-green: #34B875;
+            --dark-green: #2A9A60;
+            --accent-yellow: #F0B429;
+            --light-bg: #F4F7F6;
+            --text-dark: #2C3E50;
+            --app-radius: 16px;
+            --app-shadow: 0 4px 20px rgba(0,0,0,0.05);
         }
         html {
             scroll-behavior: smooth;
         }
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
-            width: 10px;
+            width: 8px;
         }
         ::-webkit-scrollbar-track {
             background: #f1f1f1;
@@ -116,8 +118,9 @@ if(isset($_SESSION['user_id'])){
             background-color: var(--light-bg);
             overflow-x: hidden;
         }
-        h1, h2, h3, .navbar-brand {
-            font-family: 'Playfair Display', serif;
+        h1, h2, h3, h4, h5, h6, .navbar-brand {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
         }
         .hero-section {
             position: relative;
@@ -151,7 +154,7 @@ if(isset($_SESSION['user_id'])){
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(to bottom, rgba(27, 94, 32, 0.7), rgba(27, 94, 32, 0.5));
+            background: linear-gradient(to bottom, rgba(42, 154, 96, 0.8), rgba(52, 184, 117, 0.6));
             z-index: 1;
         }
         .hero-content {
@@ -177,16 +180,16 @@ if(isset($_SESSION['user_id'])){
             color: var(--accent-yellow);
         }
         .room-card {
-            border: none;
-            border-radius: 15px;
+            border: 2px solid var(--primary-green);
+            border-radius: var(--app-radius);
             overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            box-shadow: var(--app-shadow);
             transition: all 0.4s ease;
-            background: white;
+            background: #FFFFFF;
         }
         .room-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(52, 184, 117, 0.15);
         }
         .room-img-wrapper {
             height: 250px;
@@ -203,22 +206,21 @@ if(isset($_SESSION['user_id'])){
             transform: scale(1.1);
         }
         .btn-custom {
-            background-color: var(--accent-yellow);
-            color: var(--dark-green);
-            font-weight: 700;
+            background-color: var(--primary-green);
+            color: #FFFFFF;
+            font-weight: 600;
             border-radius: 50px;
-            padding: 12px 35px;
+            padding: 10px 30px;
             border: none;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 5px 15px rgba(251, 192, 45, 0.3);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 10px rgba(52, 184, 117, 0.3);
         }
         .btn-custom:hover {
-            background-color: #F9A825;
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(251, 192, 45, 0.4);
-            color: var(--dark-green);
+            background-color: var(--dark-green);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(52, 184, 117, 0.4);
+            color: #FFFFFF;
         }
         .navbar {
             background: transparent;
@@ -243,26 +245,21 @@ if(isset($_SESSION['user_id'])){
             width: 100%;
         }
         .navbar.scrolled {
-            background: rgba(27, 94, 32, 0.9) !important;
+            background: rgba(255, 255, 255, 0.95) !important;
             backdrop-filter: blur(10px);
             padding: 12px 0;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--app-shadow);
+            border-bottom: 2px solid var(--primary-green);
+        }
+        .navbar.scrolled .nav-link, .navbar.scrolled .navbar-brand {
+            color: var(--text-dark) !important;
         }
         .section-title {
-            color: var(--dark-green);
+            color: var(--text-dark);
             font-weight: 700;
             margin-bottom: 10px;
             position: relative;
             display: inline-block;
-        }
-        .section-title::after {
-            content: '';
-            display: block;
-            width: 60px;
-            height: 3px;
-            background: var(--accent-yellow);
-            margin: 10px auto 0;
-            border-radius: 2px;
         }
         /* Scroll Animations */
         .reveal {
@@ -296,11 +293,11 @@ if(isset($_SESSION['user_id'])){
         .feature-card {
             transition: transform 0.3s, box-shadow 0.3s;
             border: none;
-            border-radius: 20px;
-            background: white;
+            border-radius: var(--app-radius);
+            background: #FFFFFF;
             padding: 2.5rem 1.5rem;
             height: 100%;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            box-shadow: var(--app-shadow);
         }
         .feature-card:hover {
             transform: translateY(-15px) scale(1.05);
@@ -311,7 +308,7 @@ if(isset($_SESSION['user_id'])){
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
         }
-        .room-img { width: 100%; height: 400px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .room-img { width: 100%; height: 400px; object-fit: cover; border-radius: var(--app-radius); box-shadow: var(--app-shadow); }
         
         /* ---------- CUSTOM AMENITY SLIDER CSS ---------- */
         .amenities-scroll-container {
@@ -348,10 +345,10 @@ if(isset($_SESSION['user_id'])){
             width: 45px;
             height: 45px;
             border-radius: 50%;
-            background: white;
+            background: #FFFFFF;
             border: 1px solid #f4f4f4;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            color: rgba(27, 94, 32, 0.9); /* Matching the cake shop pink tint */
+            color: var(--primary-green);
             font-size: 1.2rem;
             display: flex;
             align-items: center;
@@ -363,7 +360,7 @@ if(isset($_SESSION['user_id'])){
         .slider-btn:hover {
             background: #fff;
             box-shadow: 0 6px 16px rgba(0,0,0,0.15);
-            color: rgba(27, 94, 32, 0.9);
+            color: var(--dark-green);
         }
         .prev-btn { left: -15px; }
         .next-btn { right: -15px; }
@@ -371,10 +368,12 @@ if(isset($_SESSION['user_id'])){
         /* Original Amenity Card Styles Kept Intact */
         .amenity-card {
             transition: transform 0.3s, box-shadow 0.3s;
+            border-radius: var(--app-radius) !important;
+            border: 2px solid var(--primary-green);
         }
         .amenity-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 15px 30px rgba(46, 125, 50, 0.15) !important;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(52, 184, 117, 0.15) !important;
         }
         .amenity-icon {
             width: 70px;
@@ -386,11 +385,40 @@ if(isset($_SESSION['user_id'])){
             transition: all 0.3s;
         }
         .amenity-card:hover .amenity-icon {
-            background: #2E7D32;
+            background: var(--primary-green);
         }
         .amenity-card:hover .amenity-icon i {
             color: #ffffff !important;
         }
+
+        /* Scroll to Top Button */
+        .scroll-top-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(52, 184, 117, 0.8);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 1050;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            text-decoration: none;
+        }
+        .scroll-top-btn.visible { opacity: 1; visibility: visible; transform: translateY(0); }
+        .scroll-top-btn:hover { background: rgba(42, 154, 96, 0.9); transform: translateY(-5px); box-shadow: 0 8px 25px rgba(52, 184, 117, 0.3); color: white; }
     </style>
 </head>
 <body>
@@ -423,7 +451,7 @@ if(isset($_SESSION['user_id'])){
                 </a>
                 <a href="users/logout.php" class="btn btn-custom text-dark fw-bold">Logout</a>
             <?php else: ?>
-                <a href="users/login.php" class="btn btn-outline-light rounded-pill px-4">Login</a>
+                <a href="users/login.php" class="btn btn-light rounded-pill px-4 fw-bold text-success">Login</a>
                 <a href="users/register.php" class="btn btn-custom">Register</a>
             <?php endif; ?>
         </div>
@@ -748,6 +776,9 @@ if(isset($_SESSION['user_id'])){
     </div>
 </footer>
 
+<!-- Scroll to Top Button -->
+<a href="#" class="scroll-top-btn" id="scrollTopBtn"><i class="fas fa-chevron-up"></i></a>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script>
@@ -776,6 +807,17 @@ if(isset($_SESSION['user_id'])){
   document.getElementById('prevAmenity').addEventListener('click', function() {
       const container = document.getElementById('amenitiesScroll');
       container.scrollBy({ left: -300, behavior: 'smooth' });
+  });
+
+  // Scroll to Top Logic
+  const scrollTopBtn = document.getElementById('scrollTopBtn');
+  window.addEventListener('scroll', function() {
+      if (window.scrollY > 300) scrollTopBtn.classList.add('visible');
+      else scrollTopBtn.classList.remove('visible');
+  });
+  scrollTopBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   <?php if(isset($_SESSION['swal'])): ?>

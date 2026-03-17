@@ -89,6 +89,105 @@ if(isset($_SESSION['user_id'])){
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="../CSS/index.css">
     <link rel="stylesheet" href="users_CSS/index.css">
+    <style>
+        :root {
+            --primary-green: #34B875;
+            --dark-green: #2A9A60;
+            --accent-yellow: #F0B429;
+            --light-bg: #F4F7F6;
+            --text-dark: #2C3E50;
+            --app-radius: 16px;
+            --app-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+        html { scroll-behavior: smooth; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: var(--primary-green); border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--dark-green); }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); overflow-x: hidden; }
+        h1, h2, h3, h4, h5, h6, .navbar-brand { font-family: 'Poppins', sans-serif; font-weight: 700; }
+        .hero-section { position: relative; color: white; text-align: center; overflow: hidden; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .hero-bg-carousel { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+        .hero-bg-carousel .carousel-item, .hero-bg-carousel .active { height: 100%; }
+        .hero-bg-carousel img { width: 100%; height: 100%; object-fit: cover; transition: transform 10s linear; }
+        .hero-bg-carousel .carousel-item.active img { transform: scale(1.1); }
+        .hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(42, 154, 96, 0.8), rgba(52, 184, 117, 0.6)); z-index: 1; }
+        .hero-content { position: relative; z-index: 2; opacity: 0; transform: translateY(30px); animation: fadeInUp 1s ease-out forwards 0.5s, float 4s ease-in-out infinite 1.5s; }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0px); } }
+        .feature-icon { font-size: 3.5rem; color: var(--primary-green); margin-bottom: 15px; transition: transform 0.3s; }
+        .feature-card:hover .feature-icon { transform: scale(1.1) rotate(5deg); color: var(--accent-yellow); }
+        .room-card { border: 2px solid var(--primary-green); border-radius: var(--app-radius); overflow: hidden; box-shadow: var(--app-shadow); transition: all 0.4s ease; background: #FFFFFF; }
+        .room-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(52, 184, 117, 0.15); }
+        .room-img-wrapper { height: 250px; overflow: hidden; position: relative; }
+        .room-img-wrapper img { transition: transform 0.5s ease; width: 100%; height: 100%; object-fit: cover; }
+        .room-card:hover .room-img-wrapper img { transform: scale(1.1); }
+        .btn-custom { background-color: var(--primary-green); color: #FFFFFF; font-weight: 600; border-radius: 50px; padding: 10px 30px; border: none; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(52, 184, 117, 0.3); }
+        .btn-custom:hover { background-color: var(--dark-green); transform: translateY(-2px); box-shadow: 0 6px 15px rgba(52, 184, 117, 0.4); color: #FFFFFF; }
+        .navbar { background: transparent; padding: 20px 0; transition: all 0.4s ease; }
+        .nav-link { position: relative; transition: color 0.3s ease; }
+        .nav-link::after { content: ''; position: absolute; width: 0; height: 2px; bottom: 0; left: 0; background-color: var(--accent-yellow); transition: width 0.3s ease; }
+        .nav-link:hover::after { width: 100%; }
+        .navbar.scrolled { background: rgba(255, 255, 255, 0.95) !important; backdrop-filter: blur(10px); padding: 12px 0; box-shadow: var(--app-shadow); border-bottom: 2px solid var(--primary-green); }
+        .navbar.scrolled .nav-link, .navbar.scrolled .navbar-brand { color: var(--text-dark) !important; }
+        .navbar.scrolled .btn-outline-light { color: var(--primary-green) !important; border-color: var(--primary-green) !important; }
+        .navbar.scrolled .btn-outline-light:hover { background-color: var(--primary-green) !important; color: #FFF !important; }
+        .section-title { color: var(--text-dark); font-weight: 700; margin-bottom: 10px; position: relative; display: inline-block; }
+        .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s ease-out; }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+        .badge-custom { background-color: rgba(255, 255, 255, 0.9); color: var(--dark-green); border: 1px solid var(--primary-green); }
+        footer { background: var(--dark-green); color: white; padding: 3rem 0; margin-top: 3rem; }
+        footer a { color: rgba(255,255,255,0.7); text-decoration: none; transition: 0.3s; }
+        footer a:hover { color: var(--accent-yellow); }
+        .feature-card { transition: transform 0.3s, box-shadow 0.3s; border: none; border-radius: var(--app-radius); background: #FFFFFF; padding: 2.5rem 1.5rem; height: 100%; box-shadow: var(--app-shadow); }
+        .feature-card:hover { transform: translateY(-15px) scale(1.05); box-shadow: 0 25px 50px rgba(46, 125, 50, 0.2); border: 1px solid var(--accent-yellow); }
+        .contact-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .room-img { width: 100%; height: 400px; object-fit: cover; border-radius: var(--app-radius); box-shadow: var(--app-shadow); }
+        .amenities-scroll-container { display: flex; overflow-x: auto; scroll-behavior: smooth; gap: 1.5rem; padding: 15px 5px; -ms-overflow-style: none; scrollbar-width: none; }
+        .amenities-scroll-container::-webkit-scrollbar { display: none; }
+        .amenity-item { flex: 0 0 calc(25% - 1.125rem); min-width: 260px; }
+        @media (max-width: 992px) { .amenity-item { flex: 0 0 calc(33.333% - 1rem); } }
+        @media (max-width: 768px) { .amenity-item { flex: 0 0 calc(50% - 0.75rem); } }
+        @media (max-width: 576px) { .amenity-item { flex: 0 0 100%; } }
+        .slider-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 45px; height: 45px; border-radius: 50%; background: #FFFFFF; border: 1px solid #f4f4f4; box-shadow: 0 4px 12px rgba(0,0,0,0.1); color: var(--primary-green); font-size: 1.2rem; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; transition: all 0.3s; }
+        .slider-btn:hover { background: #fff; box-shadow: 0 6px 16px rgba(0,0,0,0.15); color: var(--dark-green); }
+        .prev-btn { left: -15px; }
+        .next-btn { right: -15px; }
+        .amenity-card { transition: transform 0.3s, box-shadow 0.3s; border-radius: var(--app-radius) !important; border: 2px solid var(--primary-green); }
+        .amenity-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(52, 184, 117, 0.15) !important; }
+        .amenity-icon { width: 70px; height: 70px; line-height: 70px; margin: 0 auto; background: rgba(52, 184, 117, 0.1); border-radius: 50%; transition: all 0.3s; }
+        .amenity-card:hover .amenity-icon { background: var(--primary-green); }
+        .amenity-card:hover .amenity-icon i { color: #ffffff !important; }
+        
+        /* Scroll to Top Button */
+        .scroll-top-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(52, 184, 117, 0.8);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 1050;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            text-decoration: none;
+        }
+        .scroll-top-btn.visible { opacity: 1; visibility: visible; transform: translateY(0); }
+        .scroll-top-btn:hover { background: rgba(42, 154, 96, 0.9); transform: translateY(-5px); box-shadow: 0 8px 25px rgba(52, 184, 117, 0.3); color: white; }
+    </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
 
@@ -111,7 +210,7 @@ if(isset($_SESSION['user_id'])){
             </ul>
         <div class="d-flex gap-2">
             <?php if(isset($_SESSION['user_id'])): ?>
-                <a href="profile.php" class="btn btn-outline-light rounded-pill px-4 position-relative">
+                <a href="profile.php" class="btn btn-light text-success fw-bold rounded-pill px-4 position-relative">
                     My Profile
                     <?php if($unread_count > 0): ?>
                         <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
@@ -119,9 +218,9 @@ if(isset($_SESSION['user_id'])){
                         </span>
                     <?php endif; ?>
                 </a>
-                <a href="logout.php" class="btn btn-custom text-dark fw-bold">Logout</a>
+                <a href="logout.php" class="btn btn-custom">Logout</a>
             <?php else: ?>
-                <a href="login.php" class="btn btn-outline-light rounded-pill px-4">Login</a>
+                <a href="login.php" class="btn btn-light text-success fw-bold rounded-pill px-4">Login</a>
                 <a href="register.php" class="btn btn-custom">Register</a>
             <?php endif; ?>
         </div>
@@ -481,6 +580,9 @@ if(isset($_SESSION['user_id'])){
     </div>
 </footer>
 
+<!-- Scroll to Top Button -->
+<a href="#" class="scroll-top-btn" id="scrollTopBtn"><i class="fas fa-chevron-up"></i></a>
+
 <!-- Notification Sound -->
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
 
@@ -510,6 +612,17 @@ if(isset($_SESSION['user_id'])){
   document.getElementById('prevAmenity').addEventListener('click', function() {
       const container = document.getElementById('amenitiesScroll');
       container.scrollBy({ left: -300, behavior: 'smooth' });
+  });
+
+  // Scroll to Top Logic
+  const scrollTopBtn = document.getElementById('scrollTopBtn');
+  window.addEventListener('scroll', function() {
+      if (window.scrollY > 300) scrollTopBtn.classList.add('visible');
+      else scrollTopBtn.classList.remove('visible');
+  });
+  scrollTopBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   <?php if(isset($_SESSION['swal'])): ?>

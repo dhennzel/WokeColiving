@@ -30,51 +30,31 @@ $theme = get_theme_colors($conn);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --primary-green: <?= $theme['primary'] ?>;
-            --dark-green: <?= $theme['dark'] ?>;
-            --accent-yellow: <?= $theme['accent'] ?>;
-            --light-bg: #f8f9fa;
-        }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-        .navbar { background: var(--dark-green); }
-        .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
-        .table th { background-color: var(--primary-green); color: white; font-weight: 500; border: none; }
-        body.night-mode { background-color: #121212; color: #e0e0e0; }
-        body.night-mode .navbar { background: #1f1f1f !important; }
-        body.night-mode .card-custom { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
-        body.night-mode .text-dark { color: #e0e0e0 !important; }
-        body.night-mode .text-muted { color: #b0b0b0 !important; }
-        body.night-mode .table { color: #e0e0e0; }
-        body.night-mode .table thead th { background-color: #1f1f1f; border-color: #333; }
-        body.night-mode .table td, body.night-mode .table th { background-color: #1e1e1e; border-color: #333; }
-        body.night-mode .table-hover tbody tr:hover > * { background-color: #2c2c2c; }
-    </style>
+    <link rel="stylesheet" href="users_CSS/app.css">
 </head>
 <body class="<?= ($user_info['night_mode'] == 1) ? 'night-mode' : '' ?>">
 
 <!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark">
+<nav class="navbar navbar-expand-lg navbar-user fixed-top">
     <div class="container">
         <a class="navbar-brand fw-bold d-flex align-items-center" href="../index.php">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
             Woke Coliving INC
         </a>
         <div class="d-flex align-items-center gap-3 ms-auto">
-            <a href="profile.php" class="text-white text-decoration-none">Back to Profile</a>
-            <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
+            <span class="text-muted fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
+            <a href="logout.php" class="btn btn-accent btn-sm fw-bold px-3">Logout</a>
         </div>
     </div>
 </nav>
 
-<div class="container py-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold text-dark">My Parking Reservations</h3>
+<div class="container animate-fade-in" style="margin-top: 100px;">
+    <div class="d-flex justify-content-between align-items-center mb-4 anim-trigger">
+        <h2 class="fw-bold text-success"><i class="fas fa-parking me-2"></i>My Parking</h2>
+        <a href="profile.php" class="btn btn-sm btn-secondary-custom">&larr; Back</a>
     </div>
 
-    <div class="card card-custom p-4">
+    <div class="card card-custom p-4 anim-trigger delay-1">
         <div class="table-responsive">
             <table class="table table-hover align-middle">
                 <thead>
@@ -123,5 +103,6 @@ $theme = get_theme_colors($conn);
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="users_JS/app.js"></script>
 </body>
 </html>

@@ -226,12 +226,12 @@ try {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="users_CSS/profile.css">
+    <link rel="stylesheet" href="users_CSS/app.css">
 </head>
-<body class="<?= ($user_info['night_mode'] == 1) ? 'night-mode' : '' ?>">
+<body>
 
 <!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+<nav class="navbar navbar-expand-lg navbar-user fixed-top">
     <div class="container">
         <a class="navbar-brand fw-bold d-flex align-items-center" href="../index.php">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
@@ -240,7 +240,7 @@ try {
         
         <div class="d-flex align-items-center gap-3 ms-auto">
         <!-- Notification Dropdown -->
-        <div class="dropdown">
+        <div class="dropdown anim-trigger">
             <a href="#" class="text-white text-decoration-none position-relative me-3" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-bell fa-lg"></i>
                 <?php if($unread_count > 0): ?>
@@ -275,21 +275,21 @@ try {
             </ul>
         </div>
 
-        <span class="text-white fw-bold d-none d-md-block">Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
-        <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
+        <span class="text-muted fw-bold d-none d-md-block">Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
+        <a href="logout.php" class="btn btn-accent btn-sm fw-bold px-3">Logout</a>
         </div>
     </div>
 </nav>
 
 <div class="container" style="margin-top: 100px;">
-    <div class="text-center mb-5 reveal">
+    <div class="text-center mb-5 anim-trigger anim-zoom">
         <!-- Profile Pic -->
         <div class="position-relative d-inline-block mb-3">
             <?php if(!empty($user_info['profile_image'])): ?>
-                <img src="../uploads/profiles/<?= $user_info['profile_image'] ?>" class="rounded-circle shadow" style="width: 120px; height: 120px; object-fit: cover;">
+                <img src="../uploads/profiles/<?= $user_info['profile_image'] ?>" class="rounded-circle shadow-sm" style="width: 120px; height: 120px; object-fit: cover; border: 4px solid var(--app-surface);">
             <?php else: ?>
-                <div class="rounded-circle shadow d-flex align-items-center justify-content-center bg-success text-white" style="width: 120px; height: 120px; font-size: 3rem;">
-                    <?= strtoupper(substr($user_info['full_name'], 0, 1)) ?>
+                <div class="rounded-circle shadow-sm d-flex align-items-center justify-content-center bg-success text-white" style="width: 120px; height: 120px; font-size: 3rem; border: 4px solid var(--app-surface);">
+                    <?= strtoupper(substr($user_info['first_name'], 0, 1)) ?>
                 </div>
             <?php endif; ?>
         </div>
@@ -310,106 +310,106 @@ try {
 
     <div class="row g-4 justify-content-center" id="dashboard-cards">
         <!-- Book a Room -->
-        <div class="col-md-3 reveal delay-1" data-card-id="book">
+        <div class="col-md-3 anim-trigger anim-zoom delay-1" data-card-id="book">
             <a href="reservation_now.php" class="text-decoration-none">
-                <div class="card profile-card h-100 p-5 text-center">
+                <div class="card card-custom profile-card h-100">
                     <div class="icon-box"><i class="fas fa-calendar-plus"></i></div>
-                    <h4 class="fw-bold text-dark mb-3">Book a Room</h4>
-                    <p class="text-muted small">Find and book your next stay.</p>
+                    <h5 class="fw-bold text-dark">Book a Room</h5>
+                    <p class="small">Find and book your next stay.</p>
                 </div>
             </a>
         </div>
 
         <!-- My Waitlist -->
-        <div class="col-md-3 reveal delay-2" data-card-id="waitlist">
+        <div class="col-md-3 anim-trigger anim-zoom delay-2" data-card-id="waitlist">
             <a href="my_waitlist.php" class="text-decoration-none" onclick="markAsRead('waitlist', <?= $c_wait ?>)">
-                <div class="card profile-card h-100 p-5 text-center">
+                <div class="card card-custom profile-card h-100">
                     <?php if($c_wait > 0): ?><div class="card-badge" id="badge-waitlist" data-count="<?= $c_wait ?>" title="Waitlisted Rooms"><?= $c_wait ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-list-ol"></i></div>
-                    <h4 class="fw-bold text-dark mb-3">My Waitlist</h4>
-                    <p class="text-muted small">View rooms you are waiting for.</p>
+                    <h5 class="fw-bold text-dark">My Waitlist</h5>
+                    <p class="small">View rooms you are waiting for.</p>
                 </div>
             </a>
         </div>
 
         <!-- My Reservations -->
-        <div class="col-md-3 reveal delay-3" data-card-id="reservations">
+        <div class="col-md-3 anim-trigger anim-zoom delay-3" data-card-id="reservations">
             <a href="my_reservations.php" class="text-decoration-none" onclick="markAsRead('reservations', <?= $c_res ?>)">
-                <div class="card profile-card h-100 p-5 text-center">
+                <div class="card card-custom profile-card h-100">
                     <?php if($c_res > 0): ?><div class="card-badge" id="badge-reservations" data-count="<?= $c_res ?>" title="Active Reservations"><?= $c_res ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-suitcase"></i></div>
-                    <h4 class="fw-bold text-dark mb-3">My Reservations</h4>
-                    <p class="text-muted small">View your booking history and status.</p>
+                    <h5 class="fw-bold text-dark">My Reservations</h5>
+                    <p class="small">View your booking history and status.</p>
                 </div>
             </a>
         </div>
 
         <!-- My Parking -->
-        <div class="col-md-3 reveal delay-4" data-card-id="parking">
+        <div class="col-md-3 anim-trigger anim-zoom delay-4" data-card-id="parking">
             <a href="my_parking.php" class="text-decoration-none" onclick="markAsRead('parking', <?= $c_park ?>)">
-                <div class="card profile-card h-100 p-5 text-center">
+                <div class="card card-custom profile-card h-100">
                     <?php if($c_park > 0): ?><div class="card-badge" id="badge-parking" data-count="<?= $c_park ?>" title="Active Parking"><?= $c_park ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-parking"></i></div>
-                    <h4 class="fw-bold text-dark mb-3">My Parking</h4>
-                    <p class="text-muted small">View your assigned parking slots.</p>
+                    <h5 class="fw-bold text-dark">My Parking</h5>
+                    <p class="small">View your assigned parking slots.</p>
                 </div>
             </a>
         </div>
 
         <!-- Maintenance -->
-        <div class="col-md-3 reveal delay-5" data-card-id="maintenance">
+        <div class="col-md-3 anim-trigger anim-zoom delay-5" data-card-id="maintenance">
             <a href="maintenance.php" class="text-decoration-none" onclick="markAsRead('maintenance', <?= $c_maint ?>)">
-                <div class="card profile-card h-100 p-5 text-center">
+                <div class="card card-custom profile-card h-100">
                     <?php if($c_maint > 0): ?><div class="card-badge" id="badge-maintenance" data-count="<?= $c_maint ?>" title="Active Requests"><?= $c_maint ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-tools"></i></div>
-                    <h4 class="fw-bold text-dark mb-3">Maintenance</h4>
-                    <p class="text-muted small">Report issues and track repairs.</p>
+                    <h5 class="fw-bold text-dark">Maintenance</h5>
+                    <p class="small">Report issues and track repairs.</p>
                 </div>
             </a>
         </div>
 
         <!-- Housekeeping -->
-        <div class="col-md-3 reveal delay-6" data-card-id="housekeeping">
+        <div class="col-md-3 anim-trigger anim-zoom delay-6" data-card-id="housekeeping">
             <a href="housekeeping.php" class="text-decoration-none" onclick="markAsRead('housekeeping', <?= $c_house ?>)">
-                <div class="card profile-card h-100 p-5 text-center">
+                <div class="card card-custom profile-card h-100">
                     <?php if($c_house > 0): ?><div class="card-badge" id="badge-housekeeping" data-count="<?= $c_house ?>" title="Active Requests"><?= $c_house ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-broom"></i></div>
-                    <h4 class="fw-bold text-dark mb-3">Housekeeping</h4>
-                    <p class="text-muted small">Request cleaning services.</p>
+                    <h5 class="fw-bold text-dark">Housekeeping</h5>
+                    <p class="small">Request cleaning services.</p>
                 </div>
             </a>
         </div>
 
         <!-- Archived History -->
-        <div class="col-md-3 reveal delay-7" data-card-id="archives">
+        <div class="col-md-3 anim-trigger anim-zoom delay-7" data-card-id="archives">
             <a href="my_archives.php" class="text-decoration-none" onclick="markAsRead('archives', <?= $c_arch ?>)">
-                <div class="card profile-card h-100 p-5 text-center">
+                <div class="card card-custom profile-card h-100">
                     <?php if($c_arch > 0): ?><div class="card-badge" id="badge-archives" data-count="<?= $c_arch ?>" title="Archived Items"><?= $c_arch ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-archive"></i></div>
-                    <h4 class="fw-bold text-dark mb-3">Archives</h4>
-                    <p class="text-muted small">View removed and old contracts.</p>
+                    <h5 class="fw-bold text-dark">Archives</h5>
+                    <p class="small">View removed and old contracts.</p>
                 </div>
             </a>
         </div>
 
         <!-- Other Request -->
-        <div class="col-md-3 reveal delay-8" data-card-id="other_request">
+        <div class="col-md-3 anim-trigger anim-zoom delay-8" data-card-id="other_request">
             <a href="https://www.facebook.com/messages/t/109786470426283" target="_blank" class="text-decoration-none">
-                <div class="card profile-card h-100 p-5 text-center">
+                <div class="card card-custom profile-card h-100">
                     <div class="icon-box"><i class="fab fa-facebook-messenger"></i></div>
-                    <h4 class="fw-bold text-dark mb-3">Other Request</h4>
-                    <p class="text-muted small">Contact us via Messenger for other concerns.</p>
+                    <h5 class="fw-bold text-dark">Other Request</h5>
+                    <p class="small">Contact us via Messenger for other concerns.</p>
                 </div>
             </a>
         </div>
 
         <!-- User Customization -->
-        <div class="col-md-3 reveal delay-9" data-card-id="customization">
+        <div class="col-md-3 anim-trigger anim-zoom delay-9" data-card-id="customization">
             <a href="javascript:void(0)" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#customizationModal">
-                <div class="card profile-card h-100 p-5 text-center">
+                <div class="card card-custom profile-card h-100">
                     <div class="icon-box"><i class="fas fa-sliders-h"></i></div>
-                    <h4 class="fw-bold text-dark mb-3">Customization</h4>
-                    <p class="text-muted small">Personalize your profile experience.</p>
+                    <h5 class="fw-bold text-dark">Customization</h5>
+                    <p class="small">Personalize your profile experience.</p>
                 </div>
             </a>
         </div>
@@ -422,7 +422,7 @@ try {
 <!-- Customization Modal -->
 <div class="modal fade" id="customizationModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content card-custom">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold"><i class="fas fa-sliders-h me-2"></i>Customization</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -496,7 +496,7 @@ try {
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -505,7 +505,7 @@ try {
 <!-- Change Password Modal -->
 <div class="modal fade" id="changePasswordModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content card-custom">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold"><i class="fas fa-key me-2"></i>Change Password</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -527,8 +527,8 @@ try {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-target="#customizationModal" data-bs-toggle="modal">Back</button>
-                    <button type="submit" class="btn btn-primary">Update Password</button>
+                    <button type="button" class="btn btn-secondary-custom" data-bs-target="#customizationModal" data-bs-toggle="modal">Back</button>
+                    <button type="submit" class="btn btn-custom">Update Password</button>
                 </div>
             </form>
         </div>
@@ -538,7 +538,7 @@ try {
 <!-- Change Email Modal -->
 <div class="modal fade" id="changeEmailModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content card-custom">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold"><i class="fas fa-envelope me-2"></i>Change Email</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -556,8 +556,8 @@ try {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-target="#customizationModal" data-bs-toggle="modal">Back</button>
-                    <button type="submit" class="btn btn-primary">Update Email</button>
+                    <button type="button" class="btn btn-secondary-custom" data-bs-target="#customizationModal" data-bs-toggle="modal">Back</button>
+                    <button type="submit" class="btn btn-custom">Update Email</button>
                 </div>
             </form>
         </div>
@@ -567,7 +567,7 @@ try {
 <!-- Delete Account Modal -->
 <div class="modal fade" id="deleteAccountModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content card-custom">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Delete Account</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -583,8 +583,8 @@ try {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-target="#customizationModal" data-bs-toggle="modal">Cancel</button>
-                    <button type="submit" class="btn btn-danger">Permanently Delete</button>
+                    <button type="button" class="btn btn-secondary-custom" data-bs-target="#customizationModal" data-bs-toggle="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete Account</button>
                 </div>
             </form>
         </div>
@@ -594,7 +594,7 @@ try {
 <!-- Upload Modal -->
 <div class="modal fade" id="uploadPicModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content card-custom">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold">Update Profile Picture</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -602,7 +602,7 @@ try {
             <div class="modal-body">
                 <div class="text-center mb-3">
                     <input type="file" id="profile_image_input" class="d-none" accept="image/png, image/jpeg, image/gif, image/webp">
-                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('profile_image_input').click();">
+                    <button type="button" class="btn btn-custom" onclick="document.getElementById('profile_image_input').click();">
                         <i class="fas fa-folder-open me-2"></i>Choose Image
                     </button>
                 </div>
@@ -611,17 +611,21 @@ try {
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="crop_and_upload_btn" disabled>Crop & Upload</button>
+                <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-custom" id="crop_and_upload_btn" disabled>Crop & Upload</button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Scroll to Top Button -->
+<a href="#" class="scroll-top-btn" id="scrollTopBtn"><i class="fas fa-chevron-up"></i></a>
+
 <!-- Notification Sound -->
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="users_JS/app.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script>
     <?php if(isset($_SESSION['swal'])): ?>

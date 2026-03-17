@@ -74,55 +74,19 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        :root {
-            --primary-green: #2E7D32;
-            --dark-green: #1B5E20;
-            --accent-yellow: #FBC02D;
-            --light-bg: #f8f9fa;
-        }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-        .navbar { background: var(--dark-green); padding: 15px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        
-        .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
-        .table thead th { background-color: var(--primary-green); color: white; border: none; }
-        .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; border: none; }
-        .btn-custom:hover { background-color: #f9a825; }
-        
-        .reveal { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s forwards; }
-        @keyframes shake { 0% { transform: rotate(0deg); } 20% { transform: rotate(15deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(5deg); } 80% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
-        .shake-animation { animation: shake 0.5s; }
-        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
-
-        /* Night Mode Styles */
-        body.night-mode { background-color: #121212; color: #e0e0e0; }
-        body.night-mode .navbar { background: #1f1f1f !important; }
-        body.night-mode .card, body.night-mode .card-custom { background-color: #1e1e1e; color: #e0e0e0; border-color: #333; }
-        body.night-mode .text-dark { color: #e0e0e0 !important; }
-        body.night-mode .text-muted { color: #b0b0b0 !important; }
-        body.night-mode .bg-light { background-color: #2c2c2c !important; }
-        body.night-mode .dropdown-menu { background-color: #1e1e1e; border-color: #333; }
-        body.night-mode .dropdown-item { color: #e0e0e0; }
-        body.night-mode .dropdown-item:hover { background-color: #333; }
-        body.night-mode .form-control, body.night-mode textarea { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
-        body.night-mode .form-control:focus { background-color: #333; color: #fff; }
-        body.night-mode .table { color: #e0e0e0; background-color: transparent; }
-        body.night-mode .table thead th { background-color: #1f1f1f; border-color: #333; color: #e0e0e0; }
-        body.night-mode .table td, body.night-mode .table th { background-color: #1e1e1e; border-color: #333; color: #e0e0e0; }
-    </style>
+    <link rel="stylesheet" href="users_CSS/app.css">
 </head>
 <body>
 
 <!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+<nav class="navbar navbar-expand-lg navbar-user fixed-top">
     <div class="container">
         <a class="navbar-brand fw-bold d-flex align-items-center" href="../index.php">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
             Woke Coliving INC
         </a>
         <div class="d-flex align-items-center gap-3 ms-auto">
-            <a href="profile.php" class="text-white text-decoration-none fw-bold position-relative">
+            <a href="profile.php" class="nav-link fw-bold position-relative">
                 My Profile
                 <?php if($unread_count > 0): ?>
                     <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
@@ -130,16 +94,16 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                     </span>
                 <?php endif; ?>
             </a>
-            <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
-            <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
+            <span class="text-muted fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
+            <a href="logout.php" class="btn btn-accent btn-sm fw-bold px-3">Logout</a>
         </div>
     </div>
 </nav>
 
-<div class="container reveal" style="margin-top: 100px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container animate-fade-in" style="margin-top: 100px;">
+    <div class="d-flex justify-content-between align-items-center mb-4 anim-trigger">
         <h2 class="fw-bold text-success"><i class="fas fa-tools me-2"></i>Maintenance Requests</h2>
-        <a href="profile.php" class="btn btn-secondary rounded-pill">&larr; Back</a>
+        <a href="profile.php" class="btn btn-sm btn-secondary-custom">&larr; Back</a>
     </div>
 
     <?php if ($message) { echo "<div class='alert alert-success'>$message</div>"; } ?>
@@ -148,7 +112,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
 
     <!-- Request Form -->
     <?php if ($has_active_reservation) { ?>
-    <div class="card card-custom p-4 mb-5">
+    <div class="card card-custom p-4 mb-5 anim-trigger delay-1">
         <h5 class="fw-bold mb-3">Submit New Request</h5>
         <form method="POST">
             <div class="mb-3">
@@ -159,11 +123,11 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         </form>
     </div>
     <?php } else { ?>
-        <div class="alert alert-warning mb-5"><i class="fas fa-exclamation-circle me-2"></i>You must have an active (approved) room reservation to submit maintenance requests.</div>
+        <div class="alert alert-warning mb-5 anim-trigger delay-1"><i class="fas fa-exclamation-circle me-2"></i>You must have an active (approved) room reservation to submit maintenance requests.</div>
     <?php } ?>
 
     <!-- List of Requests -->
-    <div class="card card-custom p-4">
+    <div class="card card-custom p-4 anim-trigger delay-2">
         <h5 class="fw-bold mb-3">My Request History</h5>
         <?php if (mysqli_num_rows($requests_query) > 0) { ?>
         <div class="table-responsive">
@@ -211,6 +175,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
 <!-- Notification Sound -->
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
 
+<script src="users_JS/app.js"></script>
 <script>
 function confirmAction(e, url, msg) {
     e.preventDefault();

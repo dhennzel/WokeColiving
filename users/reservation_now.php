@@ -14,6 +14,7 @@ $user_id = $_SESSION['user_id'];
 // --- Check for Extension Request ---
 $is_extension = false;
 $ext_data = [];
+$error = "";
 
 // Check GET or POST for extend_id
 $eid_param = isset($_GET['extend_id']) ? $_GET['extend_id'] : (isset($_POST['extend_id']) ? $_POST['extend_id'] : null);
@@ -58,6 +59,13 @@ $user_emergency_contact_name = '';
 $user_emergency_contact_number = '';
 
 $stmt = $conn->prepare("SELECT last_name, first_name, middle_name, email, phone_number, gender, occupation, address, company, school_id_image, emergency_contact_name, emergency_contact_number FROM users WHERE user_id = ?");
+
+// Add this check
+if (!$stmt) {
+    die("Database Prepare Failed: " . $conn->error); 
+}
+
+$stmt->bind_param("i", $_SESSION['user_id']);
 $stmt->bind_param("i", $_SESSION['user_id']);
 $stmt->execute();
 $stmt->bind_result($user_lname, $user_fname, $user_mname, $user_email, $user_phone, $user_gender, $user_occupation, $user_address, $user_company, $user_school_id_image, $user_emergency_contact_name, $user_emergency_contact_number);
@@ -119,7 +127,6 @@ if(isset($_GET['bed_preference'])){
 
 // Handle Submission
 if (isset($_POST['confirm_booking'])) {
-    $error = ""; // Initialize error variable
         $troom = $_POST['troom'];
         $cin = $_POST['cin'];
         $cout = $_POST['cout'];
@@ -495,24 +502,17 @@ if (isset($_POST['confirm_booking'])) {
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="users_CSS/reservation_now.css">
-    <style>
-        .room-card-option { cursor: pointer; transition: all 0.2s; border: 2px solid transparent; overflow: hidden; height: 100%; }
-        .room-card-option:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .room-card-option.selected { border-color: var(--primary-green); background-color: #e8f5e9; }
-        .room-card-option.disabled { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
-        .room-card-option img { height: 140px; object-fit: cover; width: 100%; }
-    </style>
+    <link rel="stylesheet" href="users_CSS/app.css">
 </head>
 <body>
-<div class="container py-5">
+<div class="container py-5 animate-fade-in">
     <?php if(!empty($error)): ?>
     <div class="alert alert-danger">
         <?= $error ?>
         <?php if(isset($show_waitlist) && $show_waitlist): ?>
             <form method="POST" class="mt-2">
                 <input type="hidden" name="wl_room" value="<?= $_POST['troom'] ?>">
-                <button type="submit" name="join_waitlist" class="btn btn-sm btn-outline-danger fw-bold">Join Waitlist for <?= $_POST['troom'] ?></button>
+                <button type="submit" name="join_waitlist" class="btn btn-sm btn-accent fw-bold mt-2">Join Waitlist for <?= $_POST['troom'] ?></button>
             </form>
         <?php endif; ?>
     </div>
@@ -526,7 +526,7 @@ if (isset($_POST['confirm_booking'])) {
         <?php endif; ?>
         <div class="row g-4">
             <!-- Personal Info -->
-            <div class="col-md-5">
+            <div class="col-md-5 anim-trigger delay-1">
                 <div class="card card-custom h-100">
                     <div class="card-header bg-white fw-bold text-success"><i class="fas fa-user me-2"></i>Personal Information</div>
                     <div class="card-body">
@@ -621,7 +621,7 @@ if (isset($_POST['confirm_booking'])) {
             </div>
 
             <!-- Reservation Info -->
-            <div class="col-md-7">
+            <div class="col-md-7 anim-trigger delay-2">
                 <div class="card card-custom h-100">
                     <div class="card-header bg-white fw-bold text-success"><i class="fas fa-bed me-2"></i>Booking Details</div>
                     <div class="card-body">
@@ -674,7 +674,7 @@ if (isset($_POST['confirm_booking'])) {
                             <input type="date" name="cout" id="cout" class="form-control" min="<?= date('Y-m-d', strtotime($pre_cin . ' +1 day')) ?>" required onchange="updateDurationFromDates()">
                         </div>
 
-                        <div class="alert alert-light border">
+                        <div class="utility-block">
                             <div class="d-flex justify-content-between mb-2">
                                 <span>Check-in:</span> <strong id="cin_display"><?= date('Y-m-d') ?></strong>
                             </div>
@@ -768,7 +768,7 @@ if (isset($_POST['confirm_booking'])) {
                             </div>
                         </div>
 
-                        <button type="button" onclick="confirmReservation()" class="btn btn-custom w-100 py-2">Confirm Reservation</button>
+                        <button type="button" onclick="confirmReservation()" class="btn btn-custom w-100 py-3 mt-3"><i class="fas fa-check-circle"></i> Confirm Reservation</button>
                     </div>
                 </div>
             </div>
@@ -779,6 +779,7 @@ if (isset($_POST['confirm_booking'])) {
 <!-- Notification Sound -->
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="users_JS/app.js"></script>
 
 <script>
     <?php if(isset($_SESSION['swal'])): ?>
@@ -878,8 +879,8 @@ function confirmReservation() {
                 return;
             }
 
-            statusSpan.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking availability...';
-            statusSpan.className = 'fw-bold mt-1 d-block text-muted';
+            statusSpan.innerHTML = '<span class="skeleton-box" style="max-width: 200px;"></span>';
+            statusSpan.className = 'mt-1 d-block';
 
             // Use existing get_rooms.php API
             fetch(`get_rooms.php?checkin=${cin}&checkout=${cout}`)
