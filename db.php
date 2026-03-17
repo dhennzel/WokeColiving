@@ -784,14 +784,29 @@ function get_all_rooms_with_occupancy($conn, $show_hidden = false) {
     ");
     
     $rooms = [];
+    $seen_room_names = []; // This tracks display names to catch hidden database duplicates
+    
     while ($row = mysqli_fetch_assoc($query)) {
         $room_id = $row['room_id'];
+        
+        // 1. Determine the actual display name
+        $room_display = $row['room_name'];
+        if (!empty($row['room_number'])) {
+            $room_display = trim($row['room_number']);
+        } elseif (is_numeric($row['room_name'])) {
+            $room_display = trim($row['room_name']);
+        }
+        // Create a universal key for checking duplicates (e.g., "205")
+        $display_key = strtolower($room_display);
+
+        // 2. Fetch occupancy and keys
         $row['occupancy_status'] = get_room_occupancy_status($conn, $room_id);
         $row['occupants'] = get_room_occupants($conn, $room_id);
         $keys = get_room_key_info($conn, $room_id);
-        $row['key_info'] = !empty($keys) ? $keys[0] : null; // For backward compatibility, provide first key
-        $row['all_keys'] = $keys; // Provide all keys in a new field
+        $row['key_info'] = !empty($keys) ? $keys[0] : null; 
+        $row['all_keys'] = $keys; 
         
+        // 3. Calculate beds
         $occupied_count = 0;
         foreach($row['occupants'] as $occ) {
             if($occ['bed_preference'] == 'Whole Room') {
@@ -801,10 +816,24 @@ function get_all_rooms_with_occupancy($conn, $show_hidden = false) {
             }
         }
         $row['occupied_count'] = $occupied_count;
-        
-        // Calculate available beds
         $row['available_beds'] = max(0, $row['total_beds'] - $row['occupied_count']);
         
+        // 4. THE FIX: Strict Deduplication by Room Name
+        if (isset($seen_room_names[$display_key])) {
+            $existing_idx = $seen_room_names[$display_key];
+            
+            // If this duplicate has the actual tenants, swap it in so it shows "Partially Occupied"
+            if ($row['occupied_count'] > $rooms[$existing_idx]['occupied_count']) {
+                $rooms[$existing_idx] = $row; 
+            }
+            
+            // We deliberately DO NOT merge the keys here. 
+            // This throws away the fake room's keys and fixes the "31 instead of 30" issue.
+            continue; 
+        }
+
+        // If it's a new room, save it and remember the name
+        $seen_room_names[$display_key] = count($rooms);
         $rooms[] = $row;
     }
     return $rooms;

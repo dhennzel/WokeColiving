@@ -113,6 +113,23 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         body.night-mode::-webkit-scrollbar-thumb, body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }
         body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
         body.night-mode .form-label { color: #34B875 !important; }
+        body.night-mode .utility-block { background-color: #2c2c2c !important; border: 1px solid #444 !important; border-radius: 10px; color: #e0e0e0 !important; }
+        body.night-mode .navbar-toggler { border-color: rgba(255,255,255,0.5); }
+        body.night-mode .navbar-toggler-icon { filter: invert(1) brightness(200%); }
+        body.night-mode .table-striped>tbody>tr:nth-of-type(odd)>* { --bs-table-accent-bg: rgba(255, 255, 255, 0.05); color: #e0e0e0 !important; }
+
+        @media print {
+            body * { visibility: hidden; }
+            .modal.show, .modal.show * { visibility: visible; }
+            .modal.show { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; background: none; }
+            .modal-dialog { max-width: 100%; margin: 0; }
+            .modal-content { border: none; box-shadow: none; width: 100%; }
+            .no-print { display: none !important; }
+            
+            body.night-mode, body.night-mode * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body.night-mode .modal-content { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
+            body.night-mode .table-light th, body.night-mode .table-light td { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-color: #444 !important; }
+        }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
@@ -124,17 +141,22 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
             Woke Coliving INC
         </a>
-        <div class="d-flex align-items-center gap-3 ms-auto">
-            <a href="profile.php" class="nav-link fw-bold position-relative">
-                My Profile
-                <?php if($unread_count > 0): ?>
-                    <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
-                        <span class="visually-hidden">New alerts</span>
-                    </span>
-                <?php endif; ?>
-            </a>
-            <span class="text-muted fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
-            <a href="logout.php" class="btn btn-accent btn-sm fw-bold px-3">Logout</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="d-flex align-items-center gap-3 ms-auto mt-3 mt-lg-0">
+                <a href="profile.php" class="nav-link fw-bold position-relative">
+                    My Profile
+                    <?php if($unread_count > 0): ?>
+                        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                            <span class="visually-hidden">New alerts</span>
+                        </span>
+                    <?php endif; ?>
+                </a>
+                <span class="text-muted fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
+                <a href="logout.php" class="btn btn-accent btn-sm fw-bold px-3">Logout</a>
+            </div>
         </div>
     </div>
 </nav>
