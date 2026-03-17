@@ -96,38 +96,15 @@ if(isset($_SESSION['user_id'])){
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="users_CSS/app.css">
     <style>
-        :root {
-            --primary-green: #2E7D32;
-            --dark-green: #1B5E20;
-            --accent-yellow: #FBC02D;
-            --light-bg: #f8f9fa;
-        }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); padding-top: 80px; }
-        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
-        .navbar { background: var(--dark-green); padding: 15px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .btn-custom { background-color: var(--accent-yellow); color: var(--dark-green); font-weight: bold; border-radius: 50px; padding: 10px 30px; border: none; }
-        .btn-custom:hover { background-color: #f9a825; }
         .room-img { width: 100%; height: 350px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        @keyframes shake { 0% { transform: rotate(0deg); } 20% { transform: rotate(15deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(5deg); } 80% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
-        .shake-animation { animation: shake 0.5s; }
-
-        /* Night Mode Styles */
-        body.night-mode { background-color: #121212; color: #e0e0e0; }
-        body.night-mode .navbar { background: #1f1f1f !important; }
-        body.night-mode .bg-white { background-color: #1e1e1e !important; color: #e0e0e0; border-color: #333 !important; }
-        body.night-mode .text-dark { color: #e0e0e0 !important; }
-        body.night-mode .text-muted { color: #b0b0b0 !important; }
-        body.night-mode .btn-light { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
-        body.night-mode .border { border-color: #333 !important; }
-        body.night-mode .btn-outline-secondary { color: #e0e0e0; border-color: #6c757d; }
-        body.night-mode .btn-outline-secondary:hover { background-color: #6c757d; color: #fff; }
     </style>
 </head>
 <body>
 
 <!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+<nav class="navbar navbar-expand-lg navbar-user fixed-top">
     <div class="container">
         <a class="navbar-brand fw-bold d-flex align-items-center" href="../index.php">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
@@ -137,9 +114,9 @@ if(isset($_SESSION['user_id'])){
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <div class="d-flex gap-2 ms-auto">
+            <div class="d-flex align-items-center gap-3 ms-auto mt-3 mt-lg-0">
                 <?php if(isset($_SESSION['user_id'])): ?>
-                    <a href="profile.php" class="text-white text-decoration-none fw-bold me-3 position-relative">
+                    <a href="profile.php" class="nav-link fw-bold position-relative">
                         My Profile
                         <?php if($unread_count > 0): ?>
                             <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
@@ -147,23 +124,24 @@ if(isset($_SESSION['user_id'])){
                             </span>
                         <?php endif; ?>
                     </a>
-                    <span class="text-white fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_name) ?></span>
-                    <a href="logout.php" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 text-dark">Logout</a>
+                    <span class="text-muted fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_name) ?></span>
+                    <a href="logout.php" class="btn btn-accent btn-sm fw-bold px-3">Logout</a>
                 <?php else: ?>
-                    <a href="login.php" class="btn btn-outline-light rounded-pill px-4">Login</a>
-                    <a href="register.php" class="btn btn-custom">Register</a>
+                    <a href="login.php" class="btn btn-outline-success rounded-pill px-4 fw-bold">Login</a>
+                    <a href="register.php" class="btn btn-custom px-4 fw-bold">Register</a>
                 <?php endif; ?>
             </div>
         </div>
     </div>
 </nav>
 
-<div class="container py-4">
-    <div class="row g-4 align-items-center">
-        <div class="col-lg-6">
-            <img src="../assets/images/<?= $room['image'] ?>" class="room-img" alt="<?= $room['room_name'] ?>">
+<div class="container animate-fade-in" style="margin-top: 100px; margin-bottom: 50px;">
+    <div class="card card-custom p-4 border-0 shadow-sm">
+        <div class="row g-5 align-items-center">
+            <div class="col-lg-6 anim-trigger delay-1">
+                <img src="../assets/images/<?= $room['image'] ?>" class="room-img shadow-sm" alt="<?= $room['room_name'] ?>">
         </div>
-        <div class="col-lg-6">
+            <div class="col-lg-6 anim-trigger delay-2">
             <h2 class="fw-bold text-success display-6"><?= $room['room_name'] ?></h2>
             <div class="d-flex align-items-center gap-3 mb-2">
                 <span class="badge bg-secondary fs-6"><?= $room['room_type'] ?></span>
@@ -193,11 +171,11 @@ if(isset($_SESSION['user_id'])){
 
 
             <?php if($is_bunk): ?>
-            <div class="mb-4 p-3 bg-white rounded shadow-sm border">
-                <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-layer-group me-2"></i>Bed Availability</h6>
+            <div class="card card-custom p-4 mb-4">
+                <h6 class="fw-bold text-success mb-3"><i class="fas fa-layer-group me-2"></i>Bed Availability</h6>
                 <div class="row g-3">
                     <div class="col-6">
-                        <div class="p-3 border rounded h-100 d-flex flex-column">
+                        <div class="p-3 border rounded h-100 d-flex flex-column bg-light">
                             <div class="d-flex align-items-center mb-2">
                                 <i class="fas fa-arrow-down fa-lg me-3 text-primary"></i>
                                 <div>
@@ -207,14 +185,14 @@ if(isset($_SESSION['user_id'])){
                                 </div>
                             </div>
                             <?php if($avail_lower > 0): ?>
-                                <a href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>&bed_preference=Lower+Bunk" class="btn btn-sm btn-outline-primary w-100 mt-auto">Book Lower</a>
+                                <a href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>&bed_preference=Lower+Bunk" class="btn btn-sm btn-outline-primary w-100 mt-auto fw-bold">Book Lower</a>
                             <?php else: ?>
-                                <button class="btn btn-sm btn-light text-muted w-100 mt-auto" disabled>Fully Booked</button>
+                                <button class="btn btn-sm btn-secondary text-white w-100 mt-auto fw-bold" disabled>Fully Booked</button>
                             <?php endif; ?>
                         </div>
                     </div>
                     <div class="col-6">
-                        <div class="p-3 border rounded h-100 d-flex flex-column">
+                        <div class="p-3 border rounded h-100 d-flex flex-column bg-light">
                             <div class="d-flex align-items-center mb-2">
                                 <i class="fas fa-arrow-up fa-lg me-3 text-info"></i>
                                 <div>
@@ -224,9 +202,9 @@ if(isset($_SESSION['user_id'])){
                                 </div>
                             </div>
                             <?php if($avail_upper > 0): ?>
-                                <a href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>&bed_preference=Upper+Bunk" class="btn btn-sm btn-outline-info w-100 mt-auto">Book Upper</a>
+                                <a href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>&bed_preference=Upper+Bunk" class="btn btn-sm btn-outline-info text-dark w-100 mt-auto fw-bold">Book Upper</a>
                             <?php else: ?>
-                                <button class="btn btn-sm btn-light text-muted w-100 mt-auto" disabled>Fully Booked</button>
+                                <button class="btn btn-sm btn-secondary text-white w-100 mt-auto fw-bold" disabled>Fully Booked</button>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -246,15 +224,17 @@ if(isset($_SESSION['user_id'])){
                 <li class="col-6 mb-2"><i class="fas fa-check-circle text-success me-2"></i> Daily Housekeeping</li>
             </ul>
 
-            <div class="d-flex gap-3">
-                <a href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>" class="btn btn-custom btn-lg shadow px-5">Book This Room</a>
-                <a href="index.php" class="btn btn-outline-secondary btn-lg px-4">Back</a>
+            <div class="d-flex gap-3 mt-4">
+                <a href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>" class="btn btn-custom btn-lg shadow px-5"><i class="fas fa-calendar-check me-2"></i> Book This Room</a>
+                <a href="../index.php" class="btn btn-secondary-custom btn-lg px-4">Back</a>
             </div>
         </div>
+    </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="users_JS/app.js"></script>
 <script>
     const prices = {
         short: {
@@ -335,11 +315,16 @@ if(isset($_SESSION['user_id'])){
     const currentUserId = "<?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : '' ?>";
     if(currentUserId && localStorage.getItem('nightMode_' + currentUserId) === 'enabled') {
         document.body.classList.add('night-mode');
+    } else if (!currentUserId && localStorage.getItem('nightMode') === 'enabled') {
+        document.body.classList.add('night-mode');
     }
 
     // Sync Night Mode across tabs
     window.addEventListener('storage', (e) => {
         if (currentUserId && e.key === 'nightMode_' + currentUserId) {
+            if (e.newValue === 'enabled') document.body.classList.add('night-mode');
+            else document.body.classList.remove('night-mode');
+        } else if (!currentUserId && e.key === 'nightMode') {
             if (e.newValue === 'enabled') document.body.classList.add('night-mode');
             else document.body.classList.remove('night-mode');
         }
