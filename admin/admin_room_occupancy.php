@@ -314,8 +314,9 @@ $theme = get_theme_colors($conn);
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title fw-bold text-success"><i class="fas fa-users me-2"></i><?= $type ?> Occupancy</h5>
                 <div class="d-flex align-items-center me-3 ms-auto">
+                    <input type="text" class="form-control form-control-sm border-0 shadow-sm me-2" placeholder="Search room or tenant..." onkeyup="filterOccupancyModal('<?= md5($type) ?>')" style="width: 200px;">
                     <label class="small fw-bold me-2 text-white opacity-75">Filter:</label>
-                    <select class="form-select form-select-sm border-0 shadow-sm" onchange="filterOccupancyRooms(this, '<?= md5($type) ?>')" style="width: 120px;">
+                    <select class="form-select form-select-sm border-0 shadow-sm" onchange="filterOccupancyModal('<?= md5($type) ?>')" style="width: 120px;">
                         <option value="all">All Floors</option>
                         <?php for($i=2; $i<=7; $i++): ?>
                             <option value="<?= $i ?>"><?= $i ?>th Floor</option>
@@ -342,6 +343,19 @@ $theme = get_theme_colors($conn);
                         elseif($room['occupancy_status'] == 'Partially Occupied') $status_class = 'status-partial';
                         elseif($room['occupancy_status'] == 'Maintenance') $status_class = 'status-maintenance';
                         
+                        // Gender icon logic
+                        $gender_icon = 'fa-question-circle';
+                        $gender_title = 'Mixed/Not Set';
+                        if (isset($room['gender'])) {
+                            if ($room['gender'] == 'Male') {
+                                $gender_icon = 'fa-mars text-primary';
+                                $gender_title = 'Male Only';
+                            } elseif ($room['gender'] == 'Female') {
+                                $gender_icon = 'fa-venus text-danger';
+                                $gender_title = 'Female Only';
+                            }
+                        }
+                        
                         // Concatenate occupant names for search
                         $occupant_names_str = "";
                         if (!empty($room['occupants'])) {
@@ -361,7 +375,10 @@ $theme = get_theme_colors($conn);
                                         </h6>
                                         <small class="text-muted"><i class="fas fa-building me-1"></i> <?= $floor ?>F | <?= $room['room_type'] ?></small>
                                     </div>
-                                    <span class="status-badge <?= $status_class ?>"><?= $room['occupancy_status'] ?></span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-light text-dark border" title="<?= $gender_title ?>"><i class="fas <?= $gender_icon ?>"></i></span>
+                                        <span class="status-badge <?= $status_class ?>"><?= $room['occupancy_status'] ?></span>
+                                    </div>
                                 </div>
 
                                 <!-- Occupancy Bar -->
@@ -441,17 +458,25 @@ function openOccupancyModal(typeId) {
     new bootstrap.Modal(document.getElementById('occupancy_' + typeId)).show();
 }
 
-function filterOccupancyRooms(select, typeId) {
-    const floor = select.value;
+function filterOccupancyModal(typeId) {
     const modal = document.getElementById('occupancy_' + typeId);
+    const floorSelect = modal.querySelector('select');
+    const searchInput = modal.querySelector('input[type="text"]');
+    
+    const floor = floorSelect ? floorSelect.value : 'all';
+    const search = searchInput ? searchInput.value.toLowerCase() : '';
     const items = modal.querySelectorAll('.occupancy-room-item');
     
     items.forEach(item => {
-        if(floor === 'all' || item.getAttribute('data-floor') === floor) {
-            item.style.display = 'block';
-        } else {
-            item.style.display = 'none';
+        const itemFloor = item.getAttribute('data-floor');
+        const itemName = item.getAttribute('data-name') || '';
+        const itemOccupants = item.getAttribute('data-occupants') || '';
+        
+        let show = (floor === 'all' || itemFloor === floor);
+        if (show && search !== '') {
+            if (!itemName.includes(search) && !itemOccupants.includes(search)) show = false;
         }
+        item.style.display = show ? 'block' : 'none';
     });
 }
 
@@ -473,6 +498,14 @@ function openRoomOccupantsModal(element) {
             else if(occ.bed_preference === 'Lower Bunk') { bedClass = 'bg-primary'; bedIcon = 'fa-arrow-down'; }
             
             let statusBadge = occ.status === 'Pending' ? '<span class="badge bg-warning text-dark ms-2">Pending</span>' : '';
+
+            let genderIcon = '';
+            if (occ.gender === 'Male') {
+                genderIcon = '<i class="fas fa-mars text-primary ms-2" title="Male"></i>';
+            } else if (occ.gender === 'Female') {
+                genderIcon = '<i class="fas fa-venus text-danger ms-2" title="Female"></i>';
+            }
+
             let avatarHtml = occ.profile_image ? `<img src="../uploads/profiles/${occ.profile_image}" class="rounded-circle shadow-sm" style="width: 50px; height: 50px; object-fit: cover;">` : `<div class="rounded-circle shadow-sm bg-success text-white d-flex align-items-center justify-content-center fw-bold" style="width: 50px; height: 50px; font-size: 1.2rem;">${occ.full_name.charAt(0).toUpperCase()}</div>`;
             let linkUrl = `view_user.php?uid=${occ.user_id}`;
             
@@ -483,7 +516,7 @@ function openRoomOccupantsModal(element) {
             <a href="${linkUrl}" class="list-group-item list-group-item-action d-flex align-items-center p-4 border-bottom">
                 ${avatarHtml}
                 <div class="ms-3 flex-grow-1">
-                    <h6 class="mb-1 fw-bold text-dark">${occ.full_name} ${statusBadge}</h6>
+                    <h6 class="mb-1 fw-bold text-dark">${occ.full_name} ${statusBadge} ${genderIcon}</h6>
                     <div class="text-muted small"><i class="fas fa-calendar-alt me-1"></i> ${d1} - ${d2}</div>
                 </div>
                 <div class="text-end ms-2">

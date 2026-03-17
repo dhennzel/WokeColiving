@@ -282,13 +282,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                                     <a href="esignature.php?id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-custom">
                                         <i class="fas fa-pen-nib me-1"></i> Sign Lease
                                     </a>
-                                <?php } elseif(!empty($row['signature_image'])) { ?>
-                                    <span class="badge bg-info text-dark"><i class="fas fa-file-signature"></i> Signed</span>
                                 <?php } ?>
-                                
-                                <a href="view_receipt.php?id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-secondary-custom ms-1">
-                                    <i class="fas fa-file-invoice"></i> Receipt
-                                </a>
 
                                 <?php if($row['status'] == 'Approved'): ?>
                                     <!-- Extend Stay Button -->

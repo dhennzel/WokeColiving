@@ -232,7 +232,7 @@ $theme = get_theme_colors($conn);
         }
         .card-room img {
             width: 100%;
-            height: 180px;
+            height: 100px;
             object-fit: cover;
         }
         .card-room-summary {

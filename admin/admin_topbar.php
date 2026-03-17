@@ -93,3 +93,50 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
 <script>
     window.currentAdminUser = "<?= htmlspecialchars($admin_name ?? 'admin', ENT_QUOTES, 'UTF-8') ?>";
 </script>
+
+<!-- Notification Sound -->
+<audio id="adminNotifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
+
+<script>
+    // Notification Sound Logic
+    let lastAdminNotifCount = <?= (int)$total_notifications ?>;
+    function checkAdminNotifications() {
+        fetch('get_admin_notifications.php')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const badge = document.querySelector('.notification-btn .badge');
+
+                if (data.total_notifications > lastAdminNotifCount) {
+                    const audio = document.getElementById('adminNotifSound');
+                    if (audio) {
+                        audio.play().catch(e => console.error("Audio play failed:", e));
+                    }
+                }
+
+                if (data.total_notifications > 0) {
+                     if(badge) {
+                        badge.textContent = data.total_notifications;
+                        badge.style.display = 'block';
+                    } else {
+                        const notifBtn = document.querySelector('.notification-btn');
+                        if(notifBtn) {
+                            const newBadge = document.createElement('span');
+                            newBadge.className = 'badge';
+                            newBadge.textContent = data.total_notifications;
+                            notifBtn.appendChild(newBadge);
+                        }
+                    }
+                } else {
+                    if(badge) badge.style.display = 'none';
+                }
+                lastAdminNotifCount = data.total_notifications;
+            })
+            .catch(error => console.error('Error fetching admin notifications:', error));
+    }
+    setInterval(checkAdminNotifications, 10000); // Poll every 10 seconds
+</script>

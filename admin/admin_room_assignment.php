@@ -48,7 +48,7 @@ if(isset($_POST['move_tenant'])){
 // Fetch Residents with Active Reservations
 $query = "
     SELECT r.reservation_id, r.start_date, r.end_date, r.bed_preference,
-           u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name, u.profile_image, u.email, u.phone_number,
+           u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name, u.profile_image, u.email, u.phone_number, u.gender,
            rm.room_id, rm.room_name, rm.room_number, rm.room_type, rm.floor
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
@@ -149,7 +149,7 @@ $theme = get_theme_colors($conn);
                                     <small class="d-block">End: <?= date('M d, Y', strtotime($res['end_date'])) ?></small>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-primary px-3" onclick="openMoveModal(<?= $res['reservation_id'] ?>, '<?= addslashes($res['full_name']) ?>', '<?= addslashes($room_display) ?>')">
+                                    <button class="btn btn-sm btn-primary px-3" onclick="openMoveModal(<?= $res['reservation_id'] ?>, '<?= addslashes($res['full_name']) ?>', '<?= addslashes($room_display) ?>', '<?= $res['gender'] ?>')">
                                         <i class="fas fa-exchange-alt me-1"></i> Move
                                     </button>
                                 </td>
@@ -177,6 +177,7 @@ $theme = get_theme_colors($conn);
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body bg-light">
+                <input type="hidden" id="moveTenantGenderVal">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <p class="text-muted mb-0">Select a new room for <strong id="moveGuestName" class="text-dark"></strong>. Currently in: <span id="moveCurrentRoom" class="fw-bold"></span></p>
                     <div class="d-flex align-items-center">
@@ -277,7 +278,7 @@ $theme = get_theme_colors($conn);
                                     $gender_icon = 'fa-mars text-primary';
                                 }
                             ?>
-                            <div class="col-md-4 col-lg-3 room-card-item" data-floor="<?= $room['floor'] ?>">
+                            <div class="col-md-4 col-lg-3 room-card-item" data-floor="<?= $room['floor'] ?>" data-gender="<?= $room_gender_status ?>">
                                 <div class="card card-room-select h-100 shadow-sm border-0">
                                     <img src="../assets/images/<?= $room['image'] ?>" class="card-img-top" style="height: 120px; object-fit: cover;">
                                     <div class="card-body p-3 d-flex flex-column">
@@ -341,10 +342,13 @@ $theme = get_theme_colors($conn);
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
-    function openMoveModal(resId, name, currentRoom) {
+    function openMoveModal(resId, name, currentRoom, gender) {
         document.getElementById('formResId').value = resId;
         document.getElementById('moveGuestName').innerText = name;
         document.getElementById('moveCurrentRoom').innerText = currentRoom;
+        document.getElementById('moveTenantGenderVal').value = gender;
+        document.getElementById('floorFilter').value = 'all';
+        filterRooms(); // Apply initial filter
         new bootstrap.Modal(document.getElementById('moveRoomModal')).show();
     }
 
@@ -368,10 +372,20 @@ $theme = get_theme_colors($conn);
 
     function filterRooms() {
         const floor = document.getElementById('floorFilter').value;
+        const tenantGender = document.getElementById('moveTenantGenderVal').value;
         const cards = document.querySelectorAll('.room-card-item');
         
         cards.forEach(card => {
-            if (floor === 'all' || card.getAttribute('data-floor') === floor) {
+            const cardFloor = card.getAttribute('data-floor');
+            const cardGender = card.getAttribute('data-gender');
+            let show = true;
+
+            if (floor !== 'all' && cardFloor !== floor) show = false;
+            
+            // Filter by gender if tenant gender is present and room gender is strict
+            if (show && tenantGender && cardGender && cardGender !== tenantGender) show = false;
+
+            if (show) {
                 card.style.display = 'block';
                 card.classList.add('animate-fade-in');
             } else {

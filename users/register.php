@@ -88,8 +88,11 @@ if (isset($_POST['register'])) {
             <div class="mb-2">
                 <input type="text" name="phone" class="form-control" placeholder="Phone Number (e.g. 09xxxxxxxxx)" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($phone) ?>">
             </div>
-            <div class="mb-3">
-                <input type="password" name="password" class="form-control" placeholder="Password" required>
+            <div class="mb-3 position-relative">
+                <input type="password" name="password" id="password" class="form-control" placeholder="Password" required>
+                <span class="position-absolute" style="top: 50%; right: 15px; transform: translateY(-50%); cursor: pointer;" id="togglePassword">
+                    <i class="fas fa-eye-slash text-muted"></i>
+                </span>
             </div>
             <button type="submit" name="register" class="btn btn-custom mb-3">Create Account</button>
         </form>
@@ -99,6 +102,22 @@ if (isset($_POST['register'])) {
         </div>
     </div>
 </div>
+
+<script>
+    const togglePassword = document.querySelector('#togglePassword');
+    const password = document.querySelector('#password');
+    const icon = togglePassword.querySelector('i');
+
+    togglePassword.addEventListener('click', function () {
+        // toggle the type attribute
+        const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+        password.setAttribute('type', type);
+        
+        // toggle the icon
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+    });
+</script>
 
 </body>
 </html>
