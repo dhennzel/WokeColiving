@@ -724,7 +724,7 @@ if(isset($_SESSION['user_id'])){
             <div class="card border-0 shadow-lg overflow-hidden rounded-4 contact-card">
                 <div class="row g-0">
                     <div class="col-md-5 bg-success text-white p-5 d-flex flex-column justify-content-center position-relative">
-                        <div class="position-absolute top-0 start-0 w-100 h-100" style="background: rgba(0,0,0,0.1);"></div>
+                        <div class="position-absolute top-0 start-0 w-100 h-100" style="background: #34B875;"></div>
                         <div class="position-relative z-2">
                             <h3 class="fw-bold mb-4">Get in Touch</h3>
                             <p class="mb-4 opacity-75">Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.</p>
