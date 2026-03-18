@@ -568,6 +568,10 @@ if (isset($_POST['confirm_booking'])) {
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
 <div class="container py-5 animate-fade-in">
+    <div class="d-flex justify-content-end mb-3">
+        <a href="javascript:history.back()" class="btn btn-outline-secondary rounded-pill px-4 fw-bold"><i class="fas fa-arrow-left me-2"></i>Back</a>
+    </div>
+
     <?php if(!empty($error)): ?>
     <div class="alert alert-danger">
         <?= $error ?>

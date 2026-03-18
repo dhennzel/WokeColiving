@@ -60,11 +60,7 @@ while($row = mysqli_fetch_assoc($price_query)){
 }
 
 // Fetch All Rooms for Modal Selection
-$all_rooms_q = mysqli_query($conn, "SELECT * FROM rooms WHERE is_archived=0 ORDER BY floor, room_number");
-$all_rooms = [];
-while($r = mysqli_fetch_assoc($all_rooms_q)){
-    $all_rooms[] = $r;
-}
+$all_rooms = get_all_rooms_with_occupancy($conn);
 
 // Check for pre-selected room type
 $pre_room_type = isset($_GET['room_type']) ? $_GET['room_type'] : '';
@@ -538,13 +534,20 @@ $theme = get_theme_colors($conn);
                     </div>
                 </div>
                 <div class="row g-3" id="roomSelectionGrid">
-                    <?php foreach($all_rooms as $room): ?>
+                    <?php foreach($all_rooms as $room): 
+                        $room_display = $room['room_name'];
+                        if (!empty($room['room_number'])) {
+                            $room_display = "Room " . $room['room_number'];
+                        } elseif (is_numeric($room['room_name'])) {
+                            $room_display = "Room " . $room['room_name'];
+                        }
+                    ?>
                         <div class="col-md-6 col-lg-4 room-select-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>" data-gender="<?= $room['gender'] ?? 'Male' ?>" data-id="<?= $room['room_id'] ?>">
-                            <div class="card room-card-option shadow-sm" onclick="selectSpecificRoom(<?= $room['room_id'] ?>, '<?= addslashes($room['room_name']) ?>')">
+                            <div class="card room-card-option shadow-sm" onclick="selectSpecificRoom(<?= $room['room_id'] ?>, '<?= addslashes($room_display) ?>')">
                                 <img src="../assets/images/<?= $room['image'] ?>" class="card-img-top" alt="<?= $room['room_name'] ?>">
                                 <div class="card-body d-flex flex-column p-3">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h6 class="fw-bold text-dark mb-0"><?= $room['room_name'] ?></h6>
+                                        <h6 class="fw-bold text-dark mb-0"><?= $room_display ?></h6>
                                         <div>
                                             <span class="badge bg-light text-dark border me-1"><i class="fas fa-venus-mars"></i> <?= $room['gender'] ?? 'Male' ?></span>
                                             <span class="badge bg-light text-dark border"><?= $room['floor'] ?>F</span>
