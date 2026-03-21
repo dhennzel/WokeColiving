@@ -48,8 +48,11 @@ if (isset($_POST['login'])) {
             <div class="mb-3">
                 <input type="email" name="email" class="form-control" placeholder="Email Address" required>
             </div>
-            <div class="mb-3">
-                <input type="password" name="password" class="form-control" placeholder="Password" required>
+            <div class="mb-3 position-relative">
+                <input type="password" name="password" id="password" class="form-control" placeholder="Password" required>
+                <span class="position-absolute" style="top: 50%; right: 15px; transform: translateY(-50%); cursor: pointer;" id="togglePassword">
+                    <i class="fas fa-eye-slash text-muted"></i>
+                </span>
             </div>
             <button type="submit" name="login" class="btn btn-custom mb-3">Login</button>
             <div class="text-center">
@@ -63,5 +66,17 @@ if (isset($_POST['login'])) {
     </div>
 </div>
 
+<script>
+    const togglePassword = document.querySelector('#togglePassword');
+    const password = document.querySelector('#password');
+    const icon = togglePassword.querySelector('i');
+
+    togglePassword.addEventListener('click', function () {
+        const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+        password.setAttribute('type', type);
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+    });
+</script>
 </body>
 </html>
