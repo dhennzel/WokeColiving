@@ -258,6 +258,14 @@ try {
         body.night-mode::-webkit-scrollbar-thumb, body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }
         body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
         body.night-mode .form-label { color: #34B875 !important; }
+        
+        @keyframes roll-animation {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .roll-animation {
+            animation: roll-animation 1s ease-in-out;
+        }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
@@ -723,8 +731,8 @@ try {
                     
                     const bellIcon = document.querySelector('#notifDropdown i');
                     if(bellIcon) {
-                        bellIcon.classList.add('shake-animation');
-                        setTimeout(() => bellIcon.classList.remove('shake-animation'), 500);
+                        bellIcon.classList.add('roll-animation');
+                        setTimeout(() => bellIcon.classList.remove('roll-animation'), 1000);
                     }
                 }
                 lastUnreadCount = data.unread_count;

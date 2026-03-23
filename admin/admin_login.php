@@ -43,7 +43,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $q_bg = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='login_bg'");
     if($row_bg = mysqli_fetch_assoc($q_bg)){
         if(!empty($row_bg['setting_value']) && file_exists("../assets/images/" . $row_bg['setting_value'])){
-            $bg_url = "../assets/images/" . $row_bg['setting_value'];
+            $bg_path = "../assets/images/" . $row_bg['setting_value'];
+            $bg_url = $bg_path . "?v=" . filemtime($bg_path);
         }
     }
     ?>
@@ -55,7 +56,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
         body {
             font-family: 'Poppins', sans-serif;
-            background: url('<?= $bg_url ?>') no-repeat center center/cover;
+            background: url('<?= htmlspecialchars($bg_url, ENT_QUOTES) ?>') no-repeat center center/cover;
             height: 100vh;
             display: flex;
             align-items: center;
@@ -74,8 +75,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <h2 class="mb-4">Admin Portal</h2>
     <?php if ($error) { echo "<div class='alert alert-danger py-2 small'>$error</div>"; } ?>
     <form method="POST" class="text-start">
-        <input type="text" name="username" class="form-control" placeholder="Username" required>
-        <input type="password" name="password" class="form-control" placeholder="Password" required>
+        <div class="mb-3">
+            <input type="text" name="username" class="form-control" placeholder="Username" required>
+        </div>
+        <div class="mb-3 position-relative">
+            <input type="password" name="password" id="password" class="form-control" placeholder="Password" required>
+            <span class="position-absolute" style="top: 50%; right: 15px; transform: translateY(-50%); cursor: pointer;" id="togglePassword">
+                <i class="fas fa-eye-slash text-muted"></i>
+            </span>
+        </div>
         <button type="submit" class="btn btn-custom mt-2">Login</button>
     </form>
     <div class="text-center mt-3">
@@ -83,5 +91,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 </div>
 
+<script>
+    const togglePassword = document.querySelector('#togglePassword');
+    const password = document.querySelector('#password');
+    const icon = togglePassword.querySelector('i');
+
+    togglePassword.addEventListener('click', function () {
+        const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+        password.setAttribute('type', type);
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+    });
+</script>
 </body>
 </html>

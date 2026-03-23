@@ -112,6 +112,11 @@ $reservations_q = mysqli_query($conn, "
 ");
 $users_q = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name) as full_name FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM reservations WHERE status='Approved') AND user_id NOT IN (SELECT user_id FROM parking_reservations WHERE status='Active') ORDER BY last_name ASC");
 
+// Check Overdue Parking
+$overdue_check = mysqli_query($conn, "SELECT COUNT(*) as c FROM parking_reservations WHERE status='Active' AND end_date < CURDATE()");
+$overdue_count = mysqli_fetch_assoc($overdue_check)['c'];
+$show_overdue_modal = ($overdue_count > 0);
+
 // Sidebar counts
 $pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
 $pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
@@ -153,6 +158,11 @@ $theme = get_theme_colors($conn);
         <main class="main-content">
             <div class="page-header d-flex justify-content-between align-items-center">
                 <h1>Parking Management</h1>
+                <?php if($show_overdue_modal): ?>
+                <button class="btn btn-danger btn-sm" onclick="openOverdueModal()">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Overdue Alert (<?= $overdue_count ?>)
+                </button>
+                <?php endif; ?>
                 <div>
                     <a href="admin_parking_reports.php" class="btn btn-outline-success"><i class="fas fa-chart-bar me-2"></i>View Reports</a>
                     <button class="btn btn-custom" data-bs-toggle="modal" data-bs-target="#addReservationModal"><i class="fas fa-plus me-2"></i>New Parking Reservation</button>
@@ -353,6 +363,54 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
+<!-- Overdue Modal -->
+<div class="modal fade" id="overdueModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-circle me-2"></i>Overdue Parking Reservations</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Tenant</th>
+                                <th>Slot</th>
+                                <th>Due Date</th>
+                                <th>Overdue By</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php 
+                            if($show_overdue_modal):
+                                $od_q = mysqli_query($conn, "SELECT pr.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, ps.slot_name, ps.slot_type FROM parking_reservations pr JOIN users u ON pr.user_id = u.user_id JOIN parking_slots ps ON pr.slot_id = ps.id WHERE pr.status = 'Active' AND pr.end_date < CURDATE() ORDER BY pr.end_date ASC");
+                                while($row = mysqli_fetch_assoc($od_q)):
+                                    $days = (new DateTime())->diff(new DateTime($row['end_date']))->days;
+                            ?>
+                            <tr>
+                                <td class="ps-4 fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
+                                <td><?= htmlspecialchars($row['slot_name']) ?> <span class="badge bg-light text-dark border ms-1"><?= $row['slot_type'] ?></span></td>
+                                <td class="text-danger fw-bold"><?= date('M d, Y', strtotime($row['end_date'])) ?></td>
+                                <td class="text-danger small"><?= $days ?> days ago</td>
+                                <td class="text-end pe-4">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="endParkingReservation(<?= $row['id'] ?>, '<?= addslashes($row['full_name']) ?>', '<?= addslashes($row['slot_name']) ?>', '<?= $row['slot_type'] ?>')">End Reservation</button>
+                                </td>
+                            </tr>
+                            <?php endwhile; endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
@@ -405,6 +463,16 @@ function endParkingReservation(id, tenantName, slotName, slotType) {
         }
     });
 }
+
+function openOverdueModal() {
+    new bootstrap.Modal(document.getElementById('overdueModal')).show();
+}
+
+<?php if($show_overdue_modal): ?>
+document.addEventListener('DOMContentLoaded', function() {
+    openOverdueModal();
+});
+<?php endif; ?>
 
 // Parent Sidebar Badges
 document.addEventListener('DOMContentLoaded', function() {

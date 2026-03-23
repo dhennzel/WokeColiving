@@ -953,3 +953,23 @@ function return_room_key($conn, $trans_id) {
     return false;
 }
 }
+
+// --- INVENTORY MANAGEMENT TABLE ---
+if (!function_exists('setup_inventory_table')) {
+function setup_inventory_table($conn) {
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS inventory_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        item_name VARCHAR(100) NOT NULL,
+        category VARCHAR(50) DEFAULT 'General',
+        room_id INT NULL,
+        quantity INT DEFAULT 1,
+        status ENUM('Good', 'Damaged', 'Repair', 'Lost') DEFAULT 'Good',
+        purchase_date DATE NULL,
+        cost DECIMAL(10,2) DEFAULT 0.00,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE SET NULL
+    )");
+}
+setup_inventory_table($conn);
+}

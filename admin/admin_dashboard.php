@@ -222,6 +222,55 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="admin.css">
+    <style>
+        /* Floating Bottom Right Navbar Icons on Scroll */
+        .navbar-right.fixed-bottom-right {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 8px 20px;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            z-index: 1050;
+            animation: slideUp 0.3s ease-out;
+            border: 1px solid rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        /* Make dropdowns open upwards when floating at bottom */
+        .navbar-right.fixed-bottom-right .dropdown-menu {
+            bottom: 100% !important;
+            top: auto !important;
+            margin-bottom: 15px !important;
+            transform-origin: bottom right;
+        }
+        /* Optional: Hide name text to make it compact */
+        .navbar-right.fixed-bottom-right .profile-name {
+            display: none !important;
+        }
+        /* Scroll Top Button Logic */
+        .scroll-top-btn {
+            display: none;
+        }
+        .navbar-right.fixed-bottom-right .scroll-top-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            background: #e8f5e9;
+            color: #34B875;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
 </head>
 <body>
 
@@ -757,6 +806,18 @@ function filterOccupancy() {
 // Initialize filter on load
 document.addEventListener('DOMContentLoaded', function() {
     filterOccupancy();
+});
+
+// Scroll Listener for Floating Navbar Icons
+window.addEventListener('scroll', function() {
+    const navbarRight = document.querySelector('.navbar-right');
+    if (navbarRight) {
+        if (window.scrollY > 150) {
+            navbarRight.classList.add('fixed-bottom-right');
+        } else {
+            navbarRight.classList.remove('fixed-bottom-right');
+        }
+    }
 });
 </script>
 </body>

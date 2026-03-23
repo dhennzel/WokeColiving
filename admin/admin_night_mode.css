@@ -2,25 +2,25 @@
 
 @media screen {
     body.night-mode {
-        background-color: #121212 !important;
+        background-color: #050505 !important;
         color: #e0e0e0 !important;
     }
 
     /* Override the light gradient background from admin_style.css */
     body.night-mode::before {
-        background: linear-gradient(135deg, #121212 0%, #1a1a1a 100%) !important;
+        background: linear-gradient(135deg, #050505 0%, #121212 100%) !important;
     }
 
     body.night-mode .top-navbar,
     body.night-mode .sidebar {
-        background-color: #1e1e1e !important;
-        border-color: #333 !important;
+        background-color: #121212 !important;
+        border-color: #252525 !important;
     }
 
     /* Floating Profile Widget for Hidden Navbar */
     body.night-mode .top-navbar.hidden-navbar .navbar-right {
-        background-color: #1e1e1e !important;
-        border-color: #444 !important;
+        background-color: #121212 !important;
+        border-color: #333 !important;
         box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5) !important;
     }
 
@@ -35,9 +35,9 @@
     body.night-mode .list-group-item,
     body.night-mode .req-header,
     body.night-mode .req-body {
-        background-color: #1e1e1e !important;
+        background-color: #121212 !important;
         color: #e0e0e0 !important;
-        border-color: #333 !important;
+        border-color: #252525 !important;
     }
 
     body.night-mode .modal-header,
@@ -45,15 +45,15 @@
     body.night-mode .modal-footer,
     body.night-mode .card-footer,
     body.night-mode .table-light {
-        background-color: #2c2c2c !important;
-        border-color: #444 !important;
+        background-color: #1a1a1a !important;
+        border-color: #333 !important;
         color: #e0e0e0 !important;
     }
 
     /* Search Bar & Inputs */
     body.night-mode .search-bar {
-        background-color: #2c2c2c !important;
-        border-color: #444 !important;
+        background-color: #1a1a1a !important;
+        border-color: #333 !important;
     }
     body.night-mode .search-bar input {
         color: #e0e0e0 !important;
@@ -68,9 +68,9 @@
     }
     
     body.night-mode .input-group-text {
-        background-color: #1e1e1e !important;
+        background-color: #121212 !important;
         color: #a0a0a0 !important;
-        border-color: #444 !important;
+        border-color: #333 !important;
     }
 
     body.night-mode .table {
@@ -81,7 +81,7 @@
 
     body.night-mode .table th,
     body.night-mode .table td {
-        border-bottom-color: #444 !important;
+        border-bottom-color: #333 !important;
         background-color: transparent !important;
         color: #e0e0e0 !important;
     }
@@ -92,14 +92,14 @@
     body.night-mode .table-light th,
     body.night-mode .table-warning th,
     body.night-mode .table-danger th {
-        background-color: #2c2c2c !important;
+        background-color: #1a1a1a !important;
         color: #e0e0e0 !important;
-        border-bottom-color: #444 !important;
+        border-bottom-color: #333 !important;
     }
 
     body.night-mode .table-hover tbody tr:hover,
     body.night-mode .table-striped tbody tr:nth-of-type(odd) {
-        background-color: #2c2c2c !important;
+        background-color: #1a1a1a !important;
     }
 
     /* Soften row highlights for Overdue / Warning states */
@@ -112,7 +112,7 @@
     }
 
     body.night-mode .dropdown-menu {
-        background-color: #1e1e1e !important;
+        background-color: #1a1a1a !important;
         border-color: #333 !important;
     }
 
@@ -123,32 +123,32 @@
 
     body.night-mode .dropdown-menu a:hover,
     body.night-mode .dropdown-item:hover {
-        background-color: #333 !important;
+        background-color: #2a2a2a !important;
         color: var(--primary-green) !important;
     }
 
     body.night-mode .form-control,
     body.night-mode .form-select {
-        background-color: #2c2c2c !important;
+        background-color: #1a1a1a !important;
         color: #e0e0e0 !important;
-        border-color: #444 !important;
+        border-color: #333 !important;
     }
 
     body.night-mode .form-control:focus,
     body.night-mode .form-select:focus {
-        background-color: #333 !important;
+        background-color: #252525 !important;
         color: #fff !important;
         border-color: var(--primary-green) !important;
     }
 
     /* Force Dark Theme on "Choose File" Input Buttons */
     body.night-mode .form-control::file-selector-button {
-        background-color: #1e1e1e !important;
+        background-color: #121212 !important;
         color: #e0e0e0 !important;
-        border-color: #444 !important;
+        border-color: #333 !important;
     }
     body.night-mode .form-control:hover::file-selector-button {
-        background-color: #333 !important;
+        background-color: #2a2a2a !important;
     }
 
     /* Headers */
@@ -165,16 +165,16 @@
     body.night-mode .border-top,
     body.night-mode .border-start,
     body.night-mode .border-end,
-    body.night-mode hr { border-color: #444 !important; }
+    body.night-mode hr { border-color: #333 !important; }
     
     body.night-mode .nav-tabs .nav-link { color: #a0a0a0 !important; }
     body.night-mode .nav-tabs .nav-link.active { color: var(--primary-green) !important; background-color: transparent !important; }
     
     body.night-mode .btn-outline-secondary { color: #a0a0a0 !important; border-color: #a0a0a0 !important; }
-    body.night-mode .btn-outline-secondary:hover { background-color: #444 !important; color: #fff !important; }
+    body.night-mode .btn-outline-secondary:hover { background-color: #333 !important; color: #fff !important; }
     
     /* Alerts Styling */
-    body.night-mode .alert-light, body.night-mode .alert-light.text-dark { background-color: #2c2c2c !important; border-color: #444 !important; color: #e0e0e0 !important; }
+    body.night-mode .alert-light, body.night-mode .alert-light.text-dark { background-color: #1a1a1a !important; border-color: #333 !important; color: #e0e0e0 !important; }
     body.night-mode .alert-success, body.night-mode .alert-success.text-dark { background-color: rgba(52, 184, 117, 0.15) !important; border-color: rgba(52, 184, 117, 0.3) !important; color: #a5d6a7 !important; }
     body.night-mode .alert-warning, body.night-mode .alert-warning.text-dark { background-color: rgba(255, 193, 7, 0.15) !important; border-color: rgba(255, 193, 7, 0.3) !important; color: #ffe082 !important; }
     body.night-mode .alert-danger, body.night-mode .alert-danger.text-dark { background-color: rgba(211, 47, 47, 0.15) !important; border-color: rgba(211, 47, 47, 0.3) !important; color: #ef9a9a !important; }
@@ -188,16 +188,16 @@
     body.night-mode .card-form,
     body.night-mode .profile-header,
     body.night-mode .receipt-container {
-        background-color: #1e1e1e !important;
-        border-color: #333 !important;
+        background-color: #121212 !important;
+        border-color: #252525 !important;
         color: #e0e0e0 !important;
     }
 
     body.night-mode .room-card-option,
     body.night-mode .card-room-select,
     body.night-mode .slot-select-card {
-        background-color: #2c2c2c !important;
-        border-color: #444 !important;
+        background-color: #1a1a1a !important;
+        border-color: #333 !important;
     }
     
     body.night-mode .room-card-option.selected,
@@ -209,14 +209,14 @@
     
     body.night-mode .room-card-option.disabled,
     body.night-mode .slot-select-card.disabled {
-        background-color: #1a1a1a !important;
+        background-color: #0a0a0a !important;
         opacity: 0.5 !important;
     }
 
     /* admin_parking.php Slot Monitoring */
     body.night-mode .slot-card {
-        background-color: #2c2c2c !important;
-        border-color: #444 !important;
+        background-color: #1a1a1a !important;
+        border-color: #333 !important;
     }
     body.night-mode .slot-card.available {
         background-color: rgba(46, 125, 50, 0.2) !important;
@@ -231,8 +231,8 @@
 
     /* admin_utilities.php Archives Slider */
     body.night-mode .archive-card {
-        background-color: #1e1e1e !important;
-        border-color: #444 !important;
+        background-color: #121212 !important;
+        border-color: #333 !important;
         color: #e0e0e0 !important;
     }
     body.night-mode .archive-card:hover {
@@ -241,28 +241,28 @@
         border-color: var(--primary-green) !important;
     }
     body.night-mode .slider-btn {
-        background-color: #1e1e1e !important;
-        border-color: #444 !important;
+        background-color: #121212 !important;
+        border-color: #333 !important;
         color: #e0e0e0 !important;
     }
     body.night-mode .slider-btn:hover {
-        background-color: #333 !important;
+        background-color: #2a2a2a !important;
         color: var(--primary-green) !important;
     }
 
     /* view_receipt.php Admin & Custom Tables */
     body.night-mode .total-section,
     body.night-mode .sig-box {
-        background-color: #2c2c2c !important;
-        border-color: #444 !important;
+        background-color: #1a1a1a !important;
+        border-color: #333 !important;
     }
     body.night-mode .table-custom th {
-        background-color: #2c2c2c !important;
+        background-color: #1a1a1a !important;
         color: #e0e0e0 !important;
         border-bottom-color: var(--primary-green) !important;
     }
     body.night-mode .table-custom td {
-        border-bottom-color: #444 !important;
+        border-bottom-color: #333 !important;
         color: #e0e0e0 !important;
     }
     body.night-mode .total-row.final {
@@ -277,13 +277,13 @@
     
     /* admin_keys.php Modal JS Inline Styles Override */
     body.night-mode #keysModalContent .p-3.border.rounded {
-        background-color: #2c2c2c !important;
-        border-color: #444 !important;
+        background-color: #1a1a1a !important;
+        border-color: #333 !important;
     }
 
     /* SweetAlert2 Modal Night Mode */
     body.night-mode .swal2-popup {
-        background-color: #1e1e1e !important;
+        background-color: #121212 !important;
         color: #e0e0e0 !important;
     }
     body.night-mode .swal2-title,
@@ -291,7 +291,7 @@
         color: #e0e0e0 !important;
     }
     body.night-mode .swal2-validation-message {
-        background-color: #2c2c2c !important;
+        background-color: #1a1a1a !important;
         color: #ffc107 !important;
     }
 
@@ -304,4 +304,19 @@
     body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }
     body.night-mode::-webkit-scrollbar-thumb:hover,
     body.night-mode *::-webkit-scrollbar-thumb:hover { background: var(--primary-green) !important; }
+
+    /* Profile Toggle Night Mode Fix */
+    body.night-mode .profile-toggle.expanded {
+        background-color: #1a1a1a !important;
+        border-color: #333 !important;
+    }
+    body.night-mode .profile-name {
+        color: #e0e0e0 !important;
+    }
+    body.night-mode .notif-wrapper:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    body.night-mode .notif-badge {
+        border-color: #1a1a1a !important;
+    }
 }

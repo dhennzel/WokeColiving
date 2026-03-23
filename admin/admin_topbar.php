@@ -48,18 +48,41 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
     </div>
     
     <div class="navbar-right">
-        <div class="dropdown">
-            <button class="icon-btn notification-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-bell"></i>
-                <?php if($total_notifications > 0): ?>
-                    <span class="badge"><?= $total_notifications ?></span>
-                <?php endif; ?>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-3" style="width: 260px;">
+        <button class="icon-btn scroll-top-btn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Scroll to Top">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+        
+        <div class="profile-dropdown">
+            <div class="profile-toggle" id="profileToggle">
+                <img src="<?= htmlspecialchars($admin_avatar) ?>" alt="Admin Profile" class="profile-img">
+                
+                <div class="profile-content-hidden">
+                    <span class="profile-name"><?= htmlspecialchars($admin_name) ?></span>
+                    
+                    <!-- Integrated Notification Bell -->
+                    <div class="notif-wrapper" id="notifTrigger" title="Notifications">
+                        <i class="fas fa-bell"></i>
+                        <?php if($total_notifications > 0): ?>
+                            <span class="notif-badge"><?= $total_notifications ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <i class="fas fa-chevron-down ms-1"></i>
+                </div>
+            </div>
+            
+            <div class="dropdown-menu" id="profileMenu">
+                <a href="admin_profile.php"><i class="fas fa-user"></i> My Profile</a>
+                <a href="#" id="adminNightModeToggle"><i class="fas fa-moon"></i> Night Mode</a>
+                <a href="admin_logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+            
+            <!-- Notification Dropdown -->
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" id="notifMenu" style="width: 280px; right: 40px;">
                 <li class="px-3 py-2 border-bottom bg-light fw-bold small text-muted text-uppercase">Pending Actions</li>
                 <?php if($total_notifications > 0): ?>
                     <?php if($top_pending_res > 0): ?>
-                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="booking_management.php?status=Pending"><span class="small fw-bold"><i class="fas fa-calendar-check text-warning me-2"></i> Bookings & Payments</span> <span class="badge bg-warning text-dark rounded-pill" style="box-shadow: none !important;"><?= $top_pending_res ?></span></a></li>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="booking_management.php?status=Pending"><span class="small fw-bold"><i class="fas fa-calendar-check text-warning me-2"></i> Bookings</span> <span class="badge bg-warning text-dark rounded-pill" style="box-shadow: none !important;"><?= $top_pending_res ?></span></a></li>
                     <?php endif; ?>
                     <?php if($top_pending_maint > 0): ?>
                         <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_maintenance.php"><span class="small fw-bold"><i class="fas fa-wrench text-danger me-2"></i> Maintenance</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_pending_maint ?></span></a></li>
@@ -68,30 +91,54 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
                         <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_housekeeping.php"><span class="small fw-bold"><i class="fas fa-broom text-info me-2"></i> Housekeeping</span> <span class="badge bg-info text-dark rounded-pill" style="box-shadow: none !important;"><?= $top_pending_house ?></span></a></li>
                     <?php endif; ?>
                     <?php if($top_del_req > 0): ?>
-                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_deletion_requests.php"><span class="small fw-bold"><i class="fas fa-user-times text-danger me-2"></i> Deletion Requests</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_del_req ?></span></a></li>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_deletion_requests.php"><span class="small fw-bold"><i class="fas fa-user-times text-danger me-2"></i> Deletion</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_del_req ?></span></a></li>
                     <?php endif; ?>
                 <?php else: ?>
                     <li><span class="dropdown-item text-muted small text-center py-3">No pending actions</span></li>
                 <?php endif; ?>
             </ul>
         </div>
-        
-        <div class="profile-dropdown">
-            <div class="profile-toggle" id="profileToggle">
-                <img src="<?= htmlspecialchars($admin_avatar) ?>" alt="Admin Profile" class="profile-img">
-                <span class="profile-name d-none d-md-inline"><?= htmlspecialchars($admin_name) ?></span>
-                <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="dropdown-menu" id="profileMenu">
-                <a href="admin_profile.php"><i class="fas fa-user"></i> My Profile</a>
-                <a href="#" id="adminNightModeToggle"><i class="fas fa-moon"></i> Night Mode</a>
-                <a href="admin_logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
-            </div>
-        </div>
     </div>
 </header>
 <script>
     window.currentAdminUser = "<?= htmlspecialchars($admin_name ?? 'admin', ENT_QUOTES, 'UTF-8') ?>";
+    
+    // Profile Toggle Logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const profileToggle = document.getElementById('profileToggle');
+        const notifTrigger = document.getElementById('notifTrigger');
+        const profileMenu = document.getElementById('profileMenu');
+        const notifMenu = document.getElementById('notifMenu');
+        
+        profileToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            
+            // Check if clicking bell
+            if(e.target.closest('#notifTrigger')) {
+                notifMenu.classList.toggle('show');
+                profileMenu.classList.remove('show');
+                return;
+            }
+
+            // Normal expansion logic
+            if (!profileToggle.classList.contains('expanded')) {
+                profileToggle.classList.add('expanded');
+            } else {
+                // If already expanded, clicking avatar/name toggles profile menu
+                profileMenu.classList.toggle('show');
+                notifMenu.classList.remove('show');
+            }
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!profileToggle.contains(e.target) && !profileMenu.contains(e.target) && !notifMenu.contains(e.target)) {
+                profileToggle.classList.remove('expanded');
+                profileMenu.classList.remove('show');
+                notifMenu.classList.remove('show');
+            }
+        });
+    });
 </script>
 
 <!-- Notification Sound -->
@@ -109,7 +156,10 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
                 return response.json();
             })
             .then(data => {
-                const badge = document.querySelector('.notification-btn .badge');
+                const notifWrapper = document.getElementById('notifTrigger');
+                // Check if wrapper exists (it might not if admin is not logged in or structure changed)
+                if (!notifWrapper) return;
+                let badge = notifWrapper.querySelector('.notif-badge');
 
                 if (data.total_notifications > lastAdminNotifCount) {
                     const audio = document.getElementById('adminNotifSound');
@@ -119,18 +169,13 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
                 }
 
                 if (data.total_notifications > 0) {
-                     if(badge) {
-                        badge.textContent = data.total_notifications;
-                        badge.style.display = 'block';
-                    } else {
-                        const notifBtn = document.querySelector('.notification-btn');
-                        if(notifBtn) {
-                            const newBadge = document.createElement('span');
-                            newBadge.className = 'badge';
-                            newBadge.textContent = data.total_notifications;
-                            notifBtn.appendChild(newBadge);
-                        }
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'notif-badge';
+                        notifWrapper.appendChild(badge);
                     }
+                    badge.textContent = data.total_notifications;
+                    badge.style.display = 'inline-block';
                 } else {
                     if(badge) badge.style.display = 'none';
                 }

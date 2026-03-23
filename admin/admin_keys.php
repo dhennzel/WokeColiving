@@ -157,6 +157,10 @@ $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 $waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
 $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 
+// Check Room 501 Status for Auto-Popup
+$check_501 = mysqli_query($conn, "SELECT COUNT(*) as c FROM `keys` k JOIN rooms r ON k.reference_id = r.room_id WHERE (r.room_name = '501' OR r.room_number = '501') AND k.status = 'Released'");
+$show_501_modal = (mysqli_fetch_assoc($check_501)['c'] > 0);
+
 $theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
@@ -203,6 +207,11 @@ $theme = get_theme_colors($conn);
         <main class="main-content">
             <div class="page-header d-flex justify-content-between align-items-center">
                 <h1>Key Monitoring System</h1>
+                <?php if($show_501_modal): ?>
+                <button class="btn btn-danger btn-sm" onclick="openRoom501UnreleaseModal()">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Room 501 Alert
+                </button>
+                <?php endif; ?>
             </div>
 
             <?php if(isset($_GET['msg'])): ?>
@@ -622,6 +631,9 @@ function openRoomKeysModal(element) {
 // Unrelease Modal functions
 function openUnreleaseModal() {
     loadReleasedKeys();
+    // Reset title in case it was changed by 501 modal
+    document.querySelector('#unreleaseListModal .modal-title').innerHTML = 
+        '<i class="fas fa-key me-2"></i> Released Keys Management';
     new bootstrap.Modal(document.getElementById('unreleaseListModal')).show();
 }
 
@@ -632,8 +644,11 @@ function openRoom501UnreleaseModal() {
     new bootstrap.Modal(document.getElementById('unreleaseListModal')).show();
 }
 
-function loadReleasedKeys() {
-    fetch('get_released_keys.php')
+function loadReleasedKeys(room = '') {
+    let url = 'get_released_keys.php';
+    if(room) url += '?room=' + encodeURIComponent(room);
+    
+    fetch(url)
         .then(response => response.text())
         .then(text => {
             try {
@@ -671,6 +686,12 @@ function loadReleasedKeys() {
             document.querySelector('#releasedKeysTable tbody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading data</td></tr>';
         });
 }
+
+<?php if($show_501_modal): ?>
+document.addEventListener('DOMContentLoaded', function() {
+    openRoom501UnreleaseModal();
+});
+<?php endif; ?>
 </script>
 </body>
 </html>

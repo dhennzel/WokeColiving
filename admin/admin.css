@@ -40,6 +40,7 @@ body {
     background-color: var(--bg-light);
     color: var(--text-dark);
     overflow-x: hidden;
+    transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
@@ -60,7 +61,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     color: var(--bg-white);
     display: flex;
     flex-direction: column;
-    transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.4s ease, border-color 0.4s ease;
     z-index: 100;
 }
 
@@ -157,6 +158,10 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     transition: all 0.3s ease;
 }
 
+.nav-item.collapsed .fa-chevron-down {
+    transform: rotate(-90deg);
+}
+
 .nav-item:hover {
     background-color: rgba(255, 255, 255, 0.1);
     color: var(--bg-white);
@@ -166,7 +171,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     color: var(--primary-green);
     background-color: var(--bg-white);
     font-weight: 600;
-    border-left: 4px solid var(--accent-yellow); /* Changed to left border for better pill shape balance */
+    border-left: 4px solid var(--primary-green); /* Changed to left border for better pill shape balance */
 }
 
 .sidebar.collapsed .nav-item span {
@@ -239,7 +244,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     top: 0;
     width: 100%; /* Explicitly locks the navbar width */
 
-    transition: margin-top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: margin-top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
     user-select: none; /* Prevents text highlighting on double click */
 }
     
@@ -377,19 +382,93 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 .profile-toggle {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 0;
     cursor: pointer;
+    padding: 4px;
+    border-radius: 50px; /* Fully rounded pill */
+    background: transparent;
+    border: 1px solid transparent;
+    box-shadow: none;
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    max-width: 46px; /* Start as circle */
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.profile-toggle:hover {
+    background: rgba(0,0,0,0.05);
+}
+
+/* Expanded State (On Click) */
+.profile-toggle.expanded {
+    max-width: 350px; /* Increased to fit name + bell */
+    background: var(--bg-white);
+    box-shadow: var(--shadow-sm);
+    border-color: rgba(0,0,0,0.1);
+    padding-right: 15px; /* Space for arrow */
+    gap: 10px;
 }
 
 .profile-img {
-    width: 35px;
-    height: 35px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary-green);
+    flex-shrink: 0;
+}
+
+.profile-content-hidden {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    white-space: nowrap; /* Prevents layout jump during expansion */
+}
+
+/* Show when expanded */
+.profile-toggle.expanded .profile-content-hidden {
+    opacity: 1;
+    width: auto;
+    margin-left: 10px;
 }
 
 .profile-name {
     font-weight: 500;
     font-size: 0.9rem;
+    color: var(--text-dark);
+    white-space: nowrap;
+}
+
+/* Notification Bell inside Pill */
+.notif-wrapper {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+.notif-wrapper:hover {
+    background-color: rgba(0,0,0,0.05);
+    color: var(--primary-green);
+}
+.notif-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background-color: #dc3545;
+    color: white;
+    font-size: 0.6rem;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 10px;
+    border: 1px solid #fff;
 }
 
 .dropdown-menu {
@@ -904,4 +983,9 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* Smooth Theme Transitions for other components */
+.card, .card-custom, .modal-content, .form-control, .form-select, .list-group-item, .dropdown-menu, .input-group-text, .alert {
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
 }
