@@ -395,7 +395,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                         </select>
                     </div>
                     <div class="mb-3" id="company_div" style="display: none;">
-                        <label class="form-label">Company Name</label>
+                        <label class="form-label" id="company_label">Company Name</label>
                         <input type="text" name="company" id="company" class="form-control" value="<?= htmlspecialchars($user_info['company'] ?? '') ?>">
                     </div>
                     <div class="mb-3" id="school_id_div" style="display: none;">
@@ -413,11 +413,11 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                     </div>
                     <div class="mb-3">
                         <label class="form-label" id="label_emergency_name">Emergency Contact Name</label>
-                        <input type="text" name="emergency_contact_name" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_name'] ?? '') ?>" required>
+                        <input type="text" name="emergency_contact_name" id="emergency_contact_name" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_name'] ?? '') ?>" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" id="label_emergency_number">Emergency Contact Number</label>
-                        <input type="text" name="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_number'] ?? '') ?>" required>
+                        <input type="text" name="emergency_contact_number" id="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_number'] ?? '') ?>" maxlength="11" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -513,21 +513,40 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         var labelName = document.getElementById('label_emergency_name');
         var labelNumber = document.getElementById('label_emergency_number');
         
+        // Inputs
+        var inputName = document.getElementById('emergency_contact_name');
+        var inputNumber = document.getElementById('emergency_contact_number');
+        
+        var companyLabel = document.getElementById('company_label');
+
         if (occupation && occupation.value === 'Employed') {
-            companyDiv.style.display = 'block';
-            schoolIdDiv.style.display = 'none';
-            if(labelName) labelName.innerText = "Emergency Contact/Boss Name";
-            if(labelNumber) labelNumber.innerText = "Emergency Contact/Boss Contact Number";
-        } else if (occupation && occupation.value === 'Student') {
             companyDiv.style.display = 'none';
+            schoolIdDiv.style.display = 'none';
+            if(companyInput) companyInput.required = false;
+            if(labelName) labelName.innerText = "Company Name";
+            if(labelNumber) labelNumber.innerText = "Company Number";
+            if(inputName) inputName.placeholder = "Enter company name";
+            if(inputNumber) inputNumber.placeholder = "Enter company contact number";
+        } else if (occupation && occupation.value === 'Student') {
+            companyDiv.style.display = 'block';
             schoolIdDiv.style.display = 'block';
+            if(companyInput) {
+                companyInput.required = true;
+                companyInput.placeholder = "Enter your school name";
+            }
+            if(companyLabel) companyLabel.innerText = "School Name";
             if(labelName) labelName.innerText = "Guardian Name";
             if(labelNumber) labelNumber.innerText = "Guardian Contact Number";
+            if(inputName) inputName.placeholder = "Enter guardian name";
+            if(inputNumber) inputNumber.placeholder = "Enter guardian contact number";
         } else {
             companyDiv.style.display = 'none';
             schoolIdDiv.style.display = 'none';
+            if(companyInput) companyInput.required = false;
             if(labelName) labelName.innerText = "Emergency Contact Name";
             if(labelNumber) labelNumber.innerText = "Emergency Contact Number";
+            if(inputName) inputName.placeholder = "e.g. Juan Dela Cruz";
+            if(inputNumber) inputNumber.placeholder = "e.g. 09123456789";
         }
     }
     // Init on load

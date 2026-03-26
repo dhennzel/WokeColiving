@@ -254,16 +254,25 @@ $theme = get_theme_colors($conn);
                             <div class="col-6"><p class="mb-1 text-muted small">Gender</p><p class="fw-bold mb-2" id="modalUserGender">-</p></div>
                             <div class="col-6"><p class="mb-1 text-muted small">Occupation</p><p class="fw-bold mb-2" id="modalUserOccupation">-</p></div>
                         </div>
-                        <p class="mb-1 text-muted small">Company / School</p>
-                        <p class="fw-bold mb-2" id="modalUserCompany">-</p>
+                        <div id="modalCompanySection" style="display: none;">
+                            <p class="mb-1 text-muted small" id="modalUserCompanyLabel">Company / School</p>
+                            <p class="fw-bold mb-2" id="modalUserCompany">-</p>
+                        </div>
                         <p class="mb-1 text-muted small">Address</p>
                         <p class="fw-bold mb-0" id="modalUserAddress">-</p>
+                        <!-- New section for School ID -->
+                        <div id="modalSchoolIdSection" class="mt-3" style="display: none;">
+                            <p class="mb-1 text-muted small">School ID</p>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="modalViewSchoolIdBtn" onclick="showSchoolId('')">
+                                <i class="fas fa-id-card me-1"></i> View School ID
+                            </button>
+                        </div>
                     </div>
                     <div class="col-12 mt-4 pt-3 border-top">
-                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-ambulance me-2"></i>Emergency Contact</h6>
+                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-ambulance me-2" id="modalEmergencyIcon"></i><span id="modalEmergencyHeader">Emergency Contact</span></h6>
                         <div class="row">
-                            <div class="col-md-6"><p class="mb-1 text-muted small">Name</p><p class="fw-bold mb-2" id="modalUserEmergencyName">-</p></div>
-                            <div class="col-md-6"><p class="mb-1 text-muted small">Number</p><p class="fw-bold mb-0" id="modalUserEmergencyPhone">-</p></div>
+                            <div class="col-md-6"><p class="mb-1 text-muted small" id="modalUserEmergencyNameLabel">Name</p><p class="fw-bold mb-2" id="modalUserEmergencyName">-</p></div>
+                            <div class="col-md-6"><p class="mb-1 text-muted small" id="modalUserEmergencyPhoneLabel">Number</p><p class="fw-bold mb-0" id="modalUserEmergencyPhone">-</p></div>
                         </div>
                     </div>
                 </div>
@@ -333,6 +342,47 @@ $theme = get_theme_colors($conn);
         document.getElementById('modalUserOccupation').innerText = user.occupation || 'Not Specified';
         document.getElementById('modalUserCompany').innerText = user.company || 'Not Specified';
         document.getElementById('modalUserAddress').innerText = user.address || 'Not Specified';
+
+        // Dynamic Labeling logic matching reservation_now.php
+        const occupation = user.occupation;
+        const companySection = document.getElementById('modalCompanySection');
+        const companyLabel = document.getElementById('modalUserCompanyLabel');
+        const emHeader = document.getElementById('modalEmergencyHeader');
+        const emIcon = document.getElementById('modalEmergencyIcon');
+        const emNameLabel = document.getElementById('modalUserEmergencyNameLabel');
+        const emPhoneLabel = document.getElementById('modalUserEmergencyPhoneLabel');
+        const schoolIdSection = document.getElementById('modalSchoolIdSection');
+        const viewSchoolIdBtn = document.getElementById('modalViewSchoolIdBtn');
+
+        if (occupation === 'Employed') {
+            companySection.style.display = 'none'; // Hide redundant field for employed
+            emHeader.innerText = "Company Details";
+            emIcon.className = "fas fa-building me-2";
+            emNameLabel.innerText = "Company Name";
+            emPhoneLabel.innerText = "Company Number";
+            schoolIdSection.style.display = 'none'; // Hide school ID for employed
+        } else if (occupation === 'Student') {
+            companySection.style.display = 'block';
+            companyLabel.innerText = "School Name";
+            emHeader.innerText = "Guardian Contact";
+            emIcon.className = "fas fa-user-shield me-2";
+            emNameLabel.innerText = "Guardian Name";
+            emPhoneLabel.innerText = "Guardian Contact Number";
+            // Show school ID section if student and image exists
+            if (user.school_id_image) {
+                schoolIdSection.style.display = 'block';
+                viewSchoolIdBtn.setAttribute('onclick', `showSchoolId('../uploads/proofs/${user.school_id_image}')`);
+            } else {
+                schoolIdSection.style.display = 'none';
+            }
+        } else {
+            companySection.style.display = 'none';
+            emHeader.innerText = "Emergency Contact";
+            emIcon.className = "fas fa-ambulance me-2";
+            emNameLabel.innerText = "Name";
+            emPhoneLabel.innerText = "Number";
+        }
+        schoolIdSection.style.display = 'none'; // Hide school ID for others
         
         // Emergency
         document.getElementById('modalUserEmergencyName').innerText = user.emergency_contact_name || 'Not Specified';

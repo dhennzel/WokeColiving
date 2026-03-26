@@ -167,17 +167,22 @@ $theme = get_theme_colors($conn);
         .sig-img { max-height: 60px; }
         
         @media print {
-            @page { size: A4 portrait; margin: 10mm; }
-            body, html { height: 100vh; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+            @page { size: A4 portrait; margin: 5mm; }
+            body, html { height: auto !important; margin: 0 !important; padding: 0 !important; background: #fff !important; font-size: 11pt; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .receipt-wrapper { padding: 0; display: block; }
-            .receipt-container { box-shadow: none; border-radius: 0; max-width: 100%; }
+            .receipt-container { box-shadow: none; border-radius: 0; max-width: 100%; border: none !important; }
             .no-print { display: none !important; }
-            .receipt-body { padding: 20px !important; }
-            .table-custom th, .table-custom td { padding: 8px 10px !important; font-size: 0.9rem !important; }
-            .total-section { padding: 15px !important; background-color: rgba(52, 184, 117, 0.05) !important; border: 1px solid rgba(52, 184, 117, 0.2) !important; }
-            .mb-5 { margin-bottom: 1.5rem !important; }
-            .mt-5 { margin-top: 1.5rem !important; }
+            .receipt-body { padding: 5px 20px !important; }
+            .table-custom th, .table-custom td { padding: 4px 8px !important; font-size: 10.5pt !important; }
+            .total-section { padding: 8px !important; background-color: rgba(52, 184, 117, 0.05) !important; border: 1px solid rgba(52, 184, 117, 0.2) !important; margin-top: 5px !important; }
+            .mb-5 { margin-bottom: 0.5rem !important; }
+            .mt-5 { margin-top: 0.5rem !important; }
+            .row.mt-5.pt-4 { margin-top: 1rem !important; padding-top: 0.5rem !important; }
+            .company-name { font-size: 2.2rem; }
+            .receipt-header h2 { font-size: 3rem !important; }
+            .logo { width: 50px; height: 50px; }
+            .receipt-header { padding: 10px 30px !important; }
         }
     </style>
 </head>

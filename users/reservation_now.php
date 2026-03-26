@@ -658,7 +658,7 @@ if (isset($_POST['confirm_booking'])) {
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_name) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_name" value="<?= htmlspecialchars($user_emergency_contact_name) ?>">
                             <?php else: ?>
-                                <input type="text" name="emergency_contact_name" class="form-control" placeholder="e.g. Juan Dela Cruz" required>
+                                <input type="text" name="emergency_contact_name" id="emergency_contact_name" class="form-control" placeholder="e.g. Juan Dela Cruz" required>
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
@@ -667,7 +667,7 @@ if (isset($_POST['confirm_booking'])) {
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_number) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_number" value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
                             <?php else: ?>
-                                <input type="text" name="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
+                                <input type="text" name="emergency_contact_number" id="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
@@ -866,17 +866,21 @@ function toggleCompanyField() {
     var labelName = document.getElementById('label_emergency_name');
     var labelNumber = document.getElementById('label_emergency_number');
     
+    // Inputs
+    var inputName = document.getElementById('emergency_contact_name');
+    var inputNumber = document.getElementById('emergency_contact_number');
+    
     var companyLabel = document.getElementById('company_label');
 
     if (occupation && occupation.value === 'Employed') {
-        companyDiv.style.display = 'block';
+        companyDiv.style.display = 'none';
         schoolIdDiv.style.display = 'none';
-        if(companyInput) companyInput.required = true;
+        if(companyInput) companyInput.required = false;
         if(schoolIdInput) schoolIdInput.required = false;
-        if(companyLabel) companyLabel.innerText = "Company Name*";
-        if(companyInput) companyInput.placeholder = "Enter your company name";
-        if(labelName) labelName.innerText = "Emergency Contact/Boss Name*";
-        if(labelNumber) labelNumber.innerText = "Emergency Contact/Boss Contact Number*";
+        if(labelName) labelName.innerText = "Company Name*";
+        if(labelNumber) labelNumber.innerText = "Company Number*";
+        if(inputName) inputName.placeholder = "Enter company name";
+        if(inputNumber) inputNumber.placeholder = "Enter company contact number";
     } else if (occupation && occupation.value === 'Student') {
         companyDiv.style.display = 'block'; // Show for student
         schoolIdDiv.style.display = 'block';
@@ -886,12 +890,16 @@ function toggleCompanyField() {
         if(companyInput) companyInput.placeholder = "Enter your school name";
         if(labelName) labelName.innerText = "Guardian Name*";
         if(labelNumber) labelNumber.innerText = "Guardian Contact Number*";
+        if(inputName) inputName.placeholder = "Enter guardian name";
+        if(inputNumber) inputNumber.placeholder = "Enter guardian contact number";
     } else {
         companyDiv.style.display = 'none';
         schoolIdDiv.style.display = 'none';
         if(companyInput) companyInput.required = false;
         if(labelName) labelName.innerText = "Emergency Contact Name*";
         if(labelNumber) labelNumber.innerText = "Emergency Contact Number*";
+        if(inputName) inputName.placeholder = "e.g. Juan Dela Cruz";
+        if(inputNumber) inputNumber.placeholder = "e.g. 09123456789";
     }
 }
 

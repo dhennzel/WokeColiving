@@ -368,7 +368,7 @@ $theme = get_theme_colors($conn);
                             echo "<span class='badge $cls'>$lbl</span>";
                         ?>
                     </div>
-                    <?php if($user['occupation'] == 'Student' && !empty($user['school_id_image'])): ?>
+                    <?php if(!empty($user['school_id_image'])): ?>
                         <div class="mt-2">
                             <span class="badge bg-info text-dark"><i class="fas fa-user-graduate me-1"></i> Student</span>
                             <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="showSchoolId('../uploads/proofs/<?= htmlspecialchars($user['school_id_image']) ?>')">
@@ -859,6 +859,14 @@ $theme = get_theme_colors($conn);
                             <label class="form-label small fw-bold">Company / School</label>
                             <input type="text" name="company" class="form-control" value="<?= htmlspecialchars($user['company'] ?? '') ?>">
                         </div>
+                        <?php if(!empty($user['school_id_image'])): ?>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Current School ID</label>
+                            <div class="mt-1">
+                                <img src="../uploads/proofs/<?= htmlspecialchars($user['school_id_image']) ?>" class="img-thumbnail" style="max-height: 100px; cursor: pointer;" onclick="showSchoolId('../uploads/proofs/<?= htmlspecialchars($user['school_id_image']) ?>')" title="Click to enlarge">
+                            </div>
+                        </div>
+                        <?php endif; ?>
                         <div class="col-12">
                             <label class="form-label small fw-bold">Address</label>
                             <textarea name="address" class="form-control" rows="2"><?= htmlspecialchars($user['address'] ?? '') ?></textarea>
@@ -909,27 +917,29 @@ $theme = get_theme_colors($conn);
                     <input type="hidden" name="reservation_id" id="approveResId">
                     <input type="hidden" name="room_id" id="approveRoomId" required>
 
-                    <div class="row g-3" id="approveRoomGrid">
-                        <?php foreach($base_rooms_list as $room): 
-                            $avail = $room['total_beds'] - $room['occupied'];
-                            $is_full = $avail <= 0;
-                        ?>
-                        <div class="col-md-4 col-lg-3 approve-room-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>" data-gender="<?= $room['gender'] ?? 'Male' ?>">
-                            <div class="card card-room-select h-100 shadow-sm" id="room_select_<?= $room['room_id'] ?>" onclick="selectApproveRoom(this, <?= $room['room_id'] ?>)">
-                                <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>">
-                                <div class="card-body p-2 text-center">
-                                    <div class="fw-bold"><?= !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room['room_number']) : htmlspecialchars($room['room_name']) ?></div>
-                                    <div class="small text-muted"><?= $room['room_type'] ?> &bull; <?= $room['floor'] ?>F</div>
-                                    <?php if (($room['gender'] ?? 'Any') == 'Male'): ?>
-                                        <div class="badge bg-primary mt-1"><i class="fas fa-male me-1"></i> Male Only</div>
-                                    <?php elseif (($room['gender'] ?? 'Any') == 'Female'): ?>
-                                        <div class="badge bg-danger mt-1"><i class="fas fa-female me-1"></i> Female Only</div>
-                                    <?php endif; ?>
-                                    <div class="badge <?= $is_full ? 'bg-secondary' : 'bg-success' ?> mt-1"><?= $is_full ? 'Full' : $avail . ' Beds Free' ?></div>
+                    <div style="max-height: 500px; overflow-y: auto; overflow-x: hidden; padding: 5px;">
+                        <div class="row g-3" id="approveRoomGrid">
+                            <?php foreach($base_rooms_list as $room): 
+                                $avail = $room['total_beds'] - $room['occupied'];
+                                $is_full = $avail <= 0;
+                            ?>
+                            <div class="col-md-4 col-lg-3 approve-room-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>" data-gender="<?= $room['gender'] ?? 'Male' ?>">
+                                <div class="card card-room-select h-100 shadow-sm" id="room_select_<?= $room['room_id'] ?>" onclick="selectApproveRoom(this, <?= $room['room_id'] ?>)">
+                                    <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>">
+                                    <div class="card-body p-2 text-center">
+                                        <div class="fw-bold"><?= !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room['room_number']) : htmlspecialchars($room['room_name']) ?></div>
+                                        <div class="small text-muted"><?= $room['room_type'] ?> &bull; <?= $room['floor'] ?>F</div>
+                                        <?php if (($room['gender'] ?? 'Any') == 'Male'): ?>
+                                            <div class="badge bg-primary mt-1"><i class="fas fa-male me-1"></i> Male Only</div>
+                                        <?php elseif (($room['gender'] ?? 'Any') == 'Female'): ?>
+                                            <div class="badge bg-danger mt-1"><i class="fas fa-female me-1"></i> Female Only</div>
+                                        <?php endif; ?>
+                                        <div class="badge <?= $is_full ? 'bg-secondary' : 'bg-success' ?> mt-1"><?= $is_full ? 'Full' : $avail . ' Beds Free' ?></div>
+                                    </div>
                                 </div>
                             </div>
+                            <?php endforeach; ?>
                         </div>
-                        <?php endforeach; ?>
                     </div>
                 </div>
                 <div class="modal-footer">

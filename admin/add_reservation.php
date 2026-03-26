@@ -31,6 +31,24 @@ if(mysqli_num_rows($check_walkin) == 0) {
     mysqli_query($conn, "ALTER TABLE users ADD COLUMN is_walkin TINYINT(1) DEFAULT 0");
 }
 
+// Ensure occupation column exists
+$check_occ = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'occupation'");
+if(mysqli_num_rows($check_occ) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN occupation VARCHAR(50) DEFAULT NULL");
+}
+
+// Ensure company column exists
+$check_company = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'company'");
+if(mysqli_num_rows($check_company) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN company VARCHAR(100) DEFAULT NULL");
+}
+
+// Ensure school_id_image column exists
+$check_sid = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'school_id_image'");
+if(mysqli_num_rows($check_sid) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN school_id_image VARCHAR(255) DEFAULT NULL");
+}
+
 // Ensure emergency contact columns exist
 $check_em_name = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'emergency_contact_name'");
 if(mysqli_num_rows($check_em_name) == 0) {
@@ -90,6 +108,27 @@ if(isset($_POST['add_reservation'])){
         $email = trim($_POST['new_email']);
         $phone = trim($_POST['new_phone']);
         $gender = $_POST['new_gender'];
+        $occupation = $_POST['new_occupation'];
+        $company = trim($_POST['new_company'] ?? '');
+
+        // Validation for company/school name
+        if($occupation == 'Student' && empty($company)){
+            $error = "Company/School name is required.";
+        }
+
+        // Handle School ID Upload
+        $school_id_img = null;
+        if(!$error && $occupation == 'Student'){
+            if(isset($_FILES['new_school_id_image']) && $_FILES['new_school_id_image']['error'] == 0){
+                $target_dir = "../uploads/proofs/";
+                if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+                $school_id_img = time() . '_sid_' . basename($_FILES["new_school_id_image"]["name"]);
+                move_uploaded_file($_FILES["new_school_id_image"]["tmp_name"], $target_dir . $school_id_img);
+            } else {
+                $error = "School ID is required for students.";
+            }
+        }
+
         $em_name = trim($_POST['new_em_name']);
         $em_num = trim($_POST['new_em_num']);
         $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : '12345678';
@@ -109,8 +148,8 @@ if(isset($_POST['add_reservation'])){
             if(mysqli_num_rows($check) > 0){
                 $error = "Email address already registered.";
             } else {
-                $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, email, phone_number, gender, password, role, is_walkin, emergency_contact_name, emergency_contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?)");
-                mysqli_stmt_bind_param($stmt, "sssssssss", $lname, $fname, $mname, $email, $phone, $gender, $password, $em_name, $em_num);
+                $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, email, phone_number, gender, occupation, company, school_id_image, password, role, is_walkin, emergency_contact_name, emergency_contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?)");
+                mysqli_stmt_bind_param($stmt, "ssssssssssss", $lname, $fname, $mname, $email, $phone, $gender, $occupation, $company, $school_id_img, $password, $em_name, $em_num);
                 if(mysqli_stmt_execute($stmt)){
                     $user_id = mysqli_insert_id($conn);
                     $account_msg = "Account created for $name (Pass: $raw_pass). ";
@@ -385,7 +424,7 @@ $theme = get_theme_colors($conn);
                 <?php if($error) echo "<div class='alert alert-danger'>$error</div>"; ?>
                 <?php if($success) echo "<div class='alert alert-success'>$success</div>"; ?>
 
-                <form method="POST" id="reservationForm">
+                <form method="POST" id="reservationForm" enctype="multipart/form-data">
                     <input type="hidden" name="term_type" id="term_type" value="Short">
                     <input type="hidden" name="add_reservation" value="1">
                     <div class="mb-3">
@@ -427,8 +466,24 @@ $theme = get_theme_colors($conn);
                                     <option value="Female">Female</option>
                                 </select>
                             </div>
-                            <div class="col-md-6"><label class="small fw-bold">Emergency Contact Name</label><input type="text" name="new_em_name" class="form-control"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Emergency Contact Number</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09"></div>
+                            <div class="col-md-6">
+                                <label class="small fw-bold">Occupation Status</label>
+                                <select name="new_occupation" id="new_occupation" class="form-select" onchange="toggleNewGuestCompany()">
+                                    <option value="" disabled selected>Select Status</option>
+                                    <option value="Student">Student</option>
+                                    <option value="Employed">Employed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6" id="new_company_div" style="display:none;">
+                                <label class="small fw-bold" id="new_company_label">Company/School Name</label>
+                                <input type="text" name="new_company" id="new_company" class="form-control">
+                            </div>
+                            <div class="col-md-12" id="new_school_id_div" style="display:none;">
+                                <label class="small fw-bold">School ID Image</label>
+                                <input type="file" name="new_school_id_image" id="new_school_id_image" class="form-control" accept="image/*">
+                            </div>
+                            <div class="col-md-6"><label class="small fw-bold" id="new_em_name_label">Emergency Contact Name</label><input type="text" name="new_em_name" class="form-control"></div>
+                            <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact Number</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09"></div>
                             <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: 12345678"></div>
                         </div>
                         <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>12345678</strong>.</small>
@@ -598,6 +653,42 @@ function toggleUserSection() {
         document.querySelector('input[name="new_lname"]').required = false;
         document.querySelector('input[name="new_fname"]').required = false;
         document.querySelector('input[name="new_email"]').required = false;
+    }
+}
+
+function toggleNewGuestCompany() {
+    const occ = document.getElementById('new_occupation').value;
+    const div = document.getElementById('new_company_div');
+    const label = document.getElementById('new_company_label');
+    const input = document.getElementById('new_company');
+    const sidDiv = document.getElementById('new_school_id_div');
+    const sidInput = document.getElementById('new_school_id_image');
+    const emNameLabel = document.getElementById('new_em_name_label');
+    const emNumLabel = document.getElementById('new_em_num_label');
+
+    if(occ === 'Student') {
+        div.style.display = 'block';
+        label.innerText = 'School Name';
+        input.required = true;
+        sidDiv.style.display = 'block';
+        sidInput.required = true;
+        emNameLabel.innerText = 'Guardian Name';
+        emNumLabel.innerText = 'Guardian Contact Number';
+    } else if(occ === 'Employed') {
+        div.style.display = 'none'; // Hide for employed
+        label.innerText = 'Company Name'; // Label is irrelevant if hidden
+        input.required = false; // Not required if hidden
+        sidDiv.style.display = 'none';
+        sidInput.required = false;
+        emNameLabel.innerText = 'Company Name';
+        emNumLabel.innerText = 'Company Number';
+    } else {
+        div.style.display = 'none';
+        input.required = false;
+        sidDiv.style.display = 'none';
+        sidInput.required = false;
+        emNameLabel.innerText = 'Emergency Contact Name';
+        emNumLabel.innerText = 'Emergency Contact Number';
     }
 }
 

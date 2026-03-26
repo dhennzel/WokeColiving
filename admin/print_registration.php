@@ -36,6 +36,13 @@ $theme = get_theme_colors($conn);
             --dark-green: <?= $theme['dark'] ?>;
             --accent-yellow: <?= $theme['accent'] ?>;
         }
+        @media print {
+            @page { size: A4; margin: 0.5cm; }
+            body { background: white !important; font-size: 9pt; }
+            .receipt-container { border: none !important; box-shadow: none !important; padding: 10px !important; margin: 0 !important; max-width: 100% !important; }
+            .no-print { display: none !important; }
+            .mb-4 { margin-bottom: 1rem !important; }
+        }
     </style>
 </head>
 <body>

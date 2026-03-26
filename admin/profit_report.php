@@ -348,7 +348,7 @@ $theme = get_theme_colors($conn);
             </div>
 
             <!-- Recent Transactions -->
-            <div class="card card-stat p-4 mb-4">
+            <div class="card card-stat p-4 mb-4 no-print">
                 <h5 class="fw-bold mb-3 text-secondary">Recent Transactions</h5>
                 <div class="table-responsive">
                     <table class="table table-hover table-sm align-middle">
