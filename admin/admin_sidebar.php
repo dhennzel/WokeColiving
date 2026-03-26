@@ -45,11 +45,11 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
         </div>
 
         <!-- Facilities -->
-        <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_rooms.php', 'admin_room_assignment.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'admin_inventory.php']) ? '' : 'collapsed' ?>">
+        <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_rooms.php', 'admin_room_assignment.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php']) ? '' : 'collapsed' ?>">
             <div><i class="fas fa-building"></i><span>Facilities</span></div>
             <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0; margin-left: 10px;"></i>
         </a>
-        <div class="collapse <?= in_array($current_page, ['admin_rooms.php', 'admin_room_assignment.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php', 'admin_inventory.php']) ? 'show' : '' ?>" id="facilitiesSubmenu">
+        <div class="collapse <?= in_array($current_page, ['admin_rooms.php', 'admin_room_assignment.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php']) ? 'show' : '' ?>" id="facilitiesSubmenu">
             <a href="admin_rooms.php" class="nav-item <?= ($current_page == 'admin_rooms.php') ? 'active' : '' ?>">
     <i class="fas fa-bed"></i> <span>Manage Rooms</span>
 </a>
@@ -57,7 +57,6 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
             <a href="admin_room_occupancy.php" class="nav-item <?= $current_page == 'admin_room_occupancy.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-users" style="width: 25px;"></i><span>Occupancy</span></a>
             <a href="admin_parking.php" class="nav-item <?= $current_page == 'admin_parking.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-parking" style="width: 25px;"></i><span>Parkings</span></a>
             <a href="admin_keys.php" class="nav-item <?= $current_page == 'admin_keys.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-key" style="width: 25px;"></i><span>Key Monitoring</span></a>
-            <a href="admin_inventory.php" class="nav-item <?= $current_page == 'admin_inventory.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-boxes" style="width: 25px;"></i><span>Inventory</span></a>
         </div>
 
         <!-- Finance & Reports -->

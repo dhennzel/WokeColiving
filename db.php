@@ -483,6 +483,10 @@ function trigger_update($conn) {
 
 // --- AUTOMATED TASKS (Runs on page load) ---
 
+// Skip automated tasks on login/public pages to prevent lag (e.g. SMTP connections)
+$current_script = basename($_SERVER['PHP_SELF']);
+if (!in_array($current_script, ['admin_login.php', 'login.php', 'register.php', 'index.php'])) {
+
 try {
 // Ensure required columns exist to prevent errors in auto-tasks
 $cols_check = mysqli_query($conn, "SHOW COLUMNS FROM reservations");
@@ -758,6 +762,7 @@ if($pay_query){
         }
     }
 }
+} // End of automated tasks check
 
 
 // --- ROOM OCCUPANCY FUNCTIONS ---
