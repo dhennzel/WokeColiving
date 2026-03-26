@@ -36,21 +36,21 @@
     background: #fff; 
 }
 .login-card .btn-custom { 
-    background-color: var(--accent-yellow); 
-    color: var(--dark-green); 
-    font-weight: 700; 
+    background-color: var(--accent-yellow);
+    color: #1A1D20; /* Match user button text color on yellow */
+    font-weight: 600;
     border-radius: 50px; 
     padding: 12px; 
     width: 100%; 
     border: none; 
-    transition: 0.3s; 
-    text-transform: uppercase; 
-    letter-spacing: 1px; 
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    text-transform: none;
+    letter-spacing: 0.5px;
 }
 .login-card .btn-custom:hover { 
-    background-color: #F9A825; 
-    transform: translateY(-3px); 
-    box-shadow: 0 5px 15px rgba(251, 192, 45, 0.4); 
+    background-color: #D9A020; /* Match user button hover */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(240, 180, 41, 0.3);
 }
 .login-card .link-custom { 
     color: var(--primary-green); 
