@@ -48,10 +48,6 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
     </div>
     
     <div class="navbar-right">
-        <button class="icon-btn scroll-top-btn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Scroll to Top">
-            <i class="fas fa-arrow-up"></i>
-        </button>
-        
         <div class="profile-dropdown">
             <div class="profile-toggle" id="profileToggle">
                 <img src="<?= htmlspecialchars($admin_avatar) ?>" alt="Admin Profile" class="profile-img">
