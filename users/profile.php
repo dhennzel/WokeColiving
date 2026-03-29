@@ -229,6 +229,7 @@ try {
     <link rel="stylesheet" href="users_CSS/app.css">
     <style>
         /* Night Mode Styles */
+        body.theme-transition { transition: background-color 0.3s ease, color 0.3s ease; }
         body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
         body.night-mode .navbar-user { background: #1f1f1f !important; border-bottom: 1px solid #333 !important; }
         body.night-mode .card, body.night-mode .card-custom, body.night-mode .modal-content { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
@@ -269,6 +270,13 @@ try {
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
+<script>
+    (function() {
+        const currentUserId = "<?= $_SESSION['user_id'] ?? '' ?>";
+        const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
+        if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
+    })();
+</script>
 
 <!-- NAVBAR -->
 <nav class="navbar navbar-expand-lg navbar-user fixed-top">
@@ -816,6 +824,7 @@ try {
 
     // Night Mode Logic
     function toggleNightMode() {
+        document.body.classList.add('theme-transition');
         document.body.classList.toggle('night-mode');
         const isNight = document.body.classList.contains('night-mode');
         

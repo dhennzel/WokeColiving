@@ -110,6 +110,7 @@ if(isset($_POST['submit_payment'])){
         .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
 
         /* Night Mode Styles */
+        body.theme-transition { transition: background-color 0.3s ease, color 0.3s ease; }
         body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
         body.night-mode .navbar { background: #1f1f1f !important; }
         body.night-mode .card-custom { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
@@ -129,6 +130,13 @@ if(isset($_POST['submit_payment'])){
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
+<script>
+    (function() {
+        const currentUserId = "<?= $_SESSION['user_id'] ?? '' ?>";
+        const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
+        if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
+    })();
+</script>
 <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container">
         <a class="navbar-brand fw-bold" href="../index.php">Woke Coliving INC</a>

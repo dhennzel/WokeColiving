@@ -79,7 +79,6 @@ body {
     background-color: var(--bg-body);
     color: var(--text-main);
     overflow-x: hidden;
-    transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
@@ -101,7 +100,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    transition: width var(--transition-speed), background-color 0.4s ease, border-color 0.4s ease;
+    transition: width var(--transition-speed);
     z-index: 100;
 }
 
@@ -285,7 +284,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     top: 0;
     width: 100%; /* Explicitly locks the navbar width */
 
-    transition: margin-top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+    transition: margin-top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s ease;
     user-select: none; /* Prevents text highlighting on double click */
 }
     
@@ -970,3 +969,16 @@ body.night-mode .form-control:focus, body.night-mode .form-select:focus {
 .modal-header, .modal-footer { border-color: var(--border-color); }
 .dropdown-item { color: var(--text-main); }
 .dropdown-item:hover { background-color: var(--bg-surface-hover); color: var(--primary-green); }
+
+/* Theme Transition for smooth Night Mode toggling */
+body.theme-transition,
+body.theme-transition .sidebar,
+body.theme-transition .top-navbar,
+body.theme-transition .card,
+body.theme-transition .modal-content,
+body.theme-transition .dropdown-menu,
+body.theme-transition input,
+body.theme-transition select,
+body.theme-transition .form-control {
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+}

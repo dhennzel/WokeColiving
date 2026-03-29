@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (adminNightModeToggle) {
         adminNightModeToggle.addEventListener('click', (e) => {
             e.preventDefault();
+            document.body.classList.add('theme-transition');
             document.body.classList.toggle('night-mode');
             const isNight = document.body.classList.contains('night-mode');
             localStorage.setItem(nightModeKey, isNight ? 'enabled' : 'disabled');

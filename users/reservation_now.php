@@ -558,7 +558,8 @@ if (isset($_POST['confirm_booking'])) {
             background-color: #121212 !important;
             color: var(--text-color) !important;
         }
-        body { transition: background-color 0.3s ease, color 0.3s ease; }
+        body.theme-transition { transition: background-color 0.3s ease, color 0.3s ease; }
+        body.night-mode .bg-white { background-color: var(--surface-color) !important; color: var(--text-color) !important; }
         
         .card-custom {
             background-color: var(--surface-color) !important;
@@ -612,6 +613,13 @@ if (isset($_POST['confirm_booking'])) {
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
+<script>
+    (function() {
+        const currentUserId = "<?= $_SESSION['user_id'] ?? '' ?>";
+        const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
+        if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
+    })();
+</script>
 <div class="container py-5 animate-fade-in">
     <div class="d-flex justify-content-end mb-3">
         <a href="javascript:history.back()" class="btn btn-outline-secondary rounded-pill px-4 fw-bold"><i class="fas fa-arrow-left me-2"></i>Back</a>
@@ -639,7 +647,7 @@ if (isset($_POST['confirm_booking'])) {
             <!-- Personal Info -->
             <div class="col-md-5 anim-trigger delay-1">
                 <div class="card card-custom h-100">
-                    <div class="card-header bg-white fw-bold text-success"><i class="fas fa-user me-2"></i>Personal Information</div>
+                    <div class="card-header fw-bold text-success"><i class="fas fa-user me-2"></i>Personal Information</div>
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label">Sex*</label>
@@ -734,7 +742,7 @@ if (isset($_POST['confirm_booking'])) {
             <!-- Reservation Info -->
             <div class="col-md-7 anim-trigger delay-2">
                 <div class="card card-custom h-100">
-                    <div class="card-header bg-white fw-bold text-success"><i class="fas fa-bed me-2"></i>Booking Details</div>
+                    <div class="card-header fw-bold text-success"><i class="fas fa-bed me-2"></i>Booking Details</div>
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label">Room Type</label>

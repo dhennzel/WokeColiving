@@ -8,6 +8,14 @@ $m_cnt = $pending_maint ?? 0;
 $h_cnt = $pending_house ?? 0;
 $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super Admin';
 ?>
+<script>
+    (function() {
+        const currentAdminUser = "<?= htmlspecialchars($_SESSION['admin_username'] ?? 'admin', ENT_QUOTES, 'UTF-8') ?>";
+        if(localStorage.getItem('adminNightMode_' + currentAdminUser) === 'enabled') {
+            document.body.classList.add('night-mode');
+        }
+    })();
+</script>
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo-placeholder" id="sidebarToggle" title="Toggle Sidebar">
