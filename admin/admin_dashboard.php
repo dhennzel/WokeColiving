@@ -272,6 +272,7 @@ $theme = get_theme_colors($conn);
         .scroll-top-btn { display: none; }
         .navbar-right.fixed-bottom-right .scroll-top-btn { display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; background: #e8f5e9; color: #34B875; border-radius: 50%; transition: all 0.2s; }
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .card-header-custom[aria-expanded="true"] .collapse-icon { transform: rotate(-180deg); }
     </style>
 </head>
 <body>
@@ -403,11 +404,15 @@ $theme = get_theme_colors($conn);
             </div>
 
             <div class="card card-custom mb-4">
-                <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
+                <div class="card-header card-header-custom d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#roomOccupancyCollapse" aria-expanded="false" aria-controls="roomOccupancyCollapse" style="cursor: pointer;" title="Click to expand/collapse">
                     <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-building me-2 text-success"></i> Room Occupancy</h6>
-                    <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3 py-2 fw-bold" style="font-size: 0.8rem;"><?= $total_occupied ?> / <?= $total_capacity ?> Beds Filled</span>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3 py-2 fw-bold" style="font-size: 0.8rem;"><?= $total_occupied ?> / <?= $total_capacity ?> Beds Filled</span>
+                        <i class="fas fa-chevron-down text-muted collapse-icon" style="transition: transform 0.3s ease;"></i>
+                    </div>
                 </div>
-                <div class="card-body bg-light border-bottom p-3">
+                <div class="collapse" id="roomOccupancyCollapse">
+                    <div class="card-body bg-light border-bottom p-3">
                     <div class="row g-2 align-items-center">
                         <div class="col-md-auto col-6">
                             <select id="floorFilter" class="form-select form-select-sm border-0 shadow-sm fw-medium text-dark" onchange="filterOccupancy()">
@@ -499,6 +504,7 @@ $theme = get_theme_colors($conn);
                         </div>
                     </div>
                     <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
 
