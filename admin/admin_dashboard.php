@@ -292,7 +292,7 @@ $theme = get_theme_colors($conn);
                     <a href="add_reservation.php" class="btn btn-success btn-sm px-3 fw-semibold shadow-sm"><i class="fas fa-plus me-1"></i>New Booking</a>
                     <a href="add_room.php" class="btn btn-light border btn-sm px-3 fw-semibold shadow-sm text-dark"><i class="fas fa-bed text-primary me-1"></i>Add Room</a>
                     <a href="longterm_billing.php" class="btn btn-light border btn-sm px-3 fw-semibold shadow-sm text-dark"><i class="fas fa-file-invoice-dollar text-warning me-1"></i>Billing</a>
-                    <a href="backup.php" class="btn btn-light border btn-sm px-3 fw-semibold shadow-sm text-dark" title="Backup System"><i class="fas fa-database text-secondary"></i></a>
+                    <a href="backup.php" class="btn btn-light border btn-sm px-3 fw-semibold shadow-sm text-dark" title="Backup System"><i class="fas fa-database text-secondary"></i>Backup</a>
                 </div>
             </div>
             
