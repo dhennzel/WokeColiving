@@ -221,7 +221,7 @@ $theme = get_theme_colors($conn);
                                 <label class="form-label fw-bold">Room Image</label>
                                 <input type="file" name="image" class="form-control" accept="image/*">
                                 <small class="text-muted">Leave empty to keep current image.</small><br>
-                                <img src="../assets/images/<?= $room['image'] ?>" class="current-img">
+                                <img src="../assets/images/<?= $room['image'] ?>" class="img-thumbnail mt-2" style="max-height: 200px; max-width: 100%; object-fit: cover; border-radius: 12px;">
                             </div>
                             
                             <div class="d-flex justify-content-between mt-4">
