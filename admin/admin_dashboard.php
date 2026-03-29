@@ -17,17 +17,17 @@ if(isset($_GET['fetch_activity'])){
     $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_name) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
     if(mysqli_num_rows($logs_q) > 0){
         while($log = mysqli_fetch_assoc($logs_q)){
-            echo '<div class="list-group-item">
-                <div class="d-flex w-100 justify-content-between">
-                    <small class="fw-bold text-truncate" style="max-width: 150px;">'.htmlspecialchars($log['action']).'</small>
-                    <small class="text-muted" style="font-size: 0.7rem;">'.date('M d, H:i', strtotime($log['created_at'])).'</small>
+            echo '<div class="list-group-item border-0 border-bottom px-0 py-3">
+                <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                    <span class="fw-bold text-dark text-truncate" style="max-width: 180px; font-size: 0.85rem;">'.htmlspecialchars($log['action']).'</span>
+                    <small class="text-muted" style="font-size: 0.7rem;"><i class="far fa-clock me-1"></i>'.date('M d, H:i', strtotime($log['created_at'])).'</small>
                 </div>
-                <p class="mb-1 small text-muted text-truncate">'.htmlspecialchars($log['details']).'</p>
-                <small class="text-primary" style="font-size: 0.7rem;"><i class="fas fa-user-circle me-1"></i> '.($log['full_name'] ? htmlspecialchars($log['full_name']) : 'System').'</small>
+                <p class="mb-1 text-muted text-truncate" style="font-size: 0.8rem;">'.htmlspecialchars($log['details']).'</p>
+                <small class="text-primary fw-semibold" style="font-size: 0.7rem;"><i class="fas fa-user-circle me-1"></i> '.($log['full_name'] ? htmlspecialchars($log['full_name']) : 'System').'</small>
             </div>';
         }
     } else {
-        echo '<div class="list-group-item text-center text-muted small py-4">No recent activity.</div>';
+        echo '<div class="list-group-item text-center text-muted small py-4 border-0">No recent activity.</div>';
     }
     exit;
 }
@@ -44,15 +44,15 @@ $total_earnings = mysqli_fetch_assoc($total_earnings_query)['total'] ?? 0;
 
 // Stats: Counts
 $pending_count_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM reservations WHERE status IN ('Pending', 'Verifying')");
-$pending_count_res = mysqli_fetch_assoc($pending_count_query)['count'];
-$pending_count_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS count FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['count'];
+$pending_count_res = mysqli_fetch_assoc($pending_count_query)['count'] ?? 0;
+$pending_count_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS count FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['count'] ?? 0;
 $pending_count = $pending_count_res + $pending_count_pay;
 
 $approved_count_query = mysqli_query($conn, "SELECT COUNT(DISTINCT user_id) AS count FROM reservations WHERE status='Approved'");
-$approved_count = mysqli_fetch_assoc($approved_count_query)['count'];
+$approved_count = mysqli_fetch_assoc($approved_count_query)['count'] ?? 0;
 
 $total_rooms_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM rooms");
-$total_rooms = mysqli_fetch_assoc($total_rooms_query)['count'];
+$total_rooms = mysqli_fetch_assoc($total_rooms_query)['count'] ?? 0;
 
 // Stats: Occupancy Rate (Active Beds / Total Capacity)
 $today = date('Y-m-d');
@@ -114,13 +114,13 @@ if(mysqli_num_rows($check_col_hidden) == 0) {
     $floors_data = [];
     $all_rooms_unified = []; // For "All Floors" view - sorted by room_number
     
-    $floors_q = mysqli_query($conn, "SELECT DISTINCT floor FROM rooms WHERE is_hidden=0 ORDER BY floor ASC");
+    $floors_q = mysqli_query($conn, "SELECT DISTINCT floor FROM rooms WHERE is_hidden=0 AND is_archived=0 ORDER BY floor ASC");
 
     while($f = mysqli_fetch_assoc($floors_q)){
         $floor = $f['floor'];
         $rooms_on_floor = [];
         
-        $r_q = mysqli_query($conn, "SELECT * FROM rooms WHERE floor = $floor AND is_hidden=0 ORDER BY CAST(room_number AS UNSIGNED) ASC");
+        $r_q = mysqli_query($conn, "SELECT * FROM rooms WHERE floor = $floor AND is_hidden=0 AND is_archived=0 ORDER BY CAST(room_number AS UNSIGNED) ASC");
         while($room = mysqli_fetch_assoc($r_q)){
             $rid = $room['room_id'];
             $rtype = $room['room_type'];
@@ -191,23 +191,40 @@ if(mysqli_num_rows($check_col_hidden) == 0) {
     $floors_data['all'] = $all_rooms_unified;
 
 // Stats: Monthly Earnings for Chart
-$current_year = date('Y');
+$current_year = isset($_GET['year']) ? (int)$_GET['year'] : date('Y');
+$available_years = [];
+$y_q = mysqli_query($conn, "SELECT DISTINCT YEAR(payment_date) as y FROM payments WHERE payment_status='Paid' AND payment_date IS NOT NULL UNION SELECT DISTINCT YEAR(created_at) as y FROM reservations WHERE created_at IS NOT NULL");
+if ($y_q) {
+    while($y_row = mysqli_fetch_assoc($y_q)){
+        if($y_row['y']) $available_years[] = $y_row['y'];
+    }
+}
+if(!in_array(date('Y'), $available_years)) $available_years[] = date('Y');
+if(!in_array(2026, $available_years)) $available_years[] = 2026;
+rsort($available_years);
+$available_years = array_unique($available_years);
+
 $monthly_earnings = array_fill(0, 12, 0); // 0-11 index
 $chart_q = mysqli_query($conn, "SELECT MONTH(payment_date) as m, SUM(amount) as total FROM payments WHERE payment_status='Paid' AND YEAR(payment_date)='$current_year' GROUP BY m");
-while($row = mysqli_fetch_assoc($chart_q)){
-    $monthly_earnings[$row['m'] - 1] = (float)$row['total'];
+if($chart_q) {
+    while($row = mysqli_fetch_assoc($chart_q)){
+        if(!empty($row['m'])) $monthly_earnings[(int)$row['m'] - 1] = (float)$row['total'];
+    }
 }
 
 // Stats: Monthly Bookings (Unique Users) for Chart
 $monthly_bookings = array_fill(0, 12, 0);
 $book_q = mysqli_query($conn, "SELECT MONTH(created_at) as m, COUNT(DISTINCT user_id) as total FROM reservations WHERE YEAR(created_at)='$current_year' GROUP BY m");
-while($row = mysqli_fetch_assoc($book_q)){
-    $monthly_bookings[$row['m'] - 1] = (int)$row['total'];
+if($book_q) {
+    while($row = mysqli_fetch_assoc($book_q)){
+        if(!empty($row['m'])) $monthly_bookings[(int)$row['m'] - 1] = (int)$row['total'];
+    }
 }
 
 // Stats: Recent Activity
 $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_name) as full_name FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id ORDER BY l.created_at DESC LIMIT 5");
 
+$theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -215,61 +232,46 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard | Woke Coliving INC</title>
-    <!-- Bootstrap 5 & FontAwesome -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="admin.css">
     <style>
+        /* Minimalist Dashboard Adjustments */
+        body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; }
+        .stat-card { border: none; border-radius: 12px; transition: transform 0.2s; overflow: hidden; position: relative; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-card .stat-icon { position: absolute; right: -10px; bottom: -15px; font-size: 5rem; opacity: 0.05; }
+        .stat-card-accent-warning { border-left: 4px solid var(--bs-warning); }
+        .stat-card-accent-primary { border-left: 4px solid var(--bs-primary); }
+        .stat-card-accent-info { border-left: 4px solid var(--bs-info); }
+        .stat-card-accent-success { border-left: 4px solid var(--bs-success); }
+        
+        .card-custom { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.03); }
+        .card-header-custom { background-color: transparent; border-bottom: 1px solid rgba(0,0,0,0.05); padding: 1.25rem 1.5rem; }
+        
+        .task-item { transition: background-color 0.2s; border: none; border-bottom: 1px solid rgba(0,0,0,0.03); padding: 1rem 1.5rem; }
+        .task-item:hover { background-color: #f8f9fa; }
+        .task-item:last-child { border-bottom: none; }
+        
+        .room-box { border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; transition: border-color 0.2s; }
+        .room-box:hover { border-color: rgba(0,0,0,0.2); }
+        .progress-slim { height: 6px; border-radius: 10px; background-color: rgba(0,0,0,0.05); }
+
         /* Floating Bottom Right Navbar Icons on Scroll */
         .navbar-right.fixed-bottom-right {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 8px 20px;
-            border-radius: 50px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-            z-index: 1050;
-            animation: slideUp 0.3s ease-out;
-            border: 1px solid rgba(0,0,0,0.1);
-            display: flex;
-            gap: 15px;
-            align-items: center;
+            position: fixed; bottom: 30px; right: 30px; background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px); padding: 8px 20px; border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 1050; animation: slideUp 0.3s ease-out;
+            border: 1px solid rgba(0,0,0,0.1); display: flex; gap: 15px; align-items: center;
         }
-        /* Make dropdowns open upwards when floating at bottom */
-        .navbar-right.fixed-bottom-right .dropdown-menu {
-            bottom: 100% !important;
-            top: auto !important;
-            margin-bottom: 15px !important;
-            transform-origin: bottom right;
-        }
-        /* Optional: Hide name text to make it compact */
-        .navbar-right.fixed-bottom-right .profile-name {
-            display: none !important;
-        }
-        /* Scroll Top Button Logic */
-        .scroll-top-btn {
-            display: none;
-        }
-        .navbar-right.fixed-bottom-right .scroll-top-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 35px;
-            height: 35px;
-            background: #e8f5e9;
-            color: #34B875;
-            border-radius: 50%;
-            transition: all 0.2s;
-        }
-        @keyframes slideUp {
-            from { transform: translateY(100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
+        .navbar-right.fixed-bottom-right .dropdown-menu { bottom: 100% !important; top: auto !important; margin-bottom: 15px !important; transform-origin: bottom right; }
+        .navbar-right.fixed-bottom-right .profile-name { display: none !important; }
+        .scroll-top-btn { display: none; }
+        .navbar-right.fixed-bottom-right .scroll-top-btn { display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; background: #e8f5e9; color: #34B875; border-radius: 50%; transition: all 0.2s; }
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -279,159 +281,192 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
     <div class="main-wrapper">
         <?php include 'admin_topbar.php'; ?>
         <main class="main-content">
-            <div class="page-header">
-                <h1>Dashboard Overview</h1>
+            
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+                <div>
+                    <h2 class="h3 fw-bold mb-1">Dashboard Overview</h2>
+                    <p class="text-muted small mb-0">Welcome back, here's what's happening today.</p>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="add_reservation.php" class="btn btn-success btn-sm px-3 fw-semibold shadow-sm"><i class="fas fa-plus me-1"></i>New Booking</a>
+                    <a href="add_room.php" class="btn btn-light border btn-sm px-3 fw-semibold shadow-sm text-dark"><i class="fas fa-bed text-primary me-1"></i>Add Room</a>
+                    <a href="longterm_billing.php" class="btn btn-light border btn-sm px-3 fw-semibold shadow-sm text-dark"><i class="fas fa-file-invoice-dollar text-warning me-1"></i>Billing</a>
+                    <a href="backup.php" class="btn btn-light border btn-sm px-3 fw-semibold shadow-sm text-dark" title="Backup System"><i class="fas fa-database text-secondary"></i></a>
+                </div>
             </div>
             
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'deleted'): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    Room deleted permanently.
+                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+                    <i class="fas fa-check-circle me-2"></i> Room deleted permanently.
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
             <?php if(isset($_GET['error'])): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <?= htmlspecialchars($_GET['error']) ?>
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i> <?= htmlspecialchars($_GET['error']) ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
 
-    <!-- Stats Row -->
-    <div class="row g-4 mb-5">
-        <?php if($is_super): ?>
-        <div class="col-md-3">
-            <a href="profit_report.php" class="text-decoration-none">
-                <div class="card stat-card h-100 p-3">
-                    <div class="stat-label">Total Earnings</div>
-                    <div class="stat-value">₱<?= number_format($total_earnings, 2) ?></div>
-                    <i class="fas fa-coins stat-icon text-warning"></i>
-                </div>
-            </a>
-        </div>
-        <?php endif; ?>
-        <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
-            <a href="admin_rooms.php" class="text-decoration-none">
-                <div class="card stat-card h-100 p-3">
-                    <div class="stat-label">Occupancy Rate</div>
-                    <div class="stat-value"><?= $occupancy_rate ?>% <small class="text-muted fs-6">(<?= $total_occupied ?>/<?= $total_capacity ?>)</small></div>
-                    <i class="fas fa-chart-pie stat-icon text-primary"></i>
-                </div>
-            </a>
-        </div>
-        <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
-            <a href="booking_management.php?status=Pending" class="text-decoration-none">
-                <div class="card stat-card h-100 p-3">
-                    <div class="stat-label">Pending Requests</div>
-                    <div class="stat-value"><?= $pending_count ?></div>
-                    <i class="fas fa-clock stat-icon text-info"></i>
-                </div>
-            </a>
-        </div>
-        <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
-            <a href="booking_management.php?status=Approved" class="text-decoration-none">
-                <div class="card stat-card h-100 p-3">
-                    <div class="stat-label">Confirmed Guests</div>
-                    <div class="stat-value"><?= $approved_count ?></div>
-                    <i class="fas fa-users stat-icon text-success"></i>
-                </div>
-            </a>
-        </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm p-4">
-                <h5 class="fw-bold text-secondary mb-3"><i class="fas fa-bolt me-2 text-warning"></i>Quick Actions</h5>
-                <div class="d-flex gap-3 flex-wrap">
-                    <a href="add_reservation.php" class="btn btn-outline-success rounded-pill px-4 fw-bold"><i class="fas fa-plus-circle me-2"></i>New Booking</a>
-                    <a href="add_room.php" class="btn btn-outline-primary rounded-pill px-4 fw-bold"><i class="fas fa-bed me-2"></i>Add Room</a>
-                    <a href="longterm_billing.php" class="btn btn-outline-warning text-dark rounded-pill px-4 fw-bold"><i class="fas fa-file-invoice-dollar me-2"></i>Utility Billing</a>
-                    <a href="backup.php" class="btn btn-outline-secondary rounded-pill px-4 fw-bold"><i class="fas fa-database me-2"></i>Backup Data</a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Actionable Insights Row -->
-    <div class="row g-4 mb-4">
-        <!-- Pending Tasks List -->
-        <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-white fw-bold py-3">
-                    <i class="fas fa-tasks me-2 text-warning"></i> Pending Tasks Overview
-                </div>
-                <div class="list-group list-group-flush">
-                    <a href="booking_management.php?status=Pending" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-calendar-check me-2 text-muted"></i> Reservation Requests</span>
-                        <span class="badge bg-warning text-dark rounded-pill"><?= $pending_count ?></span>
+            <div class="row g-3 mb-4">
+                <?php if($is_super): ?>
+                <div class="col-md-3">
+                    <a href="profit_report.php" class="text-decoration-none">
+                        <div class="card stat-card stat-card-accent-warning h-100 p-3 shadow-sm bg-white">
+                            <div class="text-muted small fw-semibold text-uppercase mb-1">Total Earnings</div>
+                            <div class="h4 fw-bold text-dark mb-0">₱<?= number_format($total_earnings, 2) ?></div>
+                            <i class="fas fa-coins stat-icon"></i>
+                        </div>
                     </a>
-                    <a href="admin_maintenance.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-tools me-2 text-muted"></i> Maintenance Requests</span>
-                        <span class="badge bg-danger rounded-pill"><?= $pending_maint ?></span>
+                </div>
+                <?php endif; ?>
+                <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
+                    <a href="admin_rooms.php" class="text-decoration-none">
+                        <div class="card stat-card stat-card-accent-primary h-100 p-3 shadow-sm bg-white">
+                            <div class="text-muted small fw-semibold text-uppercase mb-1">Occupancy Rate</div>
+                            <div class="h4 fw-bold text-dark mb-0"><?= $occupancy_rate ?>% <span class="text-muted fs-6 fw-normal ms-1">(<?= $total_occupied ?>/<?= $total_capacity ?>)</span></div>
+                            <i class="fas fa-chart-pie stat-icon"></i>
+                        </div>
                     </a>
-                    <a href="admin_housekeeping.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-broom me-2 text-muted"></i> Housekeeping Requests</span>
-                        <span class="badge bg-info text-dark rounded-pill"><?= $pending_house ?></span>
+                </div>
+                <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
+                    <a href="booking_management.php?status=Pending" class="text-decoration-none">
+                        <div class="card stat-card stat-card-accent-info h-100 p-3 shadow-sm bg-white">
+                            <div class="text-muted small fw-semibold text-uppercase mb-1">Pending Requests</div>
+                            <div class="h4 fw-bold text-dark mb-0"><?= $pending_count ?></div>
+                            <i class="fas fa-clock stat-icon"></i>
+                        </div>
+                    </a>
+                </div>
+                <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
+                    <a href="booking_management.php?status=Approved" class="text-decoration-none">
+                        <div class="card stat-card stat-card-accent-success h-100 p-3 shadow-sm bg-white">
+                            <div class="text-muted small fw-semibold text-uppercase mb-1">Confirmed Guests</div>
+                            <div class="h4 fw-bold text-dark mb-0"><?= $approved_count ?></div>
+                            <i class="fas fa-users stat-icon"></i>
+                        </div>
                     </a>
                 </div>
             </div>
-        </div>
 
-        <!-- Detailed Occupancy Breakdown -->
-        <div class="col-md-8">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-building me-2 text-success"></i> 
-                        <span class="me-2">Occupancy</span>
-                        <select id="floorFilter" class="form-select form-select-sm w-auto py-0 me-2" style="font-size: 0.8rem;" onchange="filterOccupancy()">
-                            <option value="all" selected>All Floors</option>
-                            <option value="2">2nd Floor</option>
-                            <option value="3">3rd Floor</option>
-                            <option value="4">4th Floor</option>
-                            <option value="5">5th Floor</option>
-                            <option value="6">6th Floor</option>
-                            <option value="7">7th Floor</option>
-                        </select>
-                        <select id="occupancyFilter" class="form-select form-select-sm w-auto py-0 me-2" style="font-size: 0.8rem;" onchange="filterOccupancy()">
-                            <option value="all">All</option>
-                            <option value="available">Available</option>
-                            <option value="full">Full</option>
-                            <option value="maintenance">Maintenance</option>
-                        </select>
-                        <select id="roomTypeFilter" class="form-select form-select-sm w-auto py-0 me-2" style="font-size: 0.8rem;" onchange="filterOccupancy()">
-                            <option value="all">All Types</option>
-                            <option value="Single">Single</option>
-                            <option value="4-Bed">4-Bed</option>
-                            <option value="6-Bed">6-Bed</option>
-                        </select>
-                        <input type="text" id="roomSearch" class="form-control form-control-sm w-auto py-0" style="font-size: 0.8rem; width: 120px;" placeholder="Search..." onkeyup="filterOccupancy()">
+            <div class="row g-4 mb-4">
+                <div class="col-lg-8">
+                    <div class="card card-custom h-100">
+                        <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold mb-0 text-dark">
+                                <i class="fas fa-chart-line me-2 text-primary"></i> 
+                                <span id="chartTitle"><?= $is_super ? 'Monthly Earnings' : 'New Bookings' ?></span>
+                                <select class="form-select form-select-sm border-0 fw-bold p-0 ms-1 shadow-none d-inline-block text-muted" style="width: auto; cursor: pointer; background-color: transparent !important;" onchange="window.location.href='?year='+this.value">
+                                    <?php foreach($available_years as $yr): ?>
+                                        <option value="<?= $yr ?>" <?= $yr == $current_year ? 'selected' : '' ?> class="text-dark">(<?= $yr ?>)</option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </h6>
+                            <?php if($is_super): ?>
+                            <select id="chartFilter" class="form-select form-select-sm w-auto bg-light border-0 fw-semibold text-dark shadow-none" onchange="updateChart()">
+                                <option value="earnings">Earnings</option>
+                                <option value="bookings">New Bookings</option>
+                            </select>
+                            <?php endif; ?>
+                        </div>
+                        <div class="card-body" style="position: relative; height: 320px; padding: 1.5rem;">
+                            <canvas id="earningsChart"></canvas>
+                        </div>
                     </div>
-                    <span class="badge bg-success"><?= $total_occupied ?> / <?= $total_capacity ?> Beds</span>
                 </div>
-                <div class="card-body p-3" style="max-height: 400px; overflow-y: auto;">
+
+                <div class="col-lg-4">
+                    <div class="card card-custom h-100">
+                        <div class="card-header card-header-custom">
+                            <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-tasks me-2 text-warning"></i> Action Required</h6>
+                        </div>
+                        <div class="list-group list-group-flush pt-1">
+                            <a href="booking_management.php?status=Pending" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center task-item text-dark">
+                                <div><i class="fas fa-calendar-check me-3 text-muted opacity-75"></i> <span class="fw-medium">Reservations</span></div>
+                                <?php if($pending_count > 0): ?><span class="badge bg-warning text-dark rounded-pill px-2 py-1"><?= $pending_count ?></span><?php else: ?><span class="text-muted small">0</span><?php endif; ?>
+                            </a>
+                            <a href="admin_maintenance.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center task-item text-dark">
+                                <div><i class="fas fa-tools me-3 text-muted opacity-75"></i> <span class="fw-medium">Maintenance</span></div>
+                                <?php if($pending_maint > 0): ?><span class="badge bg-danger rounded-pill px-2 py-1"><?= $pending_maint ?></span><?php else: ?><span class="text-muted small">0</span><?php endif; ?>
+                            </a>
+                            <a href="admin_housekeeping.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center task-item text-dark">
+                                <div><i class="fas fa-broom me-3 text-muted opacity-75"></i> <span class="fw-medium">Housekeeping</span></div>
+                                <?php if($pending_house > 0): ?><span class="badge bg-info text-dark rounded-pill px-2 py-1"><?= $pending_house ?></span><?php else: ?><span class="text-muted small">0</span><?php endif; ?>
+                            </a>
+                             <a href="admin_utilities.php#deletion" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center task-item text-dark border-bottom-0">
+                                <div><i class="fas fa-user-minus me-3 text-muted opacity-75"></i> <span class="fw-medium">Account Deletions</span></div>
+                                <?php if($del_req_count > 0): ?><span class="badge bg-danger rounded-pill px-2 py-1"><?= $del_req_count ?></span><?php else: ?><span class="text-muted small">0</span><?php endif; ?>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-custom mb-4">
+                <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-building me-2 text-success"></i> Room Occupancy</h6>
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3 py-2 fw-bold" style="font-size: 0.8rem;"><?= $total_occupied ?> / <?= $total_capacity ?> Beds Filled</span>
+                </div>
+                <div class="card-body bg-light border-bottom p-3">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-auto col-6">
+                            <select id="floorFilter" class="form-select form-select-sm border-0 shadow-sm fw-medium text-dark" onchange="filterOccupancy()">
+                                <option value="all" selected>All Floors</option>
+                                <option value="2">2nd Floor</option>
+                                <option value="3">3rd Floor</option>
+                                <option value="4">4th Floor</option>
+                                <option value="5">5th Floor</option>
+                                <option value="6">6th Floor</option>
+                                <option value="7">7th Floor</option>
+                            </select>
+                        </div>
+                        <div class="col-md-auto col-6">
+                            <select id="occupancyFilter" class="form-select form-select-sm border-0 shadow-sm fw-medium text-dark" onchange="filterOccupancy()">
+                                <option value="all">All Status</option>
+                                <option value="available">Available Rooms</option>
+                                <option value="full">Fully Booked</option>
+                                <option value="maintenance">Maintenance</option>
+                            </select>
+                        </div>
+                        <div class="col-md-auto col-6">
+                            <select id="roomTypeFilter" class="form-select form-select-sm border-0 shadow-sm fw-medium text-dark" onchange="filterOccupancy()">
+                                <option value="all">All Room Types</option>
+                                <option value="Single">Single Rooms</option>
+                                <option value="4-Bed">4-Bed Dorms</option>
+                                <option value="6-Bed">6-Bed Dorms</option>
+                            </select>
+                        </div>
+                        <div class="col-md col-6 ms-md-auto">
+                            <div class="input-group input-group-sm shadow-sm rounded">
+                                <span class="input-group-text bg-white border-0 text-muted"><i class="fas fa-search"></i></span>
+                                <input type="text" id="roomSearch" class="form-control border-0 shadow-none ps-0 fw-medium" placeholder="Search room..." onkeyup="filterOccupancy()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4" style="max-height: 600px; overflow-y: auto;">
                     <?php foreach($floors_data as $floor => $rooms): ?>
-                    <?php if($floor === 'all') continue; // Skip 'all' key, JavaScript handles combining rooms for "All Floors" view ?>
+                    <?php if($floor === 'all') continue; ?>
                     <div class="floor-group mb-4" data-floor="<?= $floor ?>">
-                        <h6 class="fw-bold text-success mb-3 small text-uppercase border-bottom border-success pb-2 opacity-75">
+                        <h6 class="fw-bold text-success mb-3 small text-uppercase pb-1 opacity-75 letter-spacing-1">
                             <i class="fas fa-layer-group me-2"></i><?= $floor == 2 ? '2nd' : ($floor == 3 ? '3rd' : $floor.'th') ?> Floor
                         </h6>
-                        <div class="row g-2 mb-3">
+                        <div class="row g-3 mb-4">
                             <?php foreach($rooms as $room): ?>
                             <?php 
                                 $status_tag = 'available';
                                 if($room['status'] == 'Maintenance') $status_tag = 'maintenance';
                                 elseif($room['occupied'] >= $room['total']) $status_tag = 'full';
                             ?>
-                            <div class="col-lg-4 col-md-6 room-item" data-status="<?= $status_tag ?>" data-room-type="<?= $room['type'] ?>">
-                                <div class="room-box">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="fw-bold small"><?= $room['display_name'] ?></span>
-                                        <span class="badge bg-light text-dark border" style="font-size: 0.6rem;"><?= $room['type'] ?></span>
+                            <div class="col-xl-3 col-lg-4 col-md-6 room-item" data-status="<?= $status_tag ?>" data-room-type="<?= $room['type'] ?>">
+                                <div class="room-box bg-white p-3 h-100 d-flex flex-column">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold text-dark"><?= $room['display_name'] ?></span>
+                                        <span class="badge bg-light text-muted border px-2" style="font-size: 0.65rem; font-weight: 600;"><?= $room['type'] ?></span>
                                     </div>
                                     <?php if($room['status'] == 'Maintenance'): ?>
-                                        <div class="text-center text-danger small fw-bold"><i class="fas fa-tools"></i> Maintenance</div>
+                                        <div class="text-center text-danger small fw-bold py-3 mt-auto bg-danger bg-opacity-10 rounded"><i class="fas fa-tools mb-1 d-block fs-5"></i> Under Maintenance</div>
                                     <?php else: ?>
                                         <?php 
                                             $percent = ($room['total'] > 0 ? ($room['occupied']/$room['total'])*100 : 0);
@@ -439,22 +474,21 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                                             if($percent >= 100) $bar_color = 'bg-danger';
                                             elseif($percent >= 75) $bar_color = 'bg-warning';
                                         ?>
-                                        <div class="progress mb-2" style="height: 4px;" title="<?= round($percent) ?>% Occupied">
+                                        <div class="progress progress-slim mb-3" title="<?= round($percent) ?>% Occupied">
                                             <div class="progress-bar <?= $bar_color ?>" style="width: <?= $percent ?>%"></div>
                                         </div>
-                                        <div class="d-flex justify-content-between small align-items-center">
-                                            <div>
+                                        <div class="d-flex justify-content-between small align-items-end mt-auto">
+                                            <div class="text-muted">
                                             <?php if($room['type'] == 'Single'): ?>
-                                                <span class="text-muted">Occupied:</span>
-                                                <span class="fw-bold <?= $room['occupied'] > 0 ? 'text-success' : 'text-muted' ?>"><?= $room['occupied'] ?>/<?= $room['total'] ?></span>
+                                                Occupied: <span class="fw-bold <?= $room['occupied'] > 0 ? 'text-dark' : '' ?>"><?= $room['occupied'] ?>/<?= $room['total'] ?></span>
                                             <?php else: ?>
-                                                <span class="bed-badge bg-lower" title="Lower Bunks">L: <b><?= $room['avail_lower'] ?></b> left</span>
-                                                <span class="bed-badge bg-upper" title="Upper Bunks">U: <b><?= $room['avail_upper'] ?></b> left</span>
+                                                <div class="mb-1" title="Lower Bunks">L: <strong class="text-dark"><?= $room['avail_lower'] ?></strong> left</div>
+                                                <div title="Upper Bunks">U: <strong class="text-dark"><?= $room['avail_upper'] ?></strong> left</div>
                                             <?php endif; ?>
                                             </div>
                                             <div>
                                                 <?php if($room['occupied'] < $room['total']): ?>
-                                                    <a href="add_reservation.php?room_type=<?= urlencode($room['type']) ?>" class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" style="font-size: 0.7rem;" title="Quick Book"><i class="fas fa-plus"></i></a>
+                                                    <a href="add_reservation.php?room_type=<?= urlencode($room['type']) ?>" class="btn btn-sm btn-light border text-primary px-2 shadow-none" style="font-size: 0.75rem; font-weight: 600;" title="Quick Book"><i class="fas fa-plus me-1"></i>Book</a>
                                                 <?php endif; ?>
                                             </div>
                                         </div>
@@ -467,114 +501,86 @@ $logs_q = mysqli_query($conn, "SELECT l.*, CONCAT(u.last_name, ', ', u.first_nam
                     <?php endforeach; ?>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Chart & Activity Row -->
-    <div class="row g-4 mb-4">
-        <!-- Monthly Earnings Chart -->
-        <div class="col-md-8">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <span><i class="fas fa-chart-line me-2 text-primary"></i> <span id="chartTitle"><?= $is_super ? 'Monthly Earnings' : 'New Bookings' ?></span> (<?= $current_year ?>)</span>
-                    <?php if($is_super): ?>
-                    <select id="chartFilter" class="form-select form-select-sm w-auto" onchange="updateChart()">
-                        <option value="earnings">Earnings</option>
-                        <option value="bookings">New Bookings</option>
-                    </select>
-                    <?php endif; ?>
-                </div>
-                <div class="card-body">
-                    <canvas id="earningsChart" style="max-height: 300px;"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Activity Feed -->
-        <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-white fw-bold py-3">
-                    <i class="fas fa-history me-2 text-secondary"></i> Recent Activity
-                </div>
-                <div class="list-group list-group-flush" id="activityFeed">
-                    <?php if(mysqli_num_rows($logs_q) > 0): ?>
-                        <?php while($log = mysqli_fetch_assoc($logs_q)): ?>
-                        <div class="list-group-item">
-                            <div class="d-flex w-100 justify-content-between">
-                                <small class="fw-bold text-truncate" style="max-width: 150px;"><?= htmlspecialchars($log['action']) ?></small>
-                                <small class="text-muted" style="font-size: 0.7rem;"><?= date('M d, H:i', strtotime($log['created_at'])) ?></small>
-                            </div>
-                            <p class="mb-1 small text-muted text-truncate"><?= htmlspecialchars($log['details']) ?></p>
-                            <small class="text-primary" style="font-size: 0.7rem;"><i class="fas fa-user-circle me-1"></i> <?= $log['full_name'] ? htmlspecialchars($log['full_name']) : 'System' ?></small>
+            <div class="row g-4 mb-4">
+                <?php if(mysqli_num_rows($expiring_query) > 0): ?>
+                <div class="col-lg-8">
+                    <div class="card card-custom border-danger border-opacity-50 h-100">
+                        <div class="card-header bg-danger bg-opacity-10 border-0 py-3 d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold text-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i> Action Required: Contracts</h6>
+                            <span class="badge bg-danger rounded-pill"><?= mysqli_num_rows($expiring_query) ?> Due</span>
                         </div>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <div class="list-group-item text-center text-muted small py-4">No recent activity.</div>
-                    <?php endif; ?>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0 align-middle">
+                                    <thead class="bg-light text-muted small fw-semibold text-uppercase letter-spacing-1">
+                                        <tr>
+                                            <th class="ps-4">Guest</th>
+                                            <th>End Date</th>
+                                            <th>Status</th>
+                                            <th class="text-end pe-4">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="border-top-0">
+                                        <?php while($exp = mysqli_fetch_assoc($expiring_query)): 
+                                            $days_left = (strtotime($exp['end_date']) - time()) / (60 * 60 * 24);
+                                            $days_left = ceil($days_left);
+                                            $status_text = $days_left < 0 ? "Expired " . abs($days_left) . "d ago" : ($days_left == 0 ? "Expires Today" : "$days_left days left");
+                                            $text_class = $days_left <= 0 ? "text-danger fw-bold" : "text-warning fw-bold text-dark";
+                                            $dnr_alert = $exp['do_not_renew'] ? '<span class="badge bg-danger ms-2" style="font-size:0.65rem;"><i class="fas fa-ban me-1"></i>DNR</span>' : '';
+                                        ?>
+                                        <tr>
+                                            <td class="ps-4">
+                                                <div class="fw-semibold text-dark"><?= htmlspecialchars($exp['full_name']) ?> <?= $dnr_alert ?></div>
+                                                <div class="small text-muted">Room <?= htmlspecialchars($exp['room_number'] ?? $exp['room_name']) ?></div>
+                                            </td>
+                                            <td class="text-muted small"><?= date('M d, Y', strtotime($exp['end_date'])) ?></td>
+                                            <td class="<?= $text_class ?> small"><?= $status_text ?></td>
+                                            <td class="text-end pe-4">
+                                                <div class="btn-group btn-group-sm shadow-sm">
+                                                    <button onclick="renewContract(<?= $exp['reservation_id'] ?>, <?= (int)$exp['do_not_renew'] ?>)" class="btn btn-outline-success fw-semibold bg-white"><i class="fas fa-sync-alt me-1"></i> Renew</button>
+                                                    <a href="booking_management.php?action=terminate&id=<?= $exp['reservation_id'] ?>" class="btn btn-outline-danger fw-semibold bg-white" onclick="confirmAction(event, this.href, 'End this contract? This will mark it as Completed.')"><i class="fas fa-check me-1"></i> End</a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <?php endwhile; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-footer bg-white text-center border-0">
-                    <a href="system_logs.php" class="small text-decoration-none fw-bold">View All Logs &rarr;</a>
+                <?php endif; ?>
+
+                <div class="<?= mysqli_num_rows($expiring_query) > 0 ? 'col-lg-4' : 'col-12' ?>">
+                    <div class="card card-custom h-100">
+                        <div class="card-header card-header-custom">
+                            <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-history me-2 text-secondary"></i> System Logs</h6>
+                        </div>
+                        <div class="list-group list-group-flush p-3 pt-0" id="activityFeed">
+                            <?php if(mysqli_num_rows($logs_q) > 0): ?>
+                                <?php mysqli_data_seek($logs_q, 0); // Reset pointer since we used it for AJAX block above ?>
+                                <?php while($log = mysqli_fetch_assoc($logs_q)): ?>
+                                <div class="list-group-item border-0 border-bottom px-0 py-3">
+                                    <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold text-dark text-truncate" style="max-width: 180px; font-size: 0.85rem;"><?= htmlspecialchars($log['action']) ?></span>
+                                        <small class="text-muted" style="font-size: 0.7rem;"><i class="far fa-clock me-1"></i><?= date('M d, H:i', strtotime($log['created_at'])) ?></small>
+                                    </div>
+                                    <p class="mb-1 text-muted text-truncate" style="font-size: 0.8rem;"><?= htmlspecialchars($log['details']) ?></p>
+                                    <small class="text-primary fw-semibold" style="font-size: 0.7rem;"><i class="fas fa-user-circle me-1"></i> <?= $log['full_name'] ? htmlspecialchars($log['full_name']) : 'System' ?></small>
+                                </div>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <div class="text-center text-muted small py-4">No recent activity.</div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="card-footer bg-transparent text-center border-0 pb-3 pt-0">
+                            <a href="system_logs.php" class="btn btn-light btn-sm w-100 fw-semibold text-muted shadow-sm">View All Logs &rarr;</a>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Expiring Contracts Alert -->
-    <?php if(mysqli_num_rows($expiring_query) > 0): ?>
-    <div class="card border-danger mb-4 shadow-sm card-table overflow-hidden">
-        <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
-            <span><i class="fas fa-exclamation-triangle me-2"></i> Expiring & Expired Contracts (Action Required)</span>
-            <span class="badge bg-white text-danger"><?= mysqli_num_rows($expiring_query) ?></span>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0 align-middle table-borderless">
-                    <thead class="bg-light text-dark">
-                        <tr>
-                            <th>Guest</th>
-                            <th>Room</th>
-                            <th>End Date</th>
-                            <th>Days Left</th>
-                            <th class="text-end">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php while($exp = mysqli_fetch_assoc($expiring_query)): 
-                            $days_left = (strtotime($exp['end_date']) - time()) / (60 * 60 * 24);
-                            $days_left = ceil($days_left);
-                            $status_text = $days_left < 0 ? "Expired " . abs($days_left) . " days ago" : ($days_left == 0 ? "Expires Today" : "$days_left days left");
-                            $text_class = $days_left <= 0 ? "text-danger fw-bold" : "text-warning fw-bold";
-                            $dnr_alert = $exp['do_not_renew'] ? '<span class="badge bg-danger ms-2"><i class="fas fa-ban me-1"></i>Do Not Renew</span>' : '';
-                            // Make room display name consistent with admin_rooms.php
-                            $room_display = $exp['room_name'];
-                            if (!empty($exp['room_number'])) {
-                                $room_display = "Room " . $exp['room_number'];
-                            } elseif (is_numeric($exp['room_name'])) {
-                                $room_display = "Room " . $exp['room_name'];
-                            }
-                        ?>
-                        <tr>
-                            <td class="fw-bold">
-                                <?= htmlspecialchars($exp['full_name']) ?>
-                                <?= $dnr_alert ?>
-                            </td>
-                            <td><?= $exp['end_date'] ?></td>
-                            <td class="<?= $text_class ?>"><?= $status_text ?></td>
-                            <td class="text-end">
-                                <button onclick="renewContract(<?= $exp['reservation_id'] ?>, <?= (int)$exp['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt me-1"></i> Renew</button>
-                                <a href="booking_management.php?action=terminate&id=<?= $exp['reservation_id'] ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract? This will mark it as Completed.')"><i class="fas fa-file-contract me-1"></i> End Contract</a>
-                            </td>
-                        </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
-
-        </div>
-    </div>
         </main>
     </div>
 </div>
@@ -595,7 +601,11 @@ const earningsChart = new Chart(ctx, {
             data: <?= $is_super ? 'earningsData' : 'bookingsData' ?>,
             borderColor: <?= json_encode($is_super ? $theme['primary'] : $theme['accent']) ?>,
             backgroundColor: <?= json_encode($is_super ? 'rgba(46, 125, 50, 0.1)' : 'rgba(251, 192, 45, 0.1)') ?>,
-            borderWidth: 2,
+            borderWidth: 3,
+            pointBackgroundColor: '#ffffff',
+            pointBorderColor: <?= json_encode($is_super ? $theme['primary'] : $theme['accent']) ?>,
+            pointBorderWidth: 2,
+            pointRadius: 4,
             fill: true,
             tension: 0.4
         }]
@@ -604,12 +614,26 @@ const earningsChart = new Chart(ctx, {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { display: false }
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: 'rgba(0,0,0,0.8)',
+                padding: 10,
+                cornerRadius: 8,
+                displayColors: false
+            }
         },
         scales: {
-            y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
-            x: { grid: { display: false } }
-        }
+            y: { 
+                beginAtZero: true, 
+                grid: { borderDash: [4, 4], color: 'rgba(0,0,0,0.05)', drawBorder: false },
+                ticks: { color: '#6c757d', font: {family: 'Poppins'} }
+            },
+            x: { 
+                grid: { display: false, drawBorder: false },
+                ticks: { color: '#6c757d', font: {family: 'Poppins'} }
+            }
+        },
+        interaction: { intersect: false, mode: 'index' }
     }
 });
 
@@ -617,7 +641,8 @@ const earningsChart = new Chart(ctx, {
 Swal.fire({
     title: 'Deleted!',
     text: 'User account has been permanently deleted.',
-    icon: 'success'
+    icon: 'success',
+    confirmButtonColor: '<?= $theme['primary'] ?>'
 });
 <?php endif; ?>
 
@@ -631,12 +656,14 @@ function updateChart() {
         earningsChart.data.datasets[0].label = 'Earnings (\u20B1)';
         earningsChart.data.datasets[0].data = earningsData;
         earningsChart.data.datasets[0].borderColor = <?= json_encode($theme['primary']) ?>;
+        earningsChart.data.datasets[0].pointBorderColor = <?= json_encode($theme['primary']) ?>;
         earningsChart.data.datasets[0].backgroundColor = 'rgba(46, 125, 50, 0.1)';
     } else {
         title.innerText = 'New Bookings';
         earningsChart.data.datasets[0].label = 'Bookings (Count)';
         earningsChart.data.datasets[0].data = bookingsData;
         earningsChart.data.datasets[0].borderColor = <?= json_encode($theme['accent']) ?>;
+        earningsChart.data.datasets[0].pointBorderColor = <?= json_encode($theme['accent']) ?>;
         earningsChart.data.datasets[0].backgroundColor = 'rgba(251, 192, 45, 0.1)';
     }
     earningsChart.update();
@@ -649,8 +676,8 @@ function confirmAction(e, url, msg) {
         text: msg,
         icon: 'question',
         showCancelButton: true,
-        confirmButtonColor: '#2e7d32',
-        cancelButtonColor: '#d33',
+        confirmButtonColor: '<?= $theme['primary'] ?>',
+        cancelButtonColor: '#6c757d',
         confirmButtonText: 'Yes, proceed!'
     }).then((result) => {
         if (result.isConfirmed) window.location.href = url;
@@ -665,7 +692,7 @@ async function renewContract(id, dnr) {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
+            cancelButtonColor: '#6c757d',
             confirmButtonText: 'Yes, Override'
         });
         if (!result.isConfirmed) return;
@@ -682,7 +709,9 @@ async function renewContract(id, dnr) {
             '</div>',
         focusConfirm: false,
         showCancelButton: true,
-        confirmButtonText: 'Renew',
+        confirmButtonColor: '<?= $theme['primary'] ?>',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Renew Contract',
         preConfirm: () => {
             const months = document.getElementById('swal-months').value;
             const desc = document.getElementById('swal-desc').value;
