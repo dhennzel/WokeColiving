@@ -512,9 +512,9 @@ $theme = get_theme_colors($conn);
                 <?php if(mysqli_num_rows($expiring_query) > 0): ?>
                 <div class="col-lg-8">
                     <div class="card card-custom border-danger border-opacity-50 h-100">
-                        <div class="card-header bg-danger bg-opacity-10 border-0 py-3 d-flex justify-content-between align-items-center">
-                            <h6 class="fw-bold text-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i> Action Required: Contracts</h6>
-                            <span class="badge bg-danger rounded-pill"><?= mysqli_num_rows($expiring_query) ?> Due</span>
+                        <div class="card-header bg-danger border-0 py-3 d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold text-white mb-0"><i class="fas fa-exclamation-triangle me-2"></i> Action Required: Contracts</h6>
+                            <span class="badge bg-white text-danger border border-white rounded-pill"><?= mysqli_num_rows($expiring_query) ?> Due</span>
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
