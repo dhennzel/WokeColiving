@@ -297,16 +297,17 @@ $theme = get_theme_colors($conn);
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="admin.css">
     <style>
-        .user-card { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; }
-        .table th { background-color: var(--primary-green); color: white; font-weight: 500; border: none; }
+        .user-card { border: 1px solid var(--border-color); border-radius: var(--radius-lg, 16px); box-shadow: var(--shadow-sm); background: var(--bg-surface); }
+        .table th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; border-bottom: 2px solid var(--border-color); background-color: transparent !important; }
         .nav-tabs .nav-link { color: var(--dark-green); border: none; border-bottom: 3px solid transparent; padding-bottom: 10px; }
         .nav-tabs .nav-link.active { color: var(--primary-green); border-bottom: 3px solid var(--primary-green); background: transparent; font-weight: bold; }
         .nav-tabs .nav-link:hover { border-color: transparent; color: var(--primary-green); }
-        .profile-header { background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+        .profile-header { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg, 16px); box-shadow: var(--shadow-sm); transition: transform var(--transition-speed); }
+        .profile-header:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
         .avatar-circle { width: 80px; height: 80px; font-size: 2rem; background-color: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         
         /* Room Selection Modal Styles */
-        .card-room-select { cursor: pointer; transition: all 0.2s; border: 2px solid transparent; overflow: hidden; }
+        .card-room-select { cursor: pointer; transition: all 0.2s; border: 2px solid var(--border-color); border-radius: var(--radius-md, 12px); overflow: hidden; background: var(--bg-surface); }
         .card-room-select:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         .card-room-select.selected { border-color: var(--primary-green); background-color: #e8f5e9; }
         .card-room-select img { height: 120px; object-fit: cover; width: 100%; }
@@ -323,7 +324,7 @@ $theme = get_theme_colors($conn);
             </div>
             
             <!-- Minimal Profile Header -->
-            <div class="profile-header p-4 mb-4 d-flex flex-wrap align-items-center gap-4">
+            <div class="profile-header p-4 mb-4 d-flex flex-wrap align-items-center gap-4 card-custom">
                 <div class="position-relative">
                     <div class="avatar-circle">
                         <?php if(!empty($user['profile_image'])): ?>

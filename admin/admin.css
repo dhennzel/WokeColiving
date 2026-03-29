@@ -2,30 +2,69 @@
 @import url('admin_night_mode.css');
 
 :root {
-    /* FIXED: Added missing dark green variable for 3D buttons and headers */
-    --dark-green: #34B875; 
-
-    /* Color Palette Extracted from Logo */
-    --primary-green: #34B875; /* Vibrant Teal-Green */
-    --accent-yellow: #F0B429; /* Softer, warmer gold */
+    /* Core Hotel Palette */
+    --primary-green: #34B875;
+    --primary-hover: #2A9A60;
+    --accent-yellow: #F0B429;
+    --accent-hover: #D9A020;
+    --danger-color: #e53935;
+    --info-color: #0288d1;
     
-    /* Strict Interactive Color System */
-    --color-green: #34B875;
-    --color-yellow: #F0B429;
-    --text-on-yellow: #1A1D20; /* Dark, highly readable text */
-    --text-on-green: #FFFFFF;  /* White text for contrast */
-
-    --bg-light: #F8F9FA; /* Soft off-white */
-    --bg-white: #FFFFFF; /* Pure White */
-    --text-dark: #333333; /* Dark Charcoal */
+    /* Light Mode - Base & Surfaces */
+    --bg-body: #F8F9FA;
+    --bg-surface: #FFFFFF;
+    --bg-surface-hover: #F0F2F5;
+    
+    /* Light Mode - Text & Borders */
+    --text-main: #333333;
     --text-muted: #6c757d;
+    --border-color: #EAECEE;
     
-    --sidebar-width: 260px;
+    /* Layout Elements */
+    --sidebar-bg: #FFFFFF;
+    --sidebar-text: #6c757d;
+    --sidebar-hover-bg: #F8F9FA;
+    --sidebar-hover-text: #34B875;
+    --sidebar-active-bg: rgba(52, 184, 117, 0.1);
+    --sidebar-active-text: #34B875;
+    --topbar-bg: #FFFFFF;
+    
+    /* UI Characteristics */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-pill: 50px;
+    
+    --shadow-sm: 0 4px 15px rgba(0, 0, 0, 0.03);
+    --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.06);
+    --shadow-hover: 0 15px 35px rgba(52, 184, 117, 0.15);
+    --transition-speed: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    
+    --sidebar-width: 280px;
     --sidebar-collapsed-width: 80px;
+}
+
+body.night-mode {
+    /* Dark Mode Variables */
+    --bg-body: #121212;
+    --bg-surface: #1E1E1E;
+    --bg-surface-hover: #2C2C2C;
+    --text-main: #EAEAEA;
+    --text-muted: #A0A0A0;
+    --border-color: #333333;
     
-    --transition-speed: 0.3s;
-    --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 5px 20px rgba(0, 0, 0, 0.08);
+    --sidebar-bg: #1A1D20;
+    --sidebar-text: #A0A0A0;
+    --sidebar-hover-bg: #2C2C2C;
+    --sidebar-hover-text: #34B875;
+    --sidebar-active-bg: rgba(52, 184, 117, 0.15);
+    --sidebar-active-text: #34B875;
+    --topbar-bg: #1A1D20;
+    
+    /* Adjusted Shadows */
+    --shadow-sm: 0 4px 15px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.4);
+    --shadow-hover: 0 15px 35px rgba(52, 184, 117, 0.2);
 }
 
 /* Base Styles */
@@ -37,8 +76,8 @@
 }
 
 body {
-    background-color: var(--bg-light);
-    color: var(--text-dark);
+    background-color: var(--bg-body);
+    color: var(--text-main);
     overflow-x: hidden;
     transition: background-color 0.4s ease, color 0.4s ease;
 }
@@ -57,11 +96,12 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 /* Sidebar */
 .sidebar {
     width: var(--sidebar-width);
-    background-color: var(--primary-green);
-    color: var(--bg-white);
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.4s ease, border-color 0.4s ease;
+    transition: width var(--transition-speed), background-color 0.4s ease, border-color 0.4s ease;
     z-index: 100;
 }
 
@@ -74,7 +114,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     display: flex;
     align-items: center;
     padding: 0 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--border-color);
     white-space: nowrap;
     overflow: hidden;
 }
@@ -82,8 +122,8 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 .logo-placeholder {
     width: 40px;
     height: 40px;
-    background-color: var(--bg-white);
-    color: var(--primary-green);
+    background-color: var(--primary-green);
+    color: #FFFFFF;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -92,7 +132,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     flex-shrink: 0;
     margin-right: 15px;
     cursor: pointer;
-    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), margin-right 0.3s ease;
+    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), margin-right 0.3s ease, background-color 0.3s;
 }
 
 .sidebar.collapsed .logo-placeholder {
@@ -103,6 +143,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 .brand-name {
     font-weight: 700;
     font-size: 1.2rem;
+    color: var(--text-main);
     letter-spacing: 0.5px;
     transition: opacity 0.3s ease, width 0.3s ease;
     white-space: nowrap;
@@ -130,14 +171,14 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 .nav-item {
     display: flex;
     align-items: center;
-    padding: 15px 20px;
-    color: rgba(255, 255, 255, 0.8);
+    padding: 12px 16px;
+    color: var(--sidebar-text);
     text-decoration: none;
-    transition: all var(--transition-speed) ease;
+    transition: all var(--transition-speed);
     white-space: nowrap;
     position: relative;
-    border-radius: 0 50rem 50rem 0; /* Pill shape on the right */
-    margin-right: 15px; /* Margin to show the pill shape */
+    border-radius: var(--radius-md);
+    margin: 4px 15px;
 }
 
 .nav-item span {
@@ -163,15 +204,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 }
 
 .nav-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: var(--bg-white);
+    background-color: var(--sidebar-hover-bg);
+    color: var(--sidebar-hover-text);
 }
 
 .nav-item.active {
-    color: var(--primary-green);
-    background-color: var(--bg-white);
+    color: var(--sidebar-active-text);
+    background-color: var(--sidebar-active-bg);
     font-weight: 600;
-    border-left: 4px solid var(--primary-green); /* Changed to left border for better pill shape balance */
+    border-left: none;
 }
 
 .sidebar.collapsed .nav-item span {
@@ -232,13 +273,13 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 /* Top Navbar */
 .top-navbar {
     height: 70px;
-    background-color: var(--bg-white);
-    border-bottom: 2px solid var(--primary-green);
+    background-color: var(--topbar-bg);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 30px;
-    box-shadow: var(--shadow-sm);
+    box-shadow: none;
     z-index: 1020;
     position: sticky;
     top: 0;
@@ -308,9 +349,9 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 }
 
 .top-navbar.hidden-navbar .navbar-right {
-    background-color: var(--bg-white);
+    background-color: var(--topbar-bg);
     box-shadow: var(--shadow-md);
-    border-color: rgba(0, 0, 0, 0.05);
+    border-color: var(--border-color);
     transform: translateY(80px); /* Drops it visually onto the content */
 }
 
@@ -330,18 +371,18 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 .search-bar {
     display: flex;
     align-items: center;
-    background-color: var(--bg-light);
-    border-radius: 50rem; /* Pill shape */
+    background-color: var(--bg-surface-hover);
+    border-radius: var(--radius-pill); /* Pill shape */
     padding: 8px 15px;
     width: 300px;
-    border: 1px solid transparent;
+    border: 1px solid var(--border-color);
     transition: all 0.3s ease;
 }
 
 .search-bar:focus-within {
     border-color: var(--primary-green);
     box-shadow: 0 0 0 0.2rem rgba(52, 184, 117, 0.25); /* Subtle outline */
-    width: 400px; /* Expand smoothly */
+    width: 350px; /* Expand smoothly */
 }
 
 .search-bar i {
@@ -354,7 +395,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     background: none;
     outline: none;
     width: 100%;
-    color: var(--text-dark);
+    color: var(--text-main);
 }
 
 .notification-btn {
@@ -402,9 +443,9 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 /* Expanded State (On Click) */
 .profile-toggle.expanded {
     max-width: 350px; /* Increased to fit name + bell */
-    background: var(--bg-white);
+    background: var(--bg-surface);
     box-shadow: var(--shadow-sm);
-    border-color: rgba(0,0,0,0.1);
+    border-color: var(--border-color);
     padding-right: 15px; /* Space for arrow */
     gap: 10px;
 }
@@ -439,7 +480,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 .profile-name {
     font-weight: 500;
     font-size: 0.9rem;
-    color: var(--text-dark);
+    color: var(--text-main);
     white-space: nowrap;
 }
 
@@ -455,7 +496,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     transition: background 0.2s;
 }
 .notif-wrapper:hover {
-    background-color: rgba(0,0,0,0.05);
+    background-color: var(--bg-surface-hover);
     color: var(--primary-green);
 }
 .notif-badge {
@@ -475,9 +516,10 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     position: absolute;
     top: 100%;
     right: 0;
-    background: var(--bg-white);
+    background: var(--bg-surface);
     box-shadow: var(--shadow-md);
     border-radius: 8px;
+    border: 1px solid var(--border-color);
     width: 150px;
     margin-top: 15px;
     display: none;
@@ -492,13 +534,13 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 .dropdown-menu a {
     padding: 12px 15px;
     text-decoration: none;
-    color: var(--text-dark);
+    color: var(--text-main);
     font-size: 0.9rem;
     transition: background 0.2s;
 }
 
 .dropdown-menu a:hover {
-    background-color: var(--bg-light);
+    background-color: var(--bg-surface-hover);
     color: var(--primary-green);
 }
 
@@ -518,13 +560,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 
 .page-header h1 {
     font-size: 1.8rem;
-    color: var(--text-dark);
+    color: var(--text-main);
+    font-weight: 700;
+    letter-spacing: -0.5px;
 }
 
 /* Buttons */
 .btn {
     padding: 10px 20px;
-    border-radius: 50px;
+    border-radius: var(--radius-pill);
     font-weight: 600;
     font-size: 0.9rem;
     cursor: pointer;
@@ -543,15 +587,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     background-color: var(--primary-green) !important;
     color: #FFF !important;
     border: none !important;
-    border-radius: 50px !important;
-    box-shadow: 0 4px 10px rgba(52, 184, 117, 0.1) !important;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    border-radius: var(--radius-pill) !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: all var(--transition-speed) !important;
     text-transform: none !important;
 }
 .btn-custom:hover, .btn-primary:hover, .btn-success:hover {
-    background-color: #2A9A60 !important;
+    background-color: var(--primary-hover) !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 15px rgba(52, 184, 117, 0.3) !important;
+    box-shadow: var(--shadow-hover) !important;
     color: #FFF !important;
 }
 .btn-custom:active, .btn-primary:active, .btn-success:active {
@@ -563,15 +607,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     background-color: var(--accent-yellow) !important;
     color: #1A202C !important;
     border: none !important;
-    border-radius: 50px !important;
+    border-radius: var(--radius-pill) !important;
     box-shadow: none !important;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    transition: all var(--transition-speed) !important;
     text-transform: none !important;
 }
 .btn-warning:hover, .btn-accent:hover {
-    background-color: #D9A020 !important;
+    background-color: var(--accent-hover) !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 4px 10px rgba(240, 180, 41, 0.3) !important;
+    box-shadow: var(--shadow-sm) !important;
     color: #1A202C !important;
 }
 .btn-warning:active, .btn-accent:active {
@@ -582,15 +626,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     background-color: #e53935 !important;
     color: #ffffff !important;
     border: none !important;
-    border-radius: 50px !important;
-    box-shadow: 0 4px 10px rgba(229, 57, 53, 0.1) !important;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    border-radius: var(--radius-pill) !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: all var(--transition-speed) !important;
     text-transform: none !important;
 }
 .btn-danger:hover {
     background-color: #c62828 !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 15px rgba(229, 57, 53, 0.3) !important;
+    box-shadow: var(--shadow-md) !important;
     color: #ffffff !important;
 }
 .btn-danger:active {
@@ -602,9 +646,9 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     background-color: #ECF0F1 !important;
     color: #7F8C8D !important;
     border: none !important;
-    border-radius: 50px !important;
+    border-radius: var(--radius-pill) !important;
     box-shadow: none !important;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    transition: all var(--transition-speed) !important;
     text-transform: none !important;
 }
 .btn-secondary:hover, .btn-secondary-custom:hover {
@@ -621,15 +665,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     border: 2px solid var(--primary-green) !important;
     background: transparent !important;
     box-shadow: none !important;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-    border-radius: 50px !important;
+    transition: all var(--transition-speed) !important;
+    border-radius: var(--radius-pill) !important;
     text-transform: none !important;
 }
 .btn-outline-primary:hover, .btn-outline-success:hover {
     background-color: var(--primary-green) !important;
     color: #ffffff !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 15px rgba(52, 184, 117, 0.3) !important;
+    box-shadow: var(--shadow-hover) !important;
 }
 
 .btn-outline-danger {
@@ -637,15 +681,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     border: 2px solid #d32f2f !important;
     background: transparent !important;
     box-shadow: none !important;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-    border-radius: 50px !important;
+    transition: all var(--transition-speed) !important;
+    border-radius: var(--radius-pill) !important;
     text-transform: none !important;
 }
 .btn-outline-danger:hover {
     background-color: #d32f2f !important;
     color: #ffffff !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 15px rgba(211, 47, 47, 0.3) !important;
+    box-shadow: var(--shadow-md) !important;
 }
 
 .btn-outline-warning {
@@ -653,15 +697,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     border: 2px solid var(--accent-yellow) !important;
     background: transparent !important;
     box-shadow: none !important;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-    border-radius: 50px !important;
+    transition: all var(--transition-speed) !important;
+    border-radius: var(--radius-pill) !important;
     text-transform: none !important;
 }
 .btn-outline-warning:hover {
     background-color: var(--accent-yellow) !important;
     color: #1A202C !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 15px rgba(240, 180, 41, 0.3) !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 
 .btn-outline-secondary {
@@ -669,15 +713,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     border: 2px solid #7F8C8D !important;
     background: transparent !important;
     box-shadow: none !important;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-    border-radius: 50px !important;
+    transition: all var(--transition-speed) !important;
+    border-radius: var(--radius-pill) !important;
     text-transform: none !important;
 }
 .btn-outline-secondary:hover {
     background-color: #7F8C8D !important;
     color: #ffffff !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 15px rgba(127, 140, 141, 0.3) !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 
 .btn-sm {
@@ -691,7 +735,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     height: 40px;
     border-radius: 50%;
     background-color: var(--primary-green);
-    color: var(--bg-white);
+    color: #FFFFFF;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -710,14 +754,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 }
 
 .summary-card {
-    background: var(--bg-white);
-    border-radius: 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
     padding: 25px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     box-shadow: var(--shadow-sm);
-    transition: transform 0.2s;
+    transition: all var(--transition-speed);
 }
 
 .summary-card:hover {
@@ -737,7 +782,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     font-size: 2rem;
     font-weight: 700;
     margin-top: 5px;
-    color: var(--text-dark);
+    color: var(--text-main);
 }
 
 .card-icon {
@@ -754,8 +799,9 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 
 /* Data Table */
 .data-section {
-    background: var(--bg-white);
-    border-radius: 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
     padding: 25px;
     box-shadow: var(--shadow-sm);
 }
@@ -783,7 +829,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 .data-table th, .data-table td {
     padding: 15px;
     text-align: left;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .data-table th {
@@ -804,36 +850,42 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 }
 
 .data-table tbody tr:hover {
-    background-color: #2DC08F22; /* 22 opacity hex for slight transparency */
+    background-color: var(--bg-surface-hover); 
+    color: var(--text-main);
 }
 
 /* Status Badges */
 .status-badge {
     padding: 6px 12px;
-    border-radius: 20px;
+    border-radius: var(--radius-pill);
     font-size: 0.8rem;
     font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
 }
 
 .status-active, .status-available, .status-approved, .status-online {
-    background-color: var(--color-green);
-    color: var(--text-on-green);
+    background-color: rgba(52, 184, 117, 0.1);
+    color: var(--primary-green);
+    border: 1px solid rgba(52, 184, 117, 0.2);
 }
 
 .status-pending, .status-maintenance {
-    background-color: var(--color-yellow);
-    color: var(--text-on-yellow);
+    background-color: rgba(240, 180, 41, 0.1);
+    color: var(--accent-hover);
+    border: 1px solid rgba(240, 180, 41, 0.2);
 }
 
-/* FIXED: ADDED THESE NEW MISSING STATUSES */
 .status-cancelled, .status-declined, .status-failed {
-    background-color: #d32f2f; /* Red */
-    color: #ffffff;
+    background-color: rgba(229, 57, 53, 0.1);
+    color: var(--danger-color);
+    border: 1px solid rgba(229, 57, 53, 0.2);
 }
 
 .status-paid, .status-payment, .status-completed {
-    background-color: #0288d1; /* Blue */
-    color: #ffffff;
+    background-color: rgba(2, 136, 209, 0.1); 
+    color: var(--info-color);
+    border: 1px solid rgba(2, 136, 209, 0.2);
 }
 
 /* Ensure Bootstrap badges retain theme colors on statuses */
@@ -866,8 +918,55 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 }
 
 .modal-content {
-    background: var(--bg-white);
-    border: none;
-    border-radius: 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
+    color: var(--text-main);
 }
+
+/* --- Bootstrap Utilities Fix for Light/Dark Contexts --- */
+.card, .card-custom {
+    background-color: var(--bg-surface);
+    border-color: var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-main);
+}
+.card-header {
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+}
+.bg-white, .bg-light {
+    background-color: var(--bg-surface) !important;
+}
+body.night-mode .bg-light {
+    background-color: var(--bg-surface-hover) !important;
+}
+.text-dark { color: var(--text-main) !important; }
+.text-muted { color: var(--text-muted) !important; }
+.border, .border-bottom, .border-top { border-color: var(--border-color) !important; }
+
+.table { color: var(--text-main); border-color: var(--border-color); }
+.table-light th, .table-light td {
+    background-color: var(--bg-surface-hover) !important;
+    color: var(--text-main) !important;
+    border-color: var(--border-color) !important;
+}
+body.night-mode .table-hover tbody tr:hover td {
+    background-color: var(--bg-surface-hover) !important;
+    color: var(--text-main) !important;
+}
+body.night-mode .form-control, body.night-mode .form-select {
+    background-color: var(--bg-surface-hover);
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+body.night-mode .form-control:focus, body.night-mode .form-select:focus {
+    background-color: var(--bg-surface);
+    border-color: var(--primary-green);
+    color: var(--text-main);
+}
+.modal-header, .modal-footer { border-color: var(--border-color); }
+.dropdown-item { color: var(--text-main); }
+.dropdown-item:hover { background-color: var(--bg-surface-hover); color: var(--primary-green); }

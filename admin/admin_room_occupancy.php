@@ -100,21 +100,24 @@ $theme = get_theme_colors($conn);
     <link rel="stylesheet" href="admin.css">
     <style>
         .card-room {
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
+                border: 1px solid var(--border-color);
+                border-radius: var(--radius-lg, 16px);
             overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
+                transition: all var(--transition-speed);
             cursor: pointer;
-            background: white;
+                background: var(--bg-surface);
+                box-shadow: var(--shadow-sm);
         }
         .card-room:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+                transform: translateY(-4px);
+                box-shadow: var(--shadow-hover);
+                border-color: var(--primary-green);
         }
         .card-room img {
             width: 100%;
-            height: 140px;
+                height: 180px;
             object-fit: cover;
+                border-bottom: 1px solid var(--border-color);
         }
         .card-room-summary {
             cursor: pointer;
@@ -122,20 +125,24 @@ $theme = get_theme_colors($conn);
         
         .occupant-card {
             border-left: 4px solid var(--primary-green);
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 12px;
+            background: var(--bg-surface-hover);
+            border-radius: var(--radius-md, 12px);
+            padding: 15px;
             margin-bottom: 10px;
+            color: var(--text-main);
+
         }
         .occupant-card.pending {
             border-left-color: #ffc107;
-            background: #fff8e1;
+            background: rgba(240, 180, 41, 0.1);
         }
         
         .room-header {
-            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
-            color: white;
-            border-radius: 12px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            color: var(--text-main);
+            border-radius: var(--radius-md, 12px);
             padding: 15px 20px;
             margin-bottom: 20px;
         }
