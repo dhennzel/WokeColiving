@@ -56,7 +56,12 @@ if(isset($_POST['update_prices'])){
         'price_6bed_whole' => $_POST['price_6bed_whole'],
         'price_6bed_upper_long' => $_POST['price_6bed_upper_long'],
         'price_6bed_lower_long' => $_POST['price_6bed_lower_long'],
-        'price_6bed_whole_long' => $_POST['price_6bed_whole_long']
+        'price_6bed_whole_long' => $_POST['price_6bed_whole_long'],
+        'price_single_daily' => $_POST['price_single_daily'],
+        'price_4bed_daily_bed' => $_POST['price_4bed_daily_bed'],
+        'price_4bed_daily_room' => $_POST['price_4bed_daily_room'],
+        'price_6bed_daily_bed' => $_POST['price_6bed_daily_bed'],
+        'price_6bed_daily_room' => $_POST['price_6bed_daily_room']
     ];
     
     foreach($prices as $key => $val){
@@ -66,12 +71,13 @@ if(isset($_POST['update_prices'])){
 
     // Bulk Update Existing Rooms to reflect new default prices
     // Single Room
-    mysqli_query($conn, "UPDATE rooms SET total_price='{$prices['price_single']}', long_term_price_whole='{$prices['price_single_long']}' WHERE room_type='Single'");
+    mysqli_query($conn, "UPDATE rooms SET total_price='{$prices['price_single']}', long_term_price_whole='{$prices['price_single_long']}', daily_price_room='{$prices['price_single_daily']}', daily_price_bed='{$prices['price_single_daily']}' WHERE room_type='Single'");
     
     // 4-Bed Dorm
     mysqli_query($conn, "UPDATE rooms SET 
         price_upper='{$prices['price_4bed_upper']}', price_lower='{$prices['price_4bed_lower']}', price_whole='{$prices['price_4bed_whole']}',
         long_term_price_upper='{$prices['price_4bed_upper_long']}', long_term_price_lower='{$prices['price_4bed_lower_long']}', long_term_price_whole='{$prices['price_4bed_whole_long']}',
+        daily_price_bed='{$prices['price_4bed_daily_bed']}', daily_price_room='{$prices['price_4bed_daily_room']}',
         total_price='{$prices['price_4bed_lower']}'
         WHERE room_type='4-Bed'");
 
@@ -79,6 +85,7 @@ if(isset($_POST['update_prices'])){
     mysqli_query($conn, "UPDATE rooms SET 
         price_upper='{$prices['price_6bed_upper']}', price_lower='{$prices['price_6bed_lower']}', price_whole='{$prices['price_6bed_whole']}',
         long_term_price_upper='{$prices['price_6bed_upper_long']}', long_term_price_lower='{$prices['price_6bed_lower_long']}', long_term_price_whole='{$prices['price_6bed_whole_long']}',
+        daily_price_bed='{$prices['price_6bed_daily_bed']}', daily_price_room='{$prices['price_6bed_daily_room']}',
         total_price='{$prices['price_6bed_lower']}'
         WHERE room_type='6-Bed'");
 
@@ -119,11 +126,13 @@ if(isset($_POST['save_room_order'])){
 
 // Fetch current prices for modal
 $default_prices = [
-    'price_single' => 14000, 'price_single_long' => 13000,
+    'price_single' => 14000, 'price_single_long' => 13000, 'price_single_daily' => 1200,
     'price_4bed_upper' => 4200, 'price_4bed_lower' => 4700, 'price_4bed_whole' => 18000,
     'price_4bed_upper_long' => 4000, 'price_4bed_lower_long' => 4500, 'price_4bed_whole_long' => 17000,
+    'price_4bed_daily_bed' => 700, 'price_4bed_daily_room' => 2500,
     'price_6bed_upper' => 3750, 'price_6bed_lower' => 4500, 'price_6bed_whole' => 25000,
-    'price_6bed_upper_long' => 3500, 'price_6bed_lower_long' => 4200, 'price_6bed_whole_long' => 24000
+    'price_6bed_upper_long' => 3500, 'price_6bed_lower_long' => 4200, 'price_6bed_whole_long' => 24000,
+    'price_6bed_daily_bed' => 600, 'price_6bed_daily_room' => 3500
 ];
 $q_prices = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key LIKE 'price_%'");
 while($row = mysqli_fetch_assoc($q_prices)){ $default_prices[$row['setting_key']] = (float)$row['setting_value']; }
@@ -208,6 +217,8 @@ $theme = get_theme_colors($conn);
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="admin.css">
+    
+    <link href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-dark@4/dark.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -468,17 +479,17 @@ $theme = get_theme_colors($conn);
 
 <div class="modal fade" id="priceSettingsModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="fas fa-tags me-2"></i>Default Room Prices</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST">
+        <form method="POST" class="w-100">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-tags me-2"></i>Default Room Prices</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                
                 <div class="modal-body">
                     <p class="text-muted small mb-4">Set the default prices for new rooms. These values will be auto-filled when adding a room.</p>
                     
                     <div class="row g-4">
-                        <!-- Single Room -->
                         <div class="col-lg-4">
                             <div class="card h-100 border shadow-sm">
                                 <img src="../assets/images/<?= $type_images['Single'] ?>" class="card-img-top" style="height: 150px; object-fit: cover;">
@@ -492,11 +503,14 @@ $theme = get_theme_colors($conn);
                                         <label class="form-label small fw-bold">Long Term (6mo+)</label>
                                         <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single_long" class="form-control" value="<?= $default_prices['price_single_long'] ?>" required></div>
                                     </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Daily Price</label>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single_daily" class="form-control" value="<?= $default_prices['price_single_daily'] ?>" required></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 4-Bed Dorm -->
                         <div class="col-lg-4">
                             <div class="card h-100 border shadow-sm">
                                 <img src="../assets/images/<?= $type_images['4-Bed'] ?>" class="card-img-top" style="height: 150px; object-fit: cover;">
@@ -516,11 +530,16 @@ $theme = get_theme_colors($conn);
                                         <div class="col-6"><label class="small">Lower</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_lower_long" class="form-control" value="<?= $default_prices['price_4bed_lower_long'] ?>" required></div></div>
                                         <div class="col-12"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_whole_long" class="form-control" value="<?= $default_prices['price_4bed_whole_long'] ?>" required></div></div>
                                     </div>
+
+                                    <h6 class="small fw-bold text-muted border-bottom pb-1 mb-2 mt-3">Daily Rates</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6"><label class="small">Per Bed</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_daily_bed" class="form-control" value="<?= $default_prices['price_4bed_daily_bed'] ?>" required></div></div>
+                                        <div class="col-6"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_daily_room" class="form-control" value="<?= $default_prices['price_4bed_daily_room'] ?>" required></div></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 6-Bed Dorm -->
                         <div class="col-lg-4">
                             <div class="card h-100 border shadow-sm">
                                 <img src="../assets/images/<?= $type_images['6-Bed'] ?>" class="card-img-top" style="height: 150px; object-fit: cover;">
@@ -540,6 +559,12 @@ $theme = get_theme_colors($conn);
                                         <div class="col-6"><label class="small">Lower</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_lower_long" class="form-control" value="<?= $default_prices['price_6bed_lower_long'] ?>" required></div></div>
                                         <div class="col-12"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_whole_long" class="form-control" value="<?= $default_prices['price_6bed_whole_long'] ?>" required></div></div>
                                     </div>
+
+                                    <h6 class="small fw-bold text-muted border-bottom pb-1 mb-2 mt-3">Daily Rates</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6"><label class="small">Per Bed</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_daily_bed" class="form-control" value="<?= $default_prices['price_6bed_daily_bed'] ?>" required></div></div>
+                                        <div class="col-6"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_daily_room" class="form-control" value="<?= $default_prices['price_6bed_daily_room'] ?>" required></div></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -549,8 +574,8 @@ $theme = get_theme_colors($conn);
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="submit" name="update_prices" class="btn btn-success">Save Prices</button>
                 </div>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 </div>
 
