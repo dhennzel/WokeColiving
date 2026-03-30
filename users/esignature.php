@@ -49,6 +49,7 @@ if(isset($_POST['signature_data'])){
         canvas { border: 2px dashed #ccc; cursor: crosshair; background: #fff; }
 
         /* Night Mode Styles */
+        body.theme-transition { transition: background-color 0.3s ease, color 0.3s ease; }
         body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
         body.night-mode .card { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
         body.night-mode .text-muted { color: #b0b0b0 !important; }
@@ -60,6 +61,13 @@ if(isset($_POST['signature_data'])){
     </style>
 </head>
 <body class="bg-light <?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
+<script>
+    (function() {
+        const currentUserId = "<?= $_SESSION['user_id'] ?? '' ?>";
+        const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
+        if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
+    })();
+</script>
     <div class="container mt-5">
         <div class="card shadow-sm p-4 mx-auto" style="max-width: 600px;">
             <h3 class="text-center mb-3">Sign Your Lease</h3>

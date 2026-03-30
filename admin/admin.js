@@ -63,24 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Profile Dropdown Logic ---
-    const profileToggle = document.getElementById('profileToggle');
-    const profileMenu = document.getElementById('profileMenu');
-    
-    if (profileToggle && profileMenu) {
-        profileToggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            profileMenu.classList.toggle('show');
-        });
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!profileToggle.contains(e.target) && !profileMenu.contains(e.target)) {
-                profileMenu.classList.remove('show');
-            }
-        });
-    }
-
     // --- Admin Night Mode Toggle ---
     const adminNightModeToggle = document.getElementById('adminNightModeToggle');
     const adminUser = window.currentAdminUser || 'admin';
@@ -94,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (adminNightModeToggle) {
         adminNightModeToggle.addEventListener('click', (e) => {
             e.preventDefault();
+            document.body.classList.add('theme-transition');
             document.body.classList.toggle('night-mode');
             const isNight = document.body.classList.contains('night-mode');
             localStorage.setItem(nightModeKey, isNight ? 'enabled' : 'disabled');

@@ -425,6 +425,8 @@ $theme = get_theme_colors($conn);
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="Admin_JS/add_reservation.js"></script>
     <link rel="stylesheet" href="admin.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
     <style>
         :root {
             --primary-green: <?= $theme['primary'] ?>;
@@ -609,7 +611,6 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
-<!-- Room Selection Modal -->
 <div class="modal fade" id="roomSelectionModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
@@ -676,9 +677,26 @@ $theme = get_theme_colors($conn);
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="admin.js"></script>
 <script>
 const roomPrices = <?= json_encode($room_prices_js) ?>;
+
+// Initialize Select2 for the user dropdown
+$(document).ready(function() {
+    $('#existing_user_id').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Choose User --',
+        width: '100%',
+        allowClear: true
+    });
+    
+    // Ensure Select2 triggers the onchange event properly
+    $('#existing_user_id').on('select2:select', function (e) {
+        checkAvailability();
+    });
+});
 
 function toggleUserSection() {
     if(document.getElementById('type_new').checked) {

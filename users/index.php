@@ -189,6 +189,7 @@ if(isset($_SESSION['user_id'])){
         .scroll-top-btn:hover { background: rgba(42, 154, 96, 0.9); transform: translateY(-5px); box-shadow: 0 8px 25px rgba(52, 184, 117, 0.3); color: white; }
 
         /* Night Mode Styles */
+        body.theme-transition { transition: background-color 0.3s ease, color 0.3s ease; }
         body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
         body.night-mode .navbar.scrolled { background: rgba(30, 30, 30, 0.95) !important; border-bottom: 2px solid var(--primary-green) !important; }
         body.night-mode .navbar.scrolled .nav-link, body.night-mode .navbar.scrolled .navbar-brand { color: #34B875 !important; }
@@ -213,6 +214,13 @@ if(isset($_SESSION['user_id'])){
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
+<script>
+    (function() {
+        const currentUserId = "<?= $_SESSION['user_id'] ?? '' ?>";
+        const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
+        if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
+    })();
+</script>
 
 <!-- NAVBAR -->
 <nav class="navbar navbar-expand-lg navbar-dark fixed-top">

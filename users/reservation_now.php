@@ -558,33 +558,86 @@ if (isset($_POST['confirm_booking'])) {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="users_CSS/app.css">
     <style>
-        /* Night Mode Styles */
-        body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
-        body.night-mode .navbar-user { background: #1f1f1f !important; border-bottom: 1px solid #333 !important; }
-        body.night-mode .card, body.night-mode .card-custom { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
-        body.night-mode .card-header { background-color: #2c2c2c !important; border-bottom-color: #333 !important; }
-        body.night-mode .form-control, body.night-mode .form-select { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-color: #444 !important; }
-        body.night-mode .form-control:focus, body.night-mode .form-select:focus { background-color: #333 !important; color: #fff !important; border-color: var(--primary-green) !important; }
-        body.night-mode .bg-light, body.night-mode .bg-white { background-color: #2c2c2c !important; color: #e0e0e0 !important; }
-        body.night-mode .text-dark { color: #e0e0e0 !important; }
-        body.night-mode .text-muted { color: #b0b0b0 !important; }
-        body.night-mode .border, body.night-mode .border-bottom, body.night-mode .border-top { border-color: #444 !important; }
-        body.night-mode .form-control[readonly] { background-color: #1a1a1a !important; color: #888 !important; border-color: #333 !important; }
-        body.night-mode .form-check-label { color: #e0e0e0 !important; }
-        body.night-mode hr { border-color: #444 !important; }
-        body.night-mode .form-control[type="file"] { color: #34B875 !important; }
-        body.night-mode .form-control::file-selector-button { background-color: #1e1e1e !important; color: #34B875 !important; border-color: #444 !important; }
-        body.night-mode .form-control:hover::file-selector-button { background-color: #333 !important; }
-        body.night-mode .utility-block { background-color: #2c2c2c !important; border-color: #444 !important; color: #e0e0e0 !important; }
-        body.night-mode .navbar-user .nav-link, body.night-mode .navbar-user .navbar-brand, body.night-mode .navbar-user .text-muted { color: #34B875 !important; }
-        body.night-mode::-webkit-scrollbar, body.night-mode *::-webkit-scrollbar { width: 8px; height: 8px; }
-        body.night-mode::-webkit-scrollbar-track, body.night-mode *::-webkit-scrollbar-track { background: #121212 !important; }
-        body.night-mode::-webkit-scrollbar-thumb, body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }
-        body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
-        body.night-mode .form-label { color: #34B875 !important; }
+        /* Premium Night Mode / Light Mode Integration */
+        :root {
+            --surface-color: #ffffff;
+            --surface-hover: #f8f9fa;
+            --border-color: #eaecee;
+            --text-color: #333333;
+            --text-muted: #6c757d;
+            --primary: #34B875;
+        }
+        body.night-mode {
+            --surface-color: #1e1e1e;
+            --surface-hover: #2c2c2c;
+            --border-color: #333333;
+            --text-color: #eaeaea;
+            --text-muted: #a0a0a0;
+            background-color: #121212 !important;
+            color: var(--text-color) !important;
+        }
+        body.theme-transition { transition: background-color 0.3s ease, color 0.3s ease; }
+        body.night-mode .bg-white { background-color: var(--surface-color) !important; color: var(--text-color) !important; }
+        
+        .card-custom {
+            background-color: var(--surface-color) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.04);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card-custom:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.08); }
+        .card-header { background-color: transparent !important; border-bottom: 1px solid var(--border-color) !important; padding: 1.25rem 1.5rem; }
+        
+        .form-control, .form-select {
+            background-color: var(--surface-hover) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-color) !important;
+            border-radius: 10px;
+            padding: 12px 16px;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 4px rgba(52, 184, 117, 0.15) !important;
+            background-color: var(--surface-color) !important;
+        }
+        .form-control[readonly] { background-color: var(--surface-hover) !important; opacity: 0.8; cursor: not-allowed; }
+        
+        .utility-block {
+            background-color: var(--surface-hover) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 16px;
+            padding: 24px;
+            color: var(--text-color) !important;
+            margin-top: 2rem;
+        }
+        .text-dark { color: var(--text-color) !important; }
+        .text-muted { color: var(--text-muted) !important; }
+        .bg-light { background-color: var(--surface-hover) !important; }
+        .border { border-color: var(--border-color) !important; }
+        .form-label { color: var(--text-color); font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        hr { border-color: var(--border-color) !important; }
+        
+        .btn-custom {
+            background-color: var(--primary);
+            color: white;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 184, 117, 0.2);
+        }
+        .btn-custom:hover { background-color: #2A9A60; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(52, 184, 117, 0.3); color: white; }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
+<script>
+    (function() {
+        const currentUserId = "<?= $_SESSION['user_id'] ?? '' ?>";
+        const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
+        if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
+    })();
+</script>
 <div class="container py-5 animate-fade-in">
     <div class="d-flex justify-content-end mb-3">
         <a href="javascript:history.back()" class="btn btn-outline-secondary rounded-pill px-4 fw-bold"><i class="fas fa-arrow-left me-2"></i>Back</a>
@@ -612,7 +665,7 @@ if (isset($_POST['confirm_booking'])) {
             <!-- Personal Info -->
             <div class="col-md-5 anim-trigger delay-1">
                 <div class="card card-custom h-100">
-                    <div class="card-header bg-white fw-bold text-success"><i class="fas fa-user me-2"></i>Personal Information</div>
+                    <div class="card-header fw-bold text-success"><i class="fas fa-user me-2"></i>Personal Information</div>
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label">Sex*</label>
@@ -707,7 +760,7 @@ if (isset($_POST['confirm_booking'])) {
             <!-- Reservation Info -->
             <div class="col-md-7 anim-trigger delay-2">
                 <div class="card card-custom h-100">
-                    <div class="card-header bg-white fw-bold text-success"><i class="fas fa-bed me-2"></i>Booking Details</div>
+                    <div class="card-header fw-bold text-success"><i class="fas fa-bed me-2"></i>Booking Details</div>
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label">Room Type</label>
