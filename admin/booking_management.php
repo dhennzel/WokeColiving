@@ -39,6 +39,10 @@ if(isset($_GET['action'])){
         $stmt = mysqli_prepare($conn, "UPDATE reservations SET status='Cancelled' WHERE reservation_id=?");
         mysqli_stmt_bind_param($stmt, "i", $reservation_id);
         mysqli_stmt_execute($stmt);
+
+        // Void associated unpaid payments as the booking is no longer valid
+        mysqli_query($conn, "UPDATE payments SET payment_status='Cancelled', description = CONCAT(description, ' (Voided - Reservation Cancelled)') WHERE reservation_id=$reservation_id AND payment_status='Unpaid'");
+
         mysqli_stmt_close($stmt);
         if($target_user_id) {
             log_activity($conn, $target_user_id, "Reservation Rejected", "Reservation #$reservation_id cancelled by $admin_username.");
@@ -49,6 +53,10 @@ if(isset($_GET['action'])){
         $stmt = mysqli_prepare($conn, "UPDATE reservations SET status='Completed' WHERE reservation_id=?");
         mysqli_stmt_bind_param($stmt, "i", $reservation_id);
         mysqli_stmt_execute($stmt);
+
+        // Void associated unpaid payments as the booking is no longer valid
+        mysqli_query($conn, "UPDATE payments SET payment_status='Cancelled', description = CONCAT(description, ' (Voided - Reservation Cancelled)') WHERE reservation_id=$reservation_id AND payment_status='Unpaid'");
+
         mysqli_stmt_close($stmt);
         if($target_user_id) {
             log_activity($conn, $target_user_id, "Contract Ended", "Reservation #$reservation_id marked as Completed by $admin_username.");
@@ -203,6 +211,7 @@ if(isset($_GET['action'])){
                     
                     mysqli_commit($conn);
                     
+                    sync_resident_profile($conn, $reservation_id);
                     log_activity($conn, $target_user_id, "Reservation Extended", "Contract #$parent_id updated by $admin_username.");
                     send_notification($conn, $target_user_id, "🔄 <strong>Stay Extended!</strong><br>Your extension request has been approved.", "Extension Approved");
                 } catch (Exception $e) {
@@ -211,8 +220,16 @@ if(isset($_GET['action'])){
             } else {
                 // NORMAL APPROVAL
                 mysqli_query($conn, "UPDATE reservations SET status='Approved' WHERE reservation_id=$reservation_id");
+                sync_resident_profile($conn, $reservation_id);
                 log_activity($conn, $target_user_id, "Reservation Approved", "Reservation #$reservation_id approved by $admin_username.");
                 send_notification($conn, $target_user_id, "🎉 <strong>Reservation Approved!</strong><br>Your booking has been approved.", "Booking Approved");
+
+                // After approving a reservation, check for pending user profile update requests
+                $pending_update_check = mysqli_query($conn, "SELECT request_id FROM user_update_requests WHERE user_id=$target_user_id AND status='Pending'");
+                if (mysqli_num_rows($pending_update_check) > 0) {
+                    // Redirect to view_user.php to prompt admin to review pending profile updates
+                    $redirect_url = "view_user.php?uid=$target_user_id&msg=pending_profile_update";
+                }
             }
         }
         header("Location: $redirect_url");

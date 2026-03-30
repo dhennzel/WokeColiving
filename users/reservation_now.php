@@ -389,6 +389,14 @@ if (isset($_POST['confirm_booking'])) {
                 }
 
                 $status = "Pending";
+
+                // Check for carried over unpaid balances from previous reservations
+                $prev_bal_q = mysqli_query($conn, "SELECT SUM(p.amount) as balance FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id = $user_id AND p.payment_status = 'Unpaid'");
+                $prev_bal_row = mysqli_fetch_assoc($prev_bal_q);
+                $prev_balance = (float)($prev_bal_row['balance'] ?? 0);
+                
+                $totalAmount += $prev_balance; // Add previous debt to new bill
+
                 $reservation_id = 0;
                 $exec_result = false;
                 
@@ -406,14 +414,14 @@ if (isset($_POST['confirm_booking'])) {
                 if($sig_img) {
                     // Insert with signature
                     try {
-                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, signature_image, auto_assigned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        $stmt->bind_param("iissidsssi", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $status, $bed_preference, $sig_img, $auto_assigned);
+                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, signature_image, auto_assigned, occupation, company_or_school, contact_person_name, contact_person_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $stmt->bind_param("iissidsssissis", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $status, $bed_preference, $sig_img, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number);
                     } catch (Exception $e) { $stmt = false; }
                 } else {
                     // Standard insert
                     try {
-                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, auto_assigned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        if($stmt) $stmt->bind_param("iissidssi", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $status, $bed_preference, $auto_assigned);
+                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, auto_assigned, occupation, company_or_school, contact_person_name, contact_person_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        if($stmt) $stmt->bind_param("iissidssissss", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $status, $bed_preference, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number);
                     } catch (Exception $e) { $stmt = false; }
                 }
 
@@ -422,6 +430,11 @@ if (isset($_POST['confirm_booking'])) {
                     $stmt->close();
                     $reservation_id = $conn->insert_id;
                     
+                    // Mark old unpaid payments as Carried Over/Cancelled to prevent double billing
+                    if($prev_balance > 0 && $reservation_id) {
+                        mysqli_query($conn, "UPDATE payments p JOIN reservations r ON p.reservation_id = r.reservation_id SET p.payment_status='Cancelled', p.description = CONCAT(p.description, ' (Carried over to Reservation #$reservation_id)') WHERE r.user_id=$user_id AND p.payment_status='Unpaid' AND r.reservation_id != $reservation_id");
+                    }
+
                     // Link to original reservation if extension
                     if($is_extension && $reservation_id){
                         mysqli_query($conn, "UPDATE reservations SET extended_from=$eid WHERE reservation_id=$reservation_id");
@@ -435,14 +448,16 @@ if (isset($_POST['confirm_booking'])) {
                     // GCash is now set to 'Unpaid' until the Dragonpay postback confirms the payment
                     $pay_status = ($payment_method == 'PayPal') ? 'Paid' : 'Unpaid'; 
                     
+                    $pay_desc = "Initial Booking Payment" . ($prev_balance > 0 ? " (Includes carried over balance: ₱" . number_format($prev_balance, 2) . ")" : "");
+
                     try {
-                        $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image) VALUES (?, ?, ?, ?, NOW(), ?, ?)");
+                        $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image, description) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)");
                     } catch (Exception $e) {
                         $pay_stmt = false;
                     }
                     
                     if ($pay_stmt) {
-                        $pay_stmt->bind_param("idssss", $reservation_id, $totalAmount, $payment_method, $pay_status, $ref_number, $proof_filename);
+                        $pay_stmt->bind_param("idsssss", $reservation_id, $totalAmount, $payment_method, $pay_status, $ref_number, $proof_filename, $pay_desc);
                         $pay_stmt->execute();
                         $pay_stmt->close();
                     } else {
@@ -508,22 +523,25 @@ if (isset($_POST['confirm_booking'])) {
                     $error = "Database Error: " . mysqli_error($conn);
                 }
             } else {
-                // Room is FULL: Logic for Suggestions and Waitlist
-                $error = "Sorry, <strong>$troom</strong> is fully booked for these dates.";
-                
-                // 1. Auto-suggest available rooms
-                $suggest_sql = "SELECT DISTINCT room_type FROM rooms WHERE status='Available' AND room_type != '$troom'";
-                $suggest_res = mysqli_query($conn, $suggest_sql);
-                $suggestions = [];
-                while($s_row = mysqli_fetch_assoc($suggest_res)){
-                    $suggestions[] = $s_row['room_type'];
+                // Room is FULL: Automatically add to waitlist
+                $troom_safe = mysqli_real_escape_string($conn, $troom);
+                $check_wl = mysqli_query($conn, "SELECT id FROM waitlist WHERE user_id=$user_id AND room_type='$troom_safe'");
+                if(mysqli_num_rows($check_wl) == 0){
+                    mysqli_query($conn, "INSERT INTO waitlist (user_id, room_type) VALUES ($user_id, '$troom_safe')");
+                    $_SESSION['swal'] = [
+                        'title' => 'Added to Waitlist', 
+                        'text' => "Sorry, $troom is currently fully booked for those dates. You have been automatically added to the waitlist and we will notify you once a spot opens up.", 
+                        'icon' => 'info'
+                    ];
+                } else {
+                    $_SESSION['swal'] = [
+                        'title' => 'Already on Waitlist', 
+                        'text' => "Sorry, $troom is still fully booked. You are already on the waitlist for this room type.", 
+                        'icon' => 'warning'
+                    ];
                 }
-                if(!empty($suggestions)){
-                    $error .= "<br>💡 <strong>Suggestion:</strong> Try booking: " . implode(", ", $suggestions);
-                }
-                
-                // 2. Enable Waitlist Button
-                $show_waitlist = true;
+                header("Location: my_reservations.php");
+                exit;
             }
         }
     }

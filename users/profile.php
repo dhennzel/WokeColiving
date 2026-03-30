@@ -179,6 +179,13 @@ $u_query = mysqli_query($conn, "
 $user_info = mysqli_fetch_assoc($u_query);
 $user_info['full_name'] = $user_info['last_name'] . ', ' . $user_info['first_name'] . (!empty($user_info['middle_name']) ? ' ' . $user_info['middle_name'] : '');
 
+// Calculate Balance for Badge Visibility
+$financial_q = mysqli_query($conn, "SELECT IFNULL(SUM(p.amount), 0) as total_billed, IFNULL(SUM(CASE WHEN p.payment_status='Paid' THEN p.amount ELSE 0 END), 0) as total_paid FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$user_id AND p.payment_status != 'Cancelled'");
+$fin = mysqli_fetch_assoc($financial_q);
+$total_billed = $fin['total_billed'] ?? 0;
+$total_paid = $fin['total_paid'] ?? 0;
+$user_balance = $total_billed - $total_paid;
+
 // Handle Mark as Read
 if(isset($_GET['read_all'])){
     mysqli_query($conn, "UPDATE notifications SET is_read=1 WHERE user_id=$user_id");
@@ -280,6 +287,14 @@ try {
         
         <div class="d-flex align-items-center gap-3 ms-auto">
         <!-- Notification Dropdown -->
+        <div class="d-flex align-items-center me-2">
+            <a href="billing.php" class="nav-link p-0 position-relative" title="Billing & Balance">
+                <i class="fas fa-file-invoice-dollar fa-lg"></i>
+                <?php if($user_balance > 0): ?>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.55rem; padding: 0.25rem 0.4rem;">!</span>
+                <?php endif; ?>
+            </a>
+        </div>
         <div class="dropdown d-flex align-items-center">
             <a href="#" class="nav-link p-0 position-relative" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-bell fa-lg"></i>
@@ -368,6 +383,18 @@ try {
                     <div class="icon-box"><i class="fas fa-list-ol"></i></div>
                     <h5 class="fw-bold text-dark">My Waitlist</h5>
                     <p class="small">View rooms you are waiting for.</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- Billing & Payments -->
+        <div class="col-md-3 anim-trigger anim-zoom delay-3" data-card-id="billing">
+            <a href="billing.php" class="text-decoration-none">
+                <div class="card card-custom profile-card h-100">
+                    <?php if($user_balance > 0): ?><div class="card-badge bg-danger" title="Outstanding Balance">!</div><?php endif; ?>
+                    <div class="icon-box"><i class="fas fa-file-invoice-dollar"></i></div>
+                    <h5 class="fw-bold text-dark">Billing & Payments</h5>
+                    <p class="small"><?= $user_balance > 0 ? 'Remaining: ₱'.number_format($user_balance, 2) : 'View your payment history.' ?></p>
                 </div>
             </a>
         </div>
@@ -477,6 +504,10 @@ try {
                                 <div class="form-check form-switch mb-2">
                                     <input class="form-check-input" type="checkbox" id="show-book" checked onchange="toggleCard('book')">
                                     <label class="form-check-label small" for="show-book">Book a Room</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="show-billing" checked onchange="toggleCard('billing')">
+                                    <label class="form-check-label small" for="show-billing">Billing & Payments</label>
                                 </div>
                                 <div class="form-check form-switch mb-2">
                                     <input class="form-check-input" type="checkbox" id="show-waitlist" checked onchange="toggleCard('waitlist')">

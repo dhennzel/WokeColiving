@@ -85,7 +85,7 @@ function is_super_admin() {
 }
 
 if (!function_exists('send_notification')) {
-function send_notification($conn, $user_id, $message, $type = 'System') {
+function send_notification($conn, $user_id, $message, $type = 'System', $custom_subject = null) {
     // 1. Insert into Database (In-App Notification)
 
     try {
@@ -119,7 +119,7 @@ function send_notification($conn, $user_id, $message, $type = 'System') {
     $u_res = mysqli_query($conn, "SELECT email, CONCAT(last_name, ', ', first_name) as full_name, phone_number FROM users WHERE user_id='$user_id'");
     if($u_row = mysqli_fetch_assoc($u_res)){
         $to = $u_row['email'];
-        $subject = "Woke Coliving Notification: $type";
+        $subject = $custom_subject ?? "Woke Coliving Notification: $type";
 
         // --- GMAIL SMTP CONFIGURATION (Requires PHPMailer) ---
         // 1. Download PHPMailer and extract to: c:\xampp\htdocs\WokeColiving\PHPMailer
@@ -228,6 +228,10 @@ function setup_reservations_table($conn) {
             signature_required TINYINT(1) DEFAULT 0,
             cancellation_reason VARCHAR(255) DEFAULT NULL,
             is_archived TINYINT(1) DEFAULT 0,
+            occupation VARCHAR(50) DEFAULT NULL,
+            company_or_school VARCHAR(100) DEFAULT NULL,
+            contact_person_name VARCHAR(100) DEFAULT NULL,
+            contact_person_number VARCHAR(20) DEFAULT NULL,
             extended_from INT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
@@ -235,6 +239,14 @@ function setup_reservations_table($conn) {
         )";
         mysqli_query($conn, $sql);
     }
+    // Ensure new columns exist for existing tables
+    $res_cols = mysqli_query($conn, "SHOW COLUMNS FROM reservations");
+    $existing_res_cols = [];
+    while($c = mysqli_fetch_assoc($res_cols)) $existing_res_cols[] = $c['Field'];
+    if(!in_array('occupation', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN occupation VARCHAR(50) DEFAULT NULL");
+    if(!in_array('company_or_school', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN company_or_school VARCHAR(100) DEFAULT NULL");
+    if(!in_array('contact_person_name', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN contact_person_name VARCHAR(100) DEFAULT NULL");
+    if(!in_array('contact_person_number', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN contact_person_number VARCHAR(20) DEFAULT NULL");
 }
 setup_reservations_table($conn);
 }
@@ -679,6 +691,18 @@ if($expire_query){
 // 2. Permanently delete archived reservations older than 90 days (Cleanup)
 mysqli_query($conn, "DELETE FROM reservations WHERE is_archived=1 AND end_date < (NOW() - INTERVAL 90 DAY)");
 
+// 3. Auto-complete Approved reservations where the end date has been reached
+$complete_query = mysqli_query($conn, "SELECT reservation_id, user_id FROM reservations WHERE status='Approved' AND end_date <= CURDATE()");
+if($complete_query){
+    while($row = mysqli_fetch_assoc($complete_query)){
+        $rid = $row['reservation_id'];
+        $uid = $row['user_id'];
+        mysqli_query($conn, "UPDATE reservations SET status='Completed' WHERE reservation_id=$rid");
+        log_activity($conn, $uid, "Contract Completed", "Reservation #$rid automatically marked as Completed (End date reached).");
+        send_notification($conn, $uid, "🏁 <strong>Stay Completed</strong><br>Your stay for reservation #$rid has reached its scheduled end date and is now marked as Completed. Thank you for staying with us!", "Contract Ended");
+    }
+}
+
 // 3. Automated Reminders
 $tomorrow = date('Y-m-d', strtotime('+1 day'));
 $rem_query = mysqli_query($conn, "SELECT r.reservation_id, r.user_id, r.start_date FROM reservations r WHERE r.start_date = '$tomorrow' AND r.status = 'Approved'");
@@ -977,4 +1001,52 @@ function setup_inventory_table($conn) {
     )");
 }
 setup_inventory_table($conn);
+}
+
+// --- RESIDENTS TABLE ---
+if (!function_exists('setup_residents_table')) {
+function setup_residents_table($conn) {
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS residents (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT UNIQUE NOT NULL,
+        first_name VARCHAR(50),
+        last_name VARCHAR(50),
+        middle_name VARCHAR(50),
+        email VARCHAR(100),
+        phone_number VARCHAR(20),
+        gender VARCHAR(20),
+        occupation VARCHAR(50),
+        company VARCHAR(100),
+        address TEXT,
+        emergency_contact_name VARCHAR(100),
+        emergency_contact_number VARCHAR(20),
+        profile_image VARCHAR(255),
+        school_id_image VARCHAR(255),
+        role VARCHAR(20) DEFAULT 'user',
+        is_walkin TINYINT(1) DEFAULT 0,
+        do_not_renew TINYINT(1) DEFAULT 0,
+        is_archived TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    )");
+}
+setup_residents_table($conn);
+}
+
+if (!function_exists('sync_resident_profile')) {
+function sync_resident_profile($conn, $reservation_id) {
+    $res_q = mysqli_query($conn, "SELECT r.*, u.first_name, u.last_name, u.middle_name, u.email, u.phone_number, u.profile_image, u.school_id_image, u.role, u.is_walkin, u.do_not_renew, u.address as user_address, u.gender as user_gender FROM reservations r JOIN users u ON r.user_id = u.user_id WHERE r.reservation_id=$reservation_id");
+    if($r = mysqli_fetch_assoc($res_q)){
+        $stmt = mysqli_prepare($conn, "INSERT INTO residents (user_id, first_name, last_name, middle_name, email, phone_number, gender, occupation, company, address, emergency_contact_name, emergency_contact_number, profile_image, school_id_image, role, is_walkin, do_not_renew, is_archived)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+            first_name=VALUES(first_name), last_name=VALUES(last_name), middle_name=VALUES(middle_name), email=VALUES(email), phone_number=VALUES(phone_number),
+            gender=VALUES(gender), occupation=VALUES(occupation), company=VALUES(company), address=VALUES(address),
+            emergency_contact_name=VALUES(emergency_contact_name), emergency_contact_number=VALUES(emergency_contact_number),
+            profile_image=VALUES(profile_image), school_id_image=VALUES(school_id_image), role=VALUES(role), is_walkin=VALUES(is_walkin),
+            do_not_renew=VALUES(do_not_renew), is_archived=VALUES(is_archived)");
+        mysqli_stmt_bind_param($stmt, "issssssssssssssiii", $r['user_id'], $r['first_name'], $r['last_name'], $r['middle_name'], $r['email'], $r['phone_number'], $r['user_gender'], $r['occupation'], $r['company_or_school'], $r['user_address'], $r['contact_person_name'], $r['contact_person_number'], $r['profile_image'], $r['school_id_image'], $r['role'], $r['is_walkin'], $r['do_not_renew'], $r['is_archived']);
+        mysqli_stmt_execute($stmt);
+    }
+}
 }

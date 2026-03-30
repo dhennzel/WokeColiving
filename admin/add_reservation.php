@@ -94,21 +94,46 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 
 $admin_username = $_SESSION['admin_username'] ?? 'Admin';
 
+// Initialize form variables for persistence
+$pre_cin = date('Y-m-d');
+$f_user_type = $_POST['user_type'] ?? 'existing';
+$f_user_id = $_POST['user_id'] ?? '';
+$f_new_lname = $_POST['new_lname'] ?? '';
+$f_new_fname = $_POST['new_fname'] ?? '';
+$f_new_mname = $_POST['new_mname'] ?? '';
+$f_new_email = $_POST['new_email'] ?? '';
+$f_new_phone = $_POST['new_phone'] ?? '';
+$f_new_address = $_POST['new_address'] ?? '';
+$f_new_gender = $_POST['new_gender'] ?? 'Male';
+$f_new_occupation = $_POST['new_occupation'] ?? '';
+$f_new_company = $_POST['new_company'] ?? '';
+$f_new_em_name = $_POST['new_em_name'] ?? '';
+$f_new_em_num = $_POST['new_em_num'] ?? '';
+$f_room_type = $_POST['room_type'] ?? ($pre_room_type ?: 'Single');
+$f_bed_preference = $_POST['bed_preference'] ?? 'Any';
+$f_duration = $_POST['duration_select'] ?? '1';
+$f_cin = $_POST['cin'] ?? $pre_cin;
+$f_cout = $_POST['cout'] ?? '';
+$f_pay_method = $_POST['payment_method'] ?? 'Cash';
+$f_pay_status = $_POST['payment_status'] ?? 'Unpaid';
+$f_term_type = $_POST['term_type'] ?? 'Short';
+
 if(isset($_POST['add_reservation'])){
-    $user_type = $_POST['user_type'];
+    $user_type = $_POST['user_type'] ?? 'existing';
     $user_id = 0;
     $account_msg = "";
 
     if($user_type == 'new'){
         // Create New User
-        $lname = trim($_POST['new_lname']);
-        $fname = trim($_POST['new_fname']);
-        $mname = trim($_POST['new_mname']);
+        $lname = trim($_POST['new_lname'] ?? '');
+        $fname = trim($_POST['new_fname'] ?? '');
+        $mname = trim($_POST['new_mname'] ?? '');
         $name = $lname . ', ' . $fname . ' ' . $mname;
-        $email = trim($_POST['new_email']);
-        $phone = trim($_POST['new_phone']);
-        $gender = $_POST['new_gender'];
-        $occupation = $_POST['new_occupation'];
+        $email = trim($_POST['new_email'] ?? '');
+        $phone = trim($_POST['new_phone'] ?? '');
+        $gender = $_POST['new_gender'] ?? 'Male';
+        $address = trim($_POST['new_address'] ?? '');
+        $occupation = $_POST['new_occupation'] ?? '';
         $company = trim($_POST['new_company'] ?? '');
 
         // Validation for company/school name
@@ -129,8 +154,8 @@ if(isset($_POST['add_reservation'])){
             }
         }
 
-        $em_name = trim($_POST['new_em_name']);
-        $em_num = trim($_POST['new_em_num']);
+        $em_name = trim($_POST['new_em_name'] ?? '');
+        $em_num = trim($_POST['new_em_num'] ?? '');
         $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : '12345678';
         
         if(!empty($_POST['new_password'])){
@@ -148,8 +173,8 @@ if(isset($_POST['add_reservation'])){
             if(mysqli_num_rows($check) > 0){
                 $error = "Email address already registered.";
             } else {
-                $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, email, phone_number, gender, occupation, company, school_id_image, password, role, is_walkin, emergency_contact_name, emergency_contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?)");
-                mysqli_stmt_bind_param($stmt, "ssssssssssss", $lname, $fname, $mname, $email, $phone, $gender, $occupation, $company, $school_id_img, $password, $em_name, $em_num);
+                $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, email, phone_number, gender, occupation, company, address, school_id_image, password, role, is_walkin, emergency_contact_name, emergency_contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?)");
+                mysqli_stmt_bind_param($stmt, "sssssssssssss", $lname, $fname, $mname, $email, $phone, $gender, $occupation, $company, $address, $school_id_img, $password, $em_name, $em_num);
                 if(mysqli_stmt_execute($stmt)){
                     $user_id = mysqli_insert_id($conn);
                     $account_msg = "Account created for $name (Pass: $raw_pass). ";
@@ -168,10 +193,10 @@ if(isset($_POST['add_reservation'])){
     }
 
     if(!$error && $user_id > 0){
-        $room_type = $_POST['room_type'];
+        $room_type = $_POST['room_type'] ?? 'Single';
         $bed_preference = $_POST['bed_preference'] ?? 'Any';
-        $cin = $_POST['cin'];
-        $cout = $_POST['cout'];
+        $cin = $_POST['cin'] ?? date('Y-m-d');
+        $cout = $_POST['cout'] ?? date('Y-m-d', strtotime('+1 day'));
         
         // Calculate duration
         $d1 = new DateTime($cin);
@@ -324,12 +349,25 @@ if(isset($_POST['add_reservation'])){
                 $totalAmount = $st_price + $security_deposit;
             }
 
+            // Check for carried over unpaid balances
+            $prev_bal_q = mysqli_query($conn, "SELECT SUM(p.amount) as balance FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id = $user_id AND p.payment_status = 'Unpaid'");
+            $prev_bal_row = mysqli_fetch_assoc($prev_bal_q);
+            $prev_balance = (float)($prev_bal_row['balance'] ?? 0);
+            
+            $totalAmount += $prev_balance;
+            $pay_desc = "Walk-in Booking Payment" . ($prev_balance > 0 ? " (Includes carried over balance: ₱" . number_format($prev_balance, 2) . ")" : "");
+
             // Insert
-            $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference) VALUES (?, ?, ?, ?, ?, ?, 'Approved', ?)");
-            $stmt->bind_param("iissids", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $bed_preference);
+            $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, occupation, company_or_school, contact_person_name, contact_person_number) VALUES (?, ?, ?, ?, ?, ?, 'Approved', ?, ?, ?, ?, ?)");
+            $stmt->bind_param("iissidssssss", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $bed_preference, $occupation, $company, $em_name, $em_num);
             
             if($stmt->execute()){
                 $res_id = $conn->insert_id;
+
+                // Mark old unpaid payments as Carried Over
+                if($prev_balance > 0) {
+                    mysqli_query($conn, "UPDATE payments p JOIN reservations r ON p.reservation_id = r.reservation_id SET p.payment_status='Cancelled', p.description = CONCAT(p.description, ' (Carried over to Reservation #$res_id)') WHERE r.user_id=$user_id AND p.payment_status='Unpaid' AND r.reservation_id != $res_id");
+                }
                 
                 $pay_method = $_POST['payment_method'] ?? 'Cash';
                 $pay_status = $_POST['payment_status'] ?? 'Unpaid';
@@ -338,8 +376,8 @@ if(isset($_POST['add_reservation'])){
                     $pay_status = 'Unpaid'; // Force unpaid until Dragonpay verifies
                 }
                 
-                $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date) VALUES (?, ?, ?, ?, NOW())");
-                $pay_stmt->bind_param("idss", $res_id, $totalAmount, $pay_method, $pay_status);
+                $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, ?, NOW(), ?)");
+                $pay_stmt->bind_param("idsss", $res_id, $totalAmount, $pay_method, $pay_status, $pay_desc);
                 $pay_stmt->execute();
                 
                 log_activity($conn, $user_id, "Walk-in Booking", "Reservation #$res_id created by $admin_username");
@@ -431,11 +469,11 @@ $theme = get_theme_colors($conn);
                         <label class="form-label fw-bold">Guest Type</label>
                         <div>
                             <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="user_type" id="type_existing" value="existing" checked onchange="toggleUserSection()">
+                                <input class="form-check-input" type="radio" name="user_type" id="type_existing" value="existing" <?= $f_user_type == 'existing' ? 'checked' : '' ?> onchange="toggleUserSection()">
                                 <label class="form-check-label" for="type_existing">Existing User</label>
                             </div>
                             <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="user_type" id="type_new" value="new" onchange="toggleUserSection()">
+                                <input class="form-check-input" type="radio" name="user_type" id="type_new" value="new" <?= $f_user_type == 'new' ? 'checked' : '' ?> onchange="toggleUserSection()">
                                 <label class="form-check-label" for="type_new">New Walk-in Guest</label>
                             </div>
                         </div>
@@ -446,44 +484,48 @@ $theme = get_theme_colors($conn);
                         <select name="user_id" id="existing_user_id" class="form-select" onchange="checkAvailability()">
                             <option value="" data-gender="">-- Choose User --</option>
                             <?php while($u = mysqli_fetch_assoc($users)): ?>
-                                <option value="<?= $u['user_id'] ?>" data-gender="<?= $u['gender'] ?>"><?= $u['full_name'] ?> (<?= $u['email'] ?>)</option>
+                                <option value="<?= $u['user_id'] ?>" data-gender="<?= $u['gender'] ?>" <?= $f_user_id == $u['user_id'] ? 'selected' : '' ?>><?= $u['full_name'] ?> (<?= $u['email'] ?>)</option>
                             <?php endwhile; ?>
                         </select>
                     </div>
 
-                    <div id="new_user_section" class="mb-3 p-3 border rounded bg-light" style="display:none;">
+                    <div id="new_user_section" class="mb-3 p-3 border rounded bg-light" style="display: <?= $f_user_type == 'new' ? 'block' : 'none' ?>;">
                         <h6 class="fw-bold text-success mb-3"><i class="fas fa-user-plus me-2"></i>Guest Details</h6>
                         <div class="row g-2">
-                            <div class="col-md-4"><label class="small fw-bold">Last Name</label><input type="text" name="new_lname" class="form-control"></div>
-                            <div class="col-md-4"><label class="small fw-bold">First Name</label><input type="text" name="new_fname" class="form-control"></div>
-                            <div class="col-md-4"><label class="small fw-bold">Middle Name</label><input type="text" name="new_mname" class="form-control"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Email</label><input type="email" name="new_email" class="form-control"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09"></div>
+                            <div class="col-md-4"><label class="small fw-bold">Last Name</label><input type="text" name="new_lname" class="form-control" value="<?= htmlspecialchars($f_new_lname) ?>"></div>
+                            <div class="col-md-4"><label class="small fw-bold">First Name</label><input type="text" name="new_fname" class="form-control" value="<?= htmlspecialchars($f_new_fname) ?>"></div>
+                            <div class="col-md-4"><label class="small fw-bold">Middle Name</label><input type="text" name="new_mname" class="form-control" value="<?= htmlspecialchars($f_new_mname) ?>"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Email</label><input type="email" name="new_email" class="form-control" value="<?= htmlspecialchars($f_new_email) ?>"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_phone) ?>"></div>
                             <div class="col-md-6">
                                 <label class="small fw-bold">Gender</label>
                                 <select name="new_gender" id="new_gender" class="form-select" onchange="checkAvailability()">
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
+                                    <option value="Male" <?= $f_new_gender == 'Male' ? 'selected' : '' ?>>Male</option>
+                                    <option value="Female" <?= $f_new_gender == 'Female' ? 'selected' : '' ?>>Female</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
                                 <label class="small fw-bold">Occupation Status</label>
                                 <select name="new_occupation" id="new_occupation" class="form-select" onchange="toggleNewGuestCompany()">
-                                    <option value="" disabled selected>Select Status</option>
-                                    <option value="Student">Student</option>
-                                    <option value="Employed">Employed</option>
+                                    <option value="" disabled <?= empty($f_new_occupation) ? 'selected' : '' ?>>Select Status</option>
+                                    <option value="Student" <?= $f_new_occupation == 'Student' ? 'selected' : '' ?>>Student</option>
+                                    <option value="Employed" <?= $f_new_occupation == 'Employed' ? 'selected' : '' ?>>Employed</option>
                                 </select>
                             </div>
-                            <div class="col-md-6" id="new_company_div" style="display:none;">
+                            <div class="col-md-6" id="new_company_div" style="display: <?= in_array($f_new_occupation, ['Student', 'Employed']) ? 'block' : 'none' ?>;">
                                 <label class="small fw-bold" id="new_company_label">Company/School Name</label>
-                                <input type="text" name="new_company" id="new_company" class="form-control">
+                                <input type="text" name="new_company" id="new_company" class="form-control" value="<?= htmlspecialchars($f_new_company) ?>">
                             </div>
-                            <div class="col-md-12" id="new_school_id_div" style="display:none;">
+                            <div class="col-md-12" id="new_school_id_div" style="display: <?= $f_new_occupation == 'Student' ? 'block' : 'none' ?>;">
                                 <label class="small fw-bold">School ID Image</label>
                                 <input type="file" name="new_school_id_image" id="new_school_id_image" class="form-control" accept="image/*">
                             </div>
-                            <div class="col-md-6"><label class="small fw-bold" id="new_em_name_label">Emergency Contact Name</label><input type="text" name="new_em_name" class="form-control"></div>
-                            <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact Number</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09"></div>
+                            <div class="col-md-12">
+                                <label class="small fw-bold">Permanent Address</label>
+                                <textarea name="new_address" class="form-control" rows="2"><?= htmlspecialchars($f_new_address) ?></textarea>
+                            </div>
+                            <div class="col-md-6"><label class="small fw-bold" id="new_em_name_label">Emergency Name</label><input type="text" name="new_em_name" class="form-control" value="<?= htmlspecialchars($f_new_em_name) ?>"></div>
+                            <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_em_num) ?>"></div>
                             <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: 12345678"></div>
                         </div>
                         <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>12345678</strong>.</small>
@@ -493,40 +535,40 @@ $theme = get_theme_colors($conn);
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">Room Type</label>
                             <select name="room_type" id="room_type" class="form-select" required onchange="updateRoomOptions(); calculateTotal(); checkAvailability()">
-                                <option value="Single" <?= $pre_room_type == 'Single' ? 'selected' : '' ?>>Single</option>
-                                <option value="4-Bed" <?= $pre_room_type == '4-Bed' ? 'selected' : '' ?>>4-Bed</option>
-                                <option value="6-Bed" <?= $pre_room_type == '6-Bed' ? 'selected' : '' ?>>6-Bed</option>
+                                <option value="Single" <?= $f_room_type == 'Single' ? 'selected' : '' ?>>Single</option>
+                                <option value="4-Bed" <?= $f_room_type == '4-Bed' ? 'selected' : '' ?>>4-Bed</option>
+                                <option value="6-Bed" <?= $f_room_type == '6-Bed' ? 'selected' : '' ?>>6-Bed</option>
                             </select>
                             <small id="availability_status" class="fw-bold mt-1 d-block"></small>
                         </div>
-                        <div class="col-md-6 mb-3" id="bed_pref_div" style="display:none;">
+                        <div class="col-md-6 mb-3" id="bed_pref_div" style="display: <?= $f_room_type != 'Single' ? 'block' : 'none' ?>;">
                             <label class="form-label fw-bold">Bed Preference</label>
                             <select name="bed_preference" class="form-select" onchange="calculateTotal(); checkAvailability()">
-                                <option value="Any">Any</option>
-                                <option value="Lower Bunk">Lower Bunk</option>
-                                <option value="Upper Bunk">Upper Bunk</option>
-                            <option value="Whole Room">Whole Room</option>
+                                <option value="Any" <?= $f_bed_preference == 'Any' ? 'selected' : '' ?>>Any</option>
+                                <option value="Lower Bunk" <?= $f_bed_preference == 'Lower Bunk' ? 'selected' : '' ?>>Lower Bunk</option>
+                                <option value="Upper Bunk" <?= $f_bed_preference == 'Upper Bunk' ? 'selected' : '' ?>>Upper Bunk</option>
+                                <option value="Whole Room" <?= $f_bed_preference == 'Whole Room' ? 'selected' : '' ?>>Whole Room</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-bold">Duration</label>
-                        <select id="duration_select" class="form-select" onchange="updateCheckoutDate()">
-                            <option value="1">Short Term (1 Month)</option>
-                            <option value="6">Long Term (6 Months Contract)</option>
-                            <option value="Daily">Daily</option>
+                        <select id="duration_select" name="duration_select" class="form-select" onchange="updateCheckoutDate()">
+                            <option value="1" <?= $f_duration == '1' ? 'selected' : '' ?>>Short Term (1 Month)</option>
+                            <option value="6" <?= $f_duration == '6' ? 'selected' : '' ?>>Long Term (6 Months Contract)</option>
+                            <option value="Daily" <?= $f_duration == 'Daily' ? 'selected' : '' ?>>Daily</option>
                         </select>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">Check-in</label>
-                            <input type="date" name="cin" id="cin" class="form-control" required onchange="updateCheckoutDate(); calculateTotal(); checkAvailability()">
+                            <input type="date" name="cin" id="cin" class="form-control" required value="<?= htmlspecialchars($f_cin) ?>" onchange="updateCheckoutDate(); calculateTotal(); checkAvailability()">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">Check-out</label>
-                            <input type="date" name="cout" id="cout" class="form-control" required onchange="updateDurationFromDates()">
+                            <input type="date" name="cout" id="cout" class="form-control" required value="<?= htmlspecialchars($f_cout) ?>" onchange="updateDurationFromDates()">
                         </div>
                     </div>
 
@@ -534,16 +576,16 @@ $theme = get_theme_colors($conn);
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">Payment Method</label>
                             <select name="payment_method" class="form-select">
-                                <option value="Cash">Cash</option>
-                                <option value="GCash">GCash (Online via Dragonpay)</option>
-                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Cash" <?= $f_pay_method == 'Cash' ? 'selected' : '' ?>>Cash</option>
+                                <option value="GCash" <?= $f_pay_method == 'GCash' ? 'selected' : '' ?>>GCash (Online via Dragonpay)</option>
+                                <option value="Bank Transfer" <?= $f_pay_method == 'Bank Transfer' ? 'selected' : '' ?>>Bank Transfer</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">Payment Status</label>
                             <select name="payment_status" class="form-select">
-                                <option value="Unpaid">Unpaid</option>
-                                <option value="Paid">Paid</option>
+                                <option value="Unpaid" <?= $f_pay_status == 'Unpaid' ? 'selected' : '' ?>>Unpaid</option>
+                                <option value="Paid" <?= $f_pay_status == 'Paid' ? 'selected' : '' ?>>Paid</option>
                             </select>
                         </div>
                     </div>
@@ -558,7 +600,7 @@ $theme = get_theme_colors($conn);
                         <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2"><span class="h5 mb-0">Total: </span><span class="h4 text-success fw-bold">₱<span id="totalAmount">0.00</span></span></div>
                     </div>
 
-                    <input type="hidden" name="specific_room_id" id="specific_room_id" value="">
+                    <input type="hidden" name="specific_room_id" id="specific_room_id" value="<?= htmlspecialchars($_POST['specific_room_id'] ?? '') ?>">
                     
                     <button type="button" class="btn btn-custom w-100 py-2 mt-4" onclick="openRoomModal()">Select Room</button>
                 </form>
@@ -1080,6 +1122,9 @@ window.addEventListener('DOMContentLoaded', (event) => {
     if(document.getElementById('room_type').value) {
         updateRoomOptions();
     }
+
+    // Re-trigger new guest field logic if values were persisted
+    if(document.getElementById('type_new').checked) toggleNewGuestCompany();
     
     // Initialize Dates if empty to trigger calculation
     if(!document.getElementById('cin').value) {

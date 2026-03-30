@@ -8,7 +8,7 @@ if (!isset($_GET['id'])) { header("Location: my_reservations.php"); exit; }
 $id = (int)$_GET['id'];
 $user_id = $_SESSION['user_id'];
 
-// Fetch Reservation & User & Room Details
+// Fetch Reservation & User & Room Details, including emergency contacts
 $query = "
     SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, rm.room_name 
     FROM reservations r
@@ -22,18 +22,20 @@ if(mysqli_num_rows($result) == 0){ die("Reservation not found."); }
 $data = mysqli_fetch_assoc($result);
 
 // Fetch Payments and categorize
-$pay_query = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id = $id AND payment_status = 'Paid'");
+$pay_query = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id = $id AND payment_status = 'Paid' ORDER BY payment_date ASC");
 $total_paid = 0;
 $cat_sd = 0; $cat_rent = 0; $cat_cusa = 0; $cat_util = 0; $cat_other = 0;
+$cat_parking = 0; // New category for parking
 $last_method = 'Cash'; // Default
 
 while($p = mysqli_fetch_assoc($pay_query)){
     $amt = $p['amount'];
     $total_paid += $amt;
     $last_method = $p['payment_method']; // Capture last method used
-    
+
     $desc = strtolower($p['description']);
     if(strpos($desc, 'security') !== false || strpos($desc, 'deposit') !== false) $cat_sd += $amt;
+    elseif(strpos($desc, 'parking') !== false) $cat_parking += $amt; // Categorize parking
     elseif(strpos($desc, 'utility') !== false) $cat_util += $amt;
     elseif(strpos($desc, 'cusa') !== false) $cat_cusa += $amt;
     elseif(strpos($desc, 'rent') !== false) $cat_rent += $amt;
@@ -51,12 +53,12 @@ while($p = mysqli_fetch_assoc($pay_query)){
         .receipt-container { 
             width: 750px; background: #fff; margin: auto; padding: 30px; 
             border: 1px solid #ddd; position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.05);
+            font-size: 14px;
         }
         
         .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .logo-area h1 { margin: 0; font-size: 55px; font-weight: 900; letter-spacing: -3px; line-height: 0.8; }
-        .logo-area p { margin: 0; font-size: 16px; font-weight: bold; }
-        
+        .logo-area h1 { margin: 0; font-size: 2.5rem; font-weight: 900; letter-spacing: -1px; line-height: 1; color: #333; }
+        .logo-area p { margin: 0; font-size: 0.9rem; font-weight: bold; color: #555; }
         .company-info { font-size: 11px; text-align: right; line-height: 1.3; color: #444; }
         .receipt-no { color: #d9534f; font-weight: bold; font-size: 20px; margin-top: 8px; }
 
@@ -66,11 +68,11 @@ while($p = mysqli_fetch_assoc($pay_query)){
         .field-row { margin-bottom: 15px; display: flex; align-items: baseline; }
         .label { font-size: 14px; font-weight: bold; margin-right: 10px; }
         .line { border-bottom: 1px solid #000; flex-grow: 1; padding-left: 10px; font-style: italic; font-weight: 500; }
-
-        .main-content { display: flex; gap: 20px; margin-top: 10px; }
+        .line.large { font-size: 1.2rem; }
+        .main-content { display: flex; gap: 20px; margin-top: 20px; }
         
         /* Left Column: Mode of Payment */
-        .payment-modes { width: 180px; border: 1px solid #000; padding: 10px; font-size: 12px; }
+        .payment-modes { width: 180px; border: 1px solid #000; padding: 10px; font-size: 13px; }
         .mode-item { display: flex; align-items: center; margin-bottom: 5px; }
         .checkbox { width: 15px; height: 15px; border: 1px solid #000; margin-right: 8px; text-align: center; line-height: 13px; font-weight: bold; }
 
@@ -78,10 +80,10 @@ while($p = mysqli_fetch_assoc($pay_query)){
         .particulars-table { flex-grow: 1; border-collapse: collapse; }
         .particulars-table th, .particulars-table td { border: 1px solid #000; padding: 6px 10px; font-size: 13px; }
         .particulars-table th { background: #eee; text-align: center; }
-        .amt-val { text-align: right; width: 120px; font-family: monospace; font-size: 15px; }
+        .amt-val { text-align: right; width: 120px; font-family: monospace; font-size: 14px; }
 
         .footer { margin-top: 40px; display: flex; justify-content: space-between; }
-        .sig-box { width: 45%; text-align: center; }
+        .sig-box { width: 48%; text-align: center; }
         .sig-line { border-top: 1px solid #000; margin-top: 5px; padding-top: 5px; font-size: 12px; font-weight: bold; }
         .sig-img { max-height: 60px; margin-bottom: -10px; }
 
@@ -96,16 +98,14 @@ while($p = mysqli_fetch_assoc($pay_query)){
 
 <div class="receipt-container">
     <div class="header">
-        <div class="logo-area">
-            <h1>woke</h1>
-            <p>coliving space</p>
+        <div class="company-info" style="text-align: left;">
+            <h1>WOKE COLIVING INC.</h1>
+            <p>205 Kanlaon St., Mariveles Bgy., Highway Hills, Mandaluyong City</p>
+            <p>Contact: 0917-307-2552</p>
         </div>
-        <div class="company-info">
-            Company name: <strong>WOKE COLIVING INC.</strong><br>
-            Branch: Kanlaon, Mandaluyong City<br>
-            Address: 205 Kanlaon St. Cor. Mariveles Brgy. Highway Hills, Mandaluyong City<br>
-            Contact: 0917-307-2512
-            <div class="receipt-no">Nº <?= str_pad($data['reservation_id'], 5, '0', STR_PAD_LEFT) ?></div>
+        <div class="receipt-details">
+            <div class="receipt-no">No.: <?= str_pad($data['reservation_id'], 4, '0', STR_PAD_LEFT) ?></div>
+            <div style="font-size: 12px; margin-top: 5px;">Date: <?= date('F d, Y') ?></div>
         </div>
     </div>
 
@@ -113,19 +113,11 @@ while($p = mysqli_fetch_assoc($pay_query)){
 
     <div style="text-align: right; margin-bottom: 20px;">
         <span class="label">Date:</span> 
-        <span style="border-bottom: 1px solid #000; min-width: 150px; display: inline-block; text-align: center;">
-            <?= date('d M Y') ?>
-        </span>
+        <span style="border-bottom: 1px solid #000; min-width: 150px; display: inline-block; text-align: center;"></span>
     </div>
 
     <div class="field-row">
-        <span class="label">Received from:</span> 
-        <div class="line"><?= htmlspecialchars($data['full_name']) ?></div>
-    </div>
-
-    <div class="field-row">
-        <span class="label">the sum of Pesos:</span> 
-        <div class="line">*** <?= number_format($total_paid, 2) ?> ***</div>
+        <span class="label">Received from:</span> <div class="line"><?= htmlspecialchars($data['full_name']) ?></div>
     </div>
 
     <div class="field-row">
@@ -135,16 +127,16 @@ while($p = mysqli_fetch_assoc($pay_query)){
 
     <div class="main-content">
         <div class="payment-modes">
-            <strong>Mode of Payment:</strong><br><br>
+            <strong>Mode of Payment:</strong><br>
             <div class="mode-item"><div class="checkbox"><?= ($last_method == 'GCash') ? '✓' : '' ?></div> GCash</div>
             <div class="mode-item"><div class="checkbox"><?= ($last_method == 'Bank Transfer' || $last_method == 'Bank') ? '✓' : '' ?></div> Bank</div>
             <div class="mode-item"><div class="checkbox"><?= ($last_method == 'Cash') ? '✓' : '' ?></div> Cash</div>
-            <div class="mode-item"><div class="checkbox"></div> Other: _______</div>
         </div>
 
         <table class="particulars-table">
             <thead>
                 <tr>
+                    <th colspan="2" style="text-align: left;">PARTICULARS</th>
                     <th>PARTICULARS</th>
                     <th>AMOUNT</th>
                 </tr>
@@ -152,9 +144,9 @@ while($p = mysqli_fetch_assoc($pay_query)){
             <tbody>
                 <tr><td>Reservation Fee / Security Deposit</td><td class="amt-val"><?= $cat_sd > 0 ? number_format($cat_sd, 2) : '' ?></td></tr>
                 <tr><td>Rental Payment</td><td class="amt-val"><?= $cat_rent > 0 ? number_format($cat_rent, 2) : '' ?></td></tr>
-                <tr><td>CUSA</td><td class="amt-val"><?= $cat_cusa > 0 ? number_format($cat_cusa, 2) : '' ?></td></tr>
-                <tr><td>Utilities</td><td class="amt-val"><?= $cat_util > 0 ? number_format($cat_util, 2) : '' ?></td></tr>
-                <tr><td>Other</td><td class="amt-val"><?= $cat_other > 0 ? number_format($cat_other, 2) : '' ?></td></tr>
+                <tr><td>Other Pk Specific</td><td class="amt-val"><?= $cat_parking > 0 ? number_format($cat_parking, 2) : '' ?></td></tr>
+                <!-- Removed CUSA and Utilities as per new format -->
+                <tr><td>Other</td><td class="amt-val"><?= ($cat_cusa + $cat_util + $cat_other) > 0 ? number_format(($cat_cusa + $cat_util + $cat_other), 2) : '' ?></td></tr>
                 <tr style="font-weight: bold; background: #f9f9f9;">
                     <td style="text-align: right;">TOTAL PAYMENT</td>
                     <td class="amt-val"><?= number_format($total_paid, 2) ?></td>
@@ -168,12 +160,12 @@ while($p = mysqli_fetch_assoc($pay_query)){
             <?php if(!empty($data['signature_image'])): ?>
                 <img src="../assets/signatures/<?= $data['signature_image'] ?>" class="sig-img">
             <?php else: ?>
-                <div style="height: 50px;"></div>
+                <div style="height: 40px;"></div>
             <?php endif; ?>
-            <div class="sig-line">Client signature over printed name</div>
+            <div class="sig-line">Received by (Signature over printed name)</div>
         </div>
         <div class="sig-box">
-            <div style="height: 50px;"></div>
+            <div style="height: 40px;"></div>
             <div class="sig-line">Authorized Representative</div>
         </div>
     </div>

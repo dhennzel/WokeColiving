@@ -9,6 +9,13 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
+// Calculate Balance for Navbar Badge
+$financial_q = mysqli_query($conn, "SELECT IFNULL(SUM(p.amount), 0) as total_billed, IFNULL(SUM(CASE WHEN p.payment_status='Paid' THEN p.amount ELSE 0 END), 0) as total_paid FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$user_id AND p.payment_status != 'Cancelled'");
+$fin = mysqli_fetch_assoc($financial_q);
+$total_billed = $fin['total_billed'] ?? 0;
+$total_paid = $fin['total_paid'] ?? 0;
+$user_balance = $total_billed - $total_paid;
+
 // Get User Info
 $u_query = mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
@@ -146,6 +153,12 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <div class="d-flex align-items-center gap-3 ms-auto mt-3 mt-lg-0">
+                <a href="billing.php" class="nav-link fw-bold position-relative me-2" title="Billing & Balance">
+                    <i class="fas fa-file-invoice-dollar fa-lg"></i>
+                    <?php if($user_balance > 0): ?>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.55rem; padding: 0.25rem 0.4rem;">!</span>
+                    <?php endif; ?>
+                </a>
                 <a href="profile.php" class="nav-link fw-bold position-relative">
                     My Profile
                     <?php if($unread_count > 0): ?>

@@ -179,6 +179,15 @@ $user_query = mysqli_query($conn, "
 ");
 $user = mysqli_fetch_assoc($user_query);
 
+// Fetch Total Outstanding Balance
+$balance_q = mysqli_query($conn, "SELECT SUM(p.amount) as balance FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid'");
+$total_balance = mysqli_fetch_assoc($balance_q)['balance'] ?? 0;
+
+$financial_q = mysqli_query($conn, "SELECT IFNULL(SUM(p.amount), 0) as total_billed, IFNULL(SUM(CASE WHEN p.payment_status='Paid' THEN p.amount ELSE 0 END), 0) as total_paid FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status != 'Cancelled'");
+$fin = mysqli_fetch_assoc($financial_q);
+$total_billed = $fin['total_billed'] ?? 0;
+$total_paid = $fin['total_paid'] ?? 0;
+
 if(!$user){
     header("Location: admin_dashboard.php");
     exit;
@@ -368,6 +377,11 @@ $theme = get_theme_colors($conn);
                             echo "<span class='badge $cls'>$lbl</span>";
                         ?>
                     </div>
+                    <?php if($total_balance > 0): ?>
+                        <div class="mt-2">
+                            <span class="badge bg-danger p-2"><i class="fas fa-exclamation-circle me-1"></i> Outstanding Balance: ₱<?= number_format($total_balance, 2) ?></span>
+                        </div>
+                    <?php endif; ?>
                     <?php if(!empty($user['school_id_image'])): ?>
                         <div class="mt-2">
                             <span class="badge bg-info text-dark"><i class="fas fa-user-graduate me-1"></i> Student</span>
@@ -395,6 +409,28 @@ $theme = get_theme_colors($conn);
                 </div>
             </div>
             
+            <!-- Financial Overview -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card p-3 bg-white border-0 shadow-sm rounded-4 h-100">
+                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Total Billed</small>
+                        <h4 class="fw-bold mb-0">₱<?= number_format($total_billed, 2) ?></h4>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3 bg-white border-0 shadow-sm rounded-4 h-100 border-start border-success border-4">
+                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Total Paid</small>
+                        <h4 class="fw-bold text-success mb-0">₱<?= number_format($total_paid, 2) ?></h4>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3 bg-white border-0 shadow-sm rounded-4 h-100 border-start border-danger border-4">
+                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Remaining Balance</small>
+                        <h4 class="fw-bold text-danger mb-0">₱<?= number_format($total_billed - $total_paid, 2) ?></h4>
+                    </div>
+                </div>
+            </div>
+
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid'): ?>
                 <div class="alert alert-success">Selected payments marked as paid successfully.</div>
             <?php endif; ?>
@@ -421,6 +457,9 @@ $theme = get_theme_colors($conn);
             <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'sig_requested'): ?>
                 <div class="alert alert-success">Signature request notification sent to user.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'pending_profile_update'): ?>
+                <div class="alert alert-info">Reservation approved. This user has pending profile updates to review.</div>
             <?php endif; ?>
             <?php if(isset($_GET['error'])): ?>
                 <div class="alert alert-danger"><?= htmlspecialchars($_GET['error']) ?></div>

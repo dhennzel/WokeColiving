@@ -35,13 +35,23 @@ if(isset($_POST['delete_user'])){
 
 // Fetch Residents
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
+$bill_filter = isset($_GET['bill_filter']) ? $_GET['bill_filter'] : 'all';
+
 $where = "role != 'admin' AND role != 'Super Admin' AND u.is_archived = 0";
 if($search){
     $where .= " AND (last_name LIKE '%$search%' OR first_name LIKE '%$search%' OR email LIKE '%$search%')";
 }
 
+if($bill_filter == 'unpaid'){
+    $where .= " AND (SELECT IFNULL(SUM(p.amount), 0) FROM payments p JOIN reservations res ON p.reservation_id = res.reservation_id WHERE res.user_id = u.user_id AND p.payment_status = 'Unpaid') > 0";
+} elseif($bill_filter == 'paid'){
+    $where .= " AND (SELECT IFNULL(SUM(p.amount), 0) FROM payments p JOIN reservations res ON p.reservation_id = res.reservation_id WHERE res.user_id = u.user_id AND p.payment_status = 'Unpaid') = 0";
+}
+
 $query = mysqli_query($conn, "
     SELECT u.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name,
+    (SELECT IFNULL(SUM(p.amount), 0) FROM payments p JOIN reservations res ON p.reservation_id = res.reservation_id WHERE res.user_id = u.user_id AND p.payment_status != 'Cancelled') as total_billed,
+    (SELECT IFNULL(SUM(p.amount), 0) FROM payments p JOIN reservations res ON p.reservation_id = res.reservation_id WHERE res.user_id = u.user_id AND p.payment_status = 'Paid') as total_paid,
     (SELECT months FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_months,
     (SELECT DATEDIFF(end_date, start_date) FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_days
     FROM users u WHERE $where ORDER BY u.last_name ASC
@@ -85,6 +95,11 @@ $theme = get_theme_colors($conn);
                 <h1>Residents Directory</h1>
                 <div class="d-flex gap-2">
                     <form method="GET" class="d-flex">
+                        <select name="bill_filter" class="form-select form-select-sm me-2" onchange="this.form.submit()">
+                            <option value="all" <?= $bill_filter == 'all' ? 'selected' : '' ?>>All Billing</option>
+                            <option value="unpaid" <?= $bill_filter == 'unpaid' ? 'selected' : '' ?>>With Balance</option>
+                            <option value="paid" <?= $bill_filter == 'paid' ? 'selected' : '' ?>>Fully Paid</option>
+                        </select>
                         <input type="text" name="search" class="form-control form-control-sm me-2" placeholder="Search residents..." value="<?= htmlspecialchars($search) ?>">
                         <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
                     </form>
@@ -108,7 +123,7 @@ $theme = get_theme_colors($conn);
             <div class="card card-table p-4" id="tableView">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Resident</th><th>Contact</th><th>Status</th><th>Joined</th><th class="text-end">Action</th></tr></thead>
+                        <thead><tr><th>Resident</th><th>Contact</th><th>Billing Summary</th><th>Status</th><th>Joined</th><th class="text-end">Action</th></tr></thead>
                         <tbody>
                             <?php foreach($residents as $row): ?>
                             <tr>
@@ -124,6 +139,16 @@ $theme = get_theme_colors($conn);
                                     </div>
                                 </td>
                                 <td><?= $row['phone_number'] ?></td>
+                                <td>
+                                    <?php 
+                                        $billed = $row['total_billed'];
+                                        $paid = $row['total_paid'];
+                                        $balance = $billed - $paid;
+                                    ?>
+                                    <div class="small">Paid: ₱<?= number_format($paid, 2) ?></div>
+                                    <div class="fw-bold <?= $balance > 0 ? 'text-danger' : 'text-success' ?>">Bal: ₱<?= number_format($balance, 2) ?></div>
+                                    <?= $balance > 0 ? '<span class="badge bg-danger" style="font-size:0.65rem;">With Balance</span>' : '<span class="badge bg-success" style="font-size:0.65rem;">Fully Paid</span>' ?>
+                                </td>
                                 <td>
                                     <?php if($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
                                     <?php else: 
@@ -233,6 +258,11 @@ $theme = get_theme_colors($conn);
                         <div class="d-flex gap-2" id="modalUserBadges">
                             <!-- Badges -->
                         </div>
+                        <div id="modalBillingSummary" class="mt-2 p-2 bg-light rounded border d-flex gap-3 small">
+                            <div>Total Bill: <span class="fw-bold" id="modalTotalBill">₱0.00</span></div>
+                            <div class="border-start ps-3">Paid: <span class="fw-bold text-success" id="modalTotalPaid">₱0.00</span></div>
+                            <div class="border-start ps-3">Balance: <span class="fw-bold text-danger" id="modalBalance">₱0.00</span></div>
+                        </div>
                     </div>
                 </div>
                 
@@ -333,6 +363,14 @@ $theme = get_theme_colors($conn);
         document.getElementById('modalUserName').innerText = user.full_name;
         document.getElementById('modalUserEmail').innerText = user.email || 'N/A';
         document.getElementById('modalUserPhone').innerText = user.phone_number || 'N/A';
+
+        // Billing
+        const billed = parseFloat(user.total_billed || 0);
+        const paid = parseFloat(user.total_paid || 0);
+        const bal = billed - paid;
+        document.getElementById('modalTotalBill').innerText = '₱' + billed.toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('modalTotalPaid').innerText = '₱' + paid.toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('modalBalance').innerText = '₱' + bal.toLocaleString('en-US', {minimumFractionDigits: 2});
         
         const joinedDate = new Date(user.created_at);
         document.getElementById('modalUserJoined').innerText = joinedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -356,18 +394,18 @@ $theme = get_theme_colors($conn);
 
         if (occupation === 'Employed') {
             companySection.style.display = 'none'; // Hide redundant field for employed
-            emHeader.innerText = "Company Details";
+            emHeader.innerText = "Company Information";
             emIcon.className = "fas fa-building me-2";
             emNameLabel.innerText = "Company Name";
-            emPhoneLabel.innerText = "Company Number";
+            emPhoneLabel.innerText = "Company Contact";
             schoolIdSection.style.display = 'none'; // Hide school ID for employed
         } else if (occupation === 'Student') {
             companySection.style.display = 'block';
             companyLabel.innerText = "School Name";
-            emHeader.innerText = "Guardian Contact";
+            emHeader.innerText = "Parent Information";
             emIcon.className = "fas fa-user-shield me-2";
-            emNameLabel.innerText = "Guardian Name";
-            emPhoneLabel.innerText = "Guardian Contact Number";
+            emNameLabel.innerText = "Parent Name";
+            emPhoneLabel.innerText = "Parent Contact";
             // Show school ID section if student and image exists
             if (user.school_id_image) {
                 schoolIdSection.style.display = 'block';
