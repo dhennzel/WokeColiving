@@ -359,7 +359,7 @@ if(isset($_POST['add_reservation'])){
 
             // Insert
             $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, occupation, company_or_school, contact_person_name, contact_person_number) VALUES (?, ?, ?, ?, ?, ?, 'Approved', ?, ?, ?, ?, ?)");
-            $stmt->bind_param("iissidssssss", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $bed_preference, $occupation, $company, $em_name, $em_num);
+            $stmt->bind_param("iissidsssss", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $bed_preference, $occupation, $company, $em_name, $em_num);
             
             if($stmt->execute()){
                 $res_id = $conn->insert_id;
