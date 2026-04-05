@@ -1,20 +1,9 @@
-# Resident Profile System Task
-## Status: ✅ COMPLETED (Already Implemented)
+# Task: Add signature text under "As payment for:" in receipts
 
-### Steps Completed:
-- [x] Analyzed project files (db.php, residents.php, booking_management.php, reservation_now.php)
-- [x] Confirmed tenant info saves to `reservations` via `user_id` → `users` table
-- [x] Verified admin approval (`booking_management.php`) → `sync_resident_profile()` → `residents` table
-- [x] Confirmed `admin/residents.php` displays from `residents` table
+## Steps:
+- [x] 1. Create TODO.md for tracking
+- [x] 2. Edit admin/view_receipt.php to insert signature block after "As payment for:" div
+- [x] 3. Test the change (print preview)
+- [x] 4. Mark complete and attempt_completion
 
-### How It Works:
-```
-1. Book → users/reservation_now.php → INSERT reservations (user_id)
-2. Approve → admin/booking_management.php?action=approve → status='Approved' → sync_resident_profile()
-3. View → admin/residents.php → SELECT FROM residents
-```
-
-**No code changes needed. System is production-ready!**
-
-**Demo:** `admin/residents.php`
-
+Current step: Task complete

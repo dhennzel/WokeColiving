@@ -6,7 +6,7 @@ include("../db.php");
 if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true){
     header("Location: admin_login.php");
     exit;
-}
+}  
 
 if(!isset($_GET['id'])){
     die("Invalid Request");
@@ -90,6 +90,80 @@ $duration_str = ($d_diff->y > 0 ? $d_diff->y . " Yr " : "") . ($d_diff->m > 0 ? 
 $duration_str = empty($duration_str) ? "0 Days" : trim($duration_str);
 
 $balance = $data['total_price'] - $total_paid;
+
+// Logic for Acknowledgement Particulars
+$sd_total = 0;
+$rent_total = 0;
+$other_total = 0;
+$methods = [];
+
+foreach($payments as $pay) {
+    $desc = strtolower($pay['description']);
+    $amt = (float)$pay['amount'];
+    
+    if(!in_array($pay['payment_method'], $methods)) $methods[] = $pay['payment_method'];
+
+    if (strpos($desc, 'security') !== false || strpos($desc, 'reservation fee') !== false) {
+        $sd_total += $amt;
+    } elseif (strpos($desc, 'utility') !== false || strpos($desc, 'penalty') !== false || strpos($desc, 'parking') !== false || strpos($desc, 'maintenance') !== false || strpos($desc, 'housekeeping') !== false) {
+        $other_total += $amt;
+    } else {
+        // If it's the initial payment and no specific "security" mention, 
+        // we assume the first 3000 is SD (Standard Policy)
+        if ($sd_total == 0 && $amt >= 3000 && (strpos($desc, 'initial') !== false || strpos($desc, 'walk-in') !== false)) {
+            $sd_total = 3000;
+            $rent_total += ($amt - 3000);
+        } else {
+            $rent_total += $amt;
+        }
+    }
+}
+$payment_methods_str = !empty($methods) ? implode(', ', $methods) : 'N/A';
+
+// Gather Sub-items for "Other" section
+$other_sub_items = [];
+foreach($payments as $pay) {
+    $desc = $pay['description'];
+    $amt = (float)$pay['amount'];
+    $ldesc = strtolower($desc);
+    
+    // Filter out SD and Rent
+    if (strpos($ldesc, 'security') !== false || strpos($ldesc, 'reservation fee') !== false) continue;
+    
+    $is_rent = (strpos($ldesc, 'rent') !== false || strpos($ldesc, 'monthly') !== false || strpos($ldesc, 'stay') !== false || strpos($ldesc, 'initial') !== false || strpos($ldesc, 'walk-in') !== false);
+    
+    if (!$is_rent) {
+        $other_sub_items[] = ['label' => $desc, 'amount' => $amt];
+    }
+}
+
+
+// Helper function for Sum of Pesos
+if (!function_exists('amountToWords')) {
+    function amountToWords($number) {
+        if (class_exists('NumberFormatter')) {
+            $f = new NumberFormatter("en_PH", NumberFormatter::SPELLOUT);
+            $whole = floor($number);
+            $fraction = round(($number - $whole) * 100);
+            
+            $result = ucwords(str_replace('-', ' ', $f->format($whole))) . " Pesos";
+            if ($fraction > 0) {
+                $result .= " and " . $f->format($fraction) . " Centavos";
+            }
+            return $result . " Only";
+        }
+        return number_format($number, 2) . " Pesos Only";
+    }
+}
+
+// Description for "Payment for"
+$payment_for = $data['room_type'] . " Stay (" . date('M d', strtotime($start_date)) . " - " . date('M d, Y', strtotime($end_date)) . ")";
+if (!empty($data['room_number'])) {
+    $payment_for = "Room " . $data['room_number'] . " - " . $payment_for;
+} elseif (!empty($data['room_name'])) {
+    $payment_for = $data['room_name'] . " - " . $payment_for;
+}
+
 $theme = get_theme_colors($conn);
 ?>
 <!DOCTYPE html>
@@ -109,31 +183,31 @@ $theme = get_theme_colors($conn);
             --accent-yellow: <?= $theme['accent'] ?>;
         }
         
-        .receipt-wrapper {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-        }
+        body { font-family: Arial, sans-serif; background-color: #f0f2f5; color: #000; }
+        .receipt-wrapper { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         
         .receipt-container {
-            width: 100%;
-            max-width: 850px;
             background: #fff;
-            padding: 0;
+            color: #000;
+            width: 100%;
+            max-width: 210mm; /* A5 Landscape Width */
             border: 1px solid rgba(255, 255, 255, 0.8);
             border-radius: 20px;
             box-shadow: 0 12px 28px rgba(46, 125, 50, 0.12);
-            overflow: hidden;
+            padding: 10mm;
             position: relative;
+            display: flex;
+            flex-direction: column;
+            margin: 0 auto;
+            overflow: hidden;
         }
         
         .receipt-header {
             background: linear-gradient(135deg, var(--primary-green), #209158);
-            color: white;
-            padding: 30px 40px;
+            color: white !important;
+            padding: 25px 30px;
             position: relative;
+            margin: -10mm -10mm 20px -10mm;
         }
         
         .receipt-header::after {
@@ -145,199 +219,183 @@ $theme = get_theme_colors($conn);
             height: 10px;
             background: linear-gradient(90deg, var(--accent-yellow) 0%, #f9a825 100%);
         }
+        
+        /* Header */
+        .logo-text { font-size: 2.2rem; font-weight: 900; margin: 0; line-height: 0.8; letter-spacing: -1px; }
+        .logo-subtitle { font-size: 0.75rem; font-weight: bold; margin: 0; text-transform: uppercase; }
+        .company-details { font-size: 0.7rem; line-height: 1.2; text-align: right; }
+        .receipt-no { font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; }
+        .receipt-no span { color: #dc3545; }
+
+        /* Title */
+        .receipt-title-centered { text-align: center; font-weight: bold; font-size: 1.1rem; border: 1.5px solid #000; padding: 2px 20px; width: fit-content; margin: 10px auto; letter-spacing: 1px; }
+
+        /* Two Column Content */
+        .particulars-table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
+        .particulars-table th, .particulars-table td { border: 1px solid #000; padding: 4px 8px; font-size: 0.75rem; }
+        .particulars-table th { text-align: center; }
+        .amt-col { width: 80px; text-align: right; }
+        .sub-item { padding-left: 15px !important; font-style: italic; font-size: 0.7rem !important; }
+
+        .form-panel { padding-left: 20px; font-size: 0.8rem; }
+        .form-field { display: flex; align-items: baseline; margin-bottom: 8px; }
+        .line-val { border-bottom: 1px solid #000; flex-grow: 1; padding-left: 5px; font-weight: bold; min-height: 1.2em; margin-left: 5px; }
+        
+        /* Footer */
+        .sig-section { text-align: center; width: 45%; }
+        .sig-line { border-top: 1px solid #000; margin-top: 15px; font-size: 0.7rem; padding-top: 2px; font-weight: 600; }
+        .name-val { font-weight: bold; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 0; }
+        .sig-image-on-receipt { max-height: 60px; position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); pointer-events: none; }
 
         .logo { width: 70px; height: 70px; object-fit: cover; border-radius: 50%; border: 3px solid var(--accent-yellow); }
-        .company-name { font-weight: bold; font-size: 1.8rem; font-family: 'Playfair Display', serif; letter-spacing: 1px; }
-        
-        .receipt-body { padding: 40px; }
-        
-        .info-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888; font-weight: 600; margin-bottom: 5px; }
-        .info-value { font-size: 1rem; font-weight: 500; color: #222; }
-        
-        .table-custom { width: 100%; margin-bottom: 1rem; border-collapse: collapse; }
-        .table-custom th { text-align: left; padding: 15px; background-color: #f8f9fa; color: var(--dark-green); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; border-bottom: 2px solid var(--primary-green); }
-        .table-custom td { padding: 15px; border-bottom: 1px solid #eee; vertical-align: middle; }
-        .table-custom tr:last-child td { border-bottom: none; }
-        
-        .total-section { background-color: rgba(46, 125, 50, 0.05); padding: 25px; border-radius: 15px; margin-top: 20px; border: 1px solid rgba(46, 125, 50, 0.1); }
-        .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem; }
-        .total-row.final { font-size: 1.3rem; font-weight: bold; color: var(--dark-green); border-top: 1px solid #ddd; padding-top: 10px; margin-bottom: 0; }
-        
-        .sig-box { border: 2px dashed #ddd; padding: 15px; display: inline-block; margin-top: 10px; border-radius: 10px; background: #fafafa; }
-        .sig-img { max-height: 60px; }
-        
         @media print {
-            @page { size: A4 portrait; margin: 5mm; }
-            body, html { height: auto !important; margin: 0 !important; padding: 0 !important; background: #fff !important; font-size: 11pt; }
+            @page { size: A5 landscape; margin: 0; }
+            html, body { height: 148mm !important; width: 210mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .receipt-wrapper { padding: 0; display: block; }
-            .receipt-container { box-shadow: none; border-radius: 0; max-width: 100%; border: none !important; }
+            .receipt-wrapper { display: block !important; padding: 0 !important; margin: 0 !important; background: none !important; width: 210mm; height: 148mm; }
+            .receipt-container { 
+                box-shadow: none !important; border: 1.5px solid #000 !important; margin: 0 !important; border-radius: 0 !important;
+                width: 210mm !important; height: 148mm !important; padding: 5mm !important;
+            }
+            .receipt-header { background: #fff !important; color: #000 !important; margin: 0 0 10px 0 !important; padding: 0 0 5px 0 !important; border-bottom: 1px solid #000 !important; }
+            .receipt-header::after { display: none !important; } /* Remove accent line for ordinary print */
+            .logo-text { color: #000 !important; font-size: 1.5rem !important; font-weight: bold !important; }
+            .logo-subtitle { font-size: 0.6rem !important; color: #000 !important; }
+            .logo { border: 1px solid #000 !important; filter: grayscale(100%); width: 50px; height: 50px; }
+            .receipt-no { font-size: 0.8rem !important; }
+            .company-details { font-size: 0.6rem !important; }
+            .receipt-title-centered { font-size: 0.9rem !important; }
+            .particulars-table th, .particulars-table td { border: 1px solid #000 !important; font-size: 0.8rem !important; padding: 2px 5px !important; }
+            .particulars-table .sub-item { font-size: 0.75rem !important; }
+            .form-panel { font-size: 0.9rem !important; }
+            .name-val { font-size: 0.85rem !important; }
+            .sig-line { font-size: 0.7rem !important; }
+            .sig-image-on-receipt { bottom: 95px !important; max-height: 40px !important; }
+            .sidebar, .top-navbar, .page-header { display: none !important; }
             .no-print { display: none !important; }
-            .receipt-body { padding: 5px 20px !important; }
-            .table-custom th, .table-custom td { padding: 4px 8px !important; font-size: 10.5pt !important; }
-            .total-section { padding: 8px !important; background-color: rgba(52, 184, 117, 0.05) !important; border: 1px solid rgba(52, 184, 117, 0.2) !important; margin-top: 5px !important; }
-            .mb-5 { margin-bottom: 0.5rem !important; }
-            .mt-5 { margin-top: 0.5rem !important; }
-            .row.mt-5.pt-4 { margin-top: 1rem !important; padding-top: 0.5rem !important; }
-            .company-name { font-size: 2.2rem; }
-            .receipt-header h2 { font-size: 3rem !important; }
-            .logo { width: 50px; height: 50px; }
-            .receipt-header { padding: 10px 30px !important; }
         }
     </style>
 </head>
 <body>
 
-<div class="receipt-wrapper">
-    <?php if(isset($_GET['msg']) && $_GET['msg'] == 'sig_requested'): ?>
-        <div class="alert alert-success text-center no-print" style="position:absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 10;">Signature request sent to user.</div>
-    <?php endif; ?>
-    <div class="receipt-container">
+<div class="no-print p-3 text-center">
+    <a href="booking_management.php" class="btn btn-outline-secondary rounded-pill px-4 fw-bold shadow-sm"><i class="fas fa-arrow-left me-2"></i>Back to System</a>
+</div>
+
+<!-- Tinanggal ang dashboard layout para mawala ang scrollbars at resibo na lang ang makita -->
+<div class="receipt-wrapper" style="padding: 0; min-height: auto;">
+    <div class="receipt-container shadow-sm">
         <!-- Header -->
-        <div class="receipt-header d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center">
+        <div class="receipt-header d-flex justify-content-between">
+            <div class="d-flex align-items-start text-white">
                 <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" class="logo me-3">
                 <div>
-                    <div class="company-name">Woke Coliving INC</div>
-                    <div class="small opacity-75">123 Coliving Street, City Center</div>
-                    <div class="small opacity-75">contact@wokecoliving.com | +63 912 345 6789</div>
+                    <h1 class="logo-text" style="color: var(--accent-yellow);">woke</h1>
+                    <p class="logo-subtitle" style="color: white;">COLIVING SPACE</p>
+                    <div class="small fw-bold" style="color: black !important;">123 Coliving St., Corner Avenue, Metro Manila</div>
+                    <div class="small fw-bold" style="color: black !important;">Contact: +63 912 345 6789</div>
                 </div>
             </div>
             <div class="text-end">
-                <h2 class="fw-bold mb-1">RECEIPT</h2>
-                <div class="opacity-75">#<?= str_pad($data['reservation_id'], 6, '0', STR_PAD_LEFT) ?></div>
-                <?php if(!empty($data['is_walkin'])): ?>
-                    <div class="badge bg-info text-dark mt-1">WALK-IN GUEST</div>
-                <?php endif; ?>
-                <div class="mt-2 badge bg-warning text-dark shadow-sm">
-                    <?= ($balance <= 0) ? 'PAID IN FULL' : 'PARTIALLY PAID' ?>
+                <div class="receipt-no">No. <span><?= str_pad($data['reservation_id'], 6, '0', STR_PAD_LEFT) ?></span></div>
+                <div class="company-details">
+                    <strong>WOKE COLIVING INC.</strong><br>
                 </div>
             </div>
         </div>
 
-        <div class="receipt-body">
-        <!-- Guest & Room Info -->
-            <div class="row mb-5 g-4">
-                <div class="col-md-4">
-                    <div class="info-label">Billed To</div>
-                    <div class="info-value fw-bold"><?= $data['full_name'] ?></div>
-                    <div class="small text-muted"><?= $data['email'] ?></div>
-                    <div class="small text-muted"><?= $data['phone_number'] ?></div>
-                    <?php if(!empty($data['emergency_contact_name'])): ?>
-                        <div class="small text-muted mt-1">ICE: <?= $data['emergency_contact_name'] ?> (<?= $data['emergency_contact_number'] ?>)</div>
-                    <?php endif; ?>
-                </div>
-                <div class="col-md-4">
-                    <div class="info-label">Room Details</div>
-                    <div class="info-value"><?= !empty($data['room_number']) ? 'Room ' . htmlspecialchars($data['room_number']) : htmlspecialchars($data['room_name']) ?></div>
-                    <div class="small text-muted"><?= $data['room_type'] ?> (Floor <?= $data['floor'] ?>)</div>
-                    <div class="small text-muted">Bed: <?= $data['bed_preference'] ?></div>
-                </div>
-                <div class="col-md-4 text-md-end">
-                    <div class="info-label">Stay Duration</div>
-                    <div class="info-value"><?= $duration_str ?></div>
-                    <div class="small text-muted">In: <?= date('M d, Y', strtotime($start_date)) ?></div>
-                    <div class="small text-muted">Out: <?= date('M d, Y', strtotime($end_date)) ?></div>
-                </div>
-            </div>
+        <div class="receipt-title-centered">ACKNOWLEDGEMENT RECEIPT</div>
 
-        <!-- Payment Table -->
-            <h5 class="fw-bold text-secondary mb-3">Payment History</h5>
-            <table class="table-custom">
-                <thead>
-                <tr>
-                        <th>Date</th>
-                    <th>Description</th>
-                        <th>Method</th>
-                        <th>Ref No.</th>
-                    <th class="text-end">Amount</th>
-                </tr>
-            </thead>
-            <tbody>
-                    <?php if(count($payments) > 0): ?>
-                        <?php foreach($payments as $pay): ?>
-                <tr>
-                            <td><?= date('M d, Y', strtotime($pay['payment_date'])) ?></td>
-                            <td><?= !empty($pay['description']) ? $pay['description'] : 'Payment' ?></td>
-                            <td><?= $pay['payment_method'] ?></td>
-                            <td><?= !empty($pay['reference_number']) ? $pay['reference_number'] : '-' ?></td>
-                            <td class="text-end">₱<?= number_format($pay['amount'], 2) ?></td>
-                </tr>
+        <!-- Content Body -->
+        <div class="row g-0 flex-grow-1 mt-2">
+            <!-- Left Panel: Table -->
+            <div class="col-5">
+                <table class="particulars-table">
+                    <thead>
+                        <tr><th colspan="2">PARTICULARS</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="fw-bold">Total Contract Price</td>
+                            <td class="amt-col fw-bold"><?= number_format($data['total_price'], 2) ?></td>
+                        </tr>
+                        <tr>
+                            <td>Reservation Fee / Security Deposit</td>
+                            <td class="amt-col"><?= number_format($sd_total, 2) ?></td>
+                        </tr>
+                        <tr>
+                            <td>Rental Payment</td>
+                            <td class="amt-col"><?= number_format($rent_total, 2) ?></td>
+                        </tr>
+                        <tr>
+                            <td colspan="2">Other: Pls Specify</td>
+                        </tr>
+                        <?php foreach($other_sub_items as $item): ?>
+                        <tr>
+                            <td class="sub-item">- <?= htmlspecialchars($item['label']) ?></td>
+                            <td class="amt-col"><?= number_format($item['amount'], 2) ?></td>
+                        </tr>
                         <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr><td colspan="5" class="text-center text-muted">No payments recorded yet.</td></tr>
-                    <?php endif; ?>
-            </tbody>
-        </table>
+                        <?php if(empty($other_sub_items)): ?>
+                            <tr><td class="sub-item">&nbsp;</td><td class="amt-col"></td></tr>
+                        <?php endif; ?>
+                        <tr style="border-top: 2px solid #000;">
+                            <td class="fw-bold" style="font-size: 1rem;">TOTAL PAYMENT</td>
+                            <td class="amt-col fw-bold" style="font-size: 1rem;">₱ <?= number_format($total_paid, 2) ?></td>
+                        </tr>
+                        <tr style="border-top: 1px solid #000;">
+                            <td class="fw-bold text-danger" style="font-size: 1rem;">REMAINING BALANCE</td>
+                            <td class="amt-col fw-bold text-danger" style="font-size: 1rem;"><?= number_format(max(0, $balance), 2) ?></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-            <!-- Totals -->
-            <div class="row justify-content-end">
-                <div class="col-md-5">
-                    <div class="total-section">
-                        <div class="total-row">
-                            <span>Total Contract Price:</span>
-                            <span>₱<?= number_format($data['total_price'], 2) ?></span>
-                        </div>
-                        <div class="total-row text-success">
-                            <span>Total Paid:</span>
-                            <span>- ₱<?= number_format($total_paid, 2) ?></span>
-                        </div>
-                        <div class="total-row final">
-                            <span>Balance Due:</span>
-                            <span class="<?= $balance > 0 ? 'text-danger' : 'text-success' ?>">₱<?= number_format(max(0, $balance), 2) ?></span>
-                        </div>
-                    </div>
+            <!-- Right Panel: Form Fields -->
+            <div class="col-7 form-panel">
+                <div class="d-flex justify-content-end mb-3">
+                    <div class="form-field w-50">Date: <span class="line-val"><?= date('F d, Y') ?></span></div>
                 </div>
-            </div>
-
-        <!-- Signatures -->
-            <div class="row mt-5 pt-4 border-top">
-            <div class="col-6">
-                    <div class="info-label mb-2">Guest Signature</div>
-                <?php if(!empty($data['signature_image'])): ?>
-                    <div class="sig-box">
-                        <img src="../assets/signatures/<?= $data['signature_image'] ?>?v=<?= time() ?>" class="sig-img">
-                    </div>
-                    <div class="small text-muted mt-1">Signed Electronically</div>
-                    <form method="POST" class="mt-2 no-print" id="resetSigForm">
-                        <input type="hidden" name="reset_signature" value="1">
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmResetSig()">
-                                <i class="fas fa-undo me-1"></i> Reset
-                        </button>
-                    </form>
-                <?php else: ?>
-                    <?php if(!empty($data['is_walkin'])): ?>
-                        <div style="border-bottom: 1px solid #333; width: 200px; margin-top: 40px;"></div>
-                        <div class="small text-muted mt-1">Signature over Printed Name</div>
-                        <div class="small text-muted fst-italic">(Walk-in Guest)</div>
-                    <?php else: ?>
-                        <div class="text-muted fst-italic mt-3">Not signed yet</div>
-                    <?php endif; ?>
-                    <form method="POST" class="mt-2 no-print">
-                        <input type="hidden" name="request_signature" value="1">
-                        <button type="submit" class="btn btn-sm btn-warning text-dark"><i class="fas fa-paper-plane me-1"></i> Request E-Signature</button>
-                    </form>
-                <?php endif; ?>
-            </div>
-            <div class="col-6 text-end">
-                    <div class="info-label mb-4">Authorized By</div>
-                    <div class="mt-4">
-                        <span class="fw-bold border-bottom border-dark pb-1 px-4">Woke Coliving Admin</span>
-                    </div>
-                    <div class="small text-muted mt-2">System Generated Receipt</div>
+                <div class="form-field">Received from: <span class="line-val"><?= htmlspecialchars($data['full_name']) ?></span></div>
+                <div class="form-field">
+                    The sum of Pesos: <span class="line-val"><?= amountToWords($total_paid) ?></span>
+                </div>
+                <div class="form-field">
+                    <div class="w-100 text-end">(Php <span class="php-val" style="min-width: 100px; display: inline-block;"><?= number_format($total_paid, 2) ?></span>)</div>
+                </div>
+                <div class="form-field">As payment for: <span class="line-val"><?= htmlspecialchars($payment_for) ?></span></div>
             </div>
         </div>
 
-        <!-- Footer -->
-            <div class="text-center mt-5 pt-3 text-muted small">
-                <p class="mb-1">Thank you for choosing Woke Coliving INC.</p>
-                <p>&copy; <?= date('Y') ?> All rights reserved.</p>
+        <!-- Footer Section -->
+        <div class="row g-0 mt-auto pt-4">
+            <div class="col-7"></div> <!-- Inusog pa sa kanan gamit ang mas malaking spacer -->
+            <div class="col-5">
+                <div class="d-flex justify-content-between">
+                    <div class="sig-section position-relative">
+                        <?php if(!empty($data['signature_image'])): ?>
+                            <img src="../assets/signatures/<?= $data['signature_image'] ?>" class="sig-image-on-receipt">
+                        <?php endif; ?>
+                        <div class="name-val"><?= htmlspecialchars(strtoupper($data['full_name'])) ?></div>
+                        <div class="sig-line">Client signature over printed name</div>
+                    </div>
+                    <div class="sig-section">
+                        <div class="name-val">WOKE COLIVING ADMIN</div>
+                        <div class="sig-line">Authorized Representative</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
-    <!-- Floating Actions -->
-    <div class="position-fixed bottom-0 end-0 m-4 no-print d-flex gap-2">
+    <!-- Floating Actions (Not Printed) -->
+    <div class="mt-4 no-print text-center">
+        <?php if(empty($data['signature_image'])): ?>
+            <form method="POST" class="d-inline">
+                <input type="hidden" name="request_signature" value="1">
+                <button type="submit" class="btn btn-sm btn-warning text-dark me-2"><i class="fas fa-paper-plane me-1"></i> Request E-Signature</button>
+            </form>
+        <?php endif; ?>
         <button onclick="window.print()" class="btn btn-success rounded-pill shadow-lg px-4 fw-bold"><i class="fas fa-print me-2"></i>Print</button>
         <button onclick="window.close()" class="btn btn-secondary rounded-pill shadow-lg px-4 fw-bold">Close</button>
     </div>
