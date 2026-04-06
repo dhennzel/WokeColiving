@@ -543,7 +543,11 @@ if(isset($_SESSION['user_id'])){
                             <p class="mb-4 opacity-75">Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.</p>
                             <div class="d-flex align-items-center mb-3">
                                 <i class="fas fa-phone-alt fa-lg me-3 text-warning"></i>
-                                <span>+63 912 345 6789</span>
+                                <span>0917 164 1910</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="fas fa-phone-alt fa-lg me-3 text-warning"></i>
+                                <span>02 7002 3071</span>
                             </div>
                             <div class="d-flex align-items-center mb-3">
                                 <i class="fas fa-envelope fa-lg me-3 text-warning"></i>
@@ -551,7 +555,7 @@ if(isset($_SESSION['user_id'])){
                             </div>
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-map-marker-alt fa-lg me-3 text-warning"></i>
-                                <span>123 Coliving Street, City Center</span>
+                                <span>205 Kanlaon St. , Mandaluyong, Philippines, 1550</span>
                             </div>
                         </div>
                     </div>
@@ -598,12 +602,15 @@ if(isset($_SESSION['user_id'])){
 <!-- FOOTER -->
 <footer>
     <div class="container text-center">
-        <h4 class="fw-bold mb-3 font-monospace">Woke Coliving INC</h4>
+        <h4 class="fw-bold mb-3 font-monospace d-flex align-items-center justify-content-center">
+            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 40px; height: 40px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
+            Woke Coliving INC
+        </h4>
         <p class="mb-4 opacity-75">Redefining urban living for the modern generation.</p>
         <div class="d-flex justify-content-center gap-3 mb-4">
-            <a href="#" class="text-white"><i class="fab fa-facebook fa-lg"></i></a>
-            <a href="#" class="text-white"><i class="fab fa-instagram fa-lg"></i></a>
-            <a href="#" class="text-white"><i class="fab fa-twitter fa-lg"></i></a>
+            <a href="https://www.facebook.com/WOKEES" target=_blank class="text-white"><i class="fab fa-facebook fa-lg"></i></a>
+            <a href="https://www.instagram.com/woke_coliving/" target=_blank class="text-white"><i class="fab fa-instagram fa-lg"></i></a>
+            <a href="https://www.tiktok.com/@woke_coliving" target=_blank class="text-white"><i class="fab fa-tiktok fa-lg"></i></a>
         </div>
         <small class="opacity-50">&copy; <?= date('Y') ?> Woke Coliving INC. All rights reserved.</small>
     </div>
