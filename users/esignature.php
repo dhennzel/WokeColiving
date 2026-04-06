@@ -50,14 +50,18 @@ if(isset($_POST['signature_data'])){
 
         /* Night Mode Styles */
         body.theme-transition { transition: background-color 0.3s ease, color 0.3s ease; }
-        body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
+        body.night-mode, body.night-mode.bg-light { background-color: #121212 !important; color: #e0e0e0 !important; }
         body.night-mode .card { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
         body.night-mode .text-muted { color: #b0b0b0 !important; }
-        /* Canvas remains white for signature contrast */
+        body.night-mode canvas { background-color: #121212 !important; border-color: #444 !important; }
         body.night-mode::-webkit-scrollbar, body.night-mode *::-webkit-scrollbar { width: 8px; height: 8px; }
         body.night-mode::-webkit-scrollbar-track, body.night-mode *::-webkit-scrollbar-track { background: #121212 !important; }
         body.night-mode::-webkit-scrollbar-thumb, body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }
         body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
+        body.night-mode .btn-secondary { background-color: #333 !important; border-color: #444 !important; color: #e0e0e0 !important; }
+        body.night-mode .btn-secondary:hover { background-color: #444 !important; color: #fff !important; }
+        body.night-mode .swal2-popup { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
+        body.night-mode .swal2-title, body.night-mode .swal2-html-container { color: #e0e0e0 !important; }
     </style>
 </head>
 <body class="bg-light <?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
@@ -127,7 +131,7 @@ if(isset($_POST['signature_data'])){
             var pos = getPos(canvas, e);
             ctx.lineWidth = 2;
             ctx.lineCap = "round";
-            ctx.strokeStyle = "#000";
+            ctx.strokeStyle = document.body.classList.contains('night-mode') ? "#fff" : "#000";
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
         }
@@ -161,6 +165,18 @@ if(isset($_POST['signature_data'])){
                 return;
             }
 
+            // If night mode, convert the white strokes to black so the saved receipt remains printable
+            if (document.body.classList.contains('night-mode')) {
+                var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                var data = imgData.data;
+                for (var i = 0; i < data.length; i += 4) {
+                    if (data[i+3] > 0) { // If pixel is drawn (not transparent)
+                        data[i] = 0; data[i+1] = 0; data[i+2] = 0; // Turn to solid black
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+            }
+
             // Fix: Fill background with white to prevent black image on transparency
             var compositeOperation = ctx.globalCompositeOperation;
             ctx.globalCompositeOperation = "destination-over";
@@ -182,6 +198,8 @@ if(isset($_POST['signature_data'])){
             if (e.key === 'nightMode_' + currentUserId) {
                 if (e.newValue === 'enabled') document.body.classList.add('night-mode');
                 else document.body.classList.remove('night-mode');
+                ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear to prevent stroke color mismatch if theme changes
+                hasSigned = false;
             }
         });
     </script>

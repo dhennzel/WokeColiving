@@ -294,17 +294,8 @@ try {
         </a>
         
         <div class="d-flex align-items-center gap-3 ms-auto">
-        <!-- Notification Dropdown -->
-        <div class="d-flex align-items-center me-2">
-            <a href="billing.php" class="nav-link p-0 position-relative" title="Billing & Balance">
-                <i class="fas fa-file-invoice-dollar fa-lg"></i>
-                <?php if($user_balance > 0): ?>
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.55rem; padding: 0.25rem 0.4rem;">!</span>
-                <?php endif; ?>
-            </a>
-        </div>
         <div class="dropdown d-flex align-items-center">
-            <a href="#" class="nav-link p-0 position-relative" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <a href="#" class="nav-link p-0 position-relative" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" onclick="document.getElementById('notifBadge')?.style.setProperty('display', 'none', 'important');">
                 <i class="fas fa-bell fa-lg"></i>
                 <?php if($unread_count > 0): ?>
                     <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.55rem; padding: 0.25rem 0.4rem;">

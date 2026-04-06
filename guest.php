@@ -464,8 +464,8 @@ if(isset($_SESSION['user_id'])){
             </ul>
         <div class="d-flex gap-2">
             <?php if(isset($_SESSION['user_id'])): ?>
-                <a href="users/profile.php" class="btn btn-outline-light rounded-pill px-4 position-relative">
-                    My Profile
+                <a href="users/profile.php" class="btn btn-outline-light rounded-pill px-4 position-relative" title="Go to Dashboard">
+                    Dashboard
                     <?php if($unread_count > 0): ?>
                         <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
                             <span class="visually-hidden">New alerts</span>

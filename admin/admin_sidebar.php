@@ -6,6 +6,8 @@ $w_cnt = $waitlist_count ?? 0;
 $d_cnt = $del_req_count ?? 0;
 $m_cnt = $pending_maint ?? 0;
 $h_cnt = $pending_house ?? 0;
+$front_desk_total = $p_res + $w_cnt + $d_cnt;
+$operations_total = $m_cnt + $h_cnt;
 $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super Admin';
 ?>
 <script>
@@ -30,25 +32,28 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
         </a>
         
         <!-- Front Desk -->
-        <a href="#frontDeskSubmenu" data-bs-toggle="collapse" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? '' : 'collapsed' ?>">
+        <a href="#frontDeskSubmenu" data-bs-toggle="collapse" onclick="document.getElementById('frontDeskBadge')?.style.setProperty('display', 'none', 'important');" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? '' : 'collapsed' ?>">
             <div><i class="fas fa-concierge-bell"></i><span>Front Desk</span></div>
-            <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0; margin-left: 10px;"></i>
+            <div class="d-flex align-items-center">
+                <?php if($front_desk_total > 0): ?><span class="badge bg-danger rounded-pill me-2" id="frontDeskBadge"><?= $front_desk_total ?></span><?php endif; ?>
+                <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0;"></i>
+            </div>
         </a>
         <div class="collapse <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'show' : '' ?>" id="frontDeskSubmenu">
             <a href="residents.php" class="nav-item <?= $current_page == 'residents.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-users" style="width: 25px;"></i><span>Residents</span>
             </a>
-            <a href="booking_management.php" class="nav-item <?= in_array($current_page, ['booking_management.php', 'view_user.php']) ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
+            <a href="booking_management.php" onclick="this.querySelector('.nav-badge')?.style.setProperty('display', 'none', 'important');" class="nav-item <?= in_array($current_page, ['booking_management.php', 'view_user.php']) ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-calendar-check" style="width: 25px;"></i><span>Bookings</span>
-                <?php if($p_res > 0): ?><span class="nav-badge"><?= $p_res ?></span><?php endif; ?>
+                <?php if($p_res > 0): ?><span class="badge bg-danger rounded-pill ms-auto nav-badge"><?= $p_res ?></span><?php endif; ?>
             </a>
-            <a href="admin_waitlist.php" class="nav-item <?= $current_page == 'admin_waitlist.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
+            <a href="admin_waitlist.php" onclick="this.querySelector('.nav-badge')?.style.setProperty('display', 'none', 'important');" class="nav-item <?= $current_page == 'admin_waitlist.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-list-ol" style="width: 25px;"></i><span>Waitlist</span>
-                <?php if($w_cnt > 0): ?><span class="nav-badge" style="background-color:#ccc; color:#333;"><?= $w_cnt ?></span><?php endif; ?>
+                <?php if($w_cnt > 0): ?><span class="badge bg-warning text-dark rounded-pill ms-auto nav-badge"><?= $w_cnt ?></span><?php endif; ?>
             </a>
-            <a href="admin_deletion_requests.php" class="nav-item <?= $current_page == 'admin_deletion_requests.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
+            <a href="admin_deletion_requests.php" onclick="this.querySelector('.nav-badge')?.style.setProperty('display', 'none', 'important');" class="nav-item <?= $current_page == 'admin_deletion_requests.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-user-times" style="width: 25px;"></i><span>Deletion Req</span>
-                <?php if($d_cnt > 0): ?><span class="nav-badge" style="background-color:#dc3545; color:white;"><?= $d_cnt ?></span><?php endif; ?>
+                <?php if($d_cnt > 0): ?><span class="badge bg-danger rounded-pill ms-auto nav-badge"><?= $d_cnt ?></span><?php endif; ?>
             </a>
         </div>
 
@@ -80,18 +85,21 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
         </div>
 
         <!-- Operations -->
-        <a href="#operationsSubmenu" data-bs-toggle="collapse" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_maintenance.php', 'admin_housekeeping.php', 'admin_utilities.php']) ? '' : 'collapsed' ?>">
+        <a href="#operationsSubmenu" data-bs-toggle="collapse" onclick="document.getElementById('operationsBadge')?.style.setProperty('display', 'none', 'important');" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_maintenance.php', 'admin_housekeeping.php', 'admin_utilities.php']) ? '' : 'collapsed' ?>">
             <div><i class="fas fa-cogs"></i><span>Operations</span></div>
-            <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0; margin-left: 10px;"></i>
+            <div class="d-flex align-items-center">
+                <?php if($operations_total > 0): ?><span class="badge bg-danger rounded-pill me-2" id="operationsBadge"><?= $operations_total ?></span><?php endif; ?>
+                <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0;"></i>
+            </div>
         </a>
         <div class="collapse <?= in_array($current_page, ['admin_maintenance.php', 'admin_housekeeping.php', 'admin_utilities.php']) ? 'show' : '' ?>" id="operationsSubmenu">
-            <a href="admin_maintenance.php" class="nav-item <?= $current_page == 'admin_maintenance.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
+            <a href="admin_maintenance.php" onclick="this.querySelector('.nav-badge')?.style.setProperty('display', 'none', 'important');" class="nav-item <?= $current_page == 'admin_maintenance.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-wrench" style="width: 25px;"></i><span>Maintenance</span>
-                <?php if($m_cnt > 0): ?><span class="nav-badge"><?= $m_cnt ?></span><?php endif; ?>
+                <?php if($m_cnt > 0): ?><span class="badge bg-danger rounded-pill ms-auto nav-badge"><?= $m_cnt ?></span><?php endif; ?>
             </a>
-            <a href="admin_housekeeping.php" class="nav-item <?= $current_page == 'admin_housekeeping.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
+            <a href="admin_housekeeping.php" onclick="this.querySelector('.nav-badge')?.style.setProperty('display', 'none', 'important');" class="nav-item <?= $current_page == 'admin_housekeeping.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-broom" style="width: 25px;"></i><span>Housekeeping</span>
-                <?php if($h_cnt > 0): ?><span class="nav-badge"><?= $h_cnt ?></span><?php endif; ?>
+                <?php if($h_cnt > 0): ?><span class="badge bg-danger rounded-pill ms-auto nav-badge"><?= $h_cnt ?></span><?php endif; ?>
             </a>
             <a href="admin_utilities.php" class="nav-item <?= $current_page == 'admin_utilities.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-archive" style="width: 25px;"></i><span>Utilities Archive</span></a>
         </div>

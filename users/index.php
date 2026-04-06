@@ -241,12 +241,10 @@ if(isset($_SESSION['user_id'])){
             </ul>
         <div class="d-flex gap-2">
             <?php if(isset($_SESSION['user_id'])): ?>
-                <a href="profile.php" class="btn btn-light text-success fw-bold rounded-pill px-4 position-relative">
-                    My Profile
+                <a href="profile.php" class="btn btn-light text-success fw-bold rounded-pill px-4 position-relative" onclick="this.querySelector('.badge')?.style.setProperty('display', 'none', 'important');" title="Go to Dashboard">
+                    Dashboard
                     <?php if($unread_count > 0): ?>
-                        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
-                            <span class="visually-hidden">New alerts</span>
-                        </span>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.55rem; padding: 0.25rem 0.4rem;"><?= $unread_count ?></span>
                     <?php endif; ?>
                 </a>
                 <a href="logout.php" class="btn btn-custom">Logout</a>

@@ -20,6 +20,10 @@ $balance = $total_billed - $total_paid;
 // Payment History
 $payments = mysqli_query($conn, "SELECT p.*, rm.room_name, rm.room_number FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id LEFT JOIN rooms rm ON r.room_id = rm.room_id WHERE r.user_id=$user_id ORDER BY p.payment_date DESC");
 
+// Fetch User Info for Navbar
+$u_query = mysqli_query($conn, "SELECT first_name FROM users WHERE user_id=$user_id");
+$user_info = mysqli_fetch_assoc($u_query);
+
 // Fetch Unread Count
 $unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$user_id AND is_read=0");
 $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
@@ -37,15 +41,35 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
         :root { --primary-green: <?= $theme['primary'] ?>; --dark-green: <?= $theme['dark'] ?>; --accent-yellow: <?= $theme['accent'] ?>; }
         .summary-card { border-radius: 20px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
         .balance-card { background: linear-gradient(135deg, var(--primary-green), var(--dark-green)); color: white; }
+
+        /* Night Mode Styles */
+        body.theme-transition { transition: background-color 0.3s ease, color 0.3s ease; }
+        body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
+        body.night-mode .navbar { background-color: #1f1f1f !important; border-bottom: 1px solid #333 !important; }
+        body.night-mode .card, body.night-mode .summary-card { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
+        body.night-mode .bg-white, body.night-mode .bg-light { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
+        body.night-mode .text-dark { color: #e0e0e0 !important; }
+        body.night-mode .text-muted { color: #b0b0b0 !important; }
+        body.night-mode .border, body.night-mode .border-bottom, body.night-mode .border-start { border-color: #444 !important; }
+        body.night-mode .table { color: #e0e0e0 !important; }
+        body.night-mode .table th, body.night-mode .table td { border-color: #444 !important; background-color: transparent !important; color: #e0e0e0 !important; }
+        body.night-mode .balance-card { background: linear-gradient(135deg, #1B5E20, #0a3a10) !important; color: #e0e0e0 !important; }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
+<script>
+    (function() {
+        const currentUserId = "<?= $_SESSION['user_id'] ?? '' ?>";
+        const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
+        if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
+    })();
+</script>
 
 <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top py-3">
     <div class="container">
         <a class="navbar-brand fw-bold text-success" href="../guest.php">Woke Coliving</a>
         <div class="ms-auto d-flex align-items-center gap-3">
-            <a href="profile.php" class="text-decoration-none text-dark small fw-bold">My Profile</a>
+            <span class="text-muted fw-bold d-none d-md-block">Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
             <a href="logout.php" class="btn btn-sm btn-outline-danger rounded-pill">Logout</a>
         </div>
     </div>
@@ -57,7 +81,10 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
             <h2 class="fw-bold text-dark">Billing Statement</h2>
             <p class="text-muted">Track your total payments and outstanding balance.</p>
         </div>
-        <a href="my_reservations.php" class="btn btn-outline-secondary rounded-pill px-4"><i class="fas fa-calendar-check me-2"></i>My Bookings</a>
+        <div>
+            <a href="my_reservations.php" class="btn btn-sm btn-outline-secondary rounded-pill px-4 me-2"><i class="fas fa-calendar-check me-2"></i>My Bookings</a>
+            <a href="profile.php" class="btn btn-sm btn-secondary-custom">&larr; Back</a>
+        </div>
     </div>
 
     <div class="row g-4 mb-5">
@@ -164,6 +191,18 @@ function checkUpdates() {
     });
 }
 setInterval(checkUpdates, 3000);
+
+// Night Mode Logic
+const currentUserId = "<?= $user_id ?>";
+if(localStorage.getItem('nightMode_' + currentUserId) === 'enabled') {
+    document.body.classList.add('night-mode');
+}
+window.addEventListener('storage', (e) => {
+    if (e.key === 'nightMode_' + currentUserId) {
+        if (e.newValue === 'enabled') document.body.classList.add('night-mode');
+        else document.body.classList.remove('night-mode');
+    }
+});
 </script>
 </body>
 </html>

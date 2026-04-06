@@ -248,16 +248,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 }
 
 .nav-badge {
-    background: linear-gradient(135deg, var(--accent-yellow), #f9a825) !important;
-    color: #1A1D20 !important;
     font-size: 0.75rem !important;
-    font-weight: 800 !important;
+    font-weight: 700 !important;
     padding: 4px 8px !important;
     border-radius: 50rem !important;
     margin-left: auto;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
-    border: 1px solid rgba(255,255,255,0.6) !important;
 }
+
+.parent-badge { display: none !important; } /* Disable legacy JS-injected badges */
 
 /* Main Content Wrapper */
 .main-wrapper {

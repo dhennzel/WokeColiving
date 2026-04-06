@@ -71,7 +71,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
             Woke Coliving INC
         </a>
         <div class="d-flex align-items-center gap-3 ms-auto">
-            <span class="text-muted fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
+            <span class="text-muted fw-bold d-none d-md-block">Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
             <a href="logout.php" class="btn btn-accent btn-sm fw-bold px-3">Logout</a>
         </div>
     </div>

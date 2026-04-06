@@ -138,15 +138,7 @@ if(isset($_SESSION['user_id'])){
         <div class="collapse navbar-collapse" id="navbarNav">
             <div class="d-flex align-items-center gap-3 ms-auto mt-3 mt-lg-0">
                 <?php if(isset($_SESSION['user_id'])): ?>
-                    <a href="profile.php" class="nav-link fw-bold position-relative">
-                        My Profile
-                        <?php if($unread_count > 0): ?>
-                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
-                                <span class="visually-hidden">New alerts</span>
-                            </span>
-                        <?php endif; ?>
-                    </a>
-                    <span class="text-muted fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_name) ?></span>
+                    <span class="text-muted fw-bold d-none d-md-block">Hello, <?= htmlspecialchars($user_name) ?></span>
                     <a href="logout.php" class="btn btn-accent btn-sm fw-bold px-3">Logout</a>
                 <?php else: ?>
                     <a href="login.php" class="btn btn-outline-success rounded-pill px-4 fw-bold">Login</a>

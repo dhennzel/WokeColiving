@@ -161,21 +161,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <div class="d-flex align-items-center gap-3 ms-auto mt-3 mt-lg-0">
-                <a href="billing.php" class="nav-link fw-bold position-relative me-2" title="Billing & Balance">
-                    <i class="fas fa-file-invoice-dollar fa-lg"></i>
-                    <?php if($user_balance > 0): ?>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.55rem; padding: 0.25rem 0.4rem;">!</span>
-                    <?php endif; ?>
-                </a>
-                <a href="profile.php" class="nav-link fw-bold position-relative">
-                    My Profile
-                    <?php if($unread_count > 0): ?>
-                        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
-                            <span class="visually-hidden">New alerts</span>
-                        </span>
-                    <?php endif; ?>
-                </a>
-                <span class="text-muted fw-bold d-none d-md-block">| Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
+                <span class="text-muted fw-bold d-none d-md-block">Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
                 <a href="logout.php" class="btn btn-accent btn-sm fw-bold px-3">Logout</a>
             </div>
         </div>

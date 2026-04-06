@@ -56,7 +56,7 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
                     <span class="profile-name"><?= htmlspecialchars($admin_name) ?></span>
                     
                     <!-- Integrated Notification Bell -->
-                    <div class="notif-wrapper" id="notifTrigger" title="Notifications">
+                    <div class="notif-wrapper" id="notifTrigger" title="Notifications" onclick="this.querySelector('.notif-badge')?.style.setProperty('display', 'none', 'important');">
                         <i class="fas fa-bell"></i>
                         <?php if($total_notifications > 0): ?>
                             <span class="notif-badge"><?= $total_notifications ?></span>
