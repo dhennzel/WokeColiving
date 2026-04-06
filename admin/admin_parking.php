@@ -139,15 +139,17 @@ $theme = get_theme_colors($conn);
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="admin.css">
     <style>
-        .slot-card { border: 1px solid #eee; border-radius: 10px; padding: 15px; text-align: center; transition: .3s; }
-        .slot-card.occupied { background-color: #f8d7da; border-color: #f5c6cb; }
-        .slot-card.available { background-color: #d4edda; border-color: #c3e6cb; }
-        .slot-select-card { cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
-        .slot-select-card:hover { border-color: #ccc; background-color: #f9f9f9; transform: translateY(-2px); }
-        .slot-select-card.selected { border-color: var(--primary-green); background-color: #e8f5e9; }
+        .slot-card { border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center; transition: all 0.3s ease; background: var(--bg-surface); box-shadow: var(--shadow-sm); cursor: default; display: flex; flex-direction: column; justify-content: center; }
+        .slot-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
+        .slot-card.occupied { border-top: 4px solid var(--danger-color); }
+        .slot-card.available { border-top: 4px solid var(--primary-green); }
+        .slot-card .status-icon { font-size: 2rem; margin-bottom: 10px; color: var(--text-muted); transition: color 0.3s; }
+        .slot-select-card { cursor: pointer; border: 2px solid transparent; transition: all 0.2s; border-radius: 12px; background: var(--bg-surface); box-shadow: var(--shadow-sm); }
+        .slot-select-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+        .slot-select-card.selected { border-color: var(--primary-green); background-color: rgba(52, 184, 117, 0.05); }
         .slot-select-card.selected i { color: var(--primary-green) !important; }
-        .slot-select-card.disabled { opacity: 0.6; cursor: not-allowed; background-color: #f8f9fa; }
-        .slot-select-card.disabled:hover { transform: none; box-shadow: none; border-color: transparent; }
+        .slot-select-card.disabled { opacity: 0.6; cursor: not-allowed; background-color: var(--bg-surface-hover); }
+        .slot-select-card.disabled:hover { transform: none; box-shadow: var(--shadow-sm); border-color: transparent; }
     </style>
 </head>
 <body>
@@ -183,33 +185,46 @@ $theme = get_theme_colors($conn);
 
             <!-- Slot Monitoring -->
             <div class="card card-custom p-4 mb-4">
-                <h5 class="fw-bold text-secondary mb-3">Slot Monitoring</h5>
-                <h6 class="fw-bold"><i class="fas fa-car me-2 text-primary"></i>Car Slots (<?= count($parking_slots['Car']) ?>)</h6>
-                <div class="row g-3 mb-3">
+                <h5 class="fw-bold text-secondary mb-4"><i class="fas fa-chart-pie me-2"></i>Slot Monitoring</h5>
+                
+                <h6 class="fw-bold mb-3 text-dark"><i class="fas fa-car me-2 text-primary"></i>Car Slots <span class="badge bg-primary rounded-pill ms-1"><?= count($parking_slots['Car']) ?></span></h6>
+                <div class="row g-4 mb-4">
                     <?php foreach($parking_slots['Car'] as $slot): ?>
                     <div class="col-xl-2 col-lg-3 col-md-4 col-6">
                         <div class="slot-card <?= strtolower($slot['status']) ?> h-100 d-flex flex-column justify-content-center">
-                            <div class="fw-bold"><?= $slot['slot_name'] ?></div>
-                            <div class="small mb-1"><?= $slot['status'] ?></div>
+                            <i class="fas fa-car status-icon <?= $slot['status'] == 'Occupied' ? 'text-danger' : 'text-success' ?>"></i>
+                            <div class="fw-bold text-dark mb-1"><?= $slot['slot_name'] ?></div>
                             <?php if($slot['status'] == 'Occupied'): ?>
-                                <div class="mt-auto border-top border-dark border-opacity-10 pt-1 text-truncate small fw-bold" style="font-size: 0.75rem;" title="<?= htmlspecialchars($slot['occupant_name'] ?? '') ?>">
-                                    <i class="fas fa-user-circle me-1"></i><?= htmlspecialchars($slot['occupant_name'] ?? 'Unknown') ?>
+                                <span class="badge bg-danger mb-2 mx-auto">Occupied</span>
+                                <div class="mt-auto pt-2 border-top small fw-bold text-muted text-truncate" title="<?= htmlspecialchars($slot['occupant_name'] ?? '') ?>">
+                                    <i class="fas fa-user-lock me-1"></i><?= htmlspecialchars($slot['occupant_name'] ?? 'Unknown') ?>
+                                </div>
+                            <?php else: ?>
+                                <span class="badge bg-success mb-2 mx-auto">Available</span>
+                                <div class="mt-auto pt-2 border-top small text-muted">
+                                    Ready to use
                                 </div>
                             <?php endif; ?>
                         </div>
                     </div>
                     <?php endforeach; ?>
                 </div>
-                <h6 class="fw-bold"><i class="fas fa-motorcycle me-2 text-warning"></i>Motorcycle Slots (<?= count($parking_slots['Motorcycle']) ?>)</h6>
-                <div class="row g-3">
+                <h6 class="fw-bold mb-3 text-dark"><i class="fas fa-motorcycle me-2 text-warning"></i>Motorcycle Slots <span class="badge bg-warning text-dark rounded-pill ms-1"><?= count($parking_slots['Motorcycle']) ?></span></h6>
+                <div class="row g-4">
                     <?php foreach($parking_slots['Motorcycle'] as $slot): ?>
                     <div class="col-xl-2 col-lg-3 col-md-4 col-6">
                         <div class="slot-card <?= strtolower($slot['status']) ?> h-100 d-flex flex-column justify-content-center">
-                            <div class="fw-bold"><?= $slot['slot_name'] ?></div>
-                            <div class="small mb-1"><?= $slot['status'] ?></div>
+                            <i class="fas fa-motorcycle status-icon <?= $slot['status'] == 'Occupied' ? 'text-danger' : 'text-success' ?>"></i>
+                            <div class="fw-bold text-dark mb-1"><?= $slot['slot_name'] ?></div>
                             <?php if($slot['status'] == 'Occupied'): ?>
-                                <div class="mt-auto border-top border-dark border-opacity-10 pt-1 text-truncate small fw-bold" style="font-size: 0.75rem;" title="<?= htmlspecialchars($slot['occupant_name'] ?? '') ?>">
-                                    <i class="fas fa-user-circle me-1"></i><?= htmlspecialchars($slot['occupant_name'] ?? 'Unknown') ?>
+                                <span class="badge bg-danger mb-2 mx-auto">Occupied</span>
+                                <div class="mt-auto pt-2 border-top small fw-bold text-muted text-truncate" title="<?= htmlspecialchars($slot['occupant_name'] ?? '') ?>">
+                                    <i class="fas fa-user-lock me-1"></i><?= htmlspecialchars($slot['occupant_name'] ?? 'Unknown') ?>
+                                </div>
+                            <?php else: ?>
+                                <span class="badge bg-success mb-2 mx-auto">Available</span>
+                                <div class="mt-auto pt-2 border-top small text-muted">
+                                    Ready to use
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -220,19 +235,22 @@ $theme = get_theme_colors($conn);
 
             <!-- Active Reservations -->
             <div class="card card-custom p-4">
-                <h5 class="fw-bold text-secondary mb-3">Active Parking Reservations</h5>
+                <h5 class="fw-bold text-secondary mb-4"><i class="fas fa-list me-2"></i>Active Parking Reservations</h5>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Tenant</th><th>Slot</th><th>Billing</th><th>Start Date</th><th class="text-end">Action</th></tr></thead>
+                        <thead class="table-light"><tr><th class="ps-3">Tenant</th><th>Slot</th><th>Billing</th><th>Start Date</th><th class="text-end pe-3">Action</th></tr></thead>
                         <tbody>
                             <?php while($row = mysqli_fetch_assoc($reservations_q)): ?>
                             <tr>
-                                <td class="fw-bold"><?= $row['full_name'] ?></td>
-                                <td><?= $row['slot_name'] ?> (<?= $row['slot_type'] ?>)</td>
-                                <td><?= $row['billing_type'] ?></td>
+                                <td class="fw-bold text-dark ps-3"><?= htmlspecialchars($row['full_name']) ?></td>
+                                <td>
+                                    <?= htmlspecialchars($row['slot_name']) ?> 
+                                    <span class="badge bg-light text-dark border ms-1"><?= $row['slot_type'] ?></span>
+                                </td>
+                                <td><span class="badge bg-info text-dark"><?= $row['billing_type'] ?></span></td>
                                 <td><?= date('M d, Y', strtotime($row['start_date'])) ?></td>
-                                <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-danger" onclick="endParkingReservation(<?= $row['id'] ?>, '<?= htmlspecialchars($row['full_name']) ?>', '<?= htmlspecialchars($row['slot_name']) ?>', '<?= $row['slot_type'] ?>')">End Reservation</button>
+                                <td class="text-end pe-3">
+                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="endParkingReservation(<?= $row['id'] ?>, '<?= htmlspecialchars(addslashes($row['full_name'])) ?>', '<?= htmlspecialchars(addslashes($row['slot_name'])) ?>', '<?= $row['slot_type'] ?>')"><i class="fas fa-stop-circle me-1"></i>End</button>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
@@ -252,19 +270,19 @@ $theme = get_theme_colors($conn);
 <!-- Add Reservation Modal -->
 <div class="modal fade" id="addReservationModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content border-0 shadow">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title fw-bold"><i class="fas fa-parking me-2"></i>New Parking Reservation</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
-                <div class="modal-body">
+                <div class="modal-body bg-light p-4">
                     <div class="mb-4">
                         <label class="form-label fw-bold small text-muted">SELECT TENANT</label>
                         <select name="user_id" class="form-select" required>
                             <option value="">-- Choose Tenant --</option>
                             <?php while($u = mysqli_fetch_assoc($users_q)): ?>
-                                <option value="<?= $u['user_id'] ?>"><?= $u['full_name'] ?></option>
+                                <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
                             <?php endwhile; ?>
                         </select>
                     </div>
@@ -273,31 +291,31 @@ $theme = get_theme_colors($conn);
                         <label class="form-label fw-bold small text-muted mb-2">SELECT PARKING SLOT</label>
                         <input type="hidden" name="slot_id" id="selected_slot_id" required>
                         
-                        <ul class="nav nav-pills mb-3 nav-fill" id="slotTabs" role="tablist">
+                        <ul class="nav nav-pills mb-3 nav-fill gap-2" id="slotTabs" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="car-tab" data-bs-toggle="pill" data-bs-target="#car_slots" type="button"><i class="fas fa-car me-2"></i>Car Slots</button>
+                                <button class="nav-link active rounded-pill fw-bold" id="car-tab" data-bs-toggle="pill" data-bs-target="#car_slots" type="button"><i class="fas fa-car me-2"></i>Car Slots</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="motor-tab" data-bs-toggle="pill" data-bs-target="#motor_slots" type="button"><i class="fas fa-motorcycle me-2"></i>Motorcycle Slots</button>
+                                <button class="nav-link rounded-pill fw-bold" id="motor-tab" data-bs-toggle="pill" data-bs-target="#motor_slots" type="button"><i class="fas fa-motorcycle me-2"></i>Motorcycle Slots</button>
                             </li>
                         </ul>
                         
-                        <div class="tab-content border rounded p-3 bg-light" style="max-height: 300px; overflow-y: auto;">
+                        <div class="tab-content border rounded-4 p-3 bg-white shadow-sm" style="max-height: 350px; overflow-y: auto;">
                             <div class="tab-pane fade show active" id="car_slots" role="tabpanel">
-                                <div class="row g-2">
+                                <div class="row g-3">
                                     <?php if(empty($parking_slots['Car'])): ?>
                                         <div class="col-12 text-center text-muted py-3">No car slots configured.</div>
                                     <?php else: ?>
                                         <?php foreach($parking_slots['Car'] as $slot): ?>
                                             <div class="col-md-4 col-6">
                                                 <div class="card slot-select-card h-100 <?= $slot['status'] == 'Occupied' ? 'disabled' : '' ?>" <?= $slot['status'] == 'Available' ? "onclick='selectSlot(this, {$slot['id']})'" : "" ?>>
-                                                    <div class="card-body text-center p-2">
-                                                        <i class="fas fa-car fa-2x text-secondary mb-2"></i>
-                                                        <div class="fw-bold small"><?= $slot['slot_name'] ?></div>
+                                                    <div class="card-body text-center p-3">
+                                                        <i class="fas fa-car fa-2x <?= $slot['status'] == 'Occupied' ? 'text-danger' : 'text-success' ?> mb-2"></i>
+                                                        <div class="fw-bold text-dark mb-1"><?= $slot['slot_name'] ?></div>
                                                         <?php if($slot['status'] == 'Occupied'): ?>
-                                                            <div class="badge bg-danger mt-1 d-block text-truncate" title="<?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?>"><?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?></div>
+                                                            <span class="badge bg-danger w-100 text-truncate" title="<?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?>"><i class="fas fa-user-lock me-1"></i> <?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?></span>
                                                         <?php else: ?>
-                                                            <div class="badge bg-success mt-1 d-block">Available</div>
+                                                            <span class="badge bg-success w-100"><i class="fas fa-check me-1"></i> Available</span>
                                                         <?php endif; ?>
                                                     </div>
                                                 </div>
@@ -307,20 +325,20 @@ $theme = get_theme_colors($conn);
                                 </div>
                             </div>
                             <div class="tab-pane fade" id="motor_slots" role="tabpanel">
-                                <div class="row g-2">
+                                <div class="row g-3">
                                     <?php if(empty($parking_slots['Motorcycle'])): ?>
                                         <div class="col-12 text-center text-muted py-3">No motorcycle slots configured.</div>
                                     <?php else: ?>
                                         <?php foreach($parking_slots['Motorcycle'] as $slot): ?>
                                             <div class="col-md-4 col-6">
                                                 <div class="card slot-select-card h-100 <?= $slot['status'] == 'Occupied' ? 'disabled' : '' ?>" <?= $slot['status'] == 'Available' ? "onclick='selectSlot(this, {$slot['id']})'" : "" ?>>
-                                                    <div class="card-body text-center p-2">
-                                                        <i class="fas fa-motorcycle fa-2x text-secondary mb-2"></i>
-                                                        <div class="fw-bold small"><?= $slot['slot_name'] ?></div>
+                                                    <div class="card-body text-center p-3">
+                                                        <i class="fas fa-motorcycle fa-2x <?= $slot['status'] == 'Occupied' ? 'text-danger' : 'text-success' ?> mb-2"></i>
+                                                        <div class="fw-bold text-dark mb-1"><?= $slot['slot_name'] ?></div>
                                                         <?php if($slot['status'] == 'Occupied'): ?>
-                                                            <div class="badge bg-danger mt-1 d-block text-truncate" title="<?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?>"><?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?></div>
+                                                            <span class="badge bg-danger w-100 text-truncate" title="<?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?>"><i class="fas fa-user-lock me-1"></i> <?= htmlspecialchars($slot['occupant_name'] ?? 'Occupied') ?></span>
                                                         <?php else: ?>
-                                                            <div class="badge bg-success mt-1 d-block">Available</div>
+                                                            <span class="badge bg-success w-100"><i class="fas fa-check me-1"></i> Available</span>
                                                         <?php endif; ?>
                                                     </div>
                                                 </div>
@@ -330,10 +348,10 @@ $theme = get_theme_colors($conn);
                                 </div>
                             </div>
                         </div>
-                        <div id="slot_error" class="text-danger small mt-1" style="display:none;">Please select a slot.</div>
+                        <div id="slot_error" class="text-danger small mt-2 fw-bold" style="display:none;"><i class="fas fa-exclamation-circle me-1"></i> Please select a parking slot.</div>
                     </div>
 
-                    <div class="row">
+                    <div class="row bg-white p-3 rounded-4 border shadow-sm mx-0">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-muted">START DATE</label>
                             <input type="date" name="start_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
@@ -345,7 +363,7 @@ $theme = get_theme_colors($conn);
                                 <option value="Daily">Daily</option>
                             </select>
                         </div>
-                        <div class="col-md-12 mb-3">
+                        <div class="col-md-12 mb-1">
                             <label class="form-label fw-bold small text-muted">PAYMENT METHOD</label>
                             <select name="payment_method" class="form-select" required>
                                 <option value="Cash">Cash</option>
@@ -354,9 +372,9 @@ $theme = get_theme_colors($conn);
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" name="add_parking_reservation" class="btn btn-success fw-bold" onclick="return validateSlot()">Confirm Reservation</button>
+                <div class="modal-footer bg-white border-top-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="add_parking_reservation" class="btn btn-success fw-bold rounded-pill px-4" onclick="return validateSlot()"><i class="fas fa-check me-2"></i>Confirm Reservation</button>
                 </div>
             </form>
         </div>
