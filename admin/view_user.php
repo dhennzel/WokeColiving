@@ -283,6 +283,7 @@ if(isset($_GET['pay_status']) || isset($_GET['start_date']) || isset($_GET['end_
 // Fetch User-Specific Pending Counts for Tabs
 $user_pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE user_id=$uid AND status IN ('Pending', 'Verifying')"))['c'];
 $user_pending_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL"))['c'];
+$user_unpaid_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid' AND p.proof_image IS NULL"))['c'];
 
 // Fetch Pending Counts for Sidebar
 $pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
@@ -621,7 +622,10 @@ $theme = get_theme_colors($conn);
                             <button class="nav-link <?= $active_tab == 'payments' ? 'active' : '' ?>" id="pay-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button">
                                 Payments
                                 <?php if($user_pending_pay > 0): ?>
-                                    <span class="badge bg-danger rounded-pill ms-1"><?= $user_pending_pay ?></span>
+                                    <span class="badge bg-danger rounded-pill ms-1" title="Proofs to Review"><?= $user_pending_pay ?></span>
+                                <?php endif; ?>
+                                <?php if($user_unpaid_count > 0): ?>
+                                    <span class="badge bg-warning text-dark rounded-pill ms-1" title="Unpaid Bills"><?= $user_unpaid_count ?></span>
                                 <?php endif; ?>
                             </button>
                         </li>

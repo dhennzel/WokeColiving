@@ -277,8 +277,12 @@ $theme = get_theme_colors($conn);
             <div class="row mb-4">
                 <div class="col-lg-8 mb-4 mb-lg-0">
                     <div class="card card-stat h-100">
-                        <div class="card-header bg-white fw-bold py-3">
-                            <i class="fas fa-chart-line me-2 text-secondary"></i> Monthly Earnings Trend
+                        <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                            <div><i class="fas fa-chart-line me-2 text-secondary"></i> <span id="lineChartTitle">Monthly Earnings Trend</span></div>
+                            <select id="lineChartFilter" class="form-select form-select-sm w-auto shadow-none" onchange="updateLineChart()">
+                                <option value="earnings">Earnings</option>
+                                <option value="bookings">Bookings</option>
+                            </select>
                         </div>
                         <div class="card-body">
                             <canvas id="earningsChart" style="max-height: 350px;"></canvas>
@@ -287,8 +291,12 @@ $theme = get_theme_colors($conn);
                 </div>
                 <div class="col-lg-4">
                     <div class="card card-stat h-100">
-                        <div class="card-header bg-white fw-bold py-3">
-                            <i class="fas fa-chart-pie me-2 text-secondary"></i> Earnings by Room Type
+                        <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                            <div><i class="fas fa-chart-pie me-2 text-secondary"></i> <span id="pieChartTitle">Earnings by Room Type</span></div>
+                            <select id="pieChartFilter" class="form-select form-select-sm w-auto shadow-none" onchange="updatePieChart()">
+                                <option value="earnings">Earnings</option>
+                                <option value="bookings">Bookings</option>
+                            </select>
                         </div>
                         <div class="card-body d-flex align-items-center justify-content-center">
                             <canvas id="roomTypeChart" style="max-height: 300px;"></canvas>
@@ -403,13 +411,14 @@ const labels = monthlyData.map(item => {
     return date.toLocaleString('default', { month: 'long', year: 'numeric' });
 });
 const earnings = monthlyData.map(item => item.earnings);
+const bookings = monthlyData.map(item => item.bookings);
 
-new Chart(ctx, {
+let lineChart = new Chart(ctx, {
     type: 'line',
     data: {
         labels: labels,
         datasets: [{
-            label: 'Total Earnings (₱)',
+            label: 'Total Earnings',
             data: earnings,
             borderColor: <?= json_encode($theme['primary']) ?>,
             backgroundColor: 'rgba(46, 125, 50, 0.1)',
@@ -431,7 +440,12 @@ new Chart(ctx, {
                             label += ': ';
                         }
                         if (context.parsed.y !== null) {
-                            label += new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(context.parsed.y);
+                            let filter = document.getElementById('lineChartFilter').value;
+                            if (filter === 'earnings') {
+                                label += new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(context.parsed.y);
+                            } else {
+                                label += context.parsed.y;
+                            }
                         }
                         return label;
                     }
@@ -444,7 +458,11 @@ new Chart(ctx, {
                 grid: { borderDash: [2, 4] },
                 ticks: {
                     callback: function(value) {
-                        return '₱' + value.toLocaleString();
+                        let filter = document.getElementById('lineChartFilter').value;
+                        if (filter === 'earnings') {
+                            return '₱' + value.toLocaleString();
+                        }
+                        return value;
                     }
                 }
             },
@@ -453,16 +471,38 @@ new Chart(ctx, {
     }
 });
 
+function updateLineChart() {
+    const filter = document.getElementById('lineChartFilter').value;
+    const title = document.getElementById('lineChartTitle');
+    
+    if(filter === 'earnings') {
+        title.innerText = 'Monthly Earnings Trend';
+        lineChart.data.datasets[0].label = 'Total Earnings';
+        lineChart.data.datasets[0].data = earnings;
+        lineChart.data.datasets[0].borderColor = <?= json_encode($theme['primary']) ?>;
+        lineChart.data.datasets[0].backgroundColor = 'rgba(46, 125, 50, 0.1)';
+    } else {
+        title.innerText = 'Monthly Bookings Trend';
+        lineChart.data.datasets[0].label = 'Total Bookings';
+        lineChart.data.datasets[0].data = bookings;
+        lineChart.data.datasets[0].borderColor = <?= json_encode($theme['accent']) ?>;
+        lineChart.data.datasets[0].backgroundColor = 'rgba(251, 192, 45, 0.1)';
+    }
+    lineChart.update();
+}
+
 // Pie Chart Implementation
 const ctxPie = document.getElementById('roomTypeChart').getContext('2d');
 const roomTypeData = <?= json_encode($room_type_data) ?>;
+const pieEarnings = roomTypeData.map(item => item.earnings);
+const pieBookings = roomTypeData.map(item => item.bookings);
 
-new Chart(ctxPie, {
+let pieChart = new Chart(ctxPie, {
     type: 'pie',
     data: {
         labels: roomTypeData.map(item => item.room_type),
         datasets: [{
-            data: roomTypeData.map(item => item.earnings),
+            data: pieEarnings,
             backgroundColor: [
                 <?= json_encode($theme['primary']) ?>,
                 <?= json_encode($theme['accent']) ?>,
@@ -484,7 +524,12 @@ new Chart(ctxPie, {
                         let label = context.label || '';
                         if (label) label += ': ';
                         if (context.parsed !== null) {
-                            label += new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(context.parsed);
+                            let filter = document.getElementById('pieChartFilter').value;
+                            if (filter === 'earnings') {
+                                label += new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(context.parsed);
+                            } else {
+                                label += context.parsed;
+                            }
                         }
                         return label;
                     }
@@ -493,6 +538,20 @@ new Chart(ctxPie, {
         }
     }
 });
+
+function updatePieChart() {
+    const filter = document.getElementById('pieChartFilter').value;
+    const title = document.getElementById('pieChartTitle');
+    
+    if(filter === 'earnings') {
+        title.innerText = 'Earnings by Room Type';
+        pieChart.data.datasets[0].data = pieEarnings;
+    } else {
+        title.innerText = 'Bookings by Room Type';
+        pieChart.data.datasets[0].data = pieBookings;
+    }
+    pieChart.update();
+}
 
 // Parent Sidebar Badges
 document.addEventListener('DOMContentLoaded', function() {

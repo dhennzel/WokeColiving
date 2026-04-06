@@ -118,6 +118,7 @@ if(isset($_GET['action'])){
             log_activity($conn, $target_user_id, "Payment Confirmed", "Payment #$pid marked as Paid by $admin_username.");
             send_notification($conn, $target_user_id, "✅ <strong>Payment Confirmed</strong><br>Your payment #$pid has been verified and marked as Paid.", "Payment Update");
         }
+        if (strpos($redirect_url, 'view_user.php') !== false) $redirect_url .= "&pay_status=";
         header("Location: $redirect_url");
         exit;
     } elseif($action == 'cancel_payment' && isset($_GET['pid'])){
@@ -134,6 +135,7 @@ if(isset($_GET['action'])){
             log_activity($conn, $target_user_id, "Payment Cancelled", "Payment #$pid cancelled by $admin_username.");
             send_notification($conn, $target_user_id, "❌ <strong>Payment Cancelled</strong><br>Your payment #$pid has been cancelled.", "Payment Update");
         }
+        if (strpos($redirect_url, 'view_user.php') !== false) $redirect_url .= "&pay_status=";
         header("Location: $redirect_url");
         exit;
     } elseif($action == 'reject_payment' && isset($_GET['pid'])){
@@ -150,6 +152,7 @@ if(isset($_GET['action'])){
             log_activity($conn, $target_user_id, "Payment Rejected", "Payment proof for #$pid was rejected by $admin_username.");
             send_notification($conn, $target_user_id, "❌ <strong>Payment Rejected</strong><br>Your uploaded payment proof for Payment #$pid was rejected. Please re-upload a valid proof of payment.", "Payment Update");
         }
+        if (strpos($redirect_url, 'view_user.php') !== false) $redirect_url .= "&pay_status=";
         header("Location: $redirect_url");
         exit;
     } elseif($action == 'approve'){
