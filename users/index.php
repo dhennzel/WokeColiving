@@ -565,13 +565,13 @@ if(isset($_SESSION['user_id'])){
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <div class="form-floating">
-                                        <input type="text" class="form-control" id="name" name="name" placeholder="Your Name" required>
+                                        <input type="text" class="form-control" id="name" name="name" placeholder="Your Name" autocomplete="name" required>
                                         <label for="name">Your Name</label>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-floating">
-                                        <input type="email" class="form-control" id="email" name="email" placeholder="Your Email" required>
+                                        <input type="email" class="form-control" id="email" name="email" placeholder="Your Email" autocomplete="email" required>
                                         <label for="email">Your Email</label>
                                     </div>
                                 </div>
