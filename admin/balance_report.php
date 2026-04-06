@@ -170,6 +170,25 @@ function confirmBulkReminders(e) {
         if (result.isConfirmed) document.getElementById('reminderForm').submit();
     });
 }
+
+// Notification Sound & Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php')
+    .then(r => r.text())
+    .then(t => {
+        if(lastUpdate == 0) { lastUpdate = t; } 
+        else if (t > lastUpdate) { sessionStorage.setItem('playNotifSound', 'true'); location.reload(); }
+    });
+}
+setInterval(checkUpdates, 3000);
+
+if(sessionStorage.getItem('playNotifSound') === 'true') {
+    let audio = new Audio('../assets/sounds/notification.mp3');
+    audio.onerror = () => { new Audio('../assets/sounds/woke_coliving_alert.wav').play().catch(e=>{}); };
+    audio.play().catch(e => console.warn('Audio autoplay blocked by browser:', e));
+    sessionStorage.removeItem('playNotifSound');
+}
 </script>
 </body>
 </html>

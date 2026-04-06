@@ -175,7 +175,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
 <a href="#" class="scroll-top-btn" id="scrollTopBtn"><i class="fas fa-chevron-up"></i></a>
 
 <!-- Notification Sound -->
-<audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
+<audio id="notifSound" src="../assets/sounds/notification.mp3" preload="none"></audio>
 
 <script src="users_JS/app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -211,6 +211,15 @@ function fetchNotifications() {
 
 setInterval(fetchNotifications, 5000);
 fetchNotifications(); // Initial load
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php').then(r => r.text()).then(t => {
+        if(lastUpdate == 0) lastUpdate = t; else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000);
 
 // Night Mode Logic
 const currentUserId = "<?= $user_id ?>";

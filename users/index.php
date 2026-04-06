@@ -615,7 +615,7 @@ if(isset($_SESSION['user_id'])){
 <a href="#" class="scroll-top-btn" id="scrollTopBtn"><i class="fas fa-chevron-up"></i></a>
 
 <!-- Notification Sound -->
-<audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
+<audio id="notifSound" src="../assets/sounds/notification.mp3" preload="none"></audio>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>

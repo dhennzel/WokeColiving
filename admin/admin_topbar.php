@@ -138,7 +138,7 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
 </script>
 
 <!-- Notification Sound -->
-<audio id="adminNotifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
+<audio id="adminNotifSound" src="../assets/sounds/notification.mp3" preload="none"></audio>
 
 <script>
     // Notification Sound Logic

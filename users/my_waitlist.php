@@ -179,6 +179,31 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
             if (result.isConfirmed) window.location.href = url;
         });
     }
+
+// Notification Logic
+let lastUnreadCount = <?= (int)$unread_count ?>;
+function fetchNotifications() {
+    fetch('get_notifications.php')
+        .then(response => response.json())
+        .then(data => {
+            if(data.unread_count > lastUnreadCount) {
+                const audio = document.getElementById('notifSound');
+                if(audio) audio.play().catch(e => {});
+            }
+            lastUnreadCount = data.unread_count;
+        });
+}
+setInterval(fetchNotifications, 5000);
+fetchNotifications(); // Initial load
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php').then(r => r.text()).then(t => {
+        if(lastUpdate == 0) lastUpdate = t; else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000);
 </script>
 </body>
 </html>

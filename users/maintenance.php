@@ -200,7 +200,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
 </div>
 
 <!-- Notification Sound -->
-<audio id="notifSound" src="../assets/sounds/notification.mp3" preload="auto"></audio>
+<audio id="notifSound" src="../assets/sounds/notification.mp3" preload="none"></audio>
 
 <script src="users_JS/app.js"></script>
 <script>

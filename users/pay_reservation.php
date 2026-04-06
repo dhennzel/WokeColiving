@@ -94,6 +94,10 @@ if(isset($_POST['submit_payment'])){
         }
     }
 }
+
+// Fetch Unread Count
+$unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$user_id AND is_read=0");
+$unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -209,6 +213,10 @@ if(isset($_POST['submit_payment'])){
         </div>
     </div>
 </div>
+
+<!-- Notification Sound -->
+<audio id="notifSound" src="../assets/sounds/notification.mp3" preload="none"></audio>
+
 <script>
 function togglePaymentDetails() {
     let method = document.getElementById('payment_method').value;
@@ -247,6 +255,31 @@ window.addEventListener('storage', (e) => {
         else document.body.classList.remove('night-mode');
     }
 });
+
+// Notification Logic
+let lastUnreadCount = <?= (int)$unread_count ?>;
+function fetchNotifications() {
+    fetch('get_notifications.php')
+        .then(response => response.json())
+        .then(data => {
+            if(data.unread_count > lastUnreadCount) {
+                const audio = document.getElementById('notifSound');
+                if(audio) audio.play().catch(e => {});
+            }
+            lastUnreadCount = data.unread_count;
+        });
+}
+setInterval(fetchNotifications, 5000);
+fetchNotifications(); // Initial load
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php').then(r => r.text()).then(t => {
+        if(lastUpdate == 0) lastUpdate = t; else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000);
 </script>
 </body>
 </html>

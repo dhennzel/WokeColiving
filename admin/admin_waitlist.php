@@ -1,5 +1,3 @@
-
-
 <?php
 session_start();
 include("../db.php");
@@ -149,11 +147,13 @@ $theme = get_theme_colors($conn);
                 </div>
                 <?php endforeach; ?>
             <?php endif; ?>
-        </div>
-    </div>
         </main>
     </div>
 </div>
+
+<!-- Notification Sound -->
+<audio id="notifSound" src="../assets/sounds/notification.mp3" preload="none"></audio>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
@@ -171,6 +171,31 @@ function confirmAction(e, url, msg) {
         if (result.isConfirmed) window.location.href = url;
     });
 }
+
+// Notification Sound & Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php')
+    .then(r => r.text())
+    .then(t => {
+        if(lastUpdate == 0) {
+            lastUpdate = t;
+        } else if (t > lastUpdate) {
+            sessionStorage.setItem('playNotifSound', 'true');
+            location.reload();
+        }
+    });
+}
+setInterval(checkUpdates, 3000);
+
+document.addEventListener('DOMContentLoaded', () => {
+    if(sessionStorage.getItem('playNotifSound') === 'true') {
+        let audio = new Audio('../assets/sounds/notification.mp3');
+        audio.onerror = () => { new Audio('../assets/sounds/woke_coliving_alert.wav').play().catch(e=>{}); };
+        audio.play().catch(e => console.warn('Audio autoplay blocked by browser:', e));
+        sessionStorage.removeItem('playNotifSound');
+    }
+});
 </script>
 </body>
 </html>

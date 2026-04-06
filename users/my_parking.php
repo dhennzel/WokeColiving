@@ -21,6 +21,10 @@ $reservations_q = mysqli_query($conn, "
 
 $user_info = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM users WHERE user_id=$user_id"));
 $theme = get_theme_colors($conn);
+
+// Fetch Unread Count
+$unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$user_id AND is_read=0");
+$unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -127,7 +131,36 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
+<!-- Notification Sound -->
+<audio id="notifSound" src="../assets/sounds/notification.mp3" preload="none"></audio>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="users_JS/app.js"></script>
+<script>
+// Notification Logic
+let lastUnreadCount = <?= (int)$unread_count ?>;
+function fetchNotifications() {
+    fetch('get_notifications.php')
+        .then(response => response.json())
+        .then(data => {
+            if(data.unread_count > lastUnreadCount) {
+                const audio = document.getElementById('notifSound');
+                if(audio) audio.play().catch(e => {});
+            }
+            lastUnreadCount = data.unread_count;
+        });
+}
+setInterval(fetchNotifications, 5000);
+fetchNotifications(); // Initial load
+
+// Auto Refresh Logic
+let lastUpdate = 0;
+function checkUpdates() {
+    fetch('../check_updates.php').then(r => r.text()).then(t => {
+        if(lastUpdate == 0) lastUpdate = t; else if (t > lastUpdate) location.reload();
+    });
+}
+setInterval(checkUpdates, 3000);
+</script>
 </body>
 </html>
