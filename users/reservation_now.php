@@ -251,6 +251,9 @@ if (isset($_POST['confirm_booking'])) {
         $specific_room_id = isset($_POST['specific_room_id']) ? (int)$_POST['specific_room_id'] : 0;
         $auto_assigned = ($specific_room_id > 0) ? 0 : 1;
 
+        // Downpayment / Reservation Fee Logic
+        $amount_to_pay_now = isset($_POST['pay_only_downpayment']) ? 2000.00 : 0; // Halimbawa ₱2,000 fix fee
+
         // Find an available room of the selected type
         $found_room = null;
         if ($specific_room_id > 0) {
@@ -390,6 +393,14 @@ if (isset($_POST['confirm_booking'])) {
                 
                 $initialPayment += $prev_balance; // Add previous debt to initial payment required
 
+                if ($amount_to_pay_now > 0 && $amount_to_pay_now < $totalAmount) {
+                    $initial_payment = $amount_to_pay_now;
+                    $remaining = $totalAmount - $amount_to_pay_now;
+                } else {
+                    $initial_payment = $totalAmount;
+                    $remaining = 0;
+                }
+
                 $reservation_id = 0;
                 $exec_result = false;
                 
@@ -438,11 +449,26 @@ if (isset($_POST['confirm_booking'])) {
                 }
 
                 if ($exec_result) {
-                    // GCash is now set to 'Unpaid' until the Dragonpay postback confirms the payment
-                    $pay_status = ($payment_method == 'PayPal') ? 'Paid' : 'Unpaid'; 
+                    // Insert first part (Paid or Unpaid depending on method)
+                    $p_status = ($payment_method == 'Cash') ? 'Unpaid' : 'Unpaid'; // Dragonpay will update this
+                    $p_desc = ($remaining > 0) ? "Reservation Fee / Downpayment" : "Full Payment";
                     
-                    $pay_desc = "Initial Booking Payment" . ($prev_balance > 0 ? " (Includes carried over balance: ₱" . number_format($prev_balance, 2) . ")" : "");
+                    $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, ?, NOW(), ?)");
+                    $pay_stmt->bind_param("idsss", $reservation_id, $initial_payment, $payment_method, $p_status, $p_desc);
+                    $pay_stmt->execute();
 
+<<<<<<< HEAD
+                    if ($remaining > 0) {
+                        // Insert balance part
+                        $bal_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, 'Unpaid', NOW(), ?)");
+                        $b_desc = "Remaining Balance for Reservation #$reservation_id";
+                        $bal_stmt->bind_param("idss", $reservation_id, $remaining, $payment_method, $b_desc);
+                        $bal_stmt->execute();
+                    }
+
+                    // Update Dragonpay amount if needed
+                    $totalAmount = $initial_payment; 
+=======
                     try {
                         $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image, description) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)");
                     } catch (Exception $e) {
@@ -478,6 +504,7 @@ if (isset($_POST['confirm_booking'])) {
                             }
                         }
                     }
+>>>>>>> 2160d63382bf5e340b5fffaadf60d5af883c9f62
 
                     // --- NOTIFICATIONS ---
                     // 1. Notify User
@@ -748,7 +775,7 @@ if (isset($_POST['confirm_booking'])) {
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_number) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_number" value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
                             <?php else: ?>
-                                <input type="text" name="emergency_contact_number" id="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
+                                <input type="text" name="emergency_contact_number" id="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($user_emergency_contact_number) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">

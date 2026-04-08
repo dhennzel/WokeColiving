@@ -11,7 +11,7 @@ $error = "";
 $success = "";
 
 // Fetch Users
-$users = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name, IF(middle_name IS NOT NULL AND middle_name != '', CONCAT(' ', middle_name), '')) as full_name, email, gender FROM users ORDER BY last_name ASC");
+$users = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name, IF(middle_name IS NOT NULL AND middle_name != '', CONCAT(' ', middle_name), ''), IF(suffix IS NOT NULL AND suffix != '', CONCAT(' ', suffix), '')) as full_name, email, gender FROM users ORDER BY last_name ASC");
 
 // Ensure gender column exists in users table
 $check_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'gender'");
@@ -41,12 +41,6 @@ if(mysqli_num_rows($check_occ) == 0) {
 $check_company = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'company'");
 if(mysqli_num_rows($check_company) == 0) {
     mysqli_query($conn, "ALTER TABLE users ADD COLUMN company VARCHAR(100) DEFAULT NULL");
-}
-
-// Ensure school_id_image column exists
-$check_sid = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'school_id_image'");
-if(mysqli_num_rows($check_sid) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN school_id_image VARCHAR(255) DEFAULT NULL");
 }
 
 // Ensure emergency contact columns exist
@@ -101,6 +95,7 @@ $f_user_id = $_POST['user_id'] ?? '';
 $f_new_lname = $_POST['new_lname'] ?? '';
 $f_new_fname = $_POST['new_fname'] ?? '';
 $f_new_mname = $_POST['new_mname'] ?? '';
+$f_new_suffix = $_POST['new_suffix'] ?? '';
 $f_new_email = $_POST['new_email'] ?? '';
 $f_new_phone = $_POST['new_phone'] ?? '';
 $f_new_address = $_POST['new_address'] ?? '';
@@ -125,10 +120,11 @@ if(isset($_POST['add_reservation'])){
 
     if($user_type == 'new'){
         // Create New User
-        $lname = trim($_POST['new_lname'] ?? '');
-        $fname = trim($_POST['new_fname'] ?? '');
-        $mname = trim($_POST['new_mname'] ?? '');
-        $name = $lname . ', ' . $fname . ' ' . $mname;
+        $lname = mb_convert_case(trim($_POST['new_lname'] ?? ''), MB_CASE_TITLE, "UTF-8");
+        $fname = mb_convert_case(trim($_POST['new_fname'] ?? ''), MB_CASE_TITLE, "UTF-8");
+        $mname = mb_convert_case(trim($_POST['new_mname'] ?? ''), MB_CASE_TITLE, "UTF-8");
+        $suffix = trim($_POST['new_suffix'] ?? '');
+        $name = $lname . ', ' . $fname . ' ' . $mname . ' ' . $suffix;
         $email = trim($_POST['new_email'] ?? '');
         $phone = trim($_POST['new_phone'] ?? '');
         $gender = $_POST['new_gender'] ?? 'Male';
@@ -141,40 +137,38 @@ if(isset($_POST['add_reservation'])){
             $error = "Company/School name is required.";
         }
 
-        // Handle School ID Upload
-        $school_id_img = null;
-        if(!$error && $occupation == 'Student'){
-            if(isset($_FILES['new_school_id_image']) && $_FILES['new_school_id_image']['error'] == 0){
-                $target_dir = "../uploads/proofs/";
-                if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-                $school_id_img = time() . '_sid_' . basename($_FILES["new_school_id_image"]["name"]);
-                move_uploaded_file($_FILES["new_school_id_image"]["tmp_name"], $target_dir . $school_id_img);
-            } else {
-                $error = "School ID is required for students.";
-            }
+        if(!preg_match('/^09\d{9}$/', $phone)){
+            $error = "Invalid phone number. Must be 11 digits starting with 09 and no letters allowed.";
         }
 
         $em_name = trim($_POST['new_em_name'] ?? '');
         $em_num = trim($_POST['new_em_num'] ?? '');
-        $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : '12345678';
+        $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : 'WokeCol1';
+        $name_regex = "/^[a-zA-Z\sñÑ]+$/";
         
-        if(!empty($_POST['new_password'])){
-            if(strlen($raw_pass) > 8){
-                $error = "Password must be maximum 8 characters.";
-            } elseif(!preg_match('/[a-zA-Z]/', $raw_pass) || !preg_match('/[0-9]/', $raw_pass)){
-                $error = "Password must contain at least one letter and one number.";
+        if (!preg_match($name_regex, $fname) || !preg_match($name_regex, $lname) || (!empty($mname) && !preg_match($name_regex, $mname)) || (!empty($suffix) && !preg_match($name_regex, $suffix))) {
+            $error = "First, Middle, Last names, and Suffixes should only contain letters and spaces. Signs and numbers are not allowed.";
+        } elseif(!empty($_POST['new_password'])){
+            $letter_count = preg_match_all('/[a-zA-Z]/', $raw_pass);
+            $digit_count = preg_match_all('/[0-9]/', $raw_pass);
+            if(strlen($raw_pass) != 8 || $letter_count != 7 || $digit_count != 1){
+                $error = "Password must be exactly 8 characters (7 letters and 1 number).";
             }
         }
         
         $password = password_hash($raw_pass, PASSWORD_DEFAULT);
 
         if(empty($error)){
-            $check = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'");
-            if(mysqli_num_rows($check) > 0){
+            $check_email = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'");
+            $check_name = mysqli_query($conn, "SELECT user_id FROM users WHERE first_name='$fname' AND last_name='$lname' AND middle_name='$mname' AND suffix='$suffix'");
+
+            if(mysqli_num_rows($check_email) > 0){
                 $error = "Email address already registered.";
+            } elseif(mysqli_num_rows($check_name) > 0) {
+                $error = "A guest with this full name is already registered.";
             } else {
-                $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, email, phone_number, gender, occupation, company, address, school_id_image, password, role, is_walkin, emergency_contact_name, emergency_contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?)");
-                mysqli_stmt_bind_param($stmt, "sssssssssssss", $lname, $fname, $mname, $email, $phone, $gender, $occupation, $company, $address, $school_id_img, $password, $em_name, $em_num);
+                $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, suffix, email, phone_number, gender, occupation, company, address, password, role, is_walkin, emergency_contact_name, emergency_contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?)");
+                mysqli_stmt_bind_param($stmt, "sssssssssssss", $lname, $fname, $mname, $suffix, $email, $phone, $gender, $occupation, $company, $address, $password, $em_name, $em_num);
                 if(mysqli_stmt_execute($stmt)){
                     $user_id = mysqli_insert_id($conn);
                     $account_msg = "Account created for $name (Pass: $raw_pass). ";
@@ -357,6 +351,11 @@ if(isset($_POST['add_reservation'])){
             $totalAmount += $prev_balance;
             $pay_desc = "Walk-in Booking Payment" . ($prev_balance > 0 ? " (Includes carried over balance: ₱" . number_format($prev_balance, 2) . ")" : "");
 
+            // Partial Payment Logic
+            $amount_paid = isset($_POST['amount_paid']) ? (float)$_POST['amount_paid'] : $totalAmount;
+            if($amount_paid > $totalAmount) $amount_paid = $totalAmount; // Iwas overpayment sa input
+            $remaining_balance = $totalAmount - $amount_paid;
+
             // Insert
             $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, occupation, company_or_school, contact_person_name, contact_person_number) VALUES (?, ?, ?, ?, ?, ?, 'Approved', ?, ?, ?, ?, ?)");
             $stmt->bind_param("iissidsssss", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $bed_preference, $occupation, $company, $em_name, $em_num);
@@ -368,22 +367,29 @@ if(isset($_POST['add_reservation'])){
                 if($prev_balance > 0) {
                     mysqli_query($conn, "UPDATE payments p JOIN reservations r ON p.reservation_id = r.reservation_id SET p.payment_status='Cancelled', p.description = CONCAT(p.description, ' (Carried over to Reservation #$res_id)') WHERE r.user_id=$user_id AND p.payment_status='Unpaid' AND r.reservation_id != $res_id");
                 }
-                
                 $pay_method = $_POST['payment_method'] ?? 'Cash';
                 $pay_status = $_POST['payment_status'] ?? 'Unpaid';
                 
-                if ($pay_method == 'GCash') {
-                    $pay_status = 'Unpaid'; // Force unpaid until Dragonpay verifies
+                if ($amount_paid > 0) {
+                    // Record 1: Ang mismong binayad (Paid)
+                    $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, 'Paid', NOW(), ?)");
+                    $down_desc = $pay_desc . " (Downpayment/Partial)";
+                    $pay_stmt->bind_param("idss", $res_id, $amount_paid, $pay_method, $down_desc);
+                    $pay_stmt->execute();
                 }
-                
-                $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, ?, NOW(), ?)");
-                $pay_stmt->bind_param("idsss", $res_id, $totalAmount, $pay_method, $pay_status, $pay_desc);
-                $pay_stmt->execute();
+
+                if ($remaining_balance > 0) {
+                    // Record 2: Ang kulang na balanse (Unpaid)
+                    $bal_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, 'Unpaid', NOW(), ?)");
+                    $bal_desc = "Remaining Balance for Reservation #$res_id";
+                    $bal_stmt->bind_param("idss", $res_id, $remaining_balance, $pay_method, $bal_desc);
+                    $bal_stmt->execute();
+                }
                 
                 log_activity($conn, $user_id, "Walk-in Booking", "Reservation #$res_id created by $admin_username");
                 
                 // 🚀 DRAGONPAY REDIRECT LOGIC
-                if ($pay_method == 'GCash') {
+                if ($pay_method == 'GCash' && $pay_status == 'Unpaid') {
                     $merchant_id = 'YOUR_MERCHANT_ID'; // Replace with your Dragonpay Merchant ID
                     $secret_key  = 'YOUR_SECRET_KEY';  // Replace with your Dragonpay Password
                     
@@ -494,11 +500,23 @@ $theme = get_theme_colors($conn);
                     <div id="new_user_section" class="mb-3 p-3 border rounded bg-light" style="display: <?= $f_user_type == 'new' ? 'block' : 'none' ?>;">
                         <h6 class="fw-bold text-success mb-3"><i class="fas fa-user-plus me-2"></i>Guest Details</h6>
                         <div class="row g-2">
-                            <div class="col-md-4"><label class="small fw-bold">Last Name</label><input type="text" name="new_lname" class="form-control" value="<?= htmlspecialchars($f_new_lname) ?>"></div>
-                            <div class="col-md-4"><label class="small fw-bold">First Name</label><input type="text" name="new_fname" class="form-control" value="<?= htmlspecialchars($f_new_fname) ?>"></div>
-                            <div class="col-md-4"><label class="small fw-bold">Middle Name</label><input type="text" name="new_mname" class="form-control" value="<?= htmlspecialchars($f_new_mname) ?>"></div>
+                            <div class="col-md-4"><label class="small fw-bold">Last Name</label><input type="text" name="new_lname" class="form-control" value="<?= htmlspecialchars($f_new_lname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                            <div class="col-md-4"><label class="small fw-bold">First Name</label><input type="text" name="new_fname" class="form-control" value="<?= htmlspecialchars($f_new_fname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                            <div class="col-md-4"><label class="small fw-bold">Middle Name</label><input type="text" name="new_mname" class="form-control" value="<?= htmlspecialchars($f_new_mname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold">Suffix</label>
+                                <select name="new_suffix" class="form-select">
+                                    <option value="">None</option>
+                                    <option value="Jr" <?= $f_new_suffix == 'Jr' ? 'selected' : '' ?>>Jr</option>
+                                    <option value="Sr" <?= $f_new_suffix == 'Sr' ? 'selected' : '' ?>>Sr</option>
+                                    <option value="II" <?= $f_new_suffix == 'II' ? 'selected' : '' ?>>II</option>
+                                    <option value="III" <?= $f_new_suffix == 'III' ? 'selected' : '' ?>>III</option>
+                                    <option value="IV" <?= $f_new_suffix == 'IV' ? 'selected' : '' ?>>IV</option>
+                                    <option value="V" <?= $f_new_suffix == 'V' ? 'selected' : '' ?>>V</option>
+                                </select>
+                            </div>
                             <div class="col-md-6"><label class="small fw-bold">Email</label><input type="email" name="new_email" class="form-control" value="<?= htmlspecialchars($f_new_email) ?>"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_phone) ?>"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_phone) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')"></div>
                             <div class="col-md-6">
                                 <label class="small fw-bold">Gender</label>
                                 <select name="new_gender" id="new_gender" class="form-select" onchange="checkAvailability()">
@@ -518,19 +536,15 @@ $theme = get_theme_colors($conn);
                                 <label class="small fw-bold" id="new_company_label">Company/School Name</label>
                                 <input type="text" name="new_company" id="new_company" class="form-control" value="<?= htmlspecialchars($f_new_company) ?>">
                             </div>
-                            <div class="col-md-12" id="new_school_id_div" style="display: <?= $f_new_occupation == 'Student' ? 'block' : 'none' ?>;">
-                                <label class="small fw-bold">School ID Image</label>
-                                <input type="file" name="new_school_id_image" id="new_school_id_image" class="form-control" accept="image/*">
-                            </div>
                             <div class="col-md-12">
                                 <label class="small fw-bold">Permanent Address</label>
                                 <textarea name="new_address" class="form-control" rows="2"><?= htmlspecialchars($f_new_address) ?></textarea>
                             </div>
                             <div class="col-md-6"><label class="small fw-bold" id="new_em_name_label">Emergency Name</label><input type="text" name="new_em_name" class="form-control" value="<?= htmlspecialchars($f_new_em_name) ?>"></div>
-                            <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_em_num) ?>"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: 12345678"></div>
+                            <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_em_num) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: WokeCol1"></div>
                         </div>
-                        <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>12345678</strong>.</small>
+                        <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>WokeCol1</strong> (7 letters, 1 number).</small>
                     </div>
 
                     <div class="row">
@@ -600,6 +614,15 @@ $theme = get_theme_colors($conn);
                             <span>Security Deposit:</span> <strong class="text-dark" id="sd_display">₱3,000.00 (Refundable)</strong>
                         </div>
                         <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2"><span class="h5 mb-0">Total: </span><span class="h4 text-success fw-bold">₱<span id="totalAmount">0.00</span></span></div>
+                    </div>
+
+                    <div class="mb-3 p-3 border rounded bg-light">
+                        <label class="form-label fw-bold text-primary">Amount Paid Now (Downpayment)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">₱</span>
+                            <input type="number" name="amount_paid" id="amount_paid" class="form-control" step="0.01" placeholder="Enter amount received" onkeyup="updateBalanceDisplay()">
+                        </div>
+                        <small id="balance_note" class="text-danger fw-bold mt-1 d-block"></small>
                     </div>
 
                     <input type="hidden" name="specific_room_id" id="specific_room_id" value="<?= htmlspecialchars($_POST['specific_room_id'] ?? '') ?>">
@@ -721,8 +744,6 @@ function toggleNewGuestCompany() {
     const div = document.getElementById('new_company_div');
     const label = document.getElementById('new_company_label');
     const input = document.getElementById('new_company');
-    const sidDiv = document.getElementById('new_school_id_div');
-    const sidInput = document.getElementById('new_school_id_image');
     const emNameLabel = document.getElementById('new_em_name_label');
     const emNumLabel = document.getElementById('new_em_num_label');
 
@@ -730,23 +751,17 @@ function toggleNewGuestCompany() {
         div.style.display = 'block';
         label.innerText = 'School Name';
         input.required = true;
-        sidDiv.style.display = 'block';
-        sidInput.required = true;
         emNameLabel.innerText = 'Guardian Name';
         emNumLabel.innerText = 'Guardian Contact Number';
     } else if(occ === 'Employed') {
         div.style.display = 'none'; // Hide for employed
         label.innerText = 'Company Name'; // Label is irrelevant if hidden
         input.required = false; // Not required if hidden
-        sidDiv.style.display = 'none';
-        sidInput.required = false;
         emNameLabel.innerText = 'Company Name';
         emNumLabel.innerText = 'Company Number';
     } else {
         div.style.display = 'none';
         input.required = false;
-        sidDiv.style.display = 'none';
-        sidInput.required = false;
         emNameLabel.innerText = 'Emergency Contact Name';
         emNumLabel.innerText = 'Emergency Contact Number';
     }

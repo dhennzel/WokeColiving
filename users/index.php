@@ -51,22 +51,30 @@ if(isset($_POST['send_message'])){
 // Fetch all rooms using centralized function for accurate occupancy data
 $all_rooms = get_all_rooms_with_occupancy($conn);
 
-// Group rooms by type
-$grouped_rooms = [];
+// Group rooms by gender then by type to separate male/female rooms
+$gender_grouped = ['Male' => [], 'Female' => [], 'Any' => []];
 foreach ($all_rooms as $room) {
     if(isset($room['is_archived']) && $room['is_archived'] == 1) continue;
-    $type = $room['room_type'];
-    if (!isset($grouped_rooms[$type])) $grouped_rooms[$type] = [];
-    $grouped_rooms[$type][] = $room;
+    $g = $room['gender'] ?? 'Any';
+    $t = $room['room_type'];
+    if(!isset($gender_grouped[$g])) $gender_grouped[$g] = [];
+    if(!isset($gender_grouped[$g][$t])) $gender_grouped[$g][$t] = [];
+    $gender_grouped[$g][$t][] = $room;
 }
 
 // Check for active booking
 $has_active_booking = false;
+$user_gender = null;
 if(isset($_SESSION['user_id'])){
     $uid = (int)$_SESSION['user_id'];
     $check_active = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id = $uid AND status IN ('Pending', 'Approved')");
     if(mysqli_num_rows($check_active) > 0) {
         $has_active_booking = true;
+    }
+
+    $u_data_q = mysqli_query($conn, "SELECT gender FROM users WHERE user_id = $uid");
+    if($u_row = mysqli_fetch_assoc($u_data_q)) {
+        $user_gender = $u_row['gender'];
     }
 
     // Fetch Unread Count & Notifications
@@ -283,39 +291,67 @@ if(isset($_SESSION['user_id'])){
         <h2 class="section-title display-5">Available Rooms</h2>
         <p class="text-muted">Choose the perfect space for your needs.</p>
     </div>
-    <div class="row g-4">
-        <?php foreach($grouped_rooms as $type => $rooms_in_type): 
-            $type_total_beds = array_sum(array_column($rooms_in_type, 'total_beds'));
-            $type_avail_beds = array_sum(array_column($rooms_in_type, 'available_beds'));
-            $first_room = $rooms_in_type[0] ?? null;
-            if (!$first_room) continue;
+    
+    <?php 
+    // Itatago ang mga seksyon na hindi tugma sa kasarian ng tenant. Kung hindi naka-login, ipapakita lahat.
+    $display_genders = $user_gender ? [$user_gender, 'Any'] : ['Male', 'Female', 'Any'];
+    foreach($display_genders as $g_key): 
+        $types_in_gender = $gender_grouped[$g_key] ?? [];
+        if(empty($types_in_gender)) continue;
+        
+        $section_title = ($g_key == 'Any') ? 'Mixed / All Genders' : $g_key . ' Dormitories';
+        $section_icon = ($g_key == 'Male') ? 'fa-mars text-primary' : (($g_key == 'Female') ? 'fa-venus text-danger' : 'fa-venus-mars text-success');
+    ?>
+        <div class="mb-4" data-aos="fade-right">
+            <h4 class="fw-bold d-flex align-items-center"><i class="fas <?= $section_icon ?> me-2"></i><?= $section_title ?></h4>
+            <hr class="w-25 mt-1 border-2 border-success opacity-50">
+        </div>
+        
+        <div class="row g-4 mb-5">
+            <?php foreach($types_in_gender as $type => $rooms_in_type): 
+                $type_total_beds = array_sum(array_column($rooms_in_type, 'total_beds'));
+                $type_avail_beds = array_sum(array_column($rooms_in_type, 'available_beds'));
+                $first_room = $rooms_in_type[0] ?? null;
+                if (!$first_room) continue;
 
-            $image = $first_room['image'];
-            $price = $first_room['total_price'];
-            $p_upper = $first_room['price_upper'];
-            $p_lower = $first_room['price_lower'];
-        ?>
-        <div class="col-lg-4 col-md-6" data-aos="fade-up">
-            <div class="card room-card h-100 border-0 shadow-sm">
-                <div class="room-img-wrapper">
-                    <img src="../assets/images/<?= $image ?>" alt="<?= $type ?>">
-                </div>
-                <div class="card-body text-center p-4">
-                    <h3 class="fw-bold text-dark mb-2"><?= $type ?></h3>
-                    <?php if($type != 'Single'): ?>
-                        <div class="mb-2">
-                            <span class="text-primary fw-bold small">Upper: ₱<?= number_format($p_upper, 2) ?></span><br>
-                            <span class="text-success fw-bold small">Lower: ₱<?= number_format($p_lower, 2) ?></span>
-                        </div>
-                    <?php else: ?>
-                        <p class="price-tag mb-2 fw-bold text-success">₱<?= number_format($price, 2) ?> <small class="text-muted fs-6">/mo</small></p>
-                    <?php endif; ?>
-                    <a href="room_details.php?id=<?= $first_room['room_id'] ?>" class="btn btn-outline-success rounded-pill px-4">View Details</a>
+                $image = $first_room['image'];
+                $price = $first_room['total_price'];
+                $p_upper = $first_room['price_upper'];
+                $p_lower = $first_room['price_lower'];
+                $status_msg = "";
+                $status_class = "";
+
+                if ($user_gender) {
+                    $status_msg = "Available for " . $user_gender;
+                    $status_class = "text-success";
+                } else {
+                    $status_msg = ($g_key == 'Any') ? "Available for All" : $g_key . " Only";
+                    $status_class = ($g_key == 'Male') ? "text-primary" : (($g_key == 'Female') ? "text-danger" : "text-success");
+                }
+            ?>
+            <div class="col-lg-4 col-md-6" data-aos="fade-up">
+                <div class="card room-card h-100 border-0 shadow-sm">
+                    <div class="room-img-wrapper">
+                        <img src="../assets/images/<?= $image ?>" alt="<?= $type ?>">
+                    </div>
+                    <div class="card-body text-center p-4">
+                        <h3 class="fw-bold text-dark mb-1"><?= $type ?></h3>
+                        <div class="<?= $status_class ?> small fw-bold mb-2"><?= $status_msg ?></div>
+                        <?php if($type != 'Single'): ?>
+                            <div class="mb-2">
+                                <span class="text-primary fw-bold small">Upper: ₱<?= number_format($p_upper, 2) ?></span><br>
+                                <span class="text-success fw-bold small">Lower: ₱<?= number_format($p_lower, 2) ?></span>
+                            </div>
+                        <?php else: ?>
+                            <p class="price-tag mb-2 fw-bold text-success">₱<?= number_format($price, 2) ?> <small class="text-muted fs-6">/mo</small></p>
+                        <?php endif; ?>
+                        <a href="room_details.php?id=<?= $first_room['room_id'] ?>" class="btn btn-outline-success rounded-pill px-4">View Details</a>
+                    </div>
                 </div>
             </div>
+            <?php endforeach; ?>
         </div>
-        <?php endforeach; ?>
-    </div>
+    <?php endforeach; ?>
 </div>
 
 <hr class="container my-4 opacity-25" data-aos="zoom-in">

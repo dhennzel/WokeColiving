@@ -291,7 +291,7 @@ if(isset($_GET['term']) && !empty($_GET['term'])){
 
 // Fetch Reservations with Filters
 $sql = "
-    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.do_not_renew, u.profile_image, u.is_walkin, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image,
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), ''), IF(u.suffix IS NOT NULL AND u.suffix != '', CONCAT(' ', u.suffix), '')) as full_name, u.email, u.do_not_renew, u.profile_image, u.is_walkin, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image,
     (SELECT COUNT(*) FROM payments p WHERE p.reservation_id = r.reservation_id AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL) as pending_payments
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
