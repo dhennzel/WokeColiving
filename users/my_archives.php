@@ -106,7 +106,6 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th width="10%">Room</th>
                         <th>Details</th>
                         <th>Dates</th>
@@ -125,7 +124,6 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                         $total_price = $row['total_price'] ?? $row['total_amount'] ?? 0;
                     ?>
                     <tr class="text-muted anim-trigger anim-left delay-<?= min($delay_row++, 5) ?>">
-                        <td class="fw-bold">#<?= $row['reservation_id'] ?></td>
                         <td>
                             <img src="../assets/images/<?= $row['image'] ?>" class="img-fluid rounded shadow-sm" style="height: 60px; width: 80px; object-fit: cover; opacity: 0.7;">
                         </td>

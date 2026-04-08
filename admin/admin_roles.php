@@ -34,6 +34,11 @@ if(isset($_POST['add_admin'])){
             $error = "Password must contain at least one letter and one number.";
         }
         
+        $name_regex = "/^[a-zA-Z\sñÑ]+$/";
+        if (!preg_match($name_regex, $first_name) || !preg_match($name_regex, $last_name)) {
+            $error = "Names should only contain letters and spaces. Signs and numbers are not allowed.";
+        }
+
         if(empty($error)){
             $password = mysqli_real_escape_string($conn, $raw_pass);
             $check = mysqli_query($conn, "SELECT * FROM admin WHERE username='$username'");
@@ -104,8 +109,8 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                         <h5 class="fw-bold mb-3">Add New Admin</h5>
                         <form method="POST">
                             <div class="row g-2 mb-3">
-                                <div class="col-6"><label class="form-label small fw-bold">First Name</label><input type="text" name="first_name" class="form-control" required></div>
-                                <div class="col-6"><label class="form-label small fw-bold">Last Name</label><input type="text" name="last_name" class="form-control" required></div>
+                                <div class="col-6"><label class="form-label small fw-bold">First Name</label><input type="text" name="first_name" class="form-control" required oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')"></div>
+                                <div class="col-6"><label class="form-label small fw-bold">Last Name</label><input type="text" name="last_name" class="form-control" required oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')"></div>
                             </div>
                             <div class="mb-3"><label class="form-label small fw-bold">Email</label><input type="email" name="email" class="form-control"></div>
                             <div class="mb-3"><label class="form-label small fw-bold">Phone Number</label><input type="text" name="phone_number" class="form-control"></div>

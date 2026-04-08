@@ -156,7 +156,7 @@ if(!empty($payment['user_id'])){
             <div class="card card-custom">
                 <div class="card-header-custom d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="mb-1 fw-bold">Payment #<?= str_pad($payment['payment_id'], 6, '0', STR_PAD_LEFT) ?></h4>
+                        <h4 class="mb-1 fw-bold">Payment Receipt</h4>
                         <div class="opacity-75 small"><i class="fas fa-calendar-alt me-2"></i><?= date('F d, Y h:i A', strtotime($payment['payment_date'])) ?></div>
                     </div>
                     <div class="text-end">

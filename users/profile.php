@@ -274,6 +274,21 @@ try {
         .roll-animation {
             animation: roll-animation 1s ease-in-out;
         }
+        .notif-badge-custom {
+            background: linear-gradient(135deg, var(--accent-yellow), #f9a825) !important;
+            color: #1A1D20 !important;
+            font-size: 0.65rem !important;
+            font-weight: 800 !important;
+            padding: 4px 6px !important;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
+            border: 1px solid rgba(255,255,255,0.6) !important;
+        }
+        body.night-mode .notif-badge-custom {
+            background: linear-gradient(135deg, #eb3f3f, #d42525) !important;
+            color: #ffffff !important;
+            border-color: #b71c1c !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.8) !important;
+        }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
@@ -298,7 +313,7 @@ try {
             <a href="#" class="nav-link p-0 position-relative" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" onclick="document.getElementById('notifBadge')?.style.setProperty('display', 'none', 'important');">
                 <i class="fas fa-bell fa-lg"></i>
                 <?php if($unread_count > 0): ?>
-                    <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.55rem; padding: 0.25rem 0.4rem;">
+                    <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill notif-badge-custom">
                         <?= $unread_count ?>
                         <span class="visually-hidden">unread messages</span>
                     </span>
@@ -390,7 +405,7 @@ try {
         <div class="col-md-3 anim-trigger anim-zoom delay-3" data-card-id="billing">
             <a href="billing.php" class="text-decoration-none">
                 <div class="card card-custom profile-card h-100">
-                    <?php if($user_balance > 0): ?><div class="card-badge bg-danger" title="Outstanding Balance">!</div><?php endif; ?>
+                    <?php if($user_balance > 0): ?><div class="card-badge bg-danger" title="Outstanding Balance"></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-file-invoice-dollar"></i></div>
                     <h5 class="fw-bold text-dark">Billing & Payments</h5>
                     <p class="small"><?= $user_balance > 0 ? 'Remaining: ₱'.number_format($user_balance, 2) : 'View your payment history.' ?></p>
@@ -744,11 +759,10 @@ try {
                     if(!badge) {
                         badge = document.createElement('span');
                         badge.id = 'notifBadge';
-                        badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light';
-                        badge.style.fontSize = '0.55rem';
-                        badge.style.padding = '0.25rem 0.4rem';
+                        badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill notif-badge-custom';
                         bell.appendChild(badge);
                     }
+                    badge.style.removeProperty('display');
                     badge.innerHTML = `${data.unread_count} <span class="visually-hidden">unread messages</span>`;
                 } else {
                     if(badge) badge.remove();

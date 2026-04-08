@@ -54,6 +54,15 @@ $approved_count = mysqli_fetch_assoc($approved_count_query)['count'] ?? 0;
 $total_rooms_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM rooms");
 $total_rooms = mysqli_fetch_assoc($total_rooms_query)['count'] ?? 0;
 
+// Stats: Total Users
+$user_filter = $_GET['user_filter'] ?? 'all';
+$user_where = "role != 'admin' AND role != 'Super Admin' AND is_archived = 0";
+if($user_filter == 'active') {
+    $user_where .= " AND EXISTS (SELECT 1 FROM reservations WHERE user_id = users.user_id AND status IN ('Approved', 'Pending', 'Verifying'))";
+}
+$total_users_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM users WHERE $user_where");
+$total_users = mysqli_fetch_assoc($total_users_query)['count'] ?? 0;
+
 // Stats: Occupancy Rate (Active Beds / Total Capacity)
 $today = date('Y-m-d');
 // 1. Total Capacity (Beds in non-maintenance rooms)
@@ -311,7 +320,7 @@ $theme = get_theme_colors($conn);
 
             <div class="row g-3 mb-4">
                 <?php if($is_super): ?>
-                <div class="col-md-3">
+                <div class="col">
                     <a href="profit_report.php" class="text-decoration-none">
                         <div class="card stat-card stat-card-accent-warning h-100 p-3 shadow-sm bg-white">
                             <div class="text-muted small fw-semibold text-uppercase mb-1">Total Earnings</div>
@@ -321,7 +330,20 @@ $theme = get_theme_colors($conn);
                     </a>
                 </div>
                 <?php endif; ?>
-                <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
+                <div class="col">
+                    <div class="card stat-card stat-card-accent-primary h-100 p-3 shadow-sm bg-white" style="cursor: default;">
+                        <div class="text-muted small fw-semibold text-uppercase mb-1 d-flex justify-content-between align-items-center">
+                            Total Users
+                            <select class="border-0 bg-transparent text-muted fw-bold position-relative z-3" style="width: auto; outline: none; cursor: pointer; font-size: 0.75rem; padding: 0;" onchange="window.location.href='?user_filter='+this.value">
+                                <option value="all" <?= $user_filter == 'all' ? 'selected' : '' ?>>All</option>
+                                <option value="active" <?= $user_filter == 'active' ? 'selected' : '' ?>>Active</option>
+                            </select>
+                        </div>
+                        <div class="h4 fw-bold text-dark mb-0"><?= $total_users ?></div>
+                        <i class="fas fa-users stat-icon"></i>
+                    </div>
+                </div>
+                <div class="col">
                     <a href="admin_rooms.php" class="text-decoration-none">
                         <div class="card stat-card stat-card-accent-primary h-100 p-3 shadow-sm bg-white">
                             <div class="text-muted small fw-semibold text-uppercase mb-1">Occupancy Rate</div>
@@ -330,7 +352,7 @@ $theme = get_theme_colors($conn);
                         </div>
                     </a>
                 </div>
-                <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
+                <div class="col">
                     <a href="booking_management.php?status=Pending" class="text-decoration-none">
                         <div class="card stat-card stat-card-accent-info h-100 p-3 shadow-sm bg-white">
                             <div class="text-muted small fw-semibold text-uppercase mb-1">Pending Requests</div>
@@ -339,7 +361,7 @@ $theme = get_theme_colors($conn);
                         </div>
                     </a>
                 </div>
-                <div class="<?= $is_super ? 'col-md-3' : 'col-md-4' ?>">
+                <div class="col">
                     <a href="booking_management.php?status=Approved" class="text-decoration-none">
                         <div class="card stat-card stat-card-accent-success h-100 p-3 shadow-sm bg-white">
                             <div class="text-muted small fw-semibold text-uppercase mb-1">Confirmed Guests</div>

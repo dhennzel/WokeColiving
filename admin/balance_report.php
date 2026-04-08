@@ -128,7 +128,6 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                                             </div>
                                             <div>
                                                 <div class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></div>
-                                                <small class="text-muted">ID: #<?= $row['user_id'] ?></small>
                                             </div>
                                         </div>
                                     </td>

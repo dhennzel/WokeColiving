@@ -49,7 +49,7 @@ if (isset($_POST['add_parking_reservation'])) {
 
     // NOW create description with the new ID
     if ($billing_type == 'Monthly') {
-        $desc = "Monthly Parking Fee (" . date('F Y') . ") for " . $slot['slot_name'] . " (Parking ID: $pr_id)";
+        $desc = "Monthly Parking Fee (" . date('F Y', strtotime($start_date)) . ") for " . $slot['slot_name'] . " (Parking ID: $pr_id)";
     } else { // Daily
         $desc = "Daily Parking Fee ($start_date) for " . $slot['slot_name'] . " (Parking ID: $pr_id)";
     }
@@ -61,8 +61,8 @@ if (isset($_POST['add_parking_reservation'])) {
     $active_res_q = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id=$user_id AND status='Approved' ORDER BY end_date DESC LIMIT 1");
     if ($active_res_row = mysqli_fetch_assoc($active_res_q)) {
         $room_res_id = $active_res_row['reservation_id'];
-        $pay_stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, 'Unpaid', NOW(), ?)");
-        mysqli_stmt_bind_param($pay_stmt, "idss", $room_res_id, $cost, $payment_method, $desc);
+        $pay_stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, 'Unpaid', ?, ?)");
+        mysqli_stmt_bind_param($pay_stmt, "idsss", $room_res_id, $cost, $payment_method, $start_date, $desc);
         mysqli_stmt_execute($pay_stmt);
     }
 

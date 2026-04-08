@@ -22,7 +22,12 @@ while($row = mysqli_fetch_assoc($pay_q)) {
     $unpaid_bills[] = $row;
 }
 
-if(empty($unpaid_bills)){ header("Location: my_reservations.php?msg=already_paid"); exit; }
+// Get all payments for this reservation to show the schedule
+$all_pay_q = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id=$reservation_id ORDER BY payment_date ASC");
+$all_payments = [];
+while($row = mysqli_fetch_assoc($all_pay_q)) {
+    $all_payments[] = $row;
+}
 
 $error = "";
 if(isset($_POST['submit_payment'])){
@@ -131,6 +136,18 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
         body.night-mode::-webkit-scrollbar-track, body.night-mode *::-webkit-scrollbar-track { background: #121212 !important; }
         body.night-mode::-webkit-scrollbar-thumb, body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }
         body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
+        body.night-mode .accordion-item { background-color: #1e1e1e !important; border-color: #333 !important; }
+        body.night-mode .accordion-button { background-color: #2c2c2c !important; color: #e0e0e0 !important; }
+        body.night-mode .accordion-button:not(.collapsed) { background-color: #2c2c2c !important; color: #e0e0e0 !important; box-shadow: inset 0 -1px 0 rgba(255,255,255,0.1); }
+        body.night-mode .accordion-body { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
+        body.night-mode .custom-checkbox-box { background-color: #2c2c2c !important; border-color: #444 !important; }
+        body.night-mode .custom-checkbox-box .text-muted { color: #34B875 !important; }
+        body.night-mode #included_bills_list li { color: #34B875 !important; }
+        body.night-mode .form-check-input { background-color: #333 !important; border-color: #555 !important; }
+        body.night-mode .form-check-input:checked { background-color: var(--primary-green) !important; border-color: var(--primary-green) !important; }
+        body.night-mode .table { color: #e0e0e0 !important; border-color: #444 !important; }
+        body.night-mode .table th, body.night-mode .table td { background-color: transparent !important; color: #e0e0e0 !important; border-color: #444 !important; }
+        body.night-mode .table-light th, body.night-mode .table-light td { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-color: #444 !important; }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
@@ -152,32 +169,58 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
             <div class="card card-custom p-4">
                 <h3 class="fw-bold text-success mb-4">Complete Your Payment</h3>
                 <div class="alert alert-info">
-                    <strong>Reservation #<?= $reservation_id ?></strong><br>
+                    <strong>Reservation Details</strong><br>
                     Room: <?= $res_data['room_name'] ?> (<?= $res_data['room_type'] ?>)<br>
                 </div>
                 
                 <?php if($error) echo "<div class='alert alert-danger'>$error</div>"; ?>
 
+                <?php if(!empty($unpaid_bills)): ?>
                 <form method="POST" enctype="multipart/form-data" id="paymentForm" onsubmit="return validatePaymentForm()">
                     
-                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">Select Bills to Pay</h5>
-                    <div class="mb-4">
-                        <?php foreach($unpaid_bills as $bill): ?>
-                        <label class="form-check custom-checkbox-box mb-2 p-3 border rounded d-flex justify-content-between align-items-center" style="cursor:pointer;" for="bill_<?= $bill['payment_id'] ?>">
-                            <div class="d-flex align-items-center">
-                                <input class="form-check-input bill-checkbox me-3 mt-0" style="width: 1.5em; height: 1.5em;" type="checkbox" name="selected_payments[]" value="<?= $bill['payment_id'] ?>" id="bill_<?= $bill['payment_id'] ?>" data-amount="<?= $bill['amount'] ?>" onchange="calculateTotal()" checked>
-                                <div>
-                                    <div class="fw-bold"><?= htmlspecialchars($bill['description']) ?></div>
-                                    <div class="small text-muted">Added: <?= date('M d, Y', strtotime($bill['payment_date'])) ?></div>
+                    <div class="accordion mb-4 shadow-sm" id="billsAccordion">
+                        <div class="accordion-item border-0 rounded-4 overflow-hidden">
+                            <h2 class="accordion-header" id="headingBills">
+                                <button class="accordion-button bg-light text-dark fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBills" aria-expanded="true" aria-controls="collapseBills">
+                                    <i class="fas fa-file-invoice-dollar me-2 text-primary"></i> Select Bills to Pay
+                                </button>
+                            </h2>
+                            <div id="collapseBills" class="accordion-collapse collapse show" aria-labelledby="headingBills" data-bs-parent="#billsAccordion">
+                                <div class="accordion-body p-3">
+                                    <div class="form-check mb-3 pb-2 border-bottom">
+                                        <input class="form-check-input" type="checkbox" id="selectAllBills" onclick="toggleSelectAllBills(this)" style="width: 1.2em; height: 1.2em;">
+                                        <label class="form-check-label fw-bold ms-2 mt-1" for="selectAllBills">
+                                            Select All Bills
+                                        </label>
+                                    </div>
+                                    <div id="bill_checkboxes_container">
+                                        <?php foreach($unpaid_bills as $index => $bill): ?>
+                                            <label class="form-check custom-checkbox-box mb-2 p-3 border rounded d-flex justify-content-between align-items-center" style="cursor:pointer;" for="bill_<?= $bill['payment_id'] ?>">
+                                                <div class="d-flex align-items-center">
+                                                    <input class="form-check-input bill-checkbox me-3 mt-0" style="width: 1.5em; height: 1.5em;" type="checkbox" name="selected_payments[]" value="<?= $bill['payment_id'] ?>" id="bill_<?= $bill['payment_id'] ?>" data-amount="<?= $bill['amount'] ?>" data-desc="<?= htmlspecialchars($bill['description']) ?>" onchange="calculateTotal(); checkSelectAllState()" <?= $index === 0 ? 'checked' : '' ?>>
+                                                    <div>
+                                                        <div class="fw-bold"><?= htmlspecialchars($bill['description']) ?></div>
+                                                        <div class="small text-muted">Added: <?= date('M d, Y', strtotime($bill['payment_date'])) ?></div>
+                                                    </div>
+                                                </div>
+                                                <div class="fw-bold text-success fs-5">
+                                                    ₱<?= number_format($bill['amount'], 2) ?>
+                                                </div>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="fw-bold text-success fs-5">
-                                ₱<?= number_format($bill['amount'], 2) ?>
-                            </div>
-                        </label>
-                        <?php endforeach; ?>
+                        </div>
                     </div>
-                    
+
+                    <div class="card bg-light border-0 p-3 mb-4">
+                        <h6 class="fw-bold mb-2 text-dark">Bills Included in this Payment:</h6>
+                        <ul class="list-unstyled mb-0 small text-muted" id="included_bills_list">
+                            <!-- Populated by JS -->
+                        </ul>
+                    </div>
+
                     <div class="alert alert-success d-flex justify-content-between align-items-center mb-4">
                         <strong class="mb-0 fs-5">Selected Total:</strong>
                         <span class="h3 fw-bold mb-0 text-success">₱<span id="selectedTotalDisplay">0.00</span></span>
@@ -209,6 +252,49 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                         <a href="my_reservations.php" class="btn btn-outline-secondary rounded-pill">Cancel</a>
                     </div>
                 </form>
+                <?php else: ?>
+                    <div class="alert alert-success text-center py-4 rounded-4 border-0 shadow-sm">
+                        <i class="fas fa-check-circle fa-3x mb-3 text-success"></i><br>
+                        <strong class="fs-5">All caught up!</strong><br><span class="text-muted">You have no unpaid bills currently due for this reservation.</span>
+                    </div>
+                    <div class="d-grid gap-2 mb-4">
+                        <a href="my_reservations.php" class="btn btn-outline-secondary rounded-pill fw-bold">Back to Reservations</a>
+                    </div>
+                <?php endif; ?>
+
+                <div class="mt-5">
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="fas fa-calendar-alt me-2 text-primary"></i>All Payment Months</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Due / Date</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach($all_payments as $pay): ?>
+                                <tr>
+                                    <td class="fw-bold"><?= htmlspecialchars($pay['description']) ?></td>
+                                    <td><?= date('M d, Y', strtotime($pay['payment_date'])) ?></td>
+                                    <td>₱<?= number_format($pay['amount'], 2) ?></td>
+                                    <td>
+                                        <?php 
+                                            $s = $pay['payment_status'];
+                                            $cls = 'bg-warning text-dark';
+                                            if($s == 'Paid') $cls = 'bg-success';
+                                            elseif($s == 'Cancelled') $cls = 'bg-danger';
+                                        ?>
+                                        <span class="badge <?= $cls ?> rounded-pill px-3"><?= $s ?></span>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -217,23 +303,63 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
 <!-- Notification Sound -->
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="none"></audio>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
 function togglePaymentDetails() {
     let method = document.getElementById('payment_method').value;
     document.getElementById('gcash_div').style.display = (method === 'GCash') ? 'block' : 'none';
 }
 
+function toggleSelectAllBills(source) {
+    let checkboxes = document.querySelectorAll('.bill-checkbox');
+    checkboxes.forEach(function(checkbox) {
+        checkbox.checked = source.checked;
+    });
+    calculateTotal();
+}
+
+function checkSelectAllState() {
+    let checkboxes = document.querySelectorAll('.bill-checkbox');
+    let selectAll = document.getElementById('selectAllBills');
+    let allChecked = true;
+    checkboxes.forEach(function(checkbox) {
+        if(!checkbox.checked) allChecked = false;
+    });
+    if(selectAll) selectAll.checked = allChecked;
+}
+
 function calculateTotal() {
     let total = 0;
-    document.querySelectorAll('.bill-checkbox:checked').forEach(function(checkbox) {
-        total += parseFloat(checkbox.getAttribute('data-amount'));
+    let checkboxes = document.querySelectorAll('.bill-checkbox');
+    let listContainer = document.getElementById('included_bills_list');
+    
+    if(listContainer) listContainer.innerHTML = '';
+
+    checkboxes.forEach(function(checkbox) {
+        if(checkbox.checked) {
+            let amt = parseFloat(checkbox.getAttribute('data-amount'));
+            total += amt;
+            
+            let li = document.createElement('li');
+            li.className = 'mb-1';
+            li.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${checkbox.getAttribute('data-desc')} <strong class="float-end">₱${amt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>`;
+            if(listContainer) listContainer.appendChild(li);
+        }
     });
-    document.getElementById('selectedTotalDisplay').innerText = total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    document.getElementById('gcash_amount_display').value = '₱ ' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    let display = document.getElementById('selectedTotalDisplay');
+    if(display) display.innerText = total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    
+    let gcashAmountDisplay = document.getElementById('gcash_amount_display');
+    if(gcashAmountDisplay) {
+        gcashAmountDisplay.value = '₱ ' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
 }
 
 function validatePaymentForm() {
-    if(document.querySelectorAll('.bill-checkbox:checked').length === 0) {
+    let selectedCount = document.querySelectorAll('.bill-checkbox:checked').length;
+    if(selectedCount === 0) {
         Swal.fire('No Bills Selected', 'Please select at least one bill to pay.', 'warning');
         return false;
     }
@@ -242,6 +368,7 @@ function validatePaymentForm() {
 
 document.addEventListener('DOMContentLoaded', function() {
     calculateTotal();
+    checkSelectAllState();
 });
 
 // Night Mode Logic

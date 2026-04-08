@@ -221,7 +221,7 @@ if(isset($_POST['add_reservation'])){
         $r_res = $r_stmt->get_result();
 
         while($room = $r_res->fetch_assoc()) {
-            if ($bed_preference != 'Whole Room' && $gender != 'Any' && $room['gender'] != $gender) {
+            if ($room_type != 'Single' && $bed_preference != 'Whole Room' && $room['gender'] != 'Any' && $gender != 'Any' && $room['gender'] != $gender) {
                 continue; // Skip if room gender restriction does not match user's gender
             }
             $rid = $room['room_id'];
@@ -782,11 +782,28 @@ function getUserGender() {
 function updateRoomOptions() {
     let room = document.getElementById('room_type').value;
     let prefDiv = document.getElementById('bed_pref_div');
-    if (room && room.includes('Bed')) {
+    let bedSelect = document.querySelector('select[name="bed_preference"]');
+    let prefLabel = prefDiv.querySelector('label');
+    
+    if (room === 'Single') {
         prefDiv.style.display = 'block';
+        if(prefLabel) prefLabel.innerText = 'Occupants';
+        if(bedSelect) {
+            let currentVal = bedSelect.value;
+            bedSelect.innerHTML = '<option value="Solo">Solo (1 Person)</option><option value="2 Persons">2 Persons</option>';
+            if(currentVal === 'Solo' || currentVal === '2 Persons') bedSelect.value = currentVal;
+        }
+    } else if (room && room.includes('Bed')) {
+        prefDiv.style.display = 'block';
+        if(prefLabel) prefLabel.innerText = 'Bed Preference';
+        if(bedSelect) {
+            let currentVal = bedSelect.value;
+            bedSelect.innerHTML = '<option value="Any">Any</option><option value="Lower Bunk">Lower Bunk</option><option value="Upper Bunk">Upper Bunk</option><option value="Whole Room">Whole Room</option>';
+            if(['Any', 'Lower Bunk', 'Upper Bunk', 'Whole Room'].includes(currentVal)) bedSelect.value = currentVal;
+        }
     } else {
         prefDiv.style.display = 'none';
-        document.querySelector('select[name="bed_preference"]').value = 'Any';
+        if(bedSelect) bedSelect.innerHTML = '<option value="Any">Any</option>';
     }
 }
 
@@ -998,7 +1015,7 @@ function checkAvailability() {
                 updateModalAvailability(); // Update modal badges
                 
                 // Check specific availability across all rooms of this type
-                let roomsOfType = data.filter(r => r.room_type === room && (bedPref === 'Whole Room' || !userGender || r.gender === userGender));
+                let roomsOfType = data.filter(r => r.room_type === room && (room === 'Single' || bedPref === 'Whole Room' || r.gender === 'Any' || !userGender || userGender === 'Any' || r.gender === userGender));
                 let hasLower = roomsOfType.some(r => r.avail_lower > 0);
                 let hasUpper = roomsOfType.some(r => r.avail_upper > 0);
                 let hasWhole = roomsOfType.some(r => r.available_beds == r.total_beds);
