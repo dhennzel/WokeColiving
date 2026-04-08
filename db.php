@@ -1036,6 +1036,12 @@ function setup_residents_table($conn) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
     )");
+
+    // Ensure suffix column exists in residents table for older database instances
+    $check_suffix = mysqli_query($conn, "SHOW COLUMNS FROM residents LIKE 'suffix'");
+    if(mysqli_num_rows($check_suffix) == 0) {
+        mysqli_query($conn, "ALTER TABLE residents ADD COLUMN suffix VARCHAR(10) DEFAULT NULL AFTER middle_name");
+    }
 }
 setup_residents_table($conn);
 }

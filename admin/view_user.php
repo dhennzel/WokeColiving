@@ -66,23 +66,23 @@ if(isset($_POST['update_user_info'])){
         // Build query dynamically based on existing columns to prevent errors
         $cols_check = mysqli_query($conn, "SHOW COLUMNS FROM users");
         $existing_cols = [];
-    while($c = mysqli_fetch_assoc($cols_check)) $existing_cols[] = $c['Field'];
+        while($c = mysqli_fetch_assoc($cols_check)) $existing_cols[] = $c['Field'];
 
-    $set_clause = "last_name='$lname', first_name='$fname', middle_name='$mname', suffix='$suffix', email='$u_email', phone_number='$u_phone'";
-    if(in_array('occupation', $existing_cols)) $set_clause .= ", occupation='$u_occ'";
-    if(in_array('address', $existing_cols)) $set_clause .= ", address='$u_addr'";
-    if(in_array('company', $existing_cols)) $set_clause .= ", company='$u_comp'";
-    if(in_array('emergency_contact_name', $existing_cols)) $set_clause .= ", emergency_contact_name='$u_em_name'";
-    if(in_array('emergency_contact_number', $existing_cols)) $set_clause .= ", emergency_contact_number='$u_em_num'";
-    if(in_array('gender', $existing_cols)) $set_clause .= ", gender='$u_gender'";
+        $set_clause = "last_name='$lname', first_name='$fname', middle_name='$mname', suffix='$suffix', email='$u_email', phone_number='$u_phone'";
+        if(in_array('occupation', $existing_cols)) $set_clause .= ", occupation='$u_occ'";
+        if(in_array('address', $existing_cols)) $set_clause .= ", address='$u_addr'";
+        if(in_array('company', $existing_cols)) $set_clause .= ", company='$u_comp'";
+        if(in_array('emergency_contact_name', $existing_cols)) $set_clause .= ", emergency_contact_name='$u_em_name'";
+        if(in_array('emergency_contact_number', $existing_cols)) $set_clause .= ", emergency_contact_number='$u_em_num'";
+        if(in_array('gender', $existing_cols)) $set_clause .= ", gender='$u_gender'";
 
-    if(mysqli_query($conn, "UPDATE users SET $set_clause WHERE user_id=$uid")){
-        log_activity($conn, $uid, "Profile Updated", "User details updated by $admin_username.");
-        echo "<script>window.location.href='view_user.php?uid=$uid&msg=user_updated';</script>";
-        exit;
-    }
-    } else {
-        $swal_error = "Failed to update user: " . mysqli_error($conn);
+        if(mysqli_query($conn, "UPDATE users SET $set_clause WHERE user_id=$uid")){
+            log_activity($conn, $uid, "Profile Updated", "User details updated by $admin_username.");
+            echo "<script>window.location.href='view_user.php?uid=$uid&msg=user_updated';</script>";
+            exit;
+        } else {
+            $swal_error = "Failed to update user: " . mysqli_error($conn);
+        }
     }
 }
 

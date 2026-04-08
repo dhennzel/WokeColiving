@@ -282,6 +282,7 @@ try {
         }
         .notif-badge-custom {
             background: linear-gradient(135deg, var(--accent-yellow), #f9a825) !important;
+            background: linear-gradient(135deg, #F0B429, #f9a825) !important;
             color: #1A1D20 !important;
             font-size: 0.65rem !important;
             font-weight: 800 !important;
