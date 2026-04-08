@@ -22,13 +22,6 @@ while($row = mysqli_fetch_assoc($pay_q)) {
     $unpaid_bills[] = $row;
 }
 
-// Get all payments for this reservation to show the schedule
-$all_pay_q = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id=$reservation_id ORDER BY payment_date ASC");
-$all_payments = [];
-while($row = mysqli_fetch_assoc($all_pay_q)) {
-    $all_payments[] = $row;
-}
-
 $error = "";
 if(isset($_POST['submit_payment'])){
     if(empty($_POST['selected_payments'])){
@@ -156,6 +149,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
         const currentUserId = "<?= $_SESSION['user_id'] ?? '' ?>";
         const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
         if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
+        else if (localStorage.getItem(nightModeKey) === 'disabled') document.body.classList.remove('night-mode');
     })();
 </script>
 <nav class="navbar navbar-expand-lg navbar-dark">
@@ -261,40 +255,6 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                         <a href="my_reservations.php" class="btn btn-outline-secondary rounded-pill fw-bold">Back to Reservations</a>
                     </div>
                 <?php endif; ?>
-
-                <div class="mt-5">
-                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="fas fa-calendar-alt me-2 text-primary"></i>All Payment Months</h5>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle small">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Description</th>
-                                    <th>Due / Date</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach($all_payments as $pay): ?>
-                                <tr>
-                                    <td class="fw-bold"><?= htmlspecialchars($pay['description']) ?></td>
-                                    <td><?= date('M d, Y', strtotime($pay['payment_date'])) ?></td>
-                                    <td>₱<?= number_format($pay['amount'], 2) ?></td>
-                                    <td>
-                                        <?php 
-                                            $s = $pay['payment_status'];
-                                            $cls = 'bg-warning text-dark';
-                                            if($s == 'Paid') $cls = 'bg-success';
-                                            elseif($s == 'Cancelled') $cls = 'bg-danger';
-                                        ?>
-                                        <span class="badge <?= $cls ?> rounded-pill px-3"><?= $s ?></span>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
