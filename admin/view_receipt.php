@@ -407,6 +407,16 @@ if(localStorage.getItem('adminNightMode_' + currentAdminUser) === 'enabled') {
     document.body.classList.add('night-mode');
 }
 
+// Remove browser headers and footers (Title, Date, URL, Page No.) during print
+window.onbeforeprint = function() {
+    window.oldTitle = document.title;
+    document.title = "";
+};
+
+window.onafterprint = function() {
+    document.title = window.oldTitle;
+};
+
 function confirmResetSig() {
     Swal.fire({
         title: 'Reset Signature?',

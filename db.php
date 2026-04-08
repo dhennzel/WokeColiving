@@ -653,6 +653,12 @@ if(mysqli_num_rows($check_user_cols) == 0) {
     }
 }
 
+// Ensure suffix column exists in users table to prevent registration errors
+$check_user_suffix = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'suffix'");
+if(mysqli_num_rows($check_user_suffix) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN suffix VARCHAR(10) DEFAULT NULL AFTER middle_name");
+}
+
 // Ensure profile_image column exists in users table
 $check_profile_image_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'profile_image'");
 if(mysqli_num_rows($check_profile_image_col) == 0) {
@@ -1012,6 +1018,7 @@ function setup_residents_table($conn) {
         first_name VARCHAR(50),
         last_name VARCHAR(50),
         middle_name VARCHAR(50),
+        suffix VARCHAR(10),
         email VARCHAR(100),
         phone_number VARCHAR(20),
         gender VARCHAR(20),
@@ -1035,17 +1042,17 @@ setup_residents_table($conn);
 
 if (!function_exists('sync_resident_profile')) {
 function sync_resident_profile($conn, $reservation_id) {
-    $res_q = mysqli_query($conn, "SELECT r.*, u.first_name, u.last_name, u.middle_name, u.email, u.phone_number, u.profile_image, u.school_id_image, u.role, u.is_walkin, u.do_not_renew, u.address as user_address, u.gender as user_gender FROM reservations r JOIN users u ON r.user_id = u.user_id WHERE r.reservation_id=$reservation_id");
+    $res_q = mysqli_query($conn, "SELECT r.*, u.first_name, u.last_name, u.middle_name, u.suffix, u.email, u.phone_number, u.profile_image, u.school_id_image, u.role, u.is_walkin, u.do_not_renew, u.address as user_address, u.gender as user_gender FROM reservations r JOIN users u ON r.user_id = u.user_id WHERE r.reservation_id=$reservation_id");
     if($r = mysqli_fetch_assoc($res_q)){
-        $stmt = mysqli_prepare($conn, "INSERT INTO residents (user_id, first_name, last_name, middle_name, email, phone_number, gender, occupation, company, address, emergency_contact_name, emergency_contact_number, profile_image, school_id_image, role, is_walkin, do_not_renew, is_archived)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        $stmt = mysqli_prepare($conn, "INSERT INTO residents (user_id, first_name, last_name, middle_name, suffix, email, phone_number, gender, occupation, company, address, emergency_contact_name, emergency_contact_number, profile_image, school_id_image, role, is_walkin, do_not_renew, is_archived)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
-            first_name=VALUES(first_name), last_name=VALUES(last_name), middle_name=VALUES(middle_name), email=VALUES(email), phone_number=VALUES(phone_number),
+            first_name=VALUES(first_name), last_name=VALUES(last_name), middle_name=VALUES(middle_name), suffix=VALUES(suffix), email=VALUES(email), phone_number=VALUES(phone_number),
             gender=VALUES(gender), occupation=VALUES(occupation), company=VALUES(company), address=VALUES(address),
             emergency_contact_name=VALUES(emergency_contact_name), emergency_contact_number=VALUES(emergency_contact_number),
             profile_image=VALUES(profile_image), school_id_image=VALUES(school_id_image), role=VALUES(role), is_walkin=VALUES(is_walkin),
             do_not_renew=VALUES(do_not_renew), is_archived=VALUES(is_archived)");
-        mysqli_stmt_bind_param($stmt, "issssssssssssssiii", $r['user_id'], $r['first_name'], $r['last_name'], $r['middle_name'], $r['email'], $r['phone_number'], $r['user_gender'], $r['occupation'], $r['company_or_school'], $r['user_address'], $r['contact_person_name'], $r['contact_person_number'], $r['profile_image'], $r['school_id_image'], $r['role'], $r['is_walkin'], $r['do_not_renew'], $r['is_archived']);
+        mysqli_stmt_bind_param($stmt, "isssssssssssssssiii", $r['user_id'], $r['first_name'], $r['last_name'], $r['middle_name'], $r['suffix'], $r['email'], $r['phone_number'], $r['user_gender'], $r['occupation'], $r['company_or_school'], $r['user_address'], $r['contact_person_name'], $r['contact_person_number'], $r['profile_image'], $r['school_id_image'], $r['role'], $r['is_walkin'], $r['do_not_renew'], $r['is_archived']);
         mysqli_stmt_execute($stmt);
     }
 }

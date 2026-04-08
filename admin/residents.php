@@ -49,7 +49,7 @@ if($bill_filter == 'unpaid'){
 }
 
 $query = mysqli_query($conn, "
-    SELECT u.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name,
+    SELECT u.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), ''), IF(u.suffix IS NOT NULL AND u.suffix != '', CONCAT(' ', u.suffix), '')) as full_name,
     (SELECT IFNULL(SUM(p.amount), 0) FROM payments p JOIN reservations res ON p.reservation_id = res.reservation_id WHERE res.user_id = u.user_id AND p.payment_status != 'Cancelled') as total_billed,
     (SELECT IFNULL(SUM(p.amount), 0) FROM payments p JOIN reservations res ON p.reservation_id = res.reservation_id WHERE res.user_id = u.user_id AND p.payment_status = 'Paid') as total_paid,
     (SELECT months FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_months,

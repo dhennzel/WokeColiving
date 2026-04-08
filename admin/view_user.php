@@ -42,12 +42,14 @@ if(isset($_POST['delete_user'])){
 
 // Handle Update User Info
 if(isset($_POST['update_user_info'])){
-    $lname = trim($_POST['lname']);
-    $fname = trim($_POST['fname']);
-    $mname = trim($_POST['mname']);
+    $lname = mb_convert_case(trim($_POST['lname']), MB_CASE_TITLE, "UTF-8");
+    $fname = mb_convert_case(trim($_POST['fname']), MB_CASE_TITLE, "UTF-8");
+    $mname = mb_convert_case(trim($_POST['mname']), MB_CASE_TITLE, "UTF-8");
+    $suffix = trim($_POST['suffix'] ?? '');
     $lname = mysqli_real_escape_string($conn, $lname);
     $fname = mysqli_real_escape_string($conn, $fname);
     $mname = mysqli_real_escape_string($conn, $mname);
+    $suffix = mysqli_real_escape_string($conn, $suffix);
     $u_email = mysqli_real_escape_string($conn, $_POST['email']);
     $u_phone = mysqli_real_escape_string($conn, $_POST['phone_number']);
     $u_occ = mysqli_real_escape_string($conn, $_POST['occupation']);
@@ -57,12 +59,16 @@ if(isset($_POST['update_user_info'])){
     $u_em_num = mysqli_real_escape_string($conn, $_POST['emergency_contact_number']);
     $u_gender = mysqli_real_escape_string($conn, $_POST['gender']);
 
-    // Build query dynamically based on existing columns to prevent errors
-    $cols_check = mysqli_query($conn, "SHOW COLUMNS FROM users");
-    $existing_cols = [];
+    $name_regex = "/^[a-zA-Z\sñÑ]+$/";
+    if (!preg_match($name_regex, $fname) || !preg_match($name_regex, $lname) || (!empty($mname) && !preg_match($name_regex, $mname)) || (!empty($suffix) && !preg_match($name_regex, $suffix))) {
+        $swal_error = "Names should only contain letters and spaces. Signs and numbers are not allowed.";
+    } else {
+        // Build query dynamically based on existing columns to prevent errors
+        $cols_check = mysqli_query($conn, "SHOW COLUMNS FROM users");
+        $existing_cols = [];
     while($c = mysqli_fetch_assoc($cols_check)) $existing_cols[] = $c['Field'];
 
-    $set_clause = "last_name='$lname', first_name='$fname', middle_name='$mname', email='$u_email', phone_number='$u_phone'";
+    $set_clause = "last_name='$lname', first_name='$fname', middle_name='$mname', suffix='$suffix', email='$u_email', phone_number='$u_phone'";
     if(in_array('occupation', $existing_cols)) $set_clause .= ", occupation='$u_occ'";
     if(in_array('address', $existing_cols)) $set_clause .= ", address='$u_addr'";
     if(in_array('company', $existing_cols)) $set_clause .= ", company='$u_comp'";
@@ -74,6 +80,7 @@ if(isset($_POST['update_user_info'])){
         log_activity($conn, $uid, "Profile Updated", "User details updated by $admin_username.");
         echo "<script>window.location.href='view_user.php?uid=$uid&msg=user_updated';</script>";
         exit;
+    }
     } else {
         $swal_error = "Failed to update user: " . mysqli_error($conn);
     }
@@ -172,7 +179,7 @@ if(isset($_POST['approve_with_room'])){
 
 // Fetch User Details
 $user_query = mysqli_query($conn, "
-    SELECT u.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name,
+    SELECT u.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', middle_name), ''), IF(suffix IS NOT NULL AND suffix != '', CONCAT(' ', suffix), '')) as full_name,
     (SELECT months FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_months,
     (SELECT DATEDIFF(end_date, start_date) FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_days
     FROM users u WHERE u.user_id=$uid
@@ -872,11 +879,24 @@ $theme = get_theme_colors($conn);
                         $lname = $user['last_name'];
                         $fname = $user['first_name'];
                         $mname = $user['middle_name'];
+                        $suffix = $user['suffix'] ?? '';
                     ?>
                     <div class="row g-3">
-                        <div class="col-md-4"><label class="form-label small fw-bold">Last Name</label><input type="text" name="lname" class="form-control" value="<?= htmlspecialchars($lname) ?>" required></div>
-                        <div class="col-md-4"><label class="form-label small fw-bold">First Name</label><input type="text" name="fname" class="form-control" value="<?= htmlspecialchars($fname) ?>" required></div>
-                        <div class="col-md-4"><label class="form-label small fw-bold">Middle Name</label><input type="text" name="mname" class="form-control" value="<?= htmlspecialchars($mname) ?>"></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold">Last Name</label><input type="text" name="lname" class="form-control" value="<?= htmlspecialchars($lname) ?>" required oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold">First Name</label><input type="text" name="fname" class="form-control" value="<?= htmlspecialchars($fname) ?>" required oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold">Middle Name</label><input type="text" name="mname" class="form-control" value="<?= htmlspecialchars($mname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Suffix</label>
+                            <select name="suffix" class="form-select">
+                                <option value="">None</option>
+                                <option value="Jr" <?= $suffix == 'Jr' ? 'selected' : '' ?>>Jr</option>
+                                <option value="Sr" <?= $suffix == 'Sr' ? 'selected' : '' ?>>Sr</option>
+                                <option value="II" <?= $suffix == 'II' ? 'selected' : '' ?>>II</option>
+                                <option value="III" <?= $suffix == 'III' ? 'selected' : '' ?>>III</option>
+                                <option value="IV" <?= $suffix == 'IV' ? 'selected' : '' ?>>IV</option>
+                                <option value="V" <?= $suffix == 'V' ? 'selected' : '' ?>>V</option>
+                            </select>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Email</label>
                             <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($user['email']) ?>" required>
