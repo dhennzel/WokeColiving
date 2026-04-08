@@ -231,7 +231,7 @@ $pay_query = mysqli_query($conn, "
     JOIN reservations r ON p.reservation_id = r.reservation_id 
     LEFT JOIN rooms rm ON r.room_id = rm.room_id 
     WHERE $pay_where 
-    ORDER BY p.payment_date DESC
+    ORDER BY p.payment_id DESC
 ");
 
 // Fetch Activity Logs (Ensure table exists first)
@@ -355,7 +355,6 @@ $theme = get_theme_colors($conn);
                         <span><i class="fas fa-envelope me-1"></i> <?= htmlspecialchars($user['email']) ?></span>
                         <span><i class="fas fa-phone me-1"></i> <?= htmlspecialchars($user['phone_number']) ?></span>
                         <span><i class="fas fa-calendar me-1"></i> Joined <?= date('M d, Y', strtotime($user['created_at'])) ?></span>
-                        <span><i class="fas fa-id-badge me-1"></i> ID: #<?= $user['user_id'] ?></span>
                         <?php if(!empty($user['gender'])): 
                             $gender_icon = 'fa-genderless';
                             $gender_color = 'text-muted';
@@ -640,7 +639,6 @@ $theme = get_theme_colors($conn);
                             <table class="table table-hover align-middle">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
                                         <th>Room</th>
                                         <th>Dates</th>
                                         <th>Status</th>
@@ -651,7 +649,6 @@ $theme = get_theme_colors($conn);
                                 <tbody>
                                     <?php while($row = mysqli_fetch_assoc($res_query)): ?>
                                     <tr>
-                                        <td>#<?= $row['reservation_id'] ?></td>
                                         <td class="fw-bold">
                                             <?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?> <small class="text-muted fw-normal">(<?= $row['room_type'] ?>)</small>
                                             <?php if(!empty($row['bed_preference']) && $row['bed_preference'] != 'Any'): ?>
@@ -661,7 +658,7 @@ $theme = get_theme_colors($conn);
                                                 <div class="badge bg-primary mt-1"><i class="fas fa-hand-pointer me-1"></i> Chosen by Guest</div>
                                             <?php endif; ?>
                                             <?php if(!empty($row['extended_from'])): ?>
-                                                <div class="badge bg-info text-dark mt-1"><i class="fas fa-history me-1"></i> Extension Request (for #<?= $row['extended_from'] ?>)</div>
+                                                <div class="badge bg-info text-dark mt-1"><i class="fas fa-history me-1"></i> Extension Request</div>
                                             <?php endif; ?>
                                         </td>
                                         <td>
@@ -1216,7 +1213,7 @@ function filterApproveRooms() {
         const itemFloor = item.getAttribute('data-floor');
         const itemGender = item.getAttribute('data-gender');
         
-        if (itemType === currentApproveType && (floor === 'all' || itemFloor === floor) && (!currentUserGender || itemGender === currentUserGender)) {
+        if (itemType === currentApproveType && (floor === 'all' || itemFloor === floor) && (!currentUserGender || itemType === 'Single' || itemGender === 'Any' || itemGender === currentUserGender)) {
             item.style.display = 'block';
         } else {
             item.style.display = 'none';

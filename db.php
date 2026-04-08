@@ -692,7 +692,7 @@ if($expire_query){
 mysqli_query($conn, "DELETE FROM reservations WHERE is_archived=1 AND end_date < (NOW() - INTERVAL 90 DAY)");
 
 // 3. Auto-complete Approved reservations where the end date has been reached
-$complete_query = mysqli_query($conn, "SELECT reservation_id, user_id FROM reservations WHERE status='Approved' AND end_date <= CURDATE()");
+$complete_query = mysqli_query($conn, "SELECT reservation_id, user_id FROM reservations WHERE status='Approved' AND end_date < CURDATE()");
 if($complete_query){
     while($row = mysqli_fetch_assoc($complete_query)){
         $rid = $row['reservation_id'];

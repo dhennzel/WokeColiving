@@ -36,6 +36,7 @@ if(isset($_POST['delete_user'])){
 // Fetch Residents
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
 $bill_filter = isset($_GET['bill_filter']) ? $_GET['bill_filter'] : 'all';
+$status_filter = isset($_GET['status_filter']) ? $_GET['status_filter'] : 'all';
 
 $where = "role != 'admin' AND role != 'Super Admin' AND u.is_archived = 0";
 if($search){
@@ -48,12 +49,20 @@ if($bill_filter == 'unpaid'){
     $where .= " AND (SELECT IFNULL(SUM(p.amount), 0) FROM payments p JOIN reservations res ON p.reservation_id = res.reservation_id WHERE res.user_id = u.user_id AND p.payment_status = 'Unpaid') = 0";
 }
 
+if($status_filter == 'active'){
+    $where .= " AND EXISTS (SELECT 1 FROM reservations WHERE user_id = u.user_id AND status IN ('Approved', 'Pending', 'Verifying'))";
+} elseif($status_filter == 'completed'){
+    $where .= " AND EXISTS (SELECT 1 FROM reservations WHERE user_id = u.user_id AND status = 'Completed') AND NOT EXISTS (SELECT 1 FROM reservations WHERE user_id = u.user_id AND status IN ('Approved', 'Pending', 'Verifying'))";
+}
+
 $query = mysqli_query($conn, "
     SELECT u.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name,
     (SELECT IFNULL(SUM(p.amount), 0) FROM payments p JOIN reservations res ON p.reservation_id = res.reservation_id WHERE res.user_id = u.user_id AND p.payment_status != 'Cancelled') as total_billed,
     (SELECT IFNULL(SUM(p.amount), 0) FROM payments p JOIN reservations res ON p.reservation_id = res.reservation_id WHERE res.user_id = u.user_id AND p.payment_status = 'Paid') as total_paid,
     (SELECT months FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_months,
-    (SELECT DATEDIFF(end_date, start_date) FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_days
+    (SELECT DATEDIFF(end_date, start_date) FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_days,
+    (SELECT COUNT(*) FROM reservations WHERE user_id = u.user_id AND status IN ('Approved', 'Pending', 'Verifying')) as active_count,
+    (SELECT COUNT(*) FROM reservations WHERE user_id = u.user_id AND status = 'Completed') as completed_count
     FROM users u WHERE $where ORDER BY u.last_name ASC
 ");
 
@@ -92,9 +101,14 @@ $theme = get_theme_colors($conn);
         <?php include 'admin_topbar.php'; ?>
         <main class="main-content">
             <div class="page-header d-flex justify-content-between align-items-center">
-                <h1>Residents Directory</h1>
+                <h1>Residents Directory <span class="badge bg-success fs-6 align-middle ms-2"><?= count($residents) ?> Total</span></h1>
                 <div class="d-flex gap-2">
                     <form method="GET" class="d-flex">
+                        <select name="status_filter" class="form-select form-select-sm me-2" onchange="this.form.submit()">
+                            <option value="all" <?= $status_filter == 'all' ? 'selected' : '' ?>>All Status</option>
+                            <option value="active" <?= $status_filter == 'active' ? 'selected' : '' ?>>Active</option>
+                            <option value="completed" <?= $status_filter == 'completed' ? 'selected' : '' ?>>Completed</option>
+                        </select>
                         <select name="bill_filter" class="form-select form-select-sm me-2" onchange="this.form.submit()">
                             <option value="all" <?= $bill_filter == 'all' ? 'selected' : '' ?>>All Billing</option>
                             <option value="unpaid" <?= $bill_filter == 'unpaid' ? 'selected' : '' ?>>With Balance</option>
@@ -151,6 +165,7 @@ $theme = get_theme_colors($conn);
                                 </td>
                                 <td>
                                     <?php if($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
+                                    <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-dark">Completed</span>
                                     <?php else: 
                                         $m = $row['res_months'];
                                         $d = $row['res_days'];
@@ -203,6 +218,7 @@ $theme = get_theme_colors($conn);
                             <p class="text-muted small mb-3"><i class="fas fa-phone me-1"></i> <?= htmlspecialchars($row['phone_number']) ?></p>
                             <div class="mb-3 mt-auto">
                                 <?php if($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
+                                <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-dark">Completed</span>
                                 <?php else: 
                                     $m = $row['res_months'];
                                     $d = $row['res_days'];
@@ -429,6 +445,7 @@ $theme = get_theme_colors($conn);
         // Badges
         let badgesHtml = '';
         if (user.do_not_renew == 1) badgesHtml += '<span class="badge bg-danger">Do Not Renew</span>';
+        else if (user.active_count == 0 && user.completed_count > 0) badgesHtml += '<span class="badge bg-dark">Completed</span>';
         else {
             let m = parseInt(user.res_months) || 0;
             let d = user.res_days ? parseInt(user.res_days) : null;

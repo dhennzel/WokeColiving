@@ -18,7 +18,7 @@ $total_paid = $fin['total_paid'] ?? 0;
 $balance = $total_billed - $total_paid;
 
 // Payment History
-$payments = mysqli_query($conn, "SELECT p.*, rm.room_name, rm.room_number FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id LEFT JOIN rooms rm ON r.room_id = rm.room_id WHERE r.user_id=$user_id ORDER BY p.payment_date DESC");
+$payments = mysqli_query($conn, "SELECT p.*, rm.room_name, rm.room_number FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id LEFT JOIN rooms rm ON r.room_id = rm.room_id WHERE r.user_id=$user_id ORDER BY p.payment_id DESC");
 
 // Fetch User Info for Navbar
 $u_query = mysqli_query($conn, "SELECT first_name FROM users WHERE user_id=$user_id");

@@ -266,7 +266,7 @@ if (isset($_POST['confirm_booking'])) {
         $r_res = $r_stmt->get_result();
 
         while($room = $r_res->fetch_assoc()) {
-            if ($bed_preference != 'Whole Room' && $room['gender'] != $user_gender) {
+            if ($troom != 'Single' && $bed_preference != 'Whole Room' && $room['gender'] != 'Any' && $room['gender'] != $user_gender) {
                 continue; // Skip if room gender restriction does not match user's gender
             }
             $rid = $room['room_id'];
@@ -339,7 +339,8 @@ if (isset($_POST['confirm_booking'])) {
                 
                 // --- NEW CALCULATION LOGIC ---
                 $term_type = $_POST['term_type'] ?? 'Short'; // Default
-                $totalAmount = 0;
+                $initialPayment = 0;
+                $contract_price = 0;
                 $security_deposit = $is_extension ? 0 : 3000;
 
                 if ($term_type === 'Daily') {
@@ -350,7 +351,8 @@ if (isset($_POST['confirm_booking'])) {
                     if($troom == 'Single') $daily_rate = $found_room['daily_price_room'] > 0 ? $found_room['daily_price_room'] : 1200;
                     if($bed_preference == 'Whole Room') $daily_rate = $found_room['daily_price_room'] > 0 ? $found_room['daily_price_room'] : ($daily_rate * $found_room['total_beds']);
                     
-                    $totalAmount = $nights * $daily_rate;
+                    $contract_price = $nights * $daily_rate;
+                    $initialPayment = $contract_price;
                     $status = "Pending"; 
                 } elseif ($term_type === 'Long') {
                     // 6 Month Term Logic
@@ -364,38 +366,29 @@ if (isset($_POST['confirm_booking'])) {
                         elseif ($bed_preference == 'Whole Room' && $found_room['long_term_price_whole'] > 0) $lt_price = $found_room['long_term_price_whole'];
                     }
 
-                    $start_day = (int)$d1->format('j');
-                    $days_in_month = (int)$d1->format('t');
-                    $daily_rate = $lt_price / $days_in_month;
-                    $remaining_days = $days_in_month - $start_day + 1;
-                    $prorated = $daily_rate * $remaining_days;
-
-                    $totalAmount = $prorated + $security_deposit;
-                    
-                    if ($start_day >= 20) {
-                        $totalAmount += $lt_price; // Add 1 Month Advance
-                    }
+                    $contract_price = ($lt_price * 6) + $security_deposit;
+                    $initialPayment = $lt_price + $security_deposit;
+                    $status = "Pending";
+                    $months = 6; // Force months to 6 for Long Term
                 } else {
                     // Short Term (1 Month) Logic
-                    // Fixed 30 days usually, but price is 1 Month + SD
-                    // Recalculate monthly price for Short Term specifically to ensure correct rate is used
                     $st_price = $monthly_price;
                     if ($troom != 'Single') {
                         if ($bed_preference == 'Upper Bunk' && $found_room['price_upper'] > 0) $st_price = $found_room['price_upper'];
                         elseif ($bed_preference == 'Lower Bunk' && $found_room['price_lower'] > 0) $st_price = $found_room['price_lower'];
                         elseif ($bed_preference == 'Whole Room' && $found_room['price_whole'] > 0) $st_price = $found_room['price_whole'];
                     }
-                    $totalAmount = $st_price + $security_deposit;
+                    $contract_price = $st_price + $security_deposit;
+                    $initialPayment = $contract_price;
+                    $status = "Pending";
                 }
-
-                $status = "Pending";
 
                 // Check for carried over unpaid balances from previous reservations
                 $prev_bal_q = mysqli_query($conn, "SELECT SUM(p.amount) as balance FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id = $user_id AND p.payment_status = 'Unpaid'");
                 $prev_bal_row = mysqli_fetch_assoc($prev_bal_q);
                 $prev_balance = (float)($prev_bal_row['balance'] ?? 0);
                 
-                $totalAmount += $prev_balance; // Add previous debt to new bill
+                $initialPayment += $prev_balance; // Add previous debt to initial payment required
 
                 $reservation_id = 0;
                 $exec_result = false;
@@ -415,13 +408,13 @@ if (isset($_POST['confirm_booking'])) {
                     // Insert with signature
                     try {
                         $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, signature_image, auto_assigned, occupation, company_or_school, contact_person_name, contact_person_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        $stmt->bind_param("iissidsssissis", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $status, $bed_preference, $sig_img, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number);
+                        $stmt->bind_param("iissidsssissis", $user_id, $room_id, $cin, $cout, $months, $contract_price, $status, $bed_preference, $sig_img, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number);
                     } catch (Exception $e) { $stmt = false; }
                 } else {
                     // Standard insert
                     try {
                         $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, auto_assigned, occupation, company_or_school, contact_person_name, contact_person_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        if($stmt) $stmt->bind_param("iissidssissss", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $status, $bed_preference, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number);
+                        if($stmt) $stmt->bind_param("iissidssissss", $user_id, $room_id, $cin, $cout, $months, $contract_price, $status, $bed_preference, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number);
                     } catch (Exception $e) { $stmt = false; }
                 }
 
@@ -457,16 +450,32 @@ if (isset($_POST['confirm_booking'])) {
                     }
                     
                     if ($pay_stmt) {
-                        $pay_stmt->bind_param("idsssss", $reservation_id, $totalAmount, $payment_method, $pay_status, $ref_number, $proof_filename, $pay_desc);
+                        $pay_stmt->bind_param("idsssss", $reservation_id, $initialPayment, $payment_method, $pay_status, $ref_number, $proof_filename, $pay_desc);
                         $pay_stmt->execute();
                         $pay_stmt->close();
                     } else {
                         // Fallback if reference_number/proof_image columns missing
                         $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date) VALUES (?, ?, ?, ?, NOW())");
                         if ($pay_stmt) {
-                            $pay_stmt->bind_param("idss", $reservation_id, $totalAmount, $payment_method, $pay_status);
+                            $pay_stmt->bind_param("idss", $reservation_id, $initialPayment, $payment_method, $pay_status);
                             $pay_stmt->execute();
                             $pay_stmt->close();
+                        }
+                    }
+
+                    // Generate remaining payments for Long Term (Months 2 to 6)
+                    if ($term_type === 'Long') {
+                        for ($month_num = 2; $month_num <= 6; $month_num++) {
+                            $rem_desc = "Month $month_num Rent";
+                            $rem_status = "Unpaid";
+                            $rem_date = date('Y-m-d H:i:s', strtotime($cin . " + " . ($month_num - 1) . " months"));
+                            
+                            $pay_stmt_rem = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'Cash', ?, ?, ?)");
+                            if ($pay_stmt_rem) {
+                                $pay_stmt_rem->bind_param("idsss", $reservation_id, $lt_price, $rem_status, $rem_date, $rem_desc);
+                                $pay_stmt_rem->execute();
+                                $pay_stmt_rem->close();
+                            }
                         }
                     }
 
@@ -490,7 +499,7 @@ if (isset($_POST['confirm_booking'])) {
                         
                         // Transaction details
                         $txn_id      = 'RES-' . $reservation_id; // e.g., RES-142
-                        $amount      = number_format((float)$totalAmount, 2, '.', ''); // Strictly 2 decimal places (e.g., 2500.00)
+                        $amount      = number_format((float)$initialPayment, 2, '.', ''); // Strictly 2 decimal places (e.g., 2500.00)
                         $ccy         = 'PHP';
                         $description = 'Woke Coliving Reservation: ' . $troom;
                         $email       = $user_email;
@@ -830,7 +839,7 @@ if (isset($_POST['confirm_booking'])) {
                             </div>
                             <hr>
                             <div class="d-flex justify-content-between align-items-center">
-                                <span class="h5 mb-0">Total Amount:</span>
+                                <span class="h5 mb-0">Initial Payment:</span>
                                 <span class="h4 text-success fw-bold mb-0">₱<span id="totalAmount">0</span></span>
                             </div>
                         </div>
@@ -1028,7 +1037,7 @@ function confirmReservation() {
                 .then(data => {
                     window.availableRoomsData = data;
                     // Filter rooms of selected type and matching gender
-                    let roomsOfType = data.filter(r => r.room_type === room && (bedPref === 'Whole Room' || r.gender === userGender));
+                    let roomsOfType = data.filter(r => r.room_type === room && (room === 'Single' || bedPref === 'Whole Room' || r.gender === 'Any' || r.gender === userGender));
                     
                     // Check specific availability across all rooms of this type
                     let hasLower = roomsOfType.some(r => r.avail_lower > 0);
@@ -1068,12 +1077,28 @@ function confirmReservation() {
     function updateRoomOptions() {
         let room = document.getElementById('troom').value;
         let prefDiv = document.getElementById('bed_pref_div');
-        if (room && room.includes('Bed')) {
+        let bedSelect = document.querySelector('select[name="bed_preference"]');
+        let prefLabel = prefDiv.querySelector('label');
+        
+        if (room === 'Single') {
             prefDiv.style.display = 'block';
+            if(prefLabel) prefLabel.innerText = 'Occupants';
+            if(bedSelect) {
+                let currentVal = bedSelect.value;
+                bedSelect.innerHTML = '<option value="Solo">Solo (1 Person)</option><option value="2 Persons">2 Persons</option>';
+                if(currentVal === 'Solo' || currentVal === '2 Persons') bedSelect.value = currentVal;
+            }
+        } else if (room && room.includes('Bed')) {
+            prefDiv.style.display = 'block';
+            if(prefLabel) prefLabel.innerText = 'Bed Preference';
+            if(bedSelect) {
+                let currentVal = bedSelect.value;
+                bedSelect.innerHTML = '<option value="Any">Any</option><option value="Lower Bunk">Lower Bunk</option><option value="Upper Bunk">Upper Bunk</option><option value="Whole Room">Whole Room</option>';
+                if(['Any', 'Lower Bunk', 'Upper Bunk', 'Whole Room'].includes(currentVal)) bedSelect.value = currentVal;
+            }
         } else {
             prefDiv.style.display = 'none';
-            let bedSelect = document.querySelector('select[name="bed_preference"]');
-            if(bedSelect) bedSelect.value = 'Any';
+            if(bedSelect) bedSelect.innerHTML = '<option value="Any">Any</option>';
         }
     }
 
@@ -1280,20 +1305,8 @@ function confirmReservation() {
                         }
                     }
 
-                    // Prorated Calculation
-                    let start = new Date(cinVal);
-                    let startDay = start.getDate();
-                    let daysInMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
-                    
-                    let dailyRate = monthlyRate / daysInMonth;
-                    let remainingDays = daysInMonth - startDay + 1;
-                    let prorated = dailyRate * remainingDays;
-                    
-                    total = prorated + sd;
-                    
-                    if (startDay >= 20) {
-                        total += monthlyRate; // Add 1 Month Advance
-                    }
+                    // Long Term Base (1 Month) + SD
+                    total = monthlyRate + sd;
 
                 } else {
                     // Short Term (1 Month) Calculation

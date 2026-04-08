@@ -174,9 +174,10 @@ $theme = get_theme_colors($conn);
                                         <option value="6-Bed" <?= $room['room_type'] == '6-Bed' ? 'selected' : '' ?>>6 Beds</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-3 mb-3" id="gender_div">
                                     <label class="form-label fw-bold">Gender Restrict</label>
-                                    <select name="gender" class="form-select" required>
+                                    <select name="gender" id="gender" class="form-select" required>
+                                        <option value="Any" <?= ($room['gender'] ?? '') == 'Any' ? 'selected' : '' ?>>Any / Mixed</option>
                                         <option value="Male" <?= ($room['gender'] ?? '') == 'Male' ? 'selected' : '' ?>>Male Only</option>
                                         <option value="Female" <?= ($room['gender'] ?? '') == 'Female' ? 'selected' : '' ?>>Female Only</option>
                                     </select>
@@ -254,6 +255,8 @@ function togglePriceFields() {
     var upperLongDiv = document.getElementById("upper_price_long_div");
     var lowerLongDiv = document.getElementById("lower_price_long_div");
     var wholeDiv = document.getElementById("whole_price_div");
+    var genderDiv = document.getElementById("gender_div");
+    var genderSelect = document.getElementById("gender");
     
     var priceInput = document.querySelector('input[name="price"]');
     var ltWholeInput = document.querySelector('input[name="long_term_price_whole"]');
@@ -272,6 +275,8 @@ function togglePriceFields() {
         upperLongDiv.style.display = "none";
         lowerLongDiv.style.display = "none";
         wholeDiv.style.display = "none";
+        if(genderDiv) genderDiv.style.display = "none";
+        if(genderSelect) genderSelect.value = "Any";
         
         priceInput.required = true;
         upperInput.required = false;
@@ -290,6 +295,7 @@ function togglePriceFields() {
         upperLongDiv.style.display = "block";
         lowerLongDiv.style.display = "block";
         wholeDiv.style.display = "block";
+        if(genderDiv) genderDiv.style.display = "block";
         
         priceInput.required = false;
         upperInput.required = true;

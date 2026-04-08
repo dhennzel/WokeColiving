@@ -159,6 +159,14 @@ $locked_type = (isset($_GET['type']) && in_array($_GET['type'], $allowed_types))
                             </select>
                         <?php endif; ?>
                         </div>
+                        <div class="col-md-6 mb-3" id="gender_div">
+                            <label class="form-label fw-bold">Gender Restrict</label>
+                            <select name="gender" id="gender" class="form-select" required>
+                                <option value="Any">Any / Mixed</option>
+                                <option value="Male" selected>Male Only</option>
+                                <option value="Female">Female Only</option>
+                            </select>
+                        </div>
                         <div class="col-md-6 mb-3" id="single_price_div"><label class="form-label fw-bold">Short Term Price (₱)</label><input type="number" name="price" class="form-control" step="0.01" value="<?= $default_prices['price_single'] ?>" readonly></div>
                         <div class="col-md-6 mb-3" id="single_price_long_div" style="display:none;"><label class="form-label fw-bold">Long Term Price (₱)</label><input type="number" name="long_term_price_whole" id="lt_whole" class="form-control" step="0.01"></div>
                         
@@ -194,6 +202,8 @@ function togglePriceFields() {
     var upperLongDiv = document.getElementById("upper_price_long_div");
     var lowerLongDiv = document.getElementById("lower_price_long_div");
     var wholeDiv = document.getElementById("whole_price_div");
+    var genderDiv = document.getElementById("gender_div");
+    var genderSelect = document.getElementById("gender");
     
     var priceInput = document.querySelector('input[name="price"]');
     var ltWholeInput = document.querySelector('input[name="long_term_price_whole"]');
@@ -212,6 +222,8 @@ function togglePriceFields() {
         upperLongDiv.style.display = "none";
         lowerLongDiv.style.display = "none";
         wholeDiv.style.display = "none";
+        if(genderDiv) genderDiv.style.display = "none";
+        if(genderSelect) genderSelect.value = "Any";
         
         priceInput.required = true;
         upperInput.required = false;
@@ -228,6 +240,7 @@ function togglePriceFields() {
         upperLongDiv.style.display = "block";
         lowerLongDiv.style.display = "block";
         wholeDiv.style.display = "block";
+        if(genderDiv) genderDiv.style.display = "block";
         
         priceInput.required = false;
         upperInput.required = true;

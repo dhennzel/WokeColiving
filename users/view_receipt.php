@@ -104,7 +104,7 @@ while($p = mysqli_fetch_assoc($pay_query)){
             <p>Contact: 0917-307-2552</p>
         </div>
         <div class="receipt-details">
-            <div class="receipt-no">No.: <?= str_pad($data['reservation_id'], 4, '0', STR_PAD_LEFT) ?></div>
+            <div class="receipt-no" style="color: #333;">Receipt</div>
             <div style="font-size: 12px; margin-top: 5px;">Date: <?= date('F d, Y') ?></div>
         </div>
     </div>
