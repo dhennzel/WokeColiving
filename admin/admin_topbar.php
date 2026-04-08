@@ -143,6 +143,14 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
 <script>
     // Notification Sound Logic
     let lastAdminNotifCount = <?= (int)$total_notifications ?>;
+    let adminBadgeHidden = false;
+
+    document.getElementById('notifTrigger')?.addEventListener('click', function() {
+        adminBadgeHidden = true;
+        let badge = this.querySelector('.notif-badge');
+        if(badge) badge.style.display = 'none';
+    });
+
     function checkAdminNotifications() {
         fetch('get_admin_notifications.php')
             .then(response => {
@@ -158,13 +166,14 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
                 let badge = notifWrapper.querySelector('.notif-badge');
 
                 if (data.total_notifications > lastAdminNotifCount) {
+                    adminBadgeHidden = false; // Show badge again if new notifications arrive
                     const audio = document.getElementById('adminNotifSound');
                     if (audio) {
                         audio.play().catch(e => console.error("Audio play failed:", e));
                     }
                 }
 
-                if (data.total_notifications > 0) {
+                if (data.total_notifications > 0 && !adminBadgeHidden) {
                     if (!badge) {
                         badge = document.createElement('span');
                         badge.className = 'notif-badge';

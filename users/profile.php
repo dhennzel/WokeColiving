@@ -222,6 +222,12 @@ try {
     if($w_q) $c_wait = mysqli_fetch_assoc($w_q)['c'];
 } catch(Exception $e){}
 
+$c_unpaid = 0;
+try {
+    $unpaid_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$user_id AND p.payment_status='Unpaid'");
+    if($unpaid_q) $c_unpaid = mysqli_fetch_assoc($unpaid_q)['c'];
+} catch(Exception $e){}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -289,6 +295,42 @@ try {
             border-color: #b71c1c !important;
             box-shadow: 0 2px 8px rgba(0,0,0,0.8) !important;
         }
+        .card-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: linear-gradient(135deg, #F0B429, #f9a825);
+            color: #1A1D20;
+            font-size: 0.8rem;
+            font-weight: 800;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            border: 2px solid #fff;
+            z-index: 10;
+            animation: pulse-yellow 2s infinite;
+        }
+        @keyframes pulse-yellow {
+            0% { box-shadow: 0 0 0 0 rgba(240, 180, 41, 0.7); border-color: #fff; }
+            70% { box-shadow: 0 0 0 10px rgba(240, 180, 41, 0); border-color: #fff; }
+            100% { box-shadow: 0 0 0 0 rgba(240, 180, 41, 0); border-color: #fff; }
+        }
+        body.night-mode .card-badge {
+            background: linear-gradient(135deg, #eb3f3f, #c62828) !important;
+            color: #ffffff !important;
+            border-color: #1e1e1e !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+            animation: pulse-red-night 2s infinite;
+        }
+        @keyframes pulse-red-night {
+            0% { box-shadow: 0 0 0 0 rgba(235, 63, 63, 0.7); border-color: #1e1e1e; }
+            70% { box-shadow: 0 0 0 10px rgba(235, 63, 63, 0); border-color: #1e1e1e; }
+            100% { box-shadow: 0 0 0 0 rgba(235, 63, 63, 0); border-color: #1e1e1e; }
+        }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
@@ -297,6 +339,7 @@ try {
         const currentUserId = "<?= $_SESSION['user_id'] ?? '' ?>";
         const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
         if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
+        else if (localStorage.getItem(nightModeKey) === 'disabled') document.body.classList.remove('night-mode');
     })();
 </script>
 
@@ -403,9 +446,9 @@ try {
 
         <!-- Billing & Payments -->
         <div class="col-md-3 anim-trigger anim-zoom delay-3" data-card-id="billing">
-            <a href="billing.php" class="text-decoration-none">
+            <a href="billing.php" class="text-decoration-none" onclick="markAsRead('billing', <?= $c_unpaid ?>)">
                 <div class="card card-custom profile-card h-100">
-                    <?php if($user_balance > 0): ?><div class="card-badge bg-danger" title="Outstanding Balance"></div><?php endif; ?>
+                    <?php if($c_unpaid > 0): ?><div class="card-badge" id="badge-billing" data-count="<?= $c_unpaid ?>" title="Unpaid Bills"><?= $c_unpaid ?></div><?php endif; ?>
                     <div class="icon-box"><i class="fas fa-file-invoice-dollar"></i></div>
                     <h5 class="fw-bold text-dark">Billing & Payments</h5>
                     <p class="small"><?= $user_balance > 0 ? 'Remaining: ₱'.number_format($user_balance, 2) : 'View your payment history.' ?></p>
@@ -734,8 +777,10 @@ try {
 
     const currentUserId = "<?= $user_id ?>";
     let lastUnreadCount = <?= (int)$unread_count ?>;
+    let isMarkingRead = false;
 
     function fetchNotifications() {
+        if (isMarkingRead) return;
         fetch('get_notifications.php')
             .then(response => response.text())
             .then(text => {
@@ -812,13 +857,17 @@ try {
 
     // Mark as read on click
     document.getElementById('notifDropdown').addEventListener('click', function() {
+        if (isMarkingRead) return;
+        isMarkingRead = true;
         const badge = document.getElementById('notifBadge');
-        if(badge) badge.remove();
+        if(badge) badge.style.display = 'none';
         
         fetch('get_notifications.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: 'mark_read=1'
+        }).then(() => { 
+            if(badge) badge.remove(); isMarkingRead = false; lastUnreadCount = 0; 
         });
     });
 
@@ -827,7 +876,7 @@ try {
 
     // Card Badge Logic (Hide if seen)
     function checkCardBadges() {
-        const types = ['waitlist', 'reservations', 'maintenance', 'housekeeping', 'archives', 'parking'];
+        const types = ['waitlist', 'reservations', 'maintenance', 'housekeeping', 'archives', 'parking', 'billing'];
         types.forEach(type => {
             const badge = document.getElementById('badge-' + type);
             if(badge) {
@@ -843,6 +892,8 @@ try {
 
     function markAsRead(type, count) {
         localStorage.setItem('seen_count_' + type + '_' + currentUserId, count);
+        const badge = document.getElementById('badge-' + type);
+        if(badge) badge.style.display = 'none'; // Hide dashboard card badge instantly
     }
 
     // Auto Refresh Logic (Global)
