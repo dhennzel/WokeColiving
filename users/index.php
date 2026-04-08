@@ -336,6 +336,11 @@ if(isset($_SESSION['user_id'])){
                     <div class="card-body text-center p-4">
                         <h3 class="fw-bold text-dark mb-1"><?= $type ?></h3>
                         <div class="<?= $status_class ?> small fw-bold mb-2"><?= $status_msg ?></div>
+                        <div class="mb-3">
+                            <span class="badge <?= $type_avail_beds > 0 ? 'bg-success' : 'bg-danger' ?> rounded-pill px-3">
+                                <i class="fas <?= $type_avail_beds > 0 ? 'fa-check-circle' : 'fa-times-circle' ?> me-1"></i> <?= $type_avail_beds ?> Bed<?= $type_avail_beds != 1 ? 's' : '' ?> Available
+                            </span>
+                        </div>
                         <?php if($type != 'Single'): ?>
                             <div class="mb-2">
                                 <span class="text-primary fw-bold small">Upper: ₱<?= number_format($p_upper, 2) ?></span><br>
