@@ -293,7 +293,7 @@ if(isset($_SESSION['user_id'])){
     </div>
     
     <?php 
-    // Itatago ang mga seksyon na hindi tugma sa kasarian ng tenant. Kung hindi naka-login, ipapakita lahat.
+    // I-filter ang mga room cards base sa kasarian ng tenant. Kung guest (hindi naka-login), ipakita ang lahat.
     $display_genders = $user_gender ? [$user_gender, 'Any'] : ['Male', 'Female', 'Any'];
     foreach($display_genders as $g_key): 
         $types_in_gender = $gender_grouped[$g_key] ?? [];
@@ -302,10 +302,12 @@ if(isset($_SESSION['user_id'])){
         $section_title = ($g_key == 'Any') ? 'Mixed / All Genders' : $g_key . ' Dormitories';
         $section_icon = ($g_key == 'Male') ? 'fa-mars text-primary' : (($g_key == 'Female') ? 'fa-venus text-danger' : 'fa-venus-mars text-success');
     ?>
+        <?php if($g_key !== 'Female' && $g_key !== 'Male'): ?>
         <div class="mb-4" data-aos="fade-right">
             <h4 class="fw-bold d-flex align-items-center"><i class="fas <?= $section_icon ?> me-2"></i><?= $section_title ?></h4>
             <hr class="w-25 mt-1 border-2 border-success opacity-50">
         </div>
+        <?php endif; ?>
         
         <div class="row g-4 mb-5">
             <?php foreach($types_in_gender as $type => $rooms_in_type): 
@@ -321,7 +323,7 @@ if(isset($_SESSION['user_id'])){
                 $status_msg = "";
                 $status_class = "";
 
-                if ($user_gender) {
+                if ($user_gender && ($g_key == $user_gender || $g_key == 'Any')) {
                     $status_msg = "Available for " . $user_gender;
                     $status_class = "text-success";
                 } else {

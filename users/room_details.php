@@ -123,7 +123,6 @@ if(isset($_SESSION['user_id'])){
         const currentUserId = "<?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : '' ?>";
         const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
         if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
-        else if (localStorage.getItem(nightModeKey) === 'disabled') document.body.classList.remove('night-mode');
     })();
 </script>
 <!-- NAVBAR -->
@@ -200,7 +199,7 @@ if(isset($_SESSION['user_id'])){
                                 </div>
                             </div>
                             <?php if($avail_lower > 0): ?>
-                                <a href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>&bed_preference=Lower+Bunk" class="btn btn-sm btn-outline-primary w-100 mt-auto fw-bold">Book Lower</a>
+                                <a id="bookLowerBtn" href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>&bed_preference=Lower+Bunk" class="btn btn-sm btn-outline-primary w-100 mt-auto fw-bold">Book Lower</a>
                             <?php else: ?>
                                 <button class="btn btn-sm btn-secondary text-white w-100 mt-auto fw-bold" disabled>Fully Booked</button>
                             <?php endif; ?>
@@ -217,7 +216,7 @@ if(isset($_SESSION['user_id'])){
                                 </div>
                             </div>
                             <?php if($avail_upper > 0): ?>
-                                <a href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>&bed_preference=Upper+Bunk" class="btn btn-sm btn-outline-info text-dark w-100 mt-auto fw-bold">Book Upper</a>
+                                <a id="bookUpperBtn" href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>&bed_preference=Upper+Bunk" class="btn btn-sm btn-outline-info text-dark w-100 mt-auto fw-bold">Book Upper</a>
                             <?php else: ?>
                                 <button class="btn btn-sm btn-secondary text-white w-100 mt-auto fw-bold" disabled>Fully Booked</button>
                             <?php endif; ?>
@@ -240,7 +239,7 @@ if(isset($_SESSION['user_id'])){
             </ul>
 
             <div class="d-flex gap-3 mt-4">
-                <a href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>" class="btn btn-custom btn-lg shadow px-5"><i class="fas fa-calendar-check me-2"></i> Book This Room</a>
+                <a id="bookRoomBtn" href="reservation_now.php?room_type=<?= urlencode($room['room_type']) ?>" class="btn btn-custom btn-lg shadow px-5"><i class="fas fa-calendar-check me-2"></i> Book This Room</a>
                 <a href="../index.php" class="btn btn-secondary-custom btn-lg px-4">Back</a>
             </div>
         </div>
@@ -292,6 +291,27 @@ if(isset($_SESSION['user_id'])){
         }
         if (upperPriceEl && priceData.upper > 0) {
             upperPriceEl.innerText = `₱${priceData.upper.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        }
+        
+        // Update booking links to include duration
+        let term_val = (term === 'short') ? '1' : (term === 'long' ? '6' : 'Daily');
+        
+        const mainBtn = document.getElementById('bookRoomBtn');
+        if(mainBtn) {
+            let href = mainBtn.getAttribute('href').split('&duration=')[0];
+            mainBtn.setAttribute('href', href + '&duration=' + term_val);
+        }
+        
+        const lowerBtn = document.getElementById('bookLowerBtn');
+        if(lowerBtn) {
+            let href = lowerBtn.getAttribute('href').split('&duration=')[0];
+            lowerBtn.setAttribute('href', href + '&duration=' + term_val);
+        }
+        
+        const upperBtn = document.getElementById('bookUpperBtn');
+        if(upperBtn) {
+            let href = upperBtn.getAttribute('href').split('&duration=')[0];
+            upperBtn.setAttribute('href', href + '&duration=' + term_val);
         }
 
         // Handle Whole Room vs Per Bed display

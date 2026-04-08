@@ -113,6 +113,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
 $pre_cin = date("Y-m-d");
 $pre_room = "";
 $pre_bed = "Any";
+$pre_duration = "";
 
 if ($is_extension) {
     $pre_cin = $ext_data['end_date']; // Start new booking when old one ends
@@ -123,6 +124,10 @@ if ($is_extension) {
 
 if(isset($_GET['bed_preference'])){
     $pre_bed = htmlspecialchars($_GET['bed_preference']);
+}
+
+if(isset($_GET['duration'])){
+    $pre_duration = htmlspecialchars($_GET['duration']);
 }
 
 // Handle Submission
@@ -453,43 +458,25 @@ if (isset($_POST['confirm_booking'])) {
                     $p_status = ($payment_method == 'Cash') ? 'Unpaid' : 'Unpaid'; // Dragonpay will update this
                     $p_desc = ($remaining > 0) ? "Reservation Fee / Downpayment" : "Full Payment";
                     
-                    $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, ?, NOW(), ?)");
-                    $pay_stmt->bind_param("idsss", $reservation_id, $initial_payment, $payment_method, $p_status, $p_desc);
+                    $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image, description) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)");
+                    $pay_stmt->bind_param("idsssss", $reservation_id, $initial_payment, $payment_method, $p_status, $ref_number, $proof_filename, $p_desc);
                     $pay_stmt->execute();
+                    $pay_stmt->close();
 
-<<<<<<< HEAD
+                    // Handle remaining balance record for partial payments
                     if ($remaining > 0) {
                         // Insert balance part
                         $bal_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, 'Unpaid', NOW(), ?)");
                         $b_desc = "Remaining Balance for Reservation #$reservation_id";
                         $bal_stmt->bind_param("idss", $reservation_id, $remaining, $payment_method, $b_desc);
                         $bal_stmt->execute();
+                        $bal_stmt->close();
                     }
 
-                    // Update Dragonpay amount if needed
-                    $totalAmount = $initial_payment; 
-=======
-                    try {
-                        $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image, description) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)");
-                    } catch (Exception $e) {
-                        $pay_stmt = false;
-                    }
-                    
-                    if ($pay_stmt) {
-                        $pay_stmt->bind_param("idsssss", $reservation_id, $initialPayment, $payment_method, $pay_status, $ref_number, $proof_filename, $pay_desc);
-                        $pay_stmt->execute();
-                        $pay_stmt->close();
-                    } else {
-                        // Fallback if reference_number/proof_image columns missing
-                        $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date) VALUES (?, ?, ?, ?, NOW())");
-                        if ($pay_stmt) {
-                            $pay_stmt->bind_param("idss", $reservation_id, $initialPayment, $payment_method, $pay_status);
-                            $pay_stmt->execute();
-                            $pay_stmt->close();
-                        }
-                    }
+                    // Update the amount to be charged via Dragonpay if partial payment was selected
+                    $totalAmount = $initial_payment;
 
-                    // Generate remaining payments for Long Term (Months 2 to 6)
+                    // Generate the monthly payment schedule for Long Term (6 Months) contracts
                     if ($term_type === 'Long') {
                         for ($month_num = 2; $month_num <= 6; $month_num++) {
                             $rem_desc = "Month $month_num Rent";
@@ -504,7 +491,6 @@ if (isset($_POST['confirm_booking'])) {
                             }
                         }
                     }
->>>>>>> 2160d63382bf5e340b5fffaadf60d5af883c9f62
 
                     // --- NOTIFICATIONS ---
                     // 1. Notify User
@@ -526,7 +512,7 @@ if (isset($_POST['confirm_booking'])) {
                         
                         // Transaction details
                         $txn_id      = 'RES-' . $reservation_id; // e.g., RES-142
-                        $amount      = number_format((float)$initialPayment, 2, '.', ''); // Strictly 2 decimal places (e.g., 2500.00)
+                        $amount      = number_format((float)$totalAmount, 2, '.', ''); // Use the updated amount (Downpayment or Full)
                         $ccy         = 'PHP';
                         $description = 'Woke Coliving Reservation: ' . $troom;
                         $email       = $user_email;
@@ -672,7 +658,6 @@ if (isset($_POST['confirm_booking'])) {
         const currentUserId = "<?= $_SESSION['user_id'] ?? '' ?>";
         const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
         if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
-        else if (localStorage.getItem(nightModeKey) === 'disabled') document.body.classList.remove('night-mode');
     })();
 </script>
 <div class="container py-5 animate-fade-in">
@@ -694,7 +679,7 @@ if (isset($_POST['confirm_booking'])) {
 
     <form method="post" enctype="multipart/form-data" id="reservationForm">
         <input type="hidden" name="confirm_booking" value="1">
-        <input type="hidden" name="term_type" id="term_type" value="Short">
+                    <input type="hidden" name="term_type" id="term_type" value="<?= ($pre_duration == '6') ? 'Long' : (($pre_duration == 'Daily') ? 'Daily' : 'Short') ?>">
         <?php if($is_extension): ?>
             <input type="hidden" name="extend_id" value="<?= $eid ?>">
         <?php endif; ?>
@@ -829,10 +814,10 @@ if (isset($_POST['confirm_booking'])) {
                         <div class="mb-3">
                             <label class="form-label">Duration</label>
                             <select id="duration_select" class="form-select" onchange="updateCheckoutDate()">
-                                <option value="" disabled selected>Select Duration</option>
-                                <option value="1">Short Term (1 Month)</option>
-                                <option value="6">Long Term (6 Months Contract)</option>
-                                <option value="Daily">Daily</option>
+                                <option value="" disabled <?= empty($pre_duration) ? 'selected' : '' ?>>Select Duration</option>
+                                <option value="1" <?= ($pre_duration == '1') ? 'selected' : '' ?>>Short Term (1 Month)</option>
+                                <option value="6" <?= ($pre_duration == '6') ? 'selected' : '' ?>>Long Term (6 Months Contract)</option>
+                                <option value="Daily" <?= ($pre_duration == 'Daily') ? 'selected' : '' ?>>Daily</option>
                             </select>
                         </div>
 
@@ -879,34 +864,30 @@ if (isset($_POST['confirm_booking'])) {
                             <select name="payment_method" id="payment_method" class="form-select" required onchange="togglePaymentDetails()">
                                 <option value="Cash" <?= $pm == 'Cash' ? 'selected' : '' ?>>Cash (Pay at Property)</option>
                                 <option value="GCash" <?= $pm == 'GCash' ? 'selected' : '' ?>>GCash</option>
-                                <option value="PayPal" <?= $pm == 'PayPal' ? 'selected' : '' ?>>PayPal</option>
                             </select>
                         </div>
 
                         <!-- GCash Details -->
                         <div id="gcash_div" class="mb-3 p-3 border rounded bg-light" style="display:none;">
-    <h6 class="fw-bold text-primary"><i class="fas fa-mobile-alt me-2"></i>Pay via GCash</h6>
-    <p class="small text-muted mb-2">You will be securely redirected to GCash to complete your payment.</p>
-    
-    <div class="mb-3">
-        <label class="form-label small">Amount to Pay</label>
-        <input type="text" class="form-control fw-bold text-success" id="gcash_amount_display" readonly>
-    </div>
-    
-    <div class="alert alert-info py-2 small mb-0">
-        <i class="fas fa-info-circle me-1"></i> Please do not close the browser until you are redirected back to our site.
-    </div>
-</div>
-
-                        <!-- PayPal Details -->
-                        <div id="paypal_div" class="mb-3 p-3 border rounded bg-light" style="display:none;">
-                            <h6 class="fw-bold text-primary"><i class="fab fa-paypal me-2"></i>Pay via PayPal</h6>
-                            <p class="small text-muted mb-2">Send payment to the email below:</p>
+                            <h6 class="fw-bold text-primary"><i class="fas fa-mobile-alt me-2"></i>Pay via GCash</h6>
                             <div class="text-center mb-3">
-                                <p class="fw-bold mt-1 h5">payments@wokecoliving.com</p>
+                                <p class="small text-muted mb-2">Scan the QR code below to pay:</p>
+                                <img src="../Images/gcash_qr.jpg" alt="GCash QR Code" class="img-fluid border rounded shadow-sm mb-2" style="max-height: 250px;">
+                                <p class="fw-bold text-dark mb-0">Account Name: WOKE COLIVING INC</p>
+                                <p class="fw-bold text-dark">Number: 0917 123 4567</p>
                             </div>
-                            <label class="form-label small">Transaction ID</label>
-                            <input type="text" name="ref_number_paypal" class="form-control" placeholder="Enter PayPal Transaction ID">
+                            <div class="mb-3">
+                                <label class="form-label small">Amount to Pay</label>
+                                <input type="text" class="form-control fw-bold text-success" id="gcash_amount_display" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Reference Number*</label>
+                                <input type="text" name="ref_number" class="form-control" placeholder="Enter the 13-digit Reference No.">
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label small">Proof of Payment* (Screenshot)</label>
+                                <input type="file" name="proof_image" class="form-control" accept="image/*">
+                            </div>
                         </div>
 
                         <!-- Agreement Section -->
@@ -1133,27 +1114,20 @@ function confirmReservation() {
     function togglePaymentDetails() {
         let method = document.getElementById('payment_method').value;
         let gcashDiv = document.getElementById('gcash_div');
-        let paypalDiv = document.getElementById('paypal_div');
         
         // Inputs
         let gcashRef = document.querySelector('input[name="ref_number"]');
         let gcashProof = document.querySelector('input[name="proof_image"]');
-        let paypalRef = document.querySelector('input[name="ref_number_paypal"]');
         
         gcashDiv.style.display = 'none';
-        paypalDiv.style.display = 'none';
         
         if(gcashRef) gcashRef.required = false;
         if(gcashProof) gcashProof.required = false;
-        if(paypalRef) paypalRef.required = false;
 
         if (method === 'GCash') {
             gcashDiv.style.display = 'block';
             if(gcashRef) gcashRef.required = true;
             if(gcashProof) gcashProof.required = true;
-        } else if (method === 'PayPal') {
-            paypalDiv.style.display = 'block';
-            if(paypalRef) paypalRef.required = true;
         }
     }
 
@@ -1380,14 +1354,16 @@ function confirmReservation() {
             updateRoomOptions();
         }
         
-        // Initialize Dates if empty to trigger calculation
-        if(!document.getElementById('cin').value) {
+        // Initialize logic based on pre-selected values
+        if(document.getElementById('duration_select').value) {
+            updateCheckoutDate();
+        } else if(!document.getElementById('cin').value) {
             let today = new Date();
             let yyyy = today.getFullYear();
             let mm = String(today.getMonth() + 1).padStart(2, '0');
             let dd = String(today.getDate()).padStart(2, '0');
             document.getElementById('cin').value = `${yyyy}-${mm}-${dd}`;
-            updateCheckoutDate(); // This sets cout and calls calculateTotal
+            updateCheckoutDate();
         } else {
             calculateTotal(); // Calculate immediately if dates exist
             checkRealTimeAvailability();

@@ -22,6 +22,13 @@ while($row = mysqli_fetch_assoc($pay_q)) {
     $unpaid_bills[] = $row;
 }
 
+// Get all payments for this reservation to show the schedule
+$all_pay_q = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id=$reservation_id ORDER BY payment_date ASC");
+$all_payments = [];
+while($row = mysqli_fetch_assoc($all_pay_q)) {
+    $all_payments[] = $row;
+}
+
 $error = "";
 if(isset($_POST['submit_payment'])){
     if(empty($_POST['selected_payments'])){
@@ -41,50 +48,29 @@ if(isset($_POST['submit_payment'])){
             $proof_filename = null;
         
             if ($method == 'GCash') {
-                // Replaced manual upload with Dragonpay redirect logic
-                $ref_number = 'PENDING_DRAGONPAY';
-                $proof_filename = null;
+                $ref_number = trim($_POST['ref_number'] ?? '');
+                if(isset($_FILES['proof_image']) && $_FILES['proof_image']['error'] == 0){
+                    $target_dir = "../uploads/proofs/";
+                    if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+                    $proof_filename = time() . '_gcash_' . basename($_FILES["proof_image"]["name"]);
+                    if(!move_uploaded_file($_FILES["proof_image"]["tmp_name"], $target_dir . $proof_filename)){
+                        $error = "Error uploading proof of payment.";
+                    }
+                } else {
+                    $error = "Proof of payment image is required for GCash.";
+                }
+                if(empty($ref_number)) $error = "Reference number is required for GCash.";
             }
         
             if(!$error){
-                // GCash is set to Unpaid until Dragonpay postback confirms the payment
-                $status = ($method == 'PayPal') ? 'Paid' : 'Unpaid';
+                // Payments start as Unpaid until verified by admin
+                $status = 'Unpaid';
                 $stmt = mysqli_prepare($conn, "UPDATE payments SET payment_method=?, payment_status=?, reference_number=?, proof_image=?, payment_date=NOW() WHERE payment_id IN ($payment_ids_str)");
                 mysqli_stmt_bind_param($stmt, "ssss", $method, $status, $ref_number, $proof_filename);
                 
                 if(mysqli_stmt_execute($stmt)){
                     log_activity($conn, $user_id, "Payment Submitted", "Reservation #$reservation_id via $method for " . count($final_ids) . " bill(s)");
                     trigger_update($conn);
-
-                    // 🚀 DRAGONPAY REDIRECT LOGIC
-                    if ($method == 'GCash') {
-                        $merchant_id = 'YOUR_MERCHANT_ID'; // Replace with your Dragonpay Merchant ID
-                        $secret_key  = 'YOUR_SECRET_KEY';  // Replace with your Dragonpay Password
-                        
-                        $totalAmount = 0;
-                        foreach($unpaid_bills as $bill) {
-                            if(in_array($bill['payment_id'], $final_ids)) {
-                                $totalAmount += $bill['amount'];
-                            }
-                        }
-                        
-                        $txn_id      = 'PAY-' . implode('-', $final_ids); // e.g., PAY-103-104
-                        $amount      = number_format((float)$totalAmount, 2, '.', ''); // Strictly 2 decimal places
-                        $ccy         = 'PHP';
-                        $description = 'Woke Coliving Bills Payment';
-                        
-                        $u_q = mysqli_query($conn, "SELECT email FROM users WHERE user_id=$user_id");
-                        $u_email = mysqli_fetch_assoc($u_q)['email'] ?? '';
-                        
-                        $message = "$merchant_id:$txn_id:$amount:$ccy:$description:$u_email:$secret_key";
-                        $digest = sha1($message);
-
-                        $url = "https://test.dragonpay.ph/Pay.aspx?merchantid=$merchant_id&txnid=$txn_id&amount=$amount&ccy=$ccy&description=" . urlencode($description) . "&email=" . urlencode($u_email) . "&digest=$digest&procid=GCSH";
-
-                        header("Location: $url");
-                        exit;
-                    }
-
                     header("Location: my_reservations.php?msg=payment_submitted");
                     exit;
                 } else { $error = "Database error."; }
@@ -149,7 +135,6 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
         const currentUserId = "<?= $_SESSION['user_id'] ?? '' ?>";
         const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
         if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
-        else if (localStorage.getItem(nightModeKey) === 'disabled') document.body.classList.remove('night-mode');
     })();
 </script>
 <nav class="navbar navbar-expand-lg navbar-dark">
@@ -225,19 +210,28 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                         <select name="payment_method" id="payment_method" class="form-select" required onchange="togglePaymentDetails()">
                             <option value="Cash">Cash (Pay at Property)</option>
                             <option value="GCash">GCash</option>
-                            <option value="PayPal">PayPal</option>
                         </select>
                     </div>
 
                     <div id="gcash_div" class="mb-3 p-3 border rounded bg-light" style="display:none;">
-                        <h6 class="fw-bold text-primary"><i class="fas fa-mobile-alt me-2"></i>Pay via GCash (Online)</h6>
-                        <p class="small text-muted mb-2">You will be securely redirected to GCash to complete your payment via Dragonpay.</p>
+                        <h6 class="fw-bold text-primary"><i class="fas fa-mobile-alt me-2"></i>Pay via GCash</h6>
+                        <div class="text-center mb-3">
+                            <p class="small text-muted mb-2">Scan the QR code below to pay:</p>
+                            <img src="../Images/gcash_qr.jpg" alt="GCash QR Code" class="img-fluid border rounded shadow-sm mb-2" style="max-height: 250px;">
+                            <p class="fw-bold text-dark mb-0">Account Name: WOKE COLIVING INC</p>
+                            <p class="fw-bold text-dark">Number: 0917 123 4567</p>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label small">Amount to Pay</label>
                             <input type="text" class="form-control fw-bold text-success" id="gcash_amount_display" readonly>
                         </div>
-                        <div class="alert alert-info py-2 small mb-0">
-                            <i class="fas fa-info-circle me-1"></i> Please do not close the browser until you are redirected back to our site.
+                        <div class="mb-3">
+                            <label class="form-label small">Reference Number*</label>
+                            <input type="text" name="ref_number" class="form-control" placeholder="Enter the 13-digit Reference No.">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label small">Proof of Payment* (Screenshot)</label>
+                            <input type="file" name="proof_image" class="form-control" accept="image/*">
                         </div>
                     </div>
 
@@ -255,6 +249,40 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                         <a href="my_reservations.php" class="btn btn-outline-secondary rounded-pill fw-bold">Back to Reservations</a>
                     </div>
                 <?php endif; ?>
+
+                <div class="mt-5">
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="fas fa-calendar-alt me-2 text-primary"></i>All Payment Months</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Due / Date</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach($all_payments as $pay): ?>
+                                <tr>
+                                    <td class="fw-bold"><?= htmlspecialchars($pay['description']) ?></td>
+                                    <td><?= date('M d, Y', strtotime($pay['payment_date'])) ?></td>
+                                    <td>₱<?= number_format($pay['amount'], 2) ?></td>
+                                    <td>
+                                        <?php 
+                                            $s = $pay['payment_status'];
+                                            $cls = 'bg-warning text-dark';
+                                            if($s == 'Paid') $cls = 'bg-success';
+                                            elseif($s == 'Cancelled') $cls = 'bg-danger';
+                                        ?>
+                                        <span class="badge <?= $cls ?> rounded-pill px-3"><?= $s ?></span>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
