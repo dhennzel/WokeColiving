@@ -1,6 +1,7 @@
 <?php
 session_start();
 include("../db.php");
+date_default_timezone_set('Asia/Manila');
 
 // Only allow admin
 if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true){
@@ -233,12 +234,12 @@ if($end_date){
 
 // Fetch Payment History
 $pay_query = mysqli_query($conn, "
-    SELECT p.*, r.reservation_id, rm.room_name, rm.room_number, rm.room_type 
+    SELECT p.*, r.reservation_id, r.start_date, rm.room_name, rm.room_number, rm.room_type 
     FROM payments p 
     JOIN reservations r ON p.reservation_id = r.reservation_id 
     LEFT JOIN rooms rm ON r.room_id = rm.room_id 
     WHERE $pay_where 
-    ORDER BY p.payment_id DESC
+    ORDER BY p.payment_id ASC
 ");
 
 // Fetch Activity Logs (Ensure table exists first)
@@ -776,9 +777,25 @@ $theme = get_theme_colors($conn);
                                 if($pay['payment_status'] != 'Cancelled') $total_amount += $pay['amount'];
                             ?>
                             <?php
+                                $display_date = $pay['payment_date'];
+                                $actual_time = $pay['payment_date'] ? date('H:i:s', strtotime($pay['payment_date'])) : '00:00:00';
+                                $desc_text = !empty($pay['description']) ? $pay['description'] : 'Room Payment';
+
+                                // Logic para itugma ang date sa billing month/period (Parity with billing.php)
+                                if (preg_match('/Month (\d+) Rent/i', $desc_text, $matches)) {
+                                    $m_idx = (int)$matches[1] - 1;
+                                    $calc_dt = new DateTime($pay['start_date']);
+                                    $calc_dt->modify("+$m_idx months");
+                                    $display_date = $calc_dt->format('Y-m-d') . ' ' . $actual_time;
+                                } elseif (preg_match('/Utility Bill \((\d{4}-\d{2}-\d{2})\)/i', $desc_text, $matches)) {
+                                    $display_date = $matches[1] . ' ' . $actual_time;
+                                } elseif (strpos(strtolower($desc_text), 'initial') !== false || strpos(strtolower($desc_text), 'walk-in') !== false || strpos(strtolower($desc_text), 'full payment') !== false) {
+                                    $display_date = date('Y-m-d', strtotime($pay['start_date'])) . ' ' . $actual_time;
+                                }
+
                                 $is_overdue = ($pay['payment_status'] == 'Unpaid' && strtotime($pay['payment_date']) < strtotime('-5 days'));
                                 $row_class = $is_overdue ? 'table-danger' : '';
-                                $desc = !empty($pay['description']) ? $pay['description'] : 'Room Payment';
+                                $desc = $desc_text;
                                 $room_info = !empty($pay['room_number']) ? 'Room ' . htmlspecialchars($pay['room_number']) : ($pay['room_name'] ? htmlspecialchars($pay['room_name']) : '<span class="text-muted">Unknown Room</span>');
                             ?>
                             <tr class="<?= $row_class ?>">
@@ -788,8 +805,8 @@ $theme = get_theme_colors($conn);
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="fw-bold"><?= date('M d, Y', strtotime($pay['payment_date'])) ?></div>
-                                    <small class="text-muted"><?= date('h:i A', strtotime($pay['payment_date'])) ?></small>
+                                    <div class="fw-bold"><?= date('M d, Y', strtotime($display_date)) ?></div>
+                                    <small class="text-muted"><?= date('h:i A', strtotime($display_date)) ?></small>
                                 </td>
                                 <td><?= $room_info ?></td>
                                 <td class="small text-muted"><?= htmlspecialchars($desc) ?></td>
@@ -821,7 +838,7 @@ $theme = get_theme_colors($conn);
                                 <td class="text-end">
                                     <?php if($pay['payment_status'] == 'Unpaid'): ?>
                                         <div class="d-flex justify-content-end gap-1">
-                                            <a href="booking_management.php?action=mark_paid&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" title="Approve Payment" onclick="confirmAction(event, this.href, 'Approve this payment as Paid?')"><i class="fas fa-check"></i></a>
+                                            <a href="view_user.php?uid=<?= $uid ?>&action=mark_paid_prop&pid=<?= $pay['payment_id'] ?>" class="btn btn-sm btn-success" title="Approve Payment" onclick="confirmAction(event, this.href, 'Approve this payment? Kung ito ay grupo ng bills, lahat ay mamamarkahang Paid.')"><i class="fas fa-check"></i></a>
                                             <?php if(!empty($pay['proof_image'])): ?>
                                                 <a href="booking_management.php?action=reject_payment&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-warning text-dark" title="Reject Payment Proof (Re-upload)" onclick="confirmAction(event, this.href, 'Reject this payment proof? The guest will have to re-upload.')"><i class="fas fa-undo"></i></a>
                                             <?php endif; ?>

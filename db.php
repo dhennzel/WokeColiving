@@ -340,10 +340,18 @@ function setup_parking_tables($conn) {
     )");
 
     // 3. Pre-populate slots if table is empty
+    // 3. Pre-populate slots if table is empty
     $check_slots = mysqli_query($conn, "SELECT id FROM parking_slots LIMIT 1");
     if(mysqli_num_rows($check_slots) == 0){
-        for($i = 1; $i <= 5; $i++) mysqli_query($conn, "INSERT INTO parking_slots (slot_name, slot_type, monthly_rate, daily_rate) VALUES ('Car Slot $i', 'Car', 600.00, 200.00)");
-        for($i = 1; $i <= 5; $i++) mysqli_query($conn, "INSERT INTO parking_slots (slot_name, slot_type, monthly_rate, daily_rate) VALUES ('Motorcycle Slot $i', 'Motorcycle', 1500.00, 50.00)");
+        for($i = 1; $i <= 5; $i++) mysqli_query($conn, "INSERT INTO parking_slots (slot_name, slot_type, monthly_rate, daily_rate) VALUES ('Car Slot $i', 'Car', 600.00, 50.00)");
+        for($i = 1; $i <= 5; $i++) mysqli_query($conn, "INSERT INTO parking_slots (slot_name, slot_type, monthly_rate, daily_rate) VALUES ('Motorcycle Slot $i', 'Motorcycle', 600.00, 50.00)");
+    }
+
+    // Migration: Update existing slots to new rates (600 Monthly, 50 Daily)
+    $migration_check_rates = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='migration_parking_rates_v1'");
+    if(mysqli_num_rows($migration_check_rates) == 0) {
+        mysqli_query($conn, "UPDATE parking_slots SET monthly_rate = 600.00, daily_rate = 50.00");
+        mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('migration_parking_rates_v1', '1')");
     }
 }
 setup_parking_tables($conn);
@@ -693,6 +701,23 @@ if($expire_query){
         log_activity($conn, $uid, "Reservation Cancelled", "Reservation #$rid auto-expired due to non-payment.");
     }
 }
+
+// 4. Auto-complete Parking reservations where the end date has been reached
+$complete_park_q = mysqli_query($conn, "SELECT id, user_id, slot_id FROM parking_reservations WHERE status='Active' AND end_date IS NOT NULL AND end_date < CURDATE()");
+if($complete_park_q){
+    while($row = mysqli_fetch_assoc($complete_park_q)){
+        $pr_id = $row['id'];
+        $uid = $row['user_id'];
+        $sid = $row['slot_id'];
+        mysqli_query($conn, "UPDATE parking_reservations SET status='Completed' WHERE id=$pr_id");
+        mysqli_query($conn, "UPDATE parking_slots SET status='Available' WHERE id=$sid");
+        log_activity($conn, $uid, "Parking Completed", "Parking reservation #$pr_id automatically marked as Completed.");
+        send_notification($conn, $uid, "🅿️ <strong>Parking Completed</strong><br>Your parking reservation has reached its end date.", "Parking");
+    }
+}
+
+// 5. Sync parking slot status column with active reservations (Fix for ghost occupancy)
+mysqli_query($conn, "UPDATE parking_slots SET status = 'Available' WHERE id NOT IN (SELECT slot_id FROM parking_reservations WHERE status = 'Active')");
 
 // 2. Permanently delete archived reservations older than 90 days (Cleanup)
 mysqli_query($conn, "DELETE FROM reservations WHERE is_archived=1 AND end_date < (NOW() - INTERVAL 90 DAY)");

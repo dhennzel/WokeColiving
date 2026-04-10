@@ -1,6 +1,7 @@
 <?php
 session_start();
 include("../db.php");
+date_default_timezone_set('Asia/Manila');
 
 if(!isset($_SESSION['user_id'])){
     header("Location: login.php");
@@ -18,7 +19,7 @@ $total_paid = $fin['total_paid'] ?? 0;
 $balance = $total_billed - $total_paid;
 
 // Payment History
-$payments = mysqli_query($conn, "SELECT p.*, rm.room_name, rm.room_number FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id LEFT JOIN rooms rm ON r.room_id = rm.room_id WHERE r.user_id=$user_id ORDER BY p.payment_id DESC");
+$payments = mysqli_query($conn, "SELECT p.*, rm.room_name, rm.room_number, r.start_date, r.end_date FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id LEFT JOIN rooms rm ON r.room_id = rm.room_id WHERE r.user_id=$user_id ORDER BY p.payment_id ASC");
 
 // Fetch User Info for Navbar
 $u_query = mysqli_query($conn, "SELECT first_name FROM users WHERE user_id=$user_id");
@@ -129,6 +130,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                     <tr>
                         <th>Date</th>
                         <th>Description</th>
+                        <th>Stay Duration</th>
                         <th>Room</th>
                         <th>Method</th>
                         <th class="text-end">Amount</th>
@@ -137,9 +139,36 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                 </thead>
                 <tbody>
                     <?php while($pay = mysqli_fetch_assoc($payments)): ?>
+                    <?php
+                        $display_date = $pay['payment_date'];
+                        $desc = $pay['description'];
+
+                        // Logic para itugma ang date sa billing month/period kung ito ay recurring rent o utility
+                        if (preg_match('/Month (\d+) Rent/i', $desc, $matches)) {
+                            // Para sa "Month X Rent", kalkulahin ang petsa base sa simula ng reservation
+                            $m_idx = (int)$matches[1] - 1;
+                            $calc_dt = new DateTime($pay['start_date']);
+                            $calc_dt->modify("+$m_idx months");
+                            $display_date = $calc_dt->format('Y-m-d H:i:s');
+                        } elseif (preg_match('/Utility Bill \((\d{4}-\d{2}-\d{2})\)/i', $desc, $matches)) {
+                            // Gamitin ang petsang nakasaad sa utility bill description
+                            $display_date = $matches[1];
+                        } elseif (strpos(strtolower($desc), 'initial') !== false || strpos(strtolower($desc), 'walk-in') !== false || strpos(strtolower($desc), 'full payment') !== false) {
+                            // Para sa mga unang bayad, ipakita ang mismong start date ng stay
+                            $display_date = $pay['start_date'];
+                        }
+
+                        $d1 = new DateTime($pay['start_date']);
+                        $d2 = new DateTime($pay['end_date']);
+                        $interval = $d1->diff($d2);
+                        $m = ($interval->y * 12) + $interval->m;
+                        $d = $interval->d;
+                        $duration_label = ($m > 0 ? "$m Mo" : "") . ($m > 0 && $d > 0 ? ", " : "") . ($d > 0 || $m == 0 ? "$d Days" : "");
+                    ?>
                     <tr>
-                        <td class="small text-muted"><?= date('M d, Y', strtotime($pay['payment_date'])) ?></td>
+                        <td class="small text-muted"><?= $display_date ? date('D, M d, Y', strtotime($display_date)) : 'N/A' ?></td>
                         <td class="fw-bold"><?= htmlspecialchars($pay['description']) ?></td>
+                        <td class="small text-muted"><?= $duration_label ?></td>
                         <td><?= !empty($pay['room_number']) ? 'Room ' . $pay['room_number'] : $pay['room_name'] ?></td>
                         <td class="small"><?= $pay['payment_method'] ?></td>
                         <td class="text-end fw-bold">₱<?= number_format($pay['amount'], 2) ?></td>

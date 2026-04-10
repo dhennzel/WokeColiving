@@ -11,7 +11,7 @@ $error = "";
 $success = "";
 
 // Fetch Users
-$users = mysqli_query($conn, "SELECT user_id, CONCAT(last_name, ', ', first_name, IF(middle_name IS NOT NULL AND middle_name != '', CONCAT(' ', middle_name), ''), IF(suffix IS NOT NULL AND suffix != '', CONCAT(' ', suffix), '')) as full_name, email, gender FROM users ORDER BY last_name ASC");
+$users = mysqli_query($conn, "SELECT *, CONCAT(last_name, ', ', first_name, IF(middle_name IS NOT NULL AND middle_name != '', CONCAT(' ', middle_name), ''), IF(suffix IS NOT NULL AND suffix != '', CONCAT(' ', suffix), '')) as full_name FROM users WHERE is_archived=0 ORDER BY last_name ASC");
 
 // Ensure gender column exists in users table
 $check_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'gender'");
@@ -117,6 +117,10 @@ if(isset($_POST['add_reservation'])){
     $user_type = $_POST['user_type'] ?? 'existing';
     $user_id = 0;
     $account_msg = "";
+    $occupation = "";
+    $company = "";
+    $em_name = "";
+    $em_num = "";
 
     if($user_type == 'new'){
         // Create New User
@@ -132,9 +136,9 @@ if(isset($_POST['add_reservation'])){
         $occupation = $_POST['new_occupation'] ?? '';
         $company = trim($_POST['new_company'] ?? '');
 
-        // Validation for company/school name
-        if($occupation == 'Student' && empty($company)){
-            $error = "Company/School name is required.";
+        // Validate required fields for new user
+        if(empty($lname) || empty($fname) || empty($email) || empty($phone) || empty($occupation)){
+            $error = "Please fill in all required guest details (Name, Email, Phone, Occupation).";
         }
 
         if(!preg_match('/^09\d{9}$/', $phone)){
@@ -151,12 +155,22 @@ if(isset($_POST['add_reservation'])){
         } elseif(!empty($_POST['new_password'])){
             $letter_count = preg_match_all('/[a-zA-Z]/', $raw_pass);
             $digit_count = preg_match_all('/[0-9]/', $raw_pass);
-            if(strlen($raw_pass) != 8 || $letter_count != 7 || $digit_count != 1){
-                $error = "Password must be exactly 8 characters (7 letters and 1 number).";
+            if(strlen($raw_pass) < 6 || strlen($raw_pass) > 8 || $digit_count < 1){
+                $error = "Password must be between 6 to 8 characters and contain at least one number.";
             }
         }
         
         $password = password_hash($raw_pass, PASSWORD_DEFAULT);
+
+        // Handle School ID Image Upload (Similar to guest registration)
+        $school_id_image = null;
+        if ($occupation == 'Student' && isset($_FILES['school_id']) && $_FILES['school_id']['error'] == 0) {
+            $ext = pathinfo($_FILES['school_id']['name'], PATHINFO_EXTENSION);
+            $school_id_image = time() . "_school_" . preg_replace("/[^a-zA-Z0-9.]/", "_", $_FILES['school_id']['name']);
+            move_uploaded_file($_FILES['school_id']['tmp_name'], "../uploads/proofs/" . $school_id_image);
+        } elseif ($occupation == 'Student' && empty($company)) {
+            $error = "School name is required for students.";
+        }
 
         if(empty($error)){
             $check_email = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'");
@@ -167,8 +181,8 @@ if(isset($_POST['add_reservation'])){
             } elseif(mysqli_num_rows($check_name) > 0) {
                 $error = "A guest with this full name is already registered.";
             } else {
-                $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, suffix, email, phone_number, gender, occupation, company, address, password, role, is_walkin, emergency_contact_name, emergency_contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?)");
-                mysqli_stmt_bind_param($stmt, "sssssssssssss", $lname, $fname, $mname, $suffix, $email, $phone, $gender, $occupation, $company, $address, $password, $em_name, $em_num);
+                $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, suffix, email, phone_number, gender, occupation, company, address, password, role, is_walkin, emergency_contact_name, emergency_contact_number, school_id_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?, ?)");
+                mysqli_stmt_bind_param($stmt, "ssssssssssssss", $lname, $fname, $mname, $suffix, $email, $phone, $gender, $occupation, $company, $address, $password, $em_name, $em_num, $school_id_image);
                 if(mysqli_stmt_execute($stmt)){
                     $user_id = mysqli_insert_id($conn);
                     $account_msg = "Account created for $name (Pass: $raw_pass). ";
@@ -180,10 +194,14 @@ if(isset($_POST['add_reservation'])){
         }
     } else {
         $user_id = (int)$_POST['user_id'];
-        $u_q = mysqli_query($conn, "SELECT email, gender FROM users WHERE user_id=$user_id");
+        $u_q = mysqli_query($conn, "SELECT email, gender, occupation, company, emergency_contact_name, emergency_contact_number FROM users WHERE user_id=$user_id");
         $u_row = mysqli_fetch_assoc($u_q);
         $gender = $u_row['gender'] ?? 'Any';
         $email = $u_row['email'] ?? '';
+        $occupation = $u_row['occupation'] ?? '';
+        $company = $u_row['company'] ?? '';
+        $em_name = $u_row['emergency_contact_name'] ?? '';
+        $em_num = $u_row['emergency_contact_number'] ?? '';
     }
 
     if(!$error && $user_id > 0){
@@ -192,17 +210,13 @@ if(isset($_POST['add_reservation'])){
         $cin = $_POST['cin'] ?? date('Y-m-d');
         $cout = $_POST['cout'] ?? date('Y-m-d', strtotime('+1 day'));
         
-        // Calculate duration
+        // Calculate accurate duration components
         $d1 = new DateTime($cin);
         $d2 = new DateTime($cout);
         $interval = $d1->diff($d2);
         
-        // Calculate accurate billing components (Months + Remaining Days)
-        $calc_months = ($interval->y * 12) + $interval->m;
-        $calc_days = $interval->d;
-        
-        $days_total = $d1->diff($d2)->days;
-        $months = max(1, round($days_total / 30));
+        $months = ($interval->y * 12) + $interval->m;
+        if ($months == 0 && $interval->d > 0) $months = 1;
 
         // Find available room
         $specific_room_id = isset($_POST['specific_room_id']) ? (int)$_POST['specific_room_id'] : 0;
@@ -351,11 +365,6 @@ if(isset($_POST['add_reservation'])){
             $totalAmount += $prev_balance;
             $pay_desc = "Walk-in Booking Payment" . ($prev_balance > 0 ? " (Includes carried over balance: ₱" . number_format($prev_balance, 2) . ")" : "");
 
-            // Partial Payment Logic
-            $amount_paid = isset($_POST['amount_paid']) ? (float)$_POST['amount_paid'] : $totalAmount;
-            if($amount_paid > $totalAmount) $amount_paid = $totalAmount; // Iwas overpayment sa input
-            $remaining_balance = $totalAmount - $amount_paid;
-
             // Insert
             $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, occupation, company_or_school, contact_person_name, contact_person_number) VALUES (?, ?, ?, ?, ?, ?, 'Approved', ?, ?, ?, ?, ?)");
             $stmt->bind_param("iissidsssss", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $bed_preference, $occupation, $company, $em_name, $em_num);
@@ -370,21 +379,9 @@ if(isset($_POST['add_reservation'])){
                 $pay_method = $_POST['payment_method'] ?? 'Cash';
                 $pay_status = $_POST['payment_status'] ?? 'Unpaid';
                 
-                if ($amount_paid > 0) {
-                    // Record 1: Ang mismong binayad (Paid)
-                    $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, 'Paid', NOW(), ?)");
-                    $down_desc = $pay_desc . " (Downpayment/Partial)";
-                    $pay_stmt->bind_param("idss", $res_id, $amount_paid, $pay_method, $down_desc);
-                    $pay_stmt->execute();
-                }
-
-                if ($remaining_balance > 0) {
-                    // Record 2: Ang kulang na balanse (Unpaid)
-                    $bal_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, 'Unpaid', NOW(), ?)");
-                    $bal_desc = "Remaining Balance for Reservation #$res_id";
-                    $bal_stmt->bind_param("idss", $res_id, $remaining_balance, $pay_method, $bal_desc);
-                    $bal_stmt->execute();
-                }
+                $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, ?, NOW(), ?)");
+                $pay_stmt->bind_param("idsss", $res_id, $totalAmount, $pay_method, $pay_status, $pay_desc);
+                $pay_stmt->execute();
                 
                 log_activity($conn, $user_id, "Walk-in Booking", "Reservation #$res_id created by $admin_username");
                 
@@ -448,6 +445,8 @@ $theme = get_theme_colors($conn);
         .room-card-option.selected { border-color: var(--primary-green); background-color: #e8f5e9; }
         .room-card-option.disabled { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
         .room-card-option img { height: 140px; object-fit: cover; width: 100%; }
+        #user_preview_card { transition: all 0.2s; cursor: pointer; }
+        #user_preview_card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important; border-color: var(--primary-green) !important; }
     </style>
 </head>
 <body>
@@ -489,12 +488,27 @@ $theme = get_theme_colors($conn);
 
                     <div id="existing_user_section" class="mb-3">
                         <label class="form-label fw-bold">Select User</label>
-                        <select name="user_id" id="existing_user_id" class="form-select" onchange="checkAvailability()">
+                        <select name="user_id" id="existing_user_id" class="form-select" onchange="updateUserPreview(); updateGenderConstraint(); checkAvailability()">
                             <option value="" data-gender="">-- Choose User --</option>
                             <?php while($u = mysqli_fetch_assoc($users)): ?>
-                                <option value="<?= $u['user_id'] ?>" data-gender="<?= $u['gender'] ?>" <?= $f_user_id == $u['user_id'] ? 'selected' : '' ?>><?= $u['full_name'] ?> (<?= $u['email'] ?>)</option>
+                                <option value="<?= $u['user_id'] ?>" 
+                                    data-gender="<?= $u['gender'] ?>" 
+                                    data-phone="<?= $u['phone_number'] ?>"
+                                    data-occ="<?= $u['occupation'] ?>"
+                                    data-comp="<?= $u['company'] ?>"
+                                    data-email="<?= $u['email'] ?>"
+                                    <?= $f_user_id == $u['user_id'] ? 'selected' : '' ?>><?= $u['full_name'] ?> (<?= $u['email'] ?>)</option>
                             <?php endwhile; ?>
                         </select>
+                        <div id="user_preview_card" class="mt-3 p-4 border border-success rounded-4 bg-white shadow-sm" style="display:none; border-left-width: 5px !important;">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold text-success mb-0"><i class="fas fa-user-check me-2"></i>Resident Profile Summary</h6>
+                                <span class="badge bg-success rounded-pill px-3">Registered User</span>
+                            </div>
+                            <div class="row g-3 small text-muted" id="preview_content">
+                                <!-- JS populated -->
+                            </div>
+                        </div>
                     </div>
 
                     <div id="new_user_section" class="mb-3 p-3 border rounded bg-light" style="display: <?= $f_user_type == 'new' ? 'block' : 'none' ?>;">
@@ -519,7 +533,8 @@ $theme = get_theme_colors($conn);
                             <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_phone) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')"></div>
                             <div class="col-md-6">
                                 <label class="small fw-bold">Gender</label>
-                                <select name="new_gender" id="new_gender" class="form-select" onchange="checkAvailability()">
+                                <select name="new_gender" id="new_gender" class="form-select" onchange="updateGenderConstraint(); checkAvailability()">
+                                    <option value="" disabled>Select Gender</option>
                                     <option value="Male" <?= $f_new_gender == 'Male' ? 'selected' : '' ?>>Male</option>
                                     <option value="Female" <?= $f_new_gender == 'Female' ? 'selected' : '' ?>>Female</option>
                                 </select>
@@ -536,13 +551,53 @@ $theme = get_theme_colors($conn);
                                 <label class="small fw-bold" id="new_company_label">Company/School Name</label>
                                 <input type="text" name="new_company" id="new_company" class="form-control" value="<?= htmlspecialchars($f_new_company) ?>">
                             </div>
+                            <div class="col-md-12" id="new_school_id_div" style="display: <?= $f_new_occupation == 'Student' ? 'block' : 'none' ?>;">
+                                <label class="small fw-bold">Upload School ID</label>
+                                <input type="file" name="school_id" class="form-control form-control-sm" accept="image/*">
+                            </div>
                             <div class="col-md-12">
                                 <label class="small fw-bold">Permanent Address</label>
-                                <textarea name="new_address" class="form-control" rows="2"><?= htmlspecialchars($f_new_address) ?></textarea>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <select id="region" class="form-select form-select-sm">
+                                            <option value="" disabled selected>Select Region</option>
+                                            <option value="130000000">National Capital Region (NCR)</option>
+                                            <option value="140000000">Cordillera Administrative Region (CAR)</option>
+                                            <option value="010000000">Region I (Ilocos Region)</option>
+                                            <option value="020000000">Region II (Cagayan Valley)</option>
+                                            <option value="030000000">Region III (Central Luzon)</option>
+                                            <option value="040000000">Region IV-A (CALABARZON)</option>
+                                            <option value="170000000">MIMAROPA Region</option>
+                                            <option value="050000000">Region V (Bicol Region)</option>
+                                            <option value="060000000">Region VI (Western Visayas)</option>
+                                            <option value="070000000">Region VII (Central Visayas)</option>
+                                            <option value="080000000">Region VIII (Eastern Visayas)</option>
+                                            <option value="090000000">Region IX (Zamboanga Peninsula)</option>
+                                            <option value="100000000">Region X (Northern Mindanao)</option>
+                                            <option value="110000000">Region XI (Davao Region)</option>
+                                            <option value="120000000">Region XII (SOCCSKSARGEN)</option>
+                                            <option value="160000000">Region XIII (Caraga)</option>
+                                            <option value="190000000">Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <select id="province" class="form-select form-select-sm" required disabled><option value="">Select Province</option></select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <select id="city" class="form-select form-select-sm" required disabled><option value="">Select City</option></select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <select id="barangay" class="form-select form-select-sm" required disabled><option value="">Select Barangay</option></select>
+                                    </div>
+                                    <div class="col-12">
+                                        <input type="text" id="street" class="form-control form-control-sm" placeholder="Street / Unit #">
+                                    </div>
+                                </div>
+                                <input type="hidden" name="new_address" id="full_address">
                             </div>
                             <div class="col-md-6"><label class="small fw-bold" id="new_em_name_label">Emergency Name</label><input type="text" name="new_em_name" class="form-control" value="<?= htmlspecialchars($f_new_em_name) ?>"></div>
                             <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_em_num) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: WokeCol1"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: WokeCol1" minlength="6" maxlength="8"></div>
                         </div>
                         <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>WokeCol1</strong> (7 letters, 1 number).</small>
                     </div>
@@ -555,7 +610,7 @@ $theme = get_theme_colors($conn);
                                 <option value="4-Bed" <?= $f_room_type == '4-Bed' ? 'selected' : '' ?>>4-Bed</option>
                                 <option value="6-Bed" <?= $f_room_type == '6-Bed' ? 'selected' : '' ?>>6-Bed</option>
                             </select>
-                            <small id="availability_status" class="fw-bold mt-1 d-block"></small>
+                        <small id="availability_status" class="fw-bold mt-1 d-block" style="cursor: pointer;" onclick="openRoomModal()" title="Click to select room"></small>
                         </div>
                         <div class="col-md-6 mb-3" id="bed_pref_div" style="display: <?= $f_room_type != 'Single' ? 'block' : 'none' ?>;">
                             <label class="form-label fw-bold">Bed Preference</label>
@@ -614,15 +669,6 @@ $theme = get_theme_colors($conn);
                             <span>Security Deposit:</span> <strong class="text-dark" id="sd_display">₱3,000.00 (Refundable)</strong>
                         </div>
                         <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2"><span class="h5 mb-0">Total: </span><span class="h4 text-success fw-bold">₱<span id="totalAmount">0.00</span></span></div>
-                    </div>
-
-                    <div class="mb-3 p-3 border rounded bg-light">
-                        <label class="form-label fw-bold text-primary">Amount Paid Now (Downpayment)</label>
-                        <div class="input-group">
-                            <span class="input-group-text">₱</span>
-                            <input type="number" name="amount_paid" id="amount_paid" class="form-control" step="0.01" placeholder="Enter amount received" onkeyup="updateBalanceDisplay()">
-                        </div>
-                        <small id="balance_note" class="text-danger fw-bold mt-1 d-block"></small>
                     </div>
 
                     <input type="hidden" name="specific_room_id" id="specific_room_id" value="<?= htmlspecialchars($_POST['specific_room_id'] ?? '') ?>">
@@ -721,6 +767,80 @@ $(document).ready(function() {
     });
 });
 
+function updateUserPreview() {
+    const select = document.getElementById('existing_user_id');
+    const preview = document.getElementById('user_preview_card');
+    const content = document.getElementById('preview_content');
+    
+    if (select.value) {
+        const option = select.options[select.selectedIndex];
+        const gender = option.dataset.gender || 'Not set';
+        const phone = option.dataset.phone || 'N/A';
+        const email = option.dataset.email || 'N/A';
+        const occupation = option.dataset.occ || 'N/A';
+        const company = option.dataset.comp || 'N/A';
+        const userId = select.value;
+
+        content.innerHTML = `
+            <div class="col-md-6"><span class="fw-bold text-dark d-block">Email Address</span><i class="fas fa-envelope me-1"></i> ${email}</div>
+            <div class="col-md-6"><span class="fw-bold text-dark d-block">Contact Number</span><i class="fas fa-phone me-1"></i> ${phone}</div>
+            <div class="col-md-6"><span class="fw-bold text-dark d-block">Gender</span><i class="fas fa-venus-mars me-1"></i> ${gender}</div>
+            <div class="col-md-6"><span class="fw-bold text-dark d-block">Occupation</span><i class="fas fa-briefcase me-1"></i> ${occupation}</div>
+            <div class="col-md-12"><span class="fw-bold text-dark d-block">Work / School</span><i class="fas fa-building me-1"></i> ${company}</div>
+        `;
+        preview.style.display = 'block';
+        preview.onclick = () => window.open('view_user.php?uid=' + userId, '_blank');
+        preview.title = "Click to view full resident profile";
+    } else {
+        preview.style.display = 'none';
+    }
+}
+
+// PH Location Logic
+const apiBase = "https://psgc.gitlab.io/api";
+document.getElementById('region')?.addEventListener('change', function() {
+    const code = this.value;
+    const provSelect = document.getElementById('province');
+    provSelect.disabled = false; provSelect.innerHTML = '<option value="" selected disabled>Select Province/District</option>';
+    let endpoint = `${apiBase}/regions/${code}/provinces/`;
+    if(code === '130000000') endpoint = `${apiBase}/regions/${code}/districts/`;
+    fetch(endpoint).then(res => res.json()).then(data => {
+        provSelect.innerHTML = '<option value="" disabled selected>Select Province/District</option>';
+        data.sort((a,b)=>a.name.localeCompare(b.name)).forEach(item => {
+            provSelect.innerHTML += `<option value="${item.code}">${item.name}</option>`;
+        });
+        document.getElementById('city').disabled = true; document.getElementById('city').innerHTML = '<option value="">Select City</option>';
+        document.getElementById('barangay').disabled = true; document.getElementById('barangay').innerHTML = '<option value="">Select Barangay</option>';
+        provSelect.focus();
+    }).catch(() => { provSelect.innerHTML = '<option value="">N/A</option>'; });
+});
+document.getElementById('province')?.addEventListener('change', function() {
+    const code = this.value;
+    const citySelect = document.getElementById('city');
+    citySelect.disabled = false; citySelect.innerHTML = '<option value="" selected disabled>Select City/Municipality</option>';
+    let type = this.options[this.selectedIndex].text.includes('District') ? 'districts' : 'provinces';
+    fetch(`${apiBase}/${type}/${code}/cities-municipalities/`).then(res => res.json()).then(data => {
+        citySelect.innerHTML = '<option value="" disabled selected>Select City/Municipality</option>';
+        data.sort((a,b)=>a.name.localeCompare(b.name)).forEach(item => {
+            citySelect.innerHTML += `<option value="${item.code}">${item.name}</option>`;
+        });
+        document.getElementById('barangay').disabled = true; document.getElementById('barangay').innerHTML = '<option value="">Select Barangay</option>';
+        citySelect.focus();
+    }).catch(() => { citySelect.innerHTML = '<option value="">N/A</option>'; });
+});
+document.getElementById('city')?.addEventListener('change', function() {
+    const code = this.value;
+    const barSelect = document.getElementById('barangay');
+    barSelect.disabled = false; barSelect.innerHTML = '<option value="" selected disabled>Select Barangay</option>';
+    fetch(`${apiBase}/cities-municipalities/${code}/barangays/`).then(res => res.json()).then(data => {
+        barSelect.innerHTML = '<option value="" disabled selected>Select Barangay</option>';
+        data.sort((a,b)=>a.name.localeCompare(b.name)).forEach(item => {
+            barSelect.innerHTML += `<option value="${item.code}">${item.name}</option>`;
+        });
+        barSelect.focus();
+    }).catch(() => { barSelect.innerHTML = '<option value="">N/A</option>'; });
+});
+
 function toggleUserSection() {
     if(document.getElementById('type_new').checked) {
         document.getElementById('existing_user_section').style.display = 'none';
@@ -737,6 +857,7 @@ function toggleUserSection() {
         document.querySelector('input[name="new_fname"]').required = false;
         document.querySelector('input[name="new_email"]').required = false;
     }
+    updateRoomOptions();
 }
 
 function toggleNewGuestCompany() {
@@ -746,25 +867,34 @@ function toggleNewGuestCompany() {
     const input = document.getElementById('new_company');
     const emNameLabel = document.getElementById('new_em_name_label');
     const emNumLabel = document.getElementById('new_em_num_label');
+    const sidDiv = document.getElementById('new_school_id_div');
 
     if(occ === 'Student') {
         div.style.display = 'block';
+        sidDiv.style.display = 'block';
         label.innerText = 'School Name';
         input.required = true;
         emNameLabel.innerText = 'Guardian Name';
         emNumLabel.innerText = 'Guardian Contact Number';
     } else if(occ === 'Employed') {
         div.style.display = 'none'; // Hide for employed
+        sidDiv.style.display = 'none';
         label.innerText = 'Company Name'; // Label is irrelevant if hidden
         input.required = false; // Not required if hidden
         emNameLabel.innerText = 'Company Name';
         emNumLabel.innerText = 'Company Number';
     } else {
         div.style.display = 'none';
+        sidDiv.style.display = 'none';
         input.required = false;
         emNameLabel.innerText = 'Emergency Contact Name';
         emNumLabel.innerText = 'Emergency Contact Number';
     }
+}
+
+function updateGenderConstraint() {
+    // I-filter ang available rooms base sa bagong piniling kasarian ng walk-in
+    if(document.getElementById('roomSelectionModal').classList.contains('show')) filterRoomModal();
 }
 
 function getUserGender() {
@@ -784,8 +914,9 @@ function updateRoomOptions() {
     let prefDiv = document.getElementById('bed_pref_div');
     let bedSelect = document.querySelector('select[name="bed_preference"]');
     let prefLabel = prefDiv.querySelector('label');
+    let isNewUser = document.getElementById('type_new').checked;
     
-    if (room === 'Single') {
+    if (room === 'Single' && isNewUser) {
         prefDiv.style.display = 'block';
         if(prefLabel) prefLabel.innerText = 'Occupants';
         if(bedSelect) {
@@ -1081,7 +1212,8 @@ function filterRoomModal() {
         const itemFloor = item.dataset.floor;
         const itemGender = item.dataset.gender || 'Male';
         
-        if (itemType === type && (floor === 'all' || itemFloor === floor) && (bedPref === 'Whole Room' || !userGender || itemGender === userGender)) {
+        if (itemType === type && (floor === 'all' || itemFloor === floor) && 
+           (itemType === 'Single' || bedPref === 'Whole Room' || itemGender === 'Any' || !userGender || userGender === 'Any' || itemGender === userGender)) {
             item.style.display = 'block';
         } else {
             item.style.display = 'none';
@@ -1149,6 +1281,18 @@ function clearRoomSelection() {
 }
 
 function submitReservation() {
+    const reg = document.getElementById('region');
+    if(reg && !reg.disabled && reg.value !== "") {
+        const regionText = reg.options[reg.selectedIndex].text;
+        const provEl = document.getElementById('province');
+        const provinceText = provEl.options[provEl.selectedIndex]?.text || '';
+        const cityEl = document.getElementById('city');
+        const cityText = cityEl.options[cityEl.selectedIndex]?.text || '';
+        const barEl = document.getElementById('barangay');
+        const barangayText = barEl.options[barEl.selectedIndex]?.text || '';
+        const street = document.getElementById('street').value;
+        document.getElementById('full_address').value = (street ? street + ', ' : '') + barangayText + ', ' + cityText + ', ' + provinceText + ', ' + regionText;
+    }
     document.getElementById('reservationForm').submit();
 }
 
@@ -1176,6 +1320,9 @@ window.addEventListener('DOMContentLoaded', (event) => {
     // Re-trigger new guest field logic if values were persisted
     if(document.getElementById('type_new').checked) toggleNewGuestCompany();
     
+    // Re-trigger preview if existing user was persisted
+    if(document.getElementById('type_existing').checked && document.getElementById('existing_user_id').value) updateUserPreview();
+
     // Initialize Dates if empty to trigger calculation
     if(!document.getElementById('cin').value) {
         let today = new Date();

@@ -223,6 +223,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                         $start_date = $row['start_date'] ?? $row['cin'] ?? 'N/A';
                         $end_date = $row['end_date'] ?? $row['cout'] ?? 'N/A';
                         $total_price = $row['total_price'] ?? $row['total_amount'] ?? 0;
+                        $months = $row['months'] ?? 0;
 
                         $duration = 0;
                         if($start_date != 'N/A' && $end_date != 'N/A'){
@@ -305,7 +306,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                                     <i class="fas fa-archive"></i> Remove
                                 </a>
                             <?php } ?>
-                            <a href="javascript:void(0)" onclick="viewRoomDetails(<?= $row['room_id'] ?>, <?= $duration ?>, <?= $total_price ?>, '<?= addslashes($row['bed_preference'] ?? 'Any') ?>')" class="btn btn-sm btn-custom ms-1">
+                            <a href="javascript:void(0)" onclick="viewRoomDetails(<?= $row['room_id'] ?>, <?= $duration ?>, <?= $total_price ?>, '<?= addslashes($row['bed_preference'] ?? 'Any') ?>', <?= $months ?>)" class="btn btn-sm btn-custom ms-1">
                                 <i class="fas fa-eye"></i>
                             </a>
                         </td>
@@ -459,6 +460,14 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                             <span class="fw-bold"><span id="modalDuration"></span> Days</span>
                         </div>
                         <div class="d-flex justify-content-between">
+                            <span class="text-muted small">Stay Period:</span>
+                            <span class="fw-bold"><span id="modalMonths"></span> Month(s)</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted small">Stay Period:</span>
+                            <span class="fw-bold"><span id="modalMonths"></span> Month(s)</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
                             <span class="text-muted small">Total Paid:</span>
                             <span class="fw-bold text-success">₱<span id="modalTotal"></span></span>
                         </div>
@@ -558,13 +567,15 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     // Init on load
     document.addEventListener('DOMContentLoaded', toggleCompanyField);
 
-    function viewRoomDetails(roomId, duration, totalPrice, bedPref) {
+    function viewRoomDetails(roomId, duration, totalPrice, bedPref, months) {
         var myModal = new bootstrap.Modal(document.getElementById('roomDetailsModal'));
         document.getElementById('roomLoading').style.display = 'block';
         document.getElementById('roomContent').style.display = 'none';
         myModal.show();
 
         document.getElementById('modalDuration').innerText = duration;
+        document.getElementById('modalMonths').innerText = months;
+        document.getElementById('modalMonths').innerText = months;
         document.getElementById('modalTotal').innerText = parseFloat(totalPrice).toLocaleString('en-US', {minimumFractionDigits: 2});
 
         if (bedPref && bedPref !== 'Any') {

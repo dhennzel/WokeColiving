@@ -9,6 +9,7 @@ if (!isset($_GET['id'])) { header("Location: my_reservations.php"); exit; }
 
 $reservation_id = (int)$_GET['id'];
 
+// Fetch reservation details including term_type and months
 // Verify ownership and status
 $check = mysqli_query($conn, "SELECT r.*, rm.room_type, rm.room_name FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id WHERE r.reservation_id=$reservation_id AND r.user_id=$user_id AND r.status IN ('Pending', 'Verifying', 'Approved')");
 $res_data = mysqli_fetch_assoc($check);
@@ -16,8 +17,9 @@ $res_data = mysqli_fetch_assoc($check);
 if(!$res_data){ header("Location: my_reservations.php"); exit; }
 
 // Get all unpaid payments for this reservation individually
+// ORDER BY payment_date ASC ensures we process them from oldest to newest
 $pay_q = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id=$reservation_id AND payment_status='Unpaid' ORDER BY payment_date ASC");
-$unpaid_bills = [];
+$unpaid_bills = []; // This will be passed to JS
 while($row = mysqli_fetch_assoc($pay_q)) {
     $unpaid_bills[] = $row;
 }
@@ -65,8 +67,11 @@ if(isset($_POST['submit_payment'])){
             if(!$error){
                 // Payments start as Unpaid until verified by admin
                 $status = 'Unpaid';
-                $stmt = mysqli_prepare($conn, "UPDATE payments SET payment_method=?, payment_status=?, reference_number=?, proof_image=?, payment_date=NOW() WHERE payment_id IN ($payment_ids_str)");
-                mysqli_stmt_bind_param($stmt, "ssss", $method, $status, $ref_number, $proof_filename);
+                $is_full = (count($final_ids) >= count($unpaid_bills)) ? " [FULL]" : "";
+                $new_desc_sql = "CONCAT(description, ?)";
+
+                $stmt = mysqli_prepare($conn, "UPDATE payments SET payment_method=?, payment_status=?, reference_number=?, proof_image=?, payment_date=NOW(), description=$new_desc_sql WHERE payment_id IN ($payment_ids_str)");
+                mysqli_stmt_bind_param($stmt, "sssss", $method, $status, $ref_number, $proof_filename, $is_full);
                 
                 if(mysqli_stmt_execute($stmt)){
                     log_activity($conn, $user_id, "Payment Submitted", "Reservation #$reservation_id via $method for " . count($final_ids) . " bill(s)");
@@ -156,6 +161,19 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
 
                 <?php if(!empty($unpaid_bills)): ?>
                 <form method="POST" enctype="multipart/form-data" id="paymentForm" onsubmit="return validatePaymentForm()">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Payment Plan</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="pay_type" id="type_partial" value="partial" checked onclick="togglePayType('partial')">
+                                <label class="form-check-label small" for="type_partial">Selected Bills</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="pay_type" id="type_full" value="full" onclick="togglePayType('full')">
+                                <label class="form-check-label small" for="type_full">Full Payment (Pay All Outstanding)</label>
+                            </div>
+                        </div>
+                    </div>
                     
                     <div class="accordion mb-4 shadow-sm" id="billsAccordion">
                         <div class="accordion-item border-0 rounded-4 overflow-hidden">
@@ -176,7 +194,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                                         <?php foreach($unpaid_bills as $index => $bill): ?>
                                             <label class="form-check custom-checkbox-box mb-2 p-3 border rounded d-flex justify-content-between align-items-center" style="cursor:pointer;" for="bill_<?= $bill['payment_id'] ?>">
                                                 <div class="d-flex align-items-center">
-                                                    <input class="form-check-input bill-checkbox me-3 mt-0" style="width: 1.5em; height: 1.5em;" type="checkbox" name="selected_payments[]" value="<?= $bill['payment_id'] ?>" id="bill_<?= $bill['payment_id'] ?>" data-amount="<?= $bill['amount'] ?>" data-desc="<?= htmlspecialchars($bill['description']) ?>" onchange="calculateTotal(); checkSelectAllState()" <?= $index === 0 ? 'checked' : '' ?>>
+                                                    <input class="form-check-input bill-checkbox me-3 mt-0" style="width: 1.5em; height: 1.5em;" type="checkbox" name="selected_payments[]" value="<?= $bill['payment_id'] ?>" id="bill_<?= $bill['payment_id'] ?>" data-amount="<?= $bill['amount'] ?>" data-index="<?= $index ?>" data-desc="<?= htmlspecialchars($bill['description']) ?>" onchange="handleConsecutiveSelection(this); calculateTotal(); checkSelectAllState()">
                                                     <div>
                                                         <div class="fw-bold"><?= htmlspecialchars($bill['description']) ?></div>
                                                         <div class="small text-muted">Added: <?= date('M d, Y', strtotime($bill['payment_date'])) ?></div>
@@ -196,8 +214,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                     <div class="card bg-light border-0 p-3 mb-4">
                         <h6 class="fw-bold mb-2 text-dark">Bills Included in this Payment:</h6>
                         <ul class="list-unstyled mb-0 small text-muted" id="included_bills_list">
-                            <!-- Populated by JS -->
-                        </ul>
+                            </ul>
                     </div>
 
                     <div class="alert alert-success d-flex justify-content-between align-items-center mb-4">
@@ -227,7 +244,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                         </div>
                         <div class="mb-3">
                             <label class="form-label small">Reference Number*</label>
-                            <input type="text" name="ref_number" class="form-control" placeholder="Enter the 13-digit Reference No.">
+                            <input type="text" name="ref_number" class="form-control" placeholder="Enter the 11-digit Reference No." pattern="\d{11}" maxlength="11" title="Please enter exactly 11 digits" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                         </div>
                         <div class="mb-0">
                             <label class="form-label small">Proof of Payment* (Screenshot)</label>
@@ -288,12 +305,26 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
     </div>
 </div>
 
-<!-- Notification Sound -->
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="none"></audio>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+const reservationTermType = "<?= $res_data['term_type'] ?? '' ?>";
+const reservationMonths = <?= $res_data['months'] ?? 0 ?>;
+const unpaidBills = <?= json_encode($unpaid_bills) ?>;
+
+function togglePayType(type) {
+    const accordion = document.getElementById('collapseBills');
+    const selectAll = document.getElementById('selectAllBills');
+    if(type === 'full') {
+        if(selectAll && !selectAll.checked) selectAll.click();
+        bootstrap.Collapse.getOrCreateInstance(accordion).hide();
+    } else {
+        bootstrap.Collapse.getOrCreateInstance(accordion).show();
+    }
+}
+
 function togglePaymentDetails() {
     let method = document.getElementById('payment_method').value;
     document.getElementById('gcash_div').style.display = (method === 'GCash') ? 'block' : 'none';
@@ -315,6 +346,24 @@ function checkSelectAllState() {
         if(!checkbox.checked) allChecked = false;
     });
     if(selectAll) selectAll.checked = allChecked;
+}
+
+// Logic to force consecutive selection in ascending order
+function handleConsecutiveSelection(source) {
+    const checkboxes = Array.from(document.querySelectorAll('.bill-checkbox'));
+    const clickedIndex = parseInt(source.getAttribute('data-index'));
+
+    if (source.checked) {
+        // If checking a box, check everything BEFORE it
+        for (let i = 0; i < clickedIndex; i++) {
+            checkboxes[i].checked = true;
+        }
+    } else {
+        // If unchecking a box, uncheck everything AFTER it
+        for (let i = clickedIndex + 1; i < checkboxes.length; i++) {
+            checkboxes[i].checked = false;
+        }
+    }
 }
 
 function calculateTotal() {
@@ -355,6 +404,28 @@ function validatePaymentForm() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Reset all checkboxes first
+    const checkboxes = document.querySelectorAll('.bill-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+
+    // Automatically select bills based on reservationMonths (Ascending order)
+    if (reservationMonths > 0) {
+        let selectedCount = 0;
+        // unpaidBills is already ordered by date ASC from the SQL query
+        unpaidBills.forEach((bill) => {
+            if (selectedCount < reservationMonths) {
+                const cb = document.getElementById(`bill_${bill.payment_id}`);
+                if (cb) {
+                    cb.checked = true;
+                    selectedCount++;
+                }
+            }
+        });
+    } else if (checkboxes.length > 0) {
+        // Default to the first (earliest) unpaid bill
+        checkboxes[0].checked = true;
+    }
+
     calculateTotal();
     checkSelectAllState();
 });

@@ -292,7 +292,8 @@ if(isset($_GET['term']) && !empty($_GET['term'])){
 // Fetch Reservations with Filters
 $sql = "
     SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), ''), IF(u.suffix IS NOT NULL AND u.suffix != '', CONCAT(' ', u.suffix), '')) as full_name, u.email, u.do_not_renew, u.profile_image, u.is_walkin, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image,
-    (SELECT COUNT(*) FROM payments p WHERE p.reservation_id = r.reservation_id AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL) as pending_payments
+    (SELECT COUNT(*) FROM payments p WHERE p.reservation_id = r.reservation_id AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL) as pending_payments,
+    (SELECT payment_status FROM payments p WHERE p.reservation_id = r.reservation_id ORDER BY payment_id ASC LIMIT 1) as initial_pay_status
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -423,6 +424,11 @@ $theme = get_theme_colors($conn);
                                         elseif($s == 'Verifying') $b_class = 'bg-info text-white';
                                     ?>
                                     <span class="badge <?= $b_class ?> rounded-pill px-3"><?= $s ?></span>
+                                    <?php if(($res['initial_pay_status'] ?? '') == 'Paid'): ?>
+                                        <div class="mt-1"><span class="badge bg-success" style="font-size: 0.6rem;"><i class="fas fa-check-circle"></i> Paid</span></div>
+                                    <?php else: ?>
+                                        <div class="mt-1"><span class="badge bg-danger" style="font-size: 0.6rem;"><i class="fas fa-exclamation-circle"></i> Unpaid</span></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if(!empty($res['signature_image'])) { ?>

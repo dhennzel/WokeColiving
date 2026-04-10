@@ -34,8 +34,8 @@ if (isset($_POST['register'])) {
         $error = "First, Middle, Last names, and Suffixes should only contain letters, spaces, periods, and hyphens. Numbers and special characters are not allowed.";
     } elseif (!preg_match('/^09\d{9}$/', $phone)) {
         $error = "Invalid phone number. Please use a valid 11-digit Philippine mobile number (e.g., 09xxxxxxxxx).";
-    } elseif (strlen($raw_pass) != 8 || $letter_count != 7 || $digit_count != 1) {
-        $error = "Password must be exactly 8 characters (7 letters and 1 number). Special characters and signs are not allowed.";
+    } elseif (strlen($raw_pass) < 6 || strlen($raw_pass) > 8 || $digit_count < 1) {
+        $error = "Password must be between 6 to 8 characters and must contain at least one number.";
     } elseif (mysqli_num_rows(mysqli_query($conn, "SELECT user_id FROM users WHERE first_name='$fname' AND last_name='$lname' AND middle_name='$mname' AND suffix='$suffix'")) > 0) {
         $error = "A user with this full name is already registered.";
     } elseif (mysqli_num_rows(mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'")) > 0) {
@@ -109,7 +109,7 @@ if (isset($_POST['register'])) {
                 <input type="text" name="phone" class="form-control" placeholder="Phone Number (e.g. 09xxxxxxxxx)" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($phone) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
             </div>
             <div class="mb-3 position-relative">
-                <input type="password" name="password" id="password" class="form-control" placeholder="Password" required>
+                <input type="password" name="password" id="password" class="form-control" placeholder="Password (6-8 chars, with number)" required minlength="6" maxlength="8">
                 <span class="position-absolute" style="top: 50%; right: 15px; transform: translateY(-50%); cursor: pointer;" id="togglePassword">
                     <i class="fas fa-eye-slash text-muted"></i>
                 </span>

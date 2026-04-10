@@ -302,7 +302,7 @@ if(isset($_SESSION['user_id'])){
         $section_title = ($g_key == 'Any') ? 'Mixed / All Genders' : $g_key . ' Dormitories';
         $section_icon = ($g_key == 'Male') ? 'fa-mars text-primary' : (($g_key == 'Female') ? 'fa-venus text-danger' : 'fa-venus-mars text-success');
     ?>
-        <?php if($g_key !== 'Female' && $g_key !== 'Male'): ?>
+        <?php if(!$user_gender): ?>
         <div class="mb-4" data-aos="fade-right">
             <h4 class="fw-bold d-flex align-items-center"><i class="fas <?= $section_icon ?> me-2"></i><?= $section_title ?></h4>
             <hr class="w-25 mt-1 border-2 border-success opacity-50">
@@ -320,16 +320,6 @@ if(isset($_SESSION['user_id'])){
                 $price = $first_room['total_price'];
                 $p_upper = $first_room['price_upper'];
                 $p_lower = $first_room['price_lower'];
-                $status_msg = "";
-                $status_class = "";
-
-                if ($user_gender && ($g_key == $user_gender || $g_key == 'Any')) {
-                    $status_msg = "Available for " . $user_gender;
-                    $status_class = "text-success";
-                } else {
-                    $status_msg = ($g_key == 'Any') ? "Available for All" : $g_key . " Only";
-                    $status_class = ($g_key == 'Male') ? "text-primary" : (($g_key == 'Female') ? "text-danger" : "text-success");
-                }
             ?>
             <div class="col-lg-4 col-md-6" data-aos="fade-up">
                 <div class="card room-card h-100 border-0 shadow-sm">
@@ -338,7 +328,6 @@ if(isset($_SESSION['user_id'])){
                     </div>
                     <div class="card-body text-center p-4">
                         <h3 class="fw-bold text-dark mb-1"><?= $type ?></h3>
-                        <div class="<?= $status_class ?> small fw-bold mb-2"><?= $status_msg ?></div>
                         <div class="mb-3">
                             <span class="badge <?= $type_avail_beds > 0 ? 'bg-success' : 'bg-danger' ?> rounded-pill px-3">
                                 <i class="fas <?= $type_avail_beds > 0 ? 'fa-check-circle' : 'fa-times-circle' ?> me-1"></i> <?= $type_avail_beds ?> Bed<?= $type_avail_beds != 1 ? 's' : '' ?> Available

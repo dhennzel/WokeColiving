@@ -64,8 +64,6 @@ $stmt = $conn->prepare("SELECT last_name, first_name, middle_name, email, phone_
 if (!$stmt) {
     die("Database Prepare Failed: " . $conn->error); 
 }
-
-$stmt->bind_param("i", $_SESSION['user_id']);
 $stmt->bind_param("i", $_SESSION['user_id']);
 $stmt->execute();
 $stmt->bind_result($user_lname, $user_fname, $user_mname, $user_email, $user_phone, $user_gender, $user_occupation, $user_address, $user_company, $user_school_id_image, $user_emergency_contact_name, $user_emergency_contact_number);
@@ -156,41 +154,41 @@ if (isset($_POST['confirm_booking'])) {
             $error = "Please select a valid room type.";
         }
 
-        // Update Gender if not set
-        if(empty($user_gender) && isset($_POST['gender'])){
+        // Update Gender
+        if(isset($_POST['gender']) && !empty($_POST['gender'])){
             $new_gender = mysqli_real_escape_string($conn, $_POST['gender']);
             mysqli_query($conn, "UPDATE users SET gender='$new_gender' WHERE user_id=$user_id");
             $user_gender = $new_gender; // Update local variable
         }
 
-        // Update Occupation if not set
-        if(empty($user_occupation) && isset($_POST['occupation'])){
+        // Update Occupation
+        if(isset($_POST['occupation']) && !empty($_POST['occupation'])){
             $new_occupation = mysqli_real_escape_string($conn, $_POST['occupation']);
             mysqli_query($conn, "UPDATE users SET occupation='$new_occupation' WHERE user_id=$user_id");
             $user_occupation = $new_occupation; // Update local variable
         }
 
-        // Update Company if not set (only if employed)
+        // Update Company
         if(isset($_POST['company']) && !empty($_POST['company'])){
             $new_company = mysqli_real_escape_string($conn, $_POST['company']);
             mysqli_query($conn, "UPDATE users SET company='$new_company' WHERE user_id=$user_id");
             $user_company = $new_company; // Update local variable
         }
 
-        // Update Address if not set
-        if(empty($user_address) && isset($_POST['address'])){
+        // Update Address
+        if(isset($_POST['address']) && !empty($_POST['address'])){
             $new_address = mysqli_real_escape_string($conn, $_POST['address']);
             mysqli_query($conn, "UPDATE users SET address='$new_address' WHERE user_id=$user_id");
             $user_address = $new_address; // Update local variable
         }
 
-        // Update Emergency Contact if not set
-        if(empty($user_emergency_contact_name) && isset($_POST['emergency_contact_name']) && !empty($_POST['emergency_contact_name'])){
+        // Update Emergency Contact
+        if(isset($_POST['emergency_contact_name']) && !empty($_POST['emergency_contact_name'])){
             $new_emergency_name = mysqli_real_escape_string($conn, $_POST['emergency_contact_name']);
             mysqli_query($conn, "UPDATE users SET emergency_contact_name='$new_emergency_name' WHERE user_id=$user_id");
             $user_emergency_contact_name = $new_emergency_name;
         }
-        if(empty($user_emergency_contact_number) && isset($_POST['emergency_contact_number']) && !empty($_POST['emergency_contact_number'])){
+        if(isset($_POST['emergency_contact_number']) && !empty($_POST['emergency_contact_number'])){
             $new_emergency_number = mysqli_real_escape_string($conn, $_POST['emergency_contact_number']);
             mysqli_query($conn, "UPDATE users SET emergency_contact_number='$new_emergency_number' WHERE user_id=$user_id");
             $user_emergency_contact_number = $new_emergency_number;
@@ -237,13 +235,10 @@ if (isset($_POST['confirm_booking'])) {
         $d2 = new DateTime($cout);
         $interval = $d1->diff($d2);
         
-        // Calculate accurate billing components (Months + Remaining Days)
-        $calc_months = ($interval->y * 12) + $interval->m;
-        $calc_days = $interval->d;
-        
-        // Store approximate duration for DB record
-        $days_total = $d1->diff($d2)->days;
-        $months = max(1, round($days_total / 30)); 
+        // Calculate accurate months for DB record
+        $months = ($interval->y * 12) + $interval->m;
+        // Minimal logic: if less than a month but has days, treat as 1 month for initial record
+        if ($months == 0 && $interval->d > 0) $months = 1;
 
         // Handle GCash Payment Details & Upload
         // Handle GCash via Dragonpay - No manual proof needed
@@ -347,7 +342,7 @@ if (isset($_POST['confirm_booking'])) {
                 
                 // --- NEW CALCULATION LOGIC ---
                 $term_type = $_POST['term_type'] ?? 'Short'; // Default
-                $initialPayment = 0;
+                $totalAmount = 0;
                 $contract_price = 0;
                 $security_deposit = $is_extension ? 0 : 3000;
 
@@ -360,7 +355,7 @@ if (isset($_POST['confirm_booking'])) {
                     if($bed_preference == 'Whole Room') $daily_rate = $found_room['daily_price_room'] > 0 ? $found_room['daily_price_room'] : ($daily_rate * $found_room['total_beds']);
                     
                     $contract_price = $nights * $daily_rate;
-                    $initialPayment = $contract_price;
+                    $totalAmount = $contract_price;
                     $status = "Pending"; 
                 } elseif ($term_type === 'Long') {
                     // 6 Month Term Logic
@@ -375,7 +370,7 @@ if (isset($_POST['confirm_booking'])) {
                     }
 
                     $contract_price = ($lt_price * 6) + $security_deposit;
-                    $initialPayment = $lt_price + $security_deposit;
+                    $totalAmount = $lt_price + $security_deposit;
                     $status = "Pending";
                     $months = 6; // Force months to 6 for Long Term
                 } else {
@@ -387,7 +382,7 @@ if (isset($_POST['confirm_booking'])) {
                         elseif ($bed_preference == 'Whole Room' && $found_room['price_whole'] > 0) $st_price = $found_room['price_whole'];
                     }
                     $contract_price = $st_price + $security_deposit;
-                    $initialPayment = $contract_price;
+                    $totalAmount = $contract_price;
                     $status = "Pending";
                 }
 
@@ -396,7 +391,7 @@ if (isset($_POST['confirm_booking'])) {
                 $prev_bal_row = mysqli_fetch_assoc($prev_bal_q);
                 $prev_balance = (float)($prev_bal_row['balance'] ?? 0);
                 
-                $initialPayment += $prev_balance; // Add previous debt to initial payment required
+                $totalAmount += $prev_balance; // Add previous debt to initial payment required
 
                 if ($amount_to_pay_now > 0 && $amount_to_pay_now < $totalAmount) {
                     $initial_payment = $amount_to_pay_now;
@@ -424,7 +419,7 @@ if (isset($_POST['confirm_booking'])) {
                     // Insert with signature
                     try {
                         $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, signature_image, auto_assigned, occupation, company_or_school, contact_person_name, contact_person_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        $stmt->bind_param("iissidsssissis", $user_id, $room_id, $cin, $cout, $months, $contract_price, $status, $bed_preference, $sig_img, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number);
+                        $stmt->bind_param("iissidsssissss", $user_id, $room_id, $cin, $cout, $months, $contract_price, $status, $bed_preference, $sig_img, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number);
                     } catch (Exception $e) { $stmt = false; }
                 } else {
                     // Standard insert
@@ -705,7 +700,7 @@ if (isset($_POST['confirm_booking'])) {
                         <div class="mb-3">
                             <label class="form-label">Occupation Status*</label>
                             <?php if(!empty($user_occupation)): ?>
-                                <input type="text" class="form-control" id="occupation" value="<?= htmlspecialchars($user_occupation) ?>" readonly>
+                                <input type="text" name="occupation" class="form-control" id="occupation" value="<?= htmlspecialchars($user_occupation) ?>" readonly>
                                 <input type="hidden" name="occupation" value="<?= htmlspecialchars($user_occupation) ?>" id="occupation_hidden">
                             <?php else: ?>
                                 <select name="occupation" id="occupation" class="form-select" required onchange="toggleCompanyField()">
@@ -718,7 +713,7 @@ if (isset($_POST['confirm_booking'])) {
                         <div class="mb-3" id="company_div" style="display: none;">
                             <label class="form-label" id="company_label">Company / School Name*</label>
                             <?php if(!empty($user_company)): ?>
-                                <input type="text" class="form-control" value="<?= htmlspecialchars($user_company) ?>" readonly>
+                                <input type="text" name="company" class="form-control" value="<?= htmlspecialchars($user_company) ?>" readonly>
                                 <input type="hidden" name="company" value="<?= htmlspecialchars($user_company) ?>">
                             <?php else: ?>
                                 <input type="text" name="company" id="company" class="form-control" placeholder="Enter your company or school name" required>
@@ -737,18 +732,54 @@ if (isset($_POST['confirm_booking'])) {
                             <small class="text-muted">Upload a clear photo of your school ID (Valid ID required)</small>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Address*</label>
+                            <label class="form-label">Permanent Address*</label>
                             <?php if(!empty($user_address)): ?>
                                 <textarea class="form-control" readonly><?= htmlspecialchars($user_address) ?></textarea>
                                 <input type="hidden" name="address" value="<?= htmlspecialchars($user_address) ?>">
                             <?php else: ?>
-                                <textarea name="address" class="form-control" rows="3" placeholder="Enter your full permanent address" required></textarea>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <select id="region" class="form-select form-select-sm" required>
+                                            <option value="" disabled selected>Select Region</option>
+                                            <option value="130000000">National Capital Region (NCR)</option>
+                                            <option value="140000000">Cordillera Administrative Region (CAR)</option>
+                                            <option value="010000000">Region I (Ilocos Region)</option>
+                                            <option value="020000000">Region II (Cagayan Valley)</option>
+                                            <option value="030000000">Region III (Central Luzon)</option>
+                                            <option value="040000000">Region IV-A (CALABARZON)</option>
+                                            <option value="170000000">MIMAROPA Region</option>
+                                            <option value="050000000">Region V (Bicol Region)</option>
+                                            <option value="060000000">Region VI (Western Visayas)</option>
+                                            <option value="070000000">Region VII (Central Visayas)</option>
+                                            <option value="080000000">Region VIII (Eastern Visayas)</option>
+                                            <option value="090000000">Region IX (Zamboanga Peninsula)</option>
+                                            <option value="100000000">Region X (Northern Mindanao)</option>
+                                            <option value="110000000">Region XI (Davao Region)</option>
+                                            <option value="120000000">Region XII (SOCCSKSARGEN)</option>
+                                            <option value="160000000">Region XIII (Caraga)</option>
+                                            <option value="190000000">Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <select id="province" class="form-select form-select-sm" required disabled><option value="">Select Province</option></select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <select id="city" class="form-select form-select-sm" required disabled><option value="">Select City</option></select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <select id="barangay" class="form-select form-select-sm" required disabled><option value="">Select Barangay</option></select>
+                                    </div>
+                                    <div class="col-12">
+                                        <input type="text" id="street" class="form-control form-control-sm" placeholder="Street / Unit #">
+                                    </div>
+                                </div>
+                                <input type="hidden" name="address" id="full_address_input">
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
                             <label class="form-label" id="label_emergency_name">Emergency Contact Name*</label>
                             <?php if(!empty($user_emergency_contact_name)): ?>
-                                <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_name) ?>" readonly>
+                                <input type="text" name="emergency_contact_name" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_name) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_name" value="<?= htmlspecialchars($user_emergency_contact_name) ?>">
                             <?php else: ?>
                                 <input type="text" name="emergency_contact_name" id="emergency_contact_name" class="form-control" placeholder="e.g. Juan Dela Cruz" required>
@@ -757,7 +788,7 @@ if (isset($_POST['confirm_booking'])) {
                         <div class="mb-3">
                             <label class="form-label" id="label_emergency_number">Emergency Contact Number*</label>
                             <?php if(!empty($user_emergency_contact_number)): ?>
-                                <input type="text" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_number) ?>" readonly>
+                                <input type="text" name="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_number) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_number" value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
                             <?php else: ?>
                                 <input type="text" name="emergency_contact_number" id="emergency_contact_number" class="form-control" placeholder="e.g. 09123456789" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($user_emergency_contact_number) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
@@ -835,10 +866,10 @@ if (isset($_POST['confirm_booking'])) {
                         </div>
 
                         <div class="utility-block">
-                            <div class="d-flex justify-content-between mb-2">
+                            <div class="d-flex justify-content-between mb-2" style="cursor: pointer;" onclick="document.getElementById('cin').showPicker()" title="Click to change date">
                                 <span>Check-in:</span> <strong id="cin_display"><?= date('Y-m-d') ?></strong>
                             </div>
-                            <div class="d-flex justify-content-between mb-2">
+                            <div class="d-flex justify-content-between mb-2" style="cursor: pointer;" onclick="document.getElementById('cout').showPicker()" title="Click to change date">
                                 <span>Check-out:</span> <strong id="cout_display">-</strong>
                             </div>
                             <div class="d-flex justify-content-between mb-2">
@@ -882,7 +913,7 @@ if (isset($_POST['confirm_booking'])) {
                             </div>
                             <div class="mb-3">
                                 <label class="form-label small">Reference Number*</label>
-                                <input type="text" name="ref_number" class="form-control" placeholder="Enter the 13-digit Reference No.">
+                            <input type="text" name="ref_number" class="form-control" placeholder="Enter the 11-digit Reference No." pattern="\d{11}" maxlength="11" title="Please enter exactly 11 digits" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                             </div>
                             <div class="mb-0">
                                 <label class="form-label small">Proof of Payment* (Screenshot)</label>
@@ -997,8 +1028,70 @@ window.addEventListener('DOMContentLoaded', function() {
     toggleCompanyField();
 });
 
+    // PH Location Logic
+    const apiBase = "https://psgc.gitlab.io/api";
+    document.getElementById('region')?.addEventListener('change', function() {
+        const code = this.value;
+        const provSelect = document.getElementById('province');
+        provSelect.disabled = false; provSelect.innerHTML = '<option value="" selected disabled>Select Province/District</option>';
+        let endpoint = `${apiBase}/regions/${code}/provinces/`;
+        if(code === '130000000') endpoint = `${apiBase}/regions/${code}/districts/`;
+        fetch(endpoint).then(res => res.json()).then(data => {
+            provSelect.innerHTML = '<option value="" disabled selected>Select Province/District</option>';
+            data.sort((a,b)=>a.name.localeCompare(b.name)).forEach(item => {
+                provSelect.innerHTML += `<option value="${item.code}">${item.name}</option>`;
+            });
+            document.getElementById('city').disabled = true; document.getElementById('city').innerHTML = '<option value="">Select City</option>';
+            document.getElementById('barangay').disabled = true; document.getElementById('barangay').innerHTML = '<option value="">Select Barangay</option>';
+            provSelect.focus();
+        }).catch(() => { provSelect.innerHTML = '<option value="">N/A</option>'; });
+    });
+    document.getElementById('province')?.addEventListener('change', function() {
+        const code = this.value;
+        const citySelect = document.getElementById('city');
+        citySelect.disabled = false; citySelect.innerHTML = '<option value="" selected disabled>Select City/Municipality</option>';
+        let type = this.options[this.selectedIndex].text.includes('District') ? 'districts' : 'provinces';
+        fetch(`${apiBase}/${type}/${code}/cities-municipalities/`).then(res => res.json()).then(data => {
+            citySelect.innerHTML = '<option value="" disabled selected>Select City/Municipality</option>';
+            data.sort((a,b)=>a.name.localeCompare(b.name)).forEach(item => {
+                citySelect.innerHTML += `<option value="${item.code}">${item.name}</option>`;
+            });
+            document.getElementById('barangay').disabled = true; document.getElementById('barangay').innerHTML = '<option value="">Select Barangay</option>';
+            citySelect.focus();
+        }).catch(() => { citySelect.innerHTML = '<option value="">N/A</option>'; });
+    });
+    document.getElementById('city')?.addEventListener('change', function() {
+        const code = this.value;
+        const barSelect = document.getElementById('barangay');
+        barSelect.disabled = false; barSelect.innerHTML = '<option value="" selected disabled>Select Barangay</option>';
+        fetch(`${apiBase}/cities-municipalities/${code}/barangays/`).then(res => res.json()).then(data => {
+            barSelect.innerHTML = '<option value="" disabled selected>Select Barangay</option>';
+            data.sort((a,b)=>a.name.localeCompare(b.name)).forEach(item => {
+                barSelect.innerHTML += `<option value="${item.code}">${item.name}</option>`;
+            });
+            barSelect.focus();
+        }).catch(() => { barSelect.innerHTML = '<option value="">N/A</option>'; });
+    });
+
 function confirmReservation() {
         const form = document.getElementById('reservationForm');
+
+        // Populate combined address if using dropdowns
+        const reg = document.getElementById('region');
+        if(reg && !reg.disabled && reg.value !== "") {
+            const regionText = reg.options[reg.selectedIndex].text;
+            const provEl = document.getElementById('province');
+            const provinceText = provEl.options[provEl.selectedIndex]?.text || '';
+            const cityEl = document.getElementById('city');
+            const cityText = cityEl.options[cityEl.selectedIndex]?.text || '';
+            const barEl = document.getElementById('barangay');
+            const barangayText = barEl.options[barEl.selectedIndex]?.text || '';
+            const street = document.getElementById('street').value;
+            const fullAddr = (street ? street + ', ' : '') + barangayText + ', ' + cityText + ', ' + provinceText + ', ' + regionText;
+            const addrInput = document.getElementById('full_address_input');
+            if(addrInput) addrInput.value = fullAddr;
+        }
+
         if (!form.checkValidity()) {
             form.reportValidity();
             return;
@@ -1239,15 +1332,12 @@ function confirmReservation() {
                 months--;
             }
             
-            // Calculate remaining days by adding months to start date and finding diff
             let tempDate = new Date(d1);
             tempDate.setMonth(tempDate.getMonth() + months);
             let daysDiff = Math.ceil((d2 - tempDate) / (1000 * 3600 * 24));
-            
-            let days = Math.ceil((d2 - d1) / (1000 * 3600 * 24)); // Total days for display
-            
-            if(days < 1) days = 1;
-            document.getElementById('duration_display').innerText = days + " days";
+
+            let durText = (months > 0 ? months + " month(s)" : "") + (months > 0 && daysDiff > 0 ? ", " : "") + (daysDiff > 0 || months === 0 ? daysDiff + " day(s)" : "");
+            document.getElementById('duration_display').innerText = durText;
 
             if (room) {
                 let priceData = roomPrices[room] || {};
