@@ -1034,6 +1034,38 @@ function setup_inventory_table($conn) {
 setup_inventory_table($conn);
 }
 
+// --- PROPERTY INVENTORY TABLE ---
+if (!function_exists('setup_property_inventory_table')) {
+function setup_property_inventory_table($conn) {
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS property_inventory (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        item_name VARCHAR(100) NOT NULL,
+        category VARCHAR(50) DEFAULT 'General',
+        total_quantity INT DEFAULT 0,
+        in_use INT DEFAULT 0,
+        in_maintenance INT DEFAULT 0,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )");
+
+    // Pre-populate default items if empty
+    $check = mysqli_query($conn, "SELECT COUNT(*) as c FROM property_inventory");
+    if($check && mysqli_fetch_assoc($check)['c'] == 0) {
+        $defaults = [
+            ['Beds', 'Furniture', 0],
+            ['Bed Sheets', 'Linens', 0],
+            ['Pillows', 'Linens', 0],
+            ['Pillow Cases', 'Linens', 0]
+        ];
+        $stmt = mysqli_prepare($conn, "INSERT INTO property_inventory (item_name, category, total_quantity) VALUES (?, ?, ?)");
+        foreach($defaults as $item) {
+            mysqli_stmt_bind_param($stmt, "ssi", $item[0], $item[1], $item[2]);
+            mysqli_stmt_execute($stmt);
+        }
+    }
+}
+setup_property_inventory_table($conn);
+}
+
 // --- RESIDENTS TABLE ---
 if (!function_exists('setup_residents_table')) {
 function setup_residents_table($conn) {
