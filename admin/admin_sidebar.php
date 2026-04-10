@@ -63,9 +63,7 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
             <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0; margin-left: 10px;"></i>
         </a>
         <div class="collapse <?= in_array($current_page, ['admin_rooms.php', 'admin_room_assignment.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php']) ? 'show' : '' ?>" id="facilitiesSubmenu">
-            <a href="admin_rooms.php" class="nav-item <?= ($current_page == 'admin_rooms.php') ? 'active' : '' ?>">
-    <i class="fas fa-bed"></i> <span>Manage Rooms</span>
-</a>
+            <a href="admin_rooms.php" class="nav-item <?= ($current_page == 'admin_rooms.php') ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-bed" style="width: 25px;"></i><span>Manage Rooms</span></a>
             <a href="admin_room_assignment.php" class="nav-item <?= $current_page == 'admin_room_assignment.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-door-open" style="width: 25px;"></i><span>Assignment</span></a>
             <a href="admin_room_occupancy.php" class="nav-item <?= $current_page == 'admin_room_occupancy.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-users" style="width: 25px;"></i><span>Occupancy</span></a>
             <a href="admin_parking.php" class="nav-item <?= $current_page == 'admin_parking.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-parking" style="width: 25px;"></i><span>Parkings</span></a>
@@ -114,9 +112,7 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
             <?php if($is_super): ?>
             <a href="admin_roles.php" class="nav-item <?= $current_page == 'admin_roles.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-users-cog" style="width: 25px;"></i><span>Manage Roles</span></a>
             <a href="manage_hero.php" class="nav-item <?= $current_page == 'manage_hero.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-image" style="width: 25px;"></i><span>Hero Image</span></a>
-            <a href="system_logs.php" class="nav-item <?= ($current_page == 'system_logs.php') ? 'active' : '' ?>">
-    <i class="fas fa-list-alt"></i> <span>System Logs</span>
-</a>
+            <a href="system_logs.php" class="nav-item <?= ($current_page == 'system_logs.php') ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-list-alt" style="width: 25px;"></i><span>System Logs</span></a>
             <a href="backup.php" class="nav-item <?= $current_page == 'backup.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-database" style="width: 25px;"></i><span>Backup</span></a>
             <?php endif; ?>
         </div>
