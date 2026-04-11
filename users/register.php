@@ -34,8 +34,8 @@ if (isset($_POST['register'])) {
         $error = "First, Middle, Last names, and Suffixes should only contain letters, spaces, periods, and hyphens. Numbers and special characters are not allowed.";
     } elseif (!preg_match('/^09\d{9}$/', $phone)) {
         $error = "Invalid phone number. Please use a valid 11-digit Philippine mobile number (e.g., 09xxxxxxxxx).";
-    } elseif (strlen($raw_pass) < 6 || strlen($raw_pass) > 8 || $digit_count < 1) {
-        $error = "Password must be between 6 to 8 characters and must contain at least one number.";
+    } elseif (strlen($raw_pass) < 8 || $letter_count < 1 || $digit_count < 1) {
+        $error = "Password must be at least 8 characters and contain at least one letter and one number.";
     } elseif (mysqli_num_rows(mysqli_query($conn, "SELECT user_id FROM users WHERE first_name='$fname' AND last_name='$lname' AND middle_name='$mname' AND suffix='$suffix'")) > 0) {
         $error = "A user with this full name is already registered.";
     } elseif (mysqli_num_rows(mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'")) > 0) {
@@ -43,10 +43,11 @@ if (isset($_POST['register'])) {
         $error = "Email address is already registered."; 
     } else {
         $pass = password_hash($raw_pass, PASSWORD_DEFAULT);
-        $sql = "INSERT INTO users (last_name, first_name, middle_name, suffix, gender, email, phone_number, password) VALUES ('$lname', '$fname', '$mname', '$suffix', '$gender', '$email', '$phone', '$pass')";
         
         try {
-            if(mysqli_query($conn, $sql)){
+            $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, suffix, gender, email, phone_number, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, "ssssssss", $lname, $fname, $mname, $suffix, $gender, $email, $phone, $pass);
+            if(mysqli_stmt_execute($stmt)){
                 header("Location: login.php");
                 exit;
             }
@@ -67,6 +68,25 @@ if (isset($_POST['register'])) {
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="users_CSS/auth.css">
+    <style>
+        .name-col {
+            transition: flex 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), max-width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s ease, opacity 0.3s ease;
+        }
+        .name-col.focused {
+            transform: scale(1.02);
+            z-index: 10;
+        }
+        .name-col.focused input, .name-col.focused select {
+            box-shadow: 0 4px 15px rgba(52, 184, 117, 0.25);
+            border-color: #34B875;
+        }
+        .name-col input:disabled, .name-col select:disabled {
+            background-color: #f1f5f9;
+            opacity: 0.6;
+            cursor: not-allowed;
+            border-color: #e2e8f0;
+        }
+    </style>
 </head>
 <body>
 
@@ -78,11 +98,11 @@ if (isset($_POST['register'])) {
         </div>
         <?php if ($error) { echo "<div class='alert alert-danger py-2 small mb-3'>$error</div>"; } ?>
         <form method="POST">
-            <div class="row g-2 mb-2">
-                <div class="col-3"><input type="text" name="lname" class="form-control" placeholder="Last Name" required value="<?= htmlspecialchars($lname) ?>" oninput="this.value = this.value.replace(/[0-9]/g, '')" style="text-transform: capitalize;"></div>
-                <div class="col-3"><input type="text" name="fname" class="form-control" placeholder="First Name" required value="<?= htmlspecialchars($fname) ?>" oninput="this.value = this.value.replace(/[0-9]/g, '')" style="text-transform: capitalize;"></div>
-                <div class="col-3"><input type="text" name="mname" class="form-control" placeholder="Middle Name" value="<?= htmlspecialchars($mname) ?>" oninput="this.value = this.value.replace(/[0-9]/g, '')" style="text-transform: capitalize;"></div>
-                <div class="col-3">
+            <div class="row g-2 mb-2 position-relative" id="dynamic-name-row">
+                <div class="name-col col-6 col-md-3 order-1"><input type="text" name="lname" class="form-control" placeholder="Last Name" required value="<?= htmlspecialchars($lname) ?>" oninput="this.value = this.value.replace(/[0-9]/g, '')" style="text-transform: capitalize;"></div>
+                <div class="name-col col-6 col-md-3 order-1"><input type="text" name="fname" class="form-control" placeholder="First Name" required value="<?= htmlspecialchars($fname) ?>" oninput="this.value = this.value.replace(/[0-9]/g, '')" style="text-transform: capitalize;"></div>
+                <div class="name-col col-6 col-md-3 order-1"><input type="text" name="mname" class="form-control" placeholder="Middle Name" value="<?= htmlspecialchars($mname) ?>" oninput="this.value = this.value.replace(/[0-9]/g, '')" style="text-transform: capitalize;"></div>
+                <div class="name-col col-6 col-md-3 order-1">
                     <select name="suffix" class="form-control">
                         <option value="">Suffix</option>
                         <option value="Jr." <?= $suffix == 'Jr.' ? 'selected' : '' ?>>Jr.</option>
@@ -109,7 +129,7 @@ if (isset($_POST['register'])) {
                 <input type="text" name="phone" class="form-control" placeholder="Phone Number (e.g. 09xxxxxxxxx)" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($phone) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
             </div>
             <div class="mb-3 position-relative">
-                <input type="password" name="password" id="password" class="form-control" placeholder="Password (6-8 chars, with number)" required minlength="6" maxlength="8">
+                <input type="password" name="password" id="password" class="form-control" placeholder="Password (min. 8 chars, with number)" required minlength="8">
                 <span class="position-absolute" style="top: 50%; right: 15px; transform: translateY(-50%); cursor: pointer;" id="togglePassword">
                     <i class="fas fa-eye-slash text-muted"></i>
                 </span>
@@ -124,6 +144,73 @@ if (isset($_POST['register'])) {
 </div>
 
 <script>
+    // Dynamic Name Fields Animation
+    document.addEventListener('DOMContentLoaded', function() {
+        const nameContainer = document.getElementById('dynamic-name-row');
+        const nameCols = document.querySelectorAll('.name-col');
+        const nameInputs = document.querySelectorAll('.name-col input, .name-col select');
+
+        const lnameInput = document.querySelector('input[name="lname"]');
+        const fnameInput = document.querySelector('input[name="fname"]');
+        const mnameInput = document.querySelector('input[name="mname"]');
+        const suffixSelect = document.querySelector('select[name="suffix"]');
+
+        // Enforce Step-by-Step Unlocking
+        function updateStepByStep() {
+            const lFilled = lnameInput.value.trim().length > 0;
+            const fFilled = fnameInput.value.trim().length > 0;
+            
+            fnameInput.disabled = !lFilled;
+            mnameInput.disabled = !fFilled;
+            suffixSelect.disabled = !fFilled;
+        }
+
+        lnameInput.addEventListener('input', updateStepByStep);
+        fnameInput.addEventListener('input', updateStepByStep);
+        
+        // Initialize state on load
+        updateStepByStep();
+
+        function updateLayout() {
+            let anyInteracted = false;
+            nameInputs.forEach(input => {
+                if (input === document.activeElement || input.value.trim().length > 0 || (input.tagName === 'SELECT' && input.value !== '')) {
+                    anyInteracted = true;
+                }
+            });
+
+            nameCols.forEach(col => {
+                const input = col.querySelector('input, select');
+                const hasValue = input.value.trim().length > 0 || (input.tagName === 'SELECT' && input.value !== '');
+                const isFocused = (input === document.activeElement);
+
+                if (!anyInteracted) {
+                    col.className = 'name-col col-6 col-md-3 order-1 mt-0';
+                } else {
+                    if (isFocused) {
+                        col.className = 'name-col col-12 order-2 mt-2 focused'; // Active drops to bottom
+                    } else if (hasValue) {
+                        col.className = 'name-col col-12 order-2 mt-2 opacity-100'; // Permanent full size if typed
+                    } else {
+                        col.className = 'name-col col order-1 mt-0 opacity-75'; // Empties shrink and sit on top
+                    }
+                }
+            });
+        }
+
+        nameInputs.forEach(input => {
+            input.addEventListener('focus', updateLayout);
+            input.addEventListener('blur', updateLayout);
+            input.addEventListener('input', updateLayout);
+            if (input.tagName === 'SELECT') {
+                input.addEventListener('change', updateLayout);
+            }
+        });
+        
+        // Run once on load to apply sizes if form was pre-filled
+        updateLayout();
+    });
+
     const togglePassword = document.querySelector('#togglePassword');
     const password = document.querySelector('#password');
     const icon = togglePassword.querySelector('i');

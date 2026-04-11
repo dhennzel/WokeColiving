@@ -40,8 +40,8 @@ if(mysqli_num_rows($chk_cost) == 0) mysqli_query($conn, "ALTER TABLE housekeepin
 // Handle Status Update
 if(isset($_POST['update_request'])){
     $req_id = (int)$_POST['request_id'];
-    $status = $_POST['status'];
-    $sched_date = !empty($_POST['scheduled_date']) ? "'".$_POST['scheduled_date']."'" : "NULL";
+    $status = mysqli_real_escape_string($conn, $_POST['status']);
+    $sched_date = !empty($_POST['scheduled_date']) ? "'".mysqli_real_escape_string($conn, $_POST['scheduled_date'])."'" : "NULL";
     
     $cost = isset($_POST['cost']) ? (float)$_POST['cost'] : 0;
     $charge_user = isset($_POST['charge_user']);
@@ -74,7 +74,7 @@ if(isset($_POST['update_request'])){
 
 // Handle Auto Schedule Weekly (All Rooms)
 if(isset($_POST['auto_schedule_weekly'])){
-    $sched_date = $_POST['auto_date'];
+    $sched_date = mysqli_real_escape_string($conn, $_POST['auto_date']);
     $desc = "Weekly Routine Cleaning";
     $room_ids = isset($_POST['room_ids']) ? explode(',', $_POST['room_ids']) : [];
     
@@ -108,7 +108,7 @@ if(isset($_POST['auto_schedule_weekly'])){
 // Handle Admin Schedule (Free)
 if(isset($_POST['schedule_cleaning'])){
     $room_id = (int)$_POST['room_id'];
-    $sched_date = $_POST['scheduled_date'];
+    $sched_date = mysqli_real_escape_string($conn, $_POST['scheduled_date']);
     $desc = "Routine Cleaning (Admin Scheduled)";
     
     // Find a user in this room to attach the request to (Optional now)

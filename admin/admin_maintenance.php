@@ -111,8 +111,8 @@ if(isset($_POST['return_tenant'])){
 // Handle Status Update
 if(isset($_POST['update_request'])){
     $req_id = (int)$_POST['request_id'];
-    $status = $_POST['status'];
-    $sched_date = !empty($_POST['scheduled_date']) ? "'".$_POST['scheduled_date']."'" : "NULL";
+    $status = mysqli_real_escape_string($conn, $_POST['status']);
+    $sched_date = !empty($_POST['scheduled_date']) ? "'".mysqli_real_escape_string($conn, $_POST['scheduled_date'])."'" : "NULL";
     $cost = isset($_POST['cost']) ? (float)$_POST['cost'] : 0;
     $charge_user = isset($_POST['charge_user']);
     
@@ -145,7 +145,7 @@ if(isset($_POST['update_request'])){
 // Handle Manual Schedule (Room Based)
 if(isset($_POST['schedule_maintenance'])){
     $room_id = (int)$_POST['room_id'];
-    $sched_date = $_POST['scheduled_date'];
+    $sched_date = mysqli_real_escape_string($conn, $_POST['scheduled_date']);
     $desc = mysqli_real_escape_string($conn, $_POST['description']);
     
     // Try to link to current tenant if exists, otherwise NULL
@@ -162,7 +162,7 @@ if(isset($_POST['schedule_maintenance'])){
 
 // Handle Auto Schedule (Preventive Maintenance for All Rooms)
 if(isset($_POST['auto_schedule_maintenance'])){
-    $sched_date = $_POST['auto_date'];
+    $sched_date = mysqli_real_escape_string($conn, $_POST['auto_date']);
     $desc = "Routine Preventive Maintenance";
     $room_ids = isset($_POST['room_ids']) ? explode(',', $_POST['room_ids']) : [];
     

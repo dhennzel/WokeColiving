@@ -20,48 +20,6 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 // Ensure site_settings table exists globally
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS site_settings (id INT AUTO_INCREMENT PRIMARY KEY, setting_key VARCHAR(50) UNIQUE NOT NULL, setting_value TEXT)");
 
-// Ensure admin table has role column
-$check_admin_role = mysqli_query($conn, "SHOW COLUMNS FROM admin LIKE 'role'");
-if(mysqli_num_rows($check_admin_role) == 0) {
-    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN role ENUM('Super Admin', 'Admin') DEFAULT 'Admin'");
-    mysqli_query($conn, "UPDATE admin SET role='Super Admin' LIMIT 1"); // Default first admin to Super Admin
-}
-
-$check_admin_fname = mysqli_query($conn, "SHOW COLUMNS FROM admin LIKE 'first_name'");
-if(mysqli_num_rows($check_admin_fname) == 0) {
-    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN first_name VARCHAR(50) DEFAULT ''");
-    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN last_name VARCHAR(50) DEFAULT ''");
-    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN email VARCHAR(100) DEFAULT ''");
-    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN phone_number VARCHAR(20) DEFAULT ''");
-}
-
-// Ensure admin has a profile image column for individual avatars
-$check_admin_pfp = mysqli_query($conn, "SHOW COLUMNS FROM admin LIKE 'profile_image'");
-if(mysqli_num_rows($check_admin_pfp) == 0) {
-    mysqli_query($conn, "ALTER TABLE admin ADD COLUMN profile_image VARCHAR(255) DEFAULT NULL");
-}
-
-// Ensure room pricing columns exist
-$cols = mysqli_query($conn, "SHOW COLUMNS FROM rooms");
-$existing_cols = [];
-while($c = mysqli_fetch_assoc($cols)) $existing_cols[] = $c['Field'];
-
-if(!in_array('price_upper', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN price_upper DECIMAL(10,2) DEFAULT 0.00");
-if(!in_array('price_lower', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN price_lower DECIMAL(10,2) DEFAULT 0.00");
-if(!in_array('price_whole', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN price_whole DECIMAL(10,2) DEFAULT 0.00");
-if(!in_array('long_term_price_upper', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN long_term_price_upper DECIMAL(10,2) DEFAULT 0.00");
-if(!in_array('long_term_price_lower', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN long_term_price_lower DECIMAL(10,2) DEFAULT 0.00");
-if(!in_array('long_term_price_whole', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN long_term_price_whole DECIMAL(10,2) DEFAULT 0.00");
-if(!in_array('daily_price_bed', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN daily_price_bed DECIMAL(10,2) DEFAULT 0.00");
-if(!in_array('daily_price_room', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN daily_price_room DECIMAL(10,2) DEFAULT 0.00");
-if(!in_array('is_archived', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
-if(!in_array('gender', $existing_cols)) mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN gender ENUM('Male', 'Female', 'Any') DEFAULT 'Any'");
-if(!in_array('display_order', $existing_cols)) {
-    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN display_order INT DEFAULT 0");
-    // Initialize order based on current sorting to avoid disruption
-    mysqli_query($conn, "UPDATE rooms r SET r.display_order = r.room_id");
-}
-
 if (!function_exists('get_theme_colors')) {
 function get_theme_colors($conn) {
     $theme = ['primary' => '#34B875', 'dark' => '#1B5E20', 'accent' => '#FFB700'];
@@ -239,17 +197,7 @@ function setup_reservations_table($conn) {
         )";
         mysqli_query($conn, $sql);
     }
-    // Ensure new columns exist for existing tables
-    $res_cols = mysqli_query($conn, "SHOW COLUMNS FROM reservations");
-    $existing_res_cols = [];
-    while($c = mysqli_fetch_assoc($res_cols)) $existing_res_cols[] = $c['Field'];
-    if(!in_array('occupation', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN occupation VARCHAR(50) DEFAULT NULL");
-    if(!in_array('company_or_school', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN company_or_school VARCHAR(100) DEFAULT NULL");
-    if(!in_array('contact_person_name', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN contact_person_name VARCHAR(100) DEFAULT NULL");
-    if(!in_array('contact_person_number', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN contact_person_number VARCHAR(20) DEFAULT NULL");
-    if(!in_array('security_deposit', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN security_deposit DECIMAL(10,2) DEFAULT 0.00");
 }
-setup_reservations_table($conn);
 }
 
 // --- PAYMENTS TABLE ---
@@ -273,7 +221,6 @@ function setup_payments_table($conn) {
         mysqli_query($conn, $sql);
     }
 }
-setup_payments_table($conn);
 }
 
 // --- WAITLIST TABLE ---
@@ -287,14 +234,7 @@ function setup_waitlist_table($conn) {
         notified_at TIMESTAMP NULL DEFAULT NULL,
         UNIQUE KEY `user_room` (`user_id`,`room_type`)
     )");
-
-    // Ensure notified_at column exists if table was created previously without it
-    $check_col = mysqli_query($conn, "SHOW COLUMNS FROM waitlist LIKE 'notified_at'");
-    if(mysqli_num_rows($check_col) == 0) {
-        mysqli_query($conn, "ALTER TABLE waitlist ADD COLUMN notified_at TIMESTAMP NULL DEFAULT NULL");
-    }
 }
-setup_waitlist_table($conn);
 }
 
 // --- WITHDRAWAL REQUESTS TABLE ---
@@ -313,7 +253,6 @@ function setup_withdrawal_requests_table($conn) {
         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
     )");
 }
-setup_withdrawal_requests_table($conn);
 }
 
 // --- ACCOUNT DELETION REQUESTS TABLE ---
@@ -327,7 +266,6 @@ function setup_deletion_requests_table($conn) {
         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
     )");
 }
-setup_deletion_requests_table($conn);
 }
 
 // --- PARKING MODULE TABLES ---
@@ -383,7 +321,6 @@ function setup_parking_tables($conn) {
         mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('migration_parking_rates_v1', '1')");
     }
 }
-setup_parking_tables($conn);
 }
 
 // --- KEY MONITORING TABLES ---
@@ -429,7 +366,6 @@ function setup_key_tables($conn) {
         }
     }
 }
-setup_key_tables($conn);
 }
 
 // --- SYSTEM UPDATES TABLE ---
@@ -468,7 +404,6 @@ function setup_updates_table($conn) {
         }
     }
 }
-setup_updates_table($conn);
 }
 
 // --- SYSTEM COMPLIANCE CHECK ---
@@ -537,188 +472,6 @@ $current_script = basename($_SERVER['PHP_SELF']);
 if (!in_array($current_script, ['admin_login.php', 'login.php', 'register.php', 'index.php'])) {
 
 try {
-// Ensure required columns exist to prevent errors in auto-tasks
-$cols_check = mysqli_query($conn, "SHOW COLUMNS FROM reservations");
-$cols = [];
-while($c = mysqli_fetch_assoc($cols_check)) $cols[] = $c['Field'];
-
-if(!in_array('cancellation_reason', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN cancellation_reason VARCHAR(255) DEFAULT NULL");
-if(!in_array('is_archived', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
-if(!in_array('created_at', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-if(!in_array('bed_preference', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN bed_preference VARCHAR(50) DEFAULT 'Any'");
-if(!in_array('auto_assigned', $cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN auto_assigned TINYINT(1) DEFAULT 1");
-
-// Ensure activity_logs columns exist (Fix for System Logs page)
-mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (
-    log_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    action VARCHAR(100) NOT NULL,
-    details TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)");
-$al_cols = [];
-$al_q = mysqli_query($conn, "SHOW COLUMNS FROM activity_logs");
-while($c = mysqli_fetch_assoc($al_q)) $al_cols[] = $c['Field'];
-if(!in_array('performed_by', $al_cols)) mysqli_query($conn, "ALTER TABLE activity_logs ADD COLUMN performed_by VARCHAR(100) DEFAULT 'System'");
-if(!in_array('role', $al_cols)) mysqli_query($conn, "ALTER TABLE activity_logs ADD COLUMN role VARCHAR(50) DEFAULT 'System'");
-
-// Ensure status ENUM is up to date and fix any broken statuses
-mysqli_query($conn, "ALTER TABLE reservations MODIFY COLUMN status ENUM('Pending', 'Verifying', 'Approved', 'Cancelled', 'Completed') DEFAULT 'Pending'");
-mysqli_query($conn, "UPDATE reservations SET status='Pending' WHERE status = '' OR status IS NULL");
-
-// Ensure payments table supports Cancelled status
-mysqli_query($conn, "ALTER TABLE payments MODIFY COLUMN payment_status ENUM('Paid','Unpaid','Cancelled') DEFAULT 'Unpaid'");
-
-// Ensure payments table has is_penalized column
-$pay_cols_check = mysqli_query($conn, "SHOW COLUMNS FROM payments");
-$pay_cols = [];
-while($c = mysqli_fetch_assoc($pay_cols_check)) $pay_cols[] = $c['Field'];
-if(!in_array('is_penalized', $pay_cols)) mysqli_query($conn, "ALTER TABLE payments ADD COLUMN is_penalized TINYINT(1) DEFAULT 0");
-if(!in_array('reference_number', $pay_cols)) mysqli_query($conn, "ALTER TABLE payments ADD COLUMN reference_number VARCHAR(100) DEFAULT NULL");
-if(!in_array('proof_image', $pay_cols)) mysqli_query($conn, "ALTER TABLE payments ADD COLUMN proof_image VARCHAR(255) DEFAULT NULL");
-if(!in_array('description', $pay_cols)) mysqli_query($conn, "ALTER TABLE payments ADD COLUMN description VARCHAR(255) DEFAULT 'Room Payment'");
-
-// Ensure floor column exists in rooms table
-$check_col_floor = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'floor'");
-if(mysqli_num_rows($check_col_floor) == 0) {
-    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN floor INT DEFAULT 2");
-}
-
-// Ensure room_number column exists in rooms table
-$check_col_rn = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'room_number'");
-if(mysqli_num_rows($check_col_rn) == 0) {
-    mysqli_query($conn, "ALTER TABLE rooms ADD COLUMN room_number VARCHAR(50) DEFAULT NULL AFTER room_name");
-}
-// Migration: Ensure room_number is populated for existing rooms by copying room_name if room_number is empty
-// This helps migrating old data where the number was stored in the name field
-mysqli_query($conn, "UPDATE rooms SET room_number = room_name WHERE (room_number IS NULL OR room_number = '') AND room_name != ''");
-
-// --- FIX DUPLICATE ROOM NUMBERS (ONE-TIME MIGRATION) ---
-// Check if this migration has run before
-$migration_check_dupes = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='migration_fix_dupe_rooms_v2'");
-if(mysqli_num_rows($migration_check_dupes) == 0) {
-    // Find groups of duplicate room numbers
-    $dupe_query = mysqli_query($conn, "SELECT room_number, COUNT(room_id) as cnt FROM rooms WHERE room_number IS NOT NULL AND room_number != '' GROUP BY room_number HAVING cnt > 1");
-    if ($dupe_query) {
-        while ($dupe = mysqli_fetch_assoc($dupe_query)) {
-            $num = mysqli_real_escape_string($conn, $dupe['room_number']);
-            // Get all rooms with this number, ordered by ID to keep the oldest one
-            $rooms_q = mysqli_query($conn, "SELECT room_id FROM rooms WHERE room_number = '$num' ORDER BY room_id ASC");
-            $original_room = mysqli_fetch_assoc($rooms_q); // Skip first (keep original)
-            while ($room_to_fix = mysqli_fetch_assoc($rooms_q)) {
-                $rid = $room_to_fix['room_id'];
-                try {
-                    // Try to delete duplicate room
-                    mysqli_query($conn, "DELETE FROM rooms WHERE room_id = $rid");
-                    mysqli_query($conn, "DELETE FROM `keys` WHERE type='Room' AND reference_id=$rid");
-                } catch (mysqli_sql_exception $e) {
-                    // If linked to reservation, archive and rename instead
-                    $new_num = $num . '_dup_' . $rid;
-                    mysqli_query($conn, "UPDATE rooms SET room_number = '$new_num', is_archived = 1 WHERE room_id = $rid");
-                }
-            }
-        }
-    }
-   
-    // Mark migration as complete
-    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('migration_fix_dupe_rooms_v2', '1')");
-}
-
-// --- CLEANUP DUPLICATES FOR 4-BED & 6-BED (ONE-TIME MIGRATION V3) ---
-$migration_check_v3 = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='migration_cleanup_v3'");
-if(mysqli_num_rows($migration_check_v3) == 0) {
-    // Deduplicate 4-Bed and 6-Bed rooms based on room_number to reach target counts
-    $target_types = ['4-Bed', '6-Bed'];
-    
-    foreach($target_types as $type) {
-        // Find room numbers that appear more than once for this type
-        $dupes_q = mysqli_query($conn, "SELECT room_number FROM rooms WHERE room_type='$type' AND is_archived=0 GROUP BY room_number HAVING COUNT(*) > 1");
-        
-        if($dupes_q){
-            while($d = mysqli_fetch_assoc($dupes_q)) {
-                $num = mysqli_real_escape_string($conn, $d['room_number']);
-                // Find all rooms with this number, prioritize keeping ones with reservations or older ID
-                $rooms_q = mysqli_query($conn, "
-                    SELECT r.room_id, (SELECT COUNT(*) FROM reservations WHERE room_id = r.room_id) as usage_count 
-                    FROM rooms r 
-                    WHERE r.room_number = '$num' AND r.room_type = '$type' AND r.is_archived=0 
-                    ORDER BY usage_count DESC, r.room_id ASC
-                ");
-                
-                $first = true;
-                while($row = mysqli_fetch_assoc($rooms_q)) {
-                    if($first) {
-                        $first = false; // Keep the best candidate
-                        continue;
-                    }
-                    
-                    // Delete the duplicate (or archive if it has data)
-                    $rid = $row['room_id'];
-                    if($row['usage_count'] == 0) {
-                        mysqli_query($conn, "DELETE FROM rooms WHERE room_id=$rid");
-                        try { mysqli_query($conn, "DELETE FROM `keys` WHERE type='Room' AND reference_id=$rid"); } catch(Exception $e){}
-                    } else {
-                        $new_num = $num . "_archived_" . $rid;
-                        mysqli_query($conn, "UPDATE rooms SET room_number='$new_num', is_archived=1 WHERE room_id=$rid");
-                    }
-                }
-            }
-        }
-    }
-    
-    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('migration_cleanup_v3', '1')");
-}
-
-// Ensure users table has split name columns (Migration from full_name)
-$check_user_cols = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'last_name'");
-if(mysqli_num_rows($check_user_cols) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN last_name VARCHAR(50) DEFAULT ''");
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN first_name VARCHAR(50) DEFAULT ''");
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN middle_name VARCHAR(50) DEFAULT NULL");
-    
-    // Migrate existing data
-    $all_users = mysqli_query($conn, "SELECT user_id, full_name FROM users");
-    if($all_users){
-        while($u = mysqli_fetch_assoc($all_users)){
-            $parts = explode(' ', trim($u['full_name']));
-            $lname = (count($parts) > 0) ? array_pop($parts) : '';
-            $fname = implode(' ', $parts);
-            $lname = mysqli_real_escape_string($conn, $lname);
-            $fname = mysqli_real_escape_string($conn, $fname);
-            mysqli_query($conn, "UPDATE users SET last_name='$lname', first_name='$fname' WHERE user_id=".$u['user_id']);
-        }
-    }
-}
-
-// Ensure suffix column exists in users table to prevent registration errors
-$check_user_suffix = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'suffix'");
-if(mysqli_num_rows($check_user_suffix) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN suffix VARCHAR(10) DEFAULT NULL AFTER middle_name");
-}
-
-// Ensure profile_image column exists in users table
-$check_profile_image_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'profile_image'");
-if(mysqli_num_rows($check_profile_image_col) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN profile_image VARCHAR(255) DEFAULT NULL");
-}
-
-// Ensure is_archived column exists in users table for soft delete
-$check_is_archived_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'is_archived'");
-if(mysqli_num_rows($check_is_archived_col) == 0) {
-    mysqli_query($conn, "ALTER TABLE users ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
-}
-
-// Ensure notifications table exists and is correct before use in automated tasks
-mysqli_query($conn, "CREATE TABLE IF NOT EXISTS notifications (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    message TEXT NOT NULL,
-    type VARCHAR(50) DEFAULT 'System',
-    is_read TINYINT(1) DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)");
-$check_col_notif = mysqli_query($conn, "SHOW COLUMNS FROM notifications LIKE 'id'");
-if(mysqli_num_rows($check_col_notif) == 0) mysqli_query($conn, "ALTER TABLE notifications ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY FIRST");
 
 // 1. Auto-expire Pending reservations older than 24 hours (With Logging)
 $expire_query = mysqli_query($conn, "SELECT reservation_id, user_id FROM reservations WHERE status='Pending' AND created_at < (NOW() - INTERVAL 24 HOUR)");
@@ -1060,7 +813,6 @@ function setup_inventory_table($conn) {
         FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE SET NULL
     )");
 }
-setup_inventory_table($conn);
 }
 
 // --- PROPERTY INVENTORY TABLE ---
@@ -1092,7 +844,6 @@ function setup_property_inventory_table($conn) {
         }
     }
 }
-setup_property_inventory_table($conn);
 }
 
 // --- RESIDENTS TABLE ---
@@ -1129,7 +880,6 @@ function setup_residents_table($conn) {
         mysqli_query($conn, "ALTER TABLE residents ADD COLUMN suffix VARCHAR(10) DEFAULT NULL AFTER middle_name");
     }
 }
-setup_residents_table($conn);
 }
 
 if (!function_exists('sync_resident_profile')) {
