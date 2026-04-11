@@ -1,13 +1,33 @@
 <?php
 $current_page = basename($_SERVER['PHP_SELF']);
-// Gracefully pull counts if defined in the parent script
-$p_res = $pending_res ?? ($pending_count ?? 0);
-$w_cnt = $waitlist_count ?? 0;
-$d_cnt = $del_req_count ?? 0;
-$m_cnt = $pending_maint ?? 0;
-$h_cnt = $pending_house ?? 0;
+
+// Centralize all sidebar notification counts
+$p_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'] ?? 0;
+$p_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'] ?? 0;
+$p_res += $p_pay;
+
+$w_cnt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'] ?? 0;
+$d_cnt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'] ?? 0;
+$m_cnt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'] ?? 0;
+$h_cnt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'] ?? 0;
+
+$pk_cnt = 0;
+try {
+    $pk_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM parking_reservations WHERE status='Active' AND end_date < CURDATE()");
+    if($pk_q) $pk_cnt = mysqli_fetch_assoc($pk_q)['c'];
+} catch(Exception $e){}
+
+$fin_cnt = 0;
+try {
+    $fin_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM (SELECT u.user_id FROM users u JOIN reservations r ON u.user_id = r.user_id JOIN payments p ON r.reservation_id = p.reservation_id WHERE p.payment_status = 'Unpaid' AND u.is_archived = 0 GROUP BY u.user_id HAVING SUM(p.amount) > 5000) as sub");
+    if($fin_q) $fin_cnt = mysqli_fetch_assoc($fin_q)['c'];
+} catch(Exception $e){}
+
 $front_desk_total = $p_res + $w_cnt + $d_cnt;
 $operations_total = $m_cnt + $h_cnt;
+$facilities_total = $pk_cnt;
+$finance_total = $fin_cnt;
+
 $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super Admin';
 ?>
 <script>
@@ -18,6 +38,10 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
         }
     })();
 </script>
+<style>
+    /* Suppress duplicate JS badges appended by older scripts */
+    .parent-badge { display: none !important; }
+</style>
 <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -59,28 +83,41 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
         </div>
 
         <!-- Facilities -->
-        <a href="#facilitiesSubmenu" data-bs-toggle="collapse" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_rooms.php', 'admin_room_assignment.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php']) ? '' : 'collapsed' ?>">
+        <a href="#facilitiesSubmenu" data-bs-toggle="collapse" onclick="document.getElementById('facilitiesBadge')?.style.setProperty('display', 'none', 'important');" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_rooms.php', 'admin_room_assignment.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php']) ? '' : 'collapsed' ?>">
             <div><i class="fas fa-building"></i><span>Facilities</span></div>
-            <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0; margin-left: 10px;"></i>
+            <div class="d-flex align-items-center">
+                <?php if($facilities_total > 0): ?><span class="badge bg-danger rounded-pill me-2" id="facilitiesBadge"><?= $facilities_total ?></span><?php endif; ?>
+                <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0; margin-left: 10px;"></i>
+            </div>
         </a>
         <div class="collapse <?= in_array($current_page, ['admin_rooms.php', 'admin_room_assignment.php', 'admin_room_occupancy.php', 'admin_parking.php', 'admin_keys.php']) ? 'show' : '' ?>" id="facilitiesSubmenu">
             <a href="admin_rooms.php" class="nav-item <?= ($current_page == 'admin_rooms.php') ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-bed" style="width: 25px;"></i><span>Manage Rooms</span></a>
             <a href="admin_room_assignment.php" class="nav-item <?= $current_page == 'admin_room_assignment.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-door-open" style="width: 25px;"></i><span>Assignment</span></a>
             <a href="admin_room_occupancy.php" class="nav-item <?= $current_page == 'admin_room_occupancy.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-users" style="width: 25px;"></i><span>Occupancy</span></a>
-            <a href="admin_parking.php" class="nav-item <?= $current_page == 'admin_parking.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-parking" style="width: 25px;"></i><span>Parkings</span></a>
+            <a href="admin_parking.php" onclick="this.querySelector('.nav-badge')?.style.setProperty('display', 'none', 'important');" class="nav-item <?= $current_page == 'admin_parking.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
+                <i class="fas fa-parking" style="width: 25px;"></i><span>Parkings</span>
+                <?php if($pk_cnt > 0): ?><span class="badge bg-danger rounded-pill ms-auto nav-badge"><?= $pk_cnt ?></span><?php endif; ?>
+            </a>
             <a href="admin_keys.php" class="nav-item <?= $current_page == 'admin_keys.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-key" style="width: 25px;"></i><span>Key Monitoring</span></a>
         </div>
 
         <!-- Finance & Reports -->
-        <a href="#financeSubmenu" data-bs-toggle="collapse" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php']) ? '' : 'collapsed' ?>">
+        <a href="#financeSubmenu" data-bs-toggle="collapse" onclick="document.getElementById('financeBadge')?.style.setProperty('display', 'none', 'important');" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'balance_report.php']) ? '' : 'collapsed' ?>">
             <div><i class="fas fa-file-invoice-dollar"></i><span>Finance & Reports</span></div>
-            <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0; margin-left: 10px;"></i>
+            <div class="d-flex align-items-center">
+                <?php if($finance_total > 0): ?><span class="badge bg-danger rounded-pill me-2" id="financeBadge"><?= $finance_total ?></span><?php endif; ?>
+                <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0; margin-left: 10px;"></i>
+            </div>
         </a>
-        <div class="collapse <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php']) ? 'show' : '' ?>" id="financeSubmenu">
+        <div class="collapse <?= in_array($current_page, ['profit_report.php', 'longterm_billing.php', 'balance_report.php']) ? 'show' : '' ?>" id="financeSubmenu">
             <?php if($is_super): ?>
             <a href="profit_report.php" class="nav-item <?= $current_page == 'profit_report.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-chart-line" style="width: 25px;"></i><span>Profit Report</span></a>
             <?php endif; ?>
             <a href="longterm_billing.php" class="nav-item <?= $current_page == 'longterm_billing.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-receipt" style="width: 25px;"></i><span>Billing</span></a>
+            <a href="balance_report.php" onclick="this.querySelector('.nav-badge')?.style.setProperty('display', 'none', 'important');" class="nav-item <?= $current_page == 'balance_report.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
+                <i class="fas fa-file-invoice" style="width: 25px;"></i><span>Balances</span>
+                <?php if($fin_cnt > 0): ?><span class="badge bg-danger rounded-pill ms-auto nav-badge"><?= $fin_cnt ?></span><?php endif; ?>
+            </a>
         </div>
 
         <!-- Operations -->

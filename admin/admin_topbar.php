@@ -30,11 +30,13 @@ if (isset($current_page)) {
 }
 
 // Calculate accurate total notifications based on all modules
-$top_pending_res = $pending_res ?? ($pending_count ?? 0);
-$top_pending_maint = $pending_maint ?? 0;
-$top_pending_house = $pending_house ?? 0;
-$top_del_req = $del_req_count ?? 0;
-$total_notifications = $top_pending_res + $top_pending_maint + $top_pending_house + $top_del_req;
+$top_pending_res = $p_res ?? 0;
+$top_pending_maint = $m_cnt ?? 0;
+$top_pending_house = $h_cnt ?? 0;
+$top_del_req = $d_cnt ?? 0;
+$top_pk = $pk_cnt ?? 0;
+$top_fin = $fin_cnt ?? 0;
+$total_notifications = $top_pending_res + $top_pending_maint + $top_pending_house + $top_del_req + $top_pk + $top_fin;
 ?>
 <div id="navbar-restore-trigger" class="navbar-restore-trigger" title="Restore Navbar">
     <i class="fas fa-chevron-down"></i>
@@ -91,6 +93,12 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
                     <?php endif; ?>
                     <?php if($top_del_req > 0): ?>
                         <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_deletion_requests.php"><span class="small fw-bold"><i class="fas fa-user-times text-danger me-2"></i> Deletion</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_del_req ?></span></a></li>
+                    <?php endif; ?>
+                    <?php if($top_pk > 0): ?>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_parking.php"><span class="small fw-bold"><i class="fas fa-parking text-warning me-2"></i> Overdue Parking</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_pk ?></span></a></li>
+                    <?php endif; ?>
+                    <?php if($top_fin > 0): ?>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="balance_report.php"><span class="small fw-bold"><i class="fas fa-file-invoice-dollar text-primary me-2"></i> Overdue Balances</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_fin ?></span></a></li>
                     <?php endif; ?>
                 <?php else: ?>
                     <li><span class="dropdown-item text-muted small text-center py-3">No pending actions</span></li>

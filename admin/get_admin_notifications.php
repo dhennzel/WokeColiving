@@ -17,7 +17,19 @@ $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 
-$total_notifications = $pending_res + $pending_maint + $pending_house + $del_req_count;
+$pk_cnt = 0;
+try {
+    $pk_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM parking_reservations WHERE status='Active' AND end_date < CURDATE()");
+    if($pk_q) $pk_cnt = mysqli_fetch_assoc($pk_q)['c'];
+} catch(Exception $e){}
+
+$fin_cnt = 0;
+try {
+    $fin_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM (SELECT u.user_id FROM users u JOIN reservations r ON u.user_id = r.user_id JOIN payments p ON r.reservation_id = p.reservation_id WHERE p.payment_status = 'Unpaid' AND u.is_archived = 0 GROUP BY u.user_id HAVING SUM(p.amount) > 5000) as sub");
+    if($fin_q) $fin_cnt = mysqli_fetch_assoc($fin_q)['c'];
+} catch(Exception $e){}
+
+$total_notifications = $pending_res + $pending_maint + $pending_house + $del_req_count + $pk_cnt + $fin_cnt;
 
 header('Content-Type: application/json');
 echo json_encode([
