@@ -5,20 +5,24 @@ session_start();
 if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit; }
 
 $user_id = $_SESSION['user_id'];
-if (!isset($_GET['id'])) { header("Location: my_reservations.php"); exit; }
-
-$reservation_id = (int)$_GET['id'];
+$reservation_id_from_get = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 // Fetch reservation details including term_type and months
 // Verify ownership and status
-$check = mysqli_query($conn, "SELECT r.*, rm.room_type, rm.room_name FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id WHERE r.reservation_id=$reservation_id AND r.user_id=$user_id AND r.status IN ('Pending', 'Verifying', 'Approved')");
+$check = mysqli_query($conn, "SELECT r.*, rm.room_type, rm.room_name FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id WHERE r.user_id=$user_id AND r.status IN ('Pending', 'Verifying', 'Approved') ORDER BY r.reservation_id DESC LIMIT 1");
 $res_data = mysqli_fetch_assoc($check);
 
 if(!$res_data){ header("Location: my_reservations.php"); exit; }
 
+$reservation_id = $res_data['reservation_id']; // Use the latest active reservation for context
+
 // Get all unpaid payments for this reservation individually
 // ORDER BY payment_date ASC ensures we process them from oldest to newest
-$pay_q = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id=$reservation_id AND payment_status='Unpaid' ORDER BY payment_date ASC");
+$pay_q = mysqli_query($conn, "
+    SELECT p.* FROM payments p 
+    JOIN reservations r ON p.reservation_id = r.reservation_id 
+    WHERE r.user_id=$user_id AND p.payment_status='Unpaid' ORDER BY p.payment_date ASC
+");
 $unpaid_bills = []; // This will be passed to JS
 while($row = mysqli_fetch_assoc($pay_q)) {
     $desc_lower = strtolower($row['description']);
@@ -31,7 +35,12 @@ while($row = mysqli_fetch_assoc($pay_q)) {
 }
 
 // Get all payments for this reservation to show the schedule
-$all_pay_q = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id=$reservation_id ORDER BY payment_date ASC");
+$all_pay_q = mysqli_query($conn, "
+    SELECT p.* FROM payments p 
+    JOIN reservations r ON p.reservation_id = r.reservation_id 
+    WHERE r.user_id=$user_id 
+    ORDER BY p.payment_date ASC
+");
 $all_payments = [];
 while($row = mysqli_fetch_assoc($all_pay_q)) {
     $all_payments[] = $row;

@@ -467,7 +467,7 @@ if (isset($_POST['confirm_booking'])) {
                         
                         // 1. Insert Security Deposit
                         $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image, description) VALUES (?, ?, ?, ?, NOW(), ?, ?, 'Security Deposit')");
-                        $pay_stmt->bind_param("idsssss", $reservation_id, $security_deposit, $payment_method, $p_status, $ref_number, $proof_filename);
+                        $pay_stmt->bind_param("idssss", $reservation_id, $security_deposit, $payment_method, $p_status, $ref_number, $proof_filename);
                         $pay_stmt->execute();
                         
                         // 2. Insert Rent Part
@@ -476,6 +476,15 @@ if (isset($_POST['confirm_booking'])) {
                         $pay_stmt->bind_param("idsssss", $reservation_id, $rent_part, $payment_method, $p_status, $ref_number, $proof_filename, $rent_desc);
                         $pay_stmt->execute();
                         $pay_stmt->close();
+                    } else {
+                        // Direct insert for Extensions or zero deposit bookings
+                        if ($initial_payment > 0) {
+                            $rent_desc = ($is_extension) ? "Extension Rent Payment" : (($term_type == 'Daily') ? "Daily Stay Payment" : "First Month Rent");
+                            $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image, description) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)");
+                            $pay_stmt->bind_param("idsssss", $reservation_id, $initial_payment, $payment_method, $p_status, $ref_number, $proof_filename, $rent_desc);
+                            $pay_stmt->execute();
+                            $pay_stmt->close();
+                        }
                     }
 
                     // Handle remaining balance record for partial payments
@@ -1359,6 +1368,9 @@ function confirmReservation() {
             let durText = (months > 0 ? months + " month(s)" : "") + (months > 0 && daysDiff > 0 ? ", " : "") + (daysDiff > 0 || months === 0 ? daysDiff + " day(s)" : "");
             document.getElementById('duration_display').innerText = durText;
 
+            let totalDays = Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24));
+            if (totalDays < 1) totalDays = 1;
+
             if (room) {
                 let priceData = roomPrices[room] || {};
                 let total = 0;
@@ -1399,7 +1411,7 @@ function confirmReservation() {
                         dailyRate = monthlyBase / 30;
                     }
                     
-                    total = days * dailyRate;
+                    total = totalDays * dailyRate;
 
                 } else if (durationType === '6') {
                     // Long Term Calculation

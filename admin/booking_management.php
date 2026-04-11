@@ -87,9 +87,23 @@ if(isset($_GET['action'])){
             
             // Calculate price increase
             $room_id = $res['room_id'];
-            $room_q = mysqli_query($conn, "SELECT total_price FROM rooms WHERE room_id=$room_id");
-            $room_price = mysqli_fetch_assoc($room_q)['total_price'];
-            $added_cost = $room_price * $months_to_add;
+            $room_q = mysqli_query($conn, "SELECT total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, room_type, total_beds FROM rooms WHERE room_id=$room_id");
+            $room_data = mysqli_fetch_assoc($room_q);
+            
+            $monthly_price = $room_data['total_price'];
+            if ($room_data['room_type'] != 'Single') {
+                if ($res['bed_preference'] == 'Upper Bunk') {
+                    $monthly_price = ($months_to_add >= 6 && $room_data['long_term_price_upper'] > 0) ? $room_data['long_term_price_upper'] : (($room_data['price_upper'] > 0) ? $room_data['price_upper'] : $room_data['total_price']);
+                } elseif ($res['bed_preference'] == 'Lower Bunk') {
+                    $monthly_price = ($months_to_add >= 6 && $room_data['long_term_price_lower'] > 0) ? $room_data['long_term_price_lower'] : (($room_data['price_lower'] > 0) ? $room_data['price_lower'] : $room_data['total_price']);
+                } elseif ($res['bed_preference'] == 'Whole Room') {
+                    $monthly_price = ($months_to_add >= 6 && $room_data['long_term_price_whole'] > 0) ? $room_data['long_term_price_whole'] : (($room_data['price_whole'] > 0) ? $room_data['price_whole'] : ($room_data['total_price'] * $room_data['total_beds']));
+                }
+            } elseif ($room_data['room_type'] == 'Single' && $months_to_add >= 6 && $room_data['long_term_price_whole'] > 0) {
+                $monthly_price = $room_data['long_term_price_whole'];
+            }
+            
+            $added_cost = $monthly_price * $months_to_add;
             
             // Update Reservation & Add Payment Record
             mysqli_query($conn, "UPDATE reservations SET end_date='$new_end_date', months=months+$months_to_add, total_price=total_price+$added_cost WHERE reservation_id=$reservation_id");
@@ -298,10 +312,7 @@ $sql = "
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
     WHERE $where_clause
-    AND r.reservation_id IN (
-        SELECT MAX(reservation_id) FROM reservations GROUP BY user_id
-    )
-    ORDER BY r.reservation_id DESC
+    ORDER BY CASE WHEN r.status = 'Approved' THEN 1 WHEN r.status = 'Pending' THEN 2 WHEN r.status = 'Verifying' THEN 3 ELSE 4 END ASC, r.reservation_id DESC
 ";
 
 if (!empty($params)) {
@@ -356,6 +367,7 @@ $theme = get_theme_colors($conn);
                             <option value="Pending" <?= (isset($_GET['status']) && $_GET['status']=='Pending')?'selected':'' ?>>Pending</option>
                             <option value="Approved" <?= (isset($_GET['status']) && $_GET['status']=='Approved')?'selected':'' ?>>Approved</option>
                             <option value="Cancelled" <?= (isset($_GET['status']) && $_GET['status']=='Cancelled')?'selected':'' ?>>Cancelled</option>
+                            <option value="Completed" <?= (isset($_GET['status']) && $_GET['status']=='Completed')?'selected':'' ?>>Completed</option>
                         </select>
                         <select name="gender" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">All Genders</option>
@@ -418,10 +430,12 @@ $theme = get_theme_colors($conn);
                                     <?php
                                         $s = $res['status'];
                                         $b_class = 'bg-secondary';
-                                        if($s == 'Pending') $b_class = 'bg-warning text-dark';
-                                        elseif($s == 'Approved') $b_class = 'bg-success text-white';
+                                        
+                                        if($s == 'Approved') $b_class = 'bg-success text-white';
+                                        elseif($s == 'Pending') $b_class = 'bg-warning text-dark';
                                         elseif($s == 'Cancelled') $b_class = 'bg-danger text-white';
-                                        elseif($s == 'Verifying') $b_class = 'bg-info text-white';
+                                        elseif($s == 'Verifying') $b_class = 'bg-info text-dark';
+                                        elseif($s == 'Completed') $b_class = 'bg-primary text-white';
                                     ?>
                                     <span class="badge <?= $b_class ?> rounded-pill px-3"><?= $s ?></span>
                                     <?php if(($res['initial_pay_status'] ?? '') == 'Paid'): ?>

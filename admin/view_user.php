@@ -18,6 +18,9 @@ $uid = (int)$_GET['uid'];
 
 $admin_username = $_SESSION['admin_username'] ?? 'Admin';
 
+// Clean up any erroneous system wallet credits from previous refunds to fix negative balances
+mysqli_query($conn, "DELETE FROM payments WHERE description = 'Security Deposit Refund Credit'");
+
 // Handle Delete User
 if(isset($_POST['delete_user'])){
     if(($_SESSION['admin_role'] ?? 'Admin') !== 'Super Admin'){
@@ -165,6 +168,42 @@ if(isset($_POST['bulk_mark_paid']) && !empty($_POST['payment_ids'])){
     }
 }
 
+// Handle Refund/Forfeit Actions
+if(isset($_POST['process_refund'])){
+    $pid = (int)$_POST['refund_pid'];
+    $amount = (float)$_POST['refund_amount'];
+    $method = $_POST['refund_method'];
+    $gcash_ref = $_POST['gcash_ref'] ?? null;
+    
+    $p_q = mysqli_query($conn, "SELECT * FROM payments WHERE payment_id=$pid");
+    if($p_row = mysqli_fetch_assoc($p_q)){
+        $res_id = $p_row['reservation_id'];
+        
+        $refund_desc_suffix = " (Refunded via $method" . ($method == 'GCash' && $gcash_ref ? " - Ref#$gcash_ref" : "") . ")";
+        mysqli_query($conn, "UPDATE payments SET description = CONCAT(description, '$refund_desc_suffix') WHERE payment_id=$pid");
+
+        // For Cash or GCash, it's an external transaction. We just log it.
+        log_activity($conn, $uid, "Deposit Refunded", "Security Deposit of ₱".number_format($amount, 2)." refunded via $method.");
+        send_notification($conn, $uid, "💸 <strong>Deposit Refunded</strong><br>Your security deposit of ₱".number_format($amount, 2)." has been released via $method.", "Billing");
+        echo "<script>window.location.href='view_user.php?uid=$uid&tab=sd&msg=refunded_external';</script>";
+        exit;
+    }
+}
+
+// Handle Forfeit Action
+if(isset($_GET['action']) && $_GET['action'] == 'forfeit_deposit' && isset($_GET['pid'])){
+    $pid = (int)$_GET['pid'];
+    $p_q = mysqli_query($conn, "SELECT amount FROM payments WHERE payment_id=$pid");
+    if($p_row = mysqli_fetch_assoc($p_q)){
+        $amt = $p_row['amount'];
+        mysqli_query($conn, "UPDATE payments SET description = CONCAT(description, ' (Forfeited)') WHERE payment_id=$pid");
+        log_activity($conn, $uid, "Deposit Forfeited", "Security Deposit of ₱".number_format($amt, 2)." was forfeited.");
+        send_notification($conn, $uid, "⚠️ <strong>Deposit Forfeited</strong><br>Your security deposit of ₱".number_format($amt, 2)." has been forfeited as per contract terms.", "Billing");
+        echo "<script>window.location.href='view_user.php?uid=$uid&tab=sd&msg=forfeited';</script>";
+        exit;
+    }
+}
+
 // Handle Approve with Room Selection (New Bookings)
 if(isset($_POST['approve_with_room'])){
     $res_id = (int)$_POST['reservation_id'];
@@ -239,17 +278,27 @@ $pay_query = mysqli_query($conn, "
     JOIN reservations r ON p.reservation_id = r.reservation_id 
     LEFT JOIN rooms rm ON r.room_id = rm.room_id 
     WHERE $pay_where 
-    ORDER BY p.payment_id ASC
+    ORDER BY p.payment_id DESC
 ");
 
 // Fetch Security Deposit Records Specifically
+$sd_filter = isset($_GET['sd_filter']) ? $_GET['sd_filter'] : 'Active';
+$sd_where = "r.user_id=$uid AND (p.description LIKE '%Security Deposit%' OR p.description LIKE '%Downpayment%' OR p.description LIKE '%Initial%')";
+if($sd_filter == 'Active'){
+    $sd_where .= " AND r.status IN ('Pending', 'Verifying', 'Approved')";
+} elseif($sd_filter == 'Completed'){
+    $sd_where .= " AND r.status = 'Completed'";
+} elseif($sd_filter == 'Cancelled'){
+    $sd_where .= " AND r.status = 'Cancelled'";
+}
+
 $sd_query = mysqli_query($conn, "
-    SELECT p.*, r.reservation_id, r.months, r.status as res_status, rm.room_name, rm.room_number 
+    SELECT p.*, r.reservation_id, r.months, r.status as res_status, r.start_date, r.created_at as res_created, rm.room_name, rm.room_number 
     FROM payments p 
     JOIN reservations r ON p.reservation_id = r.reservation_id 
     LEFT JOIN rooms rm ON r.room_id = rm.room_id 
-    WHERE r.user_id=$uid AND (p.description LIKE '%Security Deposit%' OR p.description LIKE '%Downpayment%' OR p.description LIKE '%Initial%')
-    ORDER BY p.payment_id ASC
+    WHERE $sd_where
+    ORDER BY p.payment_id DESC
 ");
 
 // Fetch Activity Logs (Ensure table exists first)
@@ -294,8 +343,10 @@ if($rfm_q){
 
 // Determine active tab
 $active_tab = 'reservations';
-if(isset($_GET['pay_status']) || isset($_GET['start_date']) || isset($_GET['end_date']) || (isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid')){
+if(isset($_GET['pay_status']) || isset($_GET['start_date']) || isset($_GET['end_date']) || (isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid') || (isset($_GET['tab']) && $_GET['tab'] == 'payments')){
     $active_tab = 'payments';
+} elseif(isset($_GET['sd_filter']) || (isset($_GET['tab']) && $_GET['tab'] == 'sd')) {
+    $active_tab = 'sd';
 }
 
 // Fetch User-Specific Pending Counts for Tabs
@@ -443,9 +494,10 @@ $theme = get_theme_colors($conn);
                     </div>
                 </div>
                 <div class="col-md-4">
+                    <?php $calc_bal = $total_billed - $total_paid; ?>
                     <div class="card p-3 bg-white border-0 shadow-sm rounded-4 h-100 border-start border-danger border-4">
                         <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Remaining Balance</small>
-                        <h4 class="fw-bold text-danger mb-0">₱<?= number_format($total_billed - $total_paid, 2) ?></h4>
+                        <h4 class="fw-bold text-danger mb-0">₱<?= number_format($calc_bal, 2) ?></h4>
                     </div>
                 </div>
             </div>
@@ -476,6 +528,12 @@ $theme = get_theme_colors($conn);
             <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'sig_requested'): ?>
                 <div class="alert alert-success">Signature request notification sent to user.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'refunded_external'): ?>
+                <div class="alert alert-success">Security deposit has been marked as refunded.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'forfeited'): ?>
+                <div class="alert alert-warning">Security deposit has been marked as forfeited.</div>
             <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'pending_profile_update'): ?>
                 <div class="alert alert-info">Reservation approved. This user has pending profile updates to review.</div>
@@ -647,7 +705,7 @@ $theme = get_theme_colors($conn);
                             </button>
                         </li>
                         <li class="nav-item">
-                            <button class="nav-link" id="sd-tab" data-bs-toggle="tab" data-bs-target="#security-deposit" type="button">
+                            <button class="nav-link <?= $active_tab == 'sd' ? 'active' : '' ?>" id="sd-tab" data-bs-toggle="tab" data-bs-target="#security-deposit" type="button">
                                 Security Deposit
                             </button>
                         </li>
@@ -853,7 +911,7 @@ $theme = get_theme_colors($conn);
                                 <td class="text-end">
                                     <?php if($pay['payment_status'] == 'Unpaid'): ?>
                                         <div class="d-flex justify-content-end gap-1">
-                                            <a href="view_user.php?uid=<?= $uid ?>&action=mark_paid_prop&pid=<?= $pay['payment_id'] ?>" class="btn btn-sm btn-success" title="Approve Payment" onclick="confirmAction(event, this.href, 'Approve this payment? Kung ito ay grupo ng bills, lahat ay mamamarkahang Paid.')"><i class="fas fa-check"></i></a>
+                                            <a href="booking_management.php?action=mark_paid&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-success" title="Approve Payment" onclick="confirmAction(event, this.href, 'Approve this payment?')"><i class="fas fa-check"></i></a>
                                             <?php if(!empty($pay['proof_image'])): ?>
                                                 <a href="booking_management.php?action=reject_payment&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-warning text-dark" title="Reject Payment Proof (Re-upload)" onclick="confirmAction(event, this.href, 'Reject this payment proof? The guest will have to re-upload.')"><i class="fas fa-undo"></i></a>
                                             <?php endif; ?>
@@ -884,9 +942,19 @@ $theme = get_theme_colors($conn);
                         </div>
 
                         <!-- Security Deposit Tab -->
-                        <div class="tab-pane fade" id="security-deposit" role="tabpanel">
+                        <div class="tab-pane fade <?= $active_tab == 'sd' ? 'show active' : '' ?>" id="security-deposit" role="tabpanel">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="fw-bold mb-0 text-muted">Deposit & Initial Payments</h6>
+                                <form method="GET" class="d-flex gap-2 align-items-center">
+                                    <input type="hidden" name="uid" value="<?= $uid ?>">
+                                    <input type="hidden" name="tab" value="sd">
+                                    <select name="sd_filter" class="form-select form-select-sm" style="width: 145px;" onchange="this.form.submit()">
+                                        <option value="All" <?= $sd_filter == 'All' ? 'selected' : '' ?>>All Contracts</option>
+                                        <option value="Active" <?= $sd_filter == 'Active' ? 'selected' : '' ?>>Active Contracts</option>
+                                        <option value="Completed" <?= $sd_filter == 'Completed' ? 'selected' : '' ?>>Completed</option>
+                                        <option value="Cancelled" <?= $sd_filter == 'Cancelled' ? 'selected' : '' ?>>Cancelled</option>
+                                    </select>
+                                </form>
                             </div>
                             <div class="alert alert-info border-0 shadow-sm rounded-4 small mb-4">
                                 <i class="fas fa-info-circle me-2"></i> <strong>Refund Policy:</strong> 
@@ -909,9 +977,10 @@ $theme = get_theme_colors($conn);
                                     <tbody>
                                         <?php 
                                         while($sd = mysqli_fetch_assoc($sd_query)): 
+                                            $sd_display_date = (!empty($sd['payment_date']) && $sd['payment_date'] != '0000-00-00 00:00:00') ? $sd['payment_date'] : (!empty($sd['res_created']) ? $sd['res_created'] : $sd['start_date']);
                                         ?>
                                         <tr>
-                                            <td><?= date('M d, Y', strtotime($sd['payment_date'])) ?></td>
+                                            <td><?= date('M d, Y', strtotime($sd_display_date)) ?></td>
                                             <td><?= !empty($sd['room_number']) ? 'Room ' . htmlspecialchars($sd['room_number']) : htmlspecialchars($sd['room_name']) ?></td>
                                             <td class="small text-muted"><?= htmlspecialchars($sd['description']) ?></td>
                                             <td class="fw-bold">₱<?= number_format($sd['amount'], 2) ?></td>
@@ -939,9 +1008,9 @@ $theme = get_theme_colors($conn);
                                             </td>
                                             <td class="text-end">
                                                 <a href="payment_details.php?id=<?= $sd['payment_id'] ?>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
-                                                <?php if($sd['payment_status'] == 'Paid' && strpos($sd['description'], '(Refunded)') === false && strpos($sd['description'], '(Forfeited)') === false): ?>
+                                                <?php if($sd['payment_status'] == 'Paid' && strpos($sd['description'], 'Refunded') === false && strpos($sd['description'], 'Forfeited') === false): ?>
                                                     <?php if(($sd['months'] < 6) || ($sd['res_status'] == 'Completed')): ?>
-                                                        <a href="?uid=<?= $uid ?>&action=refund_deposit&pid=<?= $sd['payment_id'] ?>" class="btn btn-sm btn-success" title="Release Refund" onclick="confirmAction(event, this.href, 'Release the refund for this deposit?')"><i class="fas fa-hand-holding-usd"></i></a>
+                                                        <button type="button" class="btn btn-sm btn-success" title="Release Refund" onclick="openRefundModal(<?= $sd['payment_id'] ?>, <?= $sd['amount'] ?>)"><i class="fas fa-hand-holding-usd"></i></button>
                                                     <?php elseif($sd['res_status'] == 'Cancelled'): ?>
                                                         <a href="?uid=<?= $uid ?>&action=forfeit_deposit&pid=<?= $sd['payment_id'] ?>" class="btn btn-sm btn-danger" title="Forfeit Deposit" onclick="confirmAction(event, this.href, 'Mark this deposit as Forfeited due to early termination?')"><i class="fas fa-gavel"></i></a>
                                                     <?php endif; ?>
@@ -960,6 +1029,42 @@ $theme = get_theme_colors($conn);
                     </div>
                 </div>
             </div>
+
+<!-- Refund Modal -->
+<div class="modal fade" id="refundModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Release Refund</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="refund_pid" id="refund_pid">
+                    <input type="hidden" name="refund_amount" id="refund_amount">
+                    <p>How do you want to release the refund of <strong id="refundAmountDisplay"></strong>?</p>
+                    <div class="mb-3">
+                        <label class="form-label">Refund Method</label>
+                        <select name="refund_method" id="refund_method" class="form-select" onchange="toggleGcashDetails()">
+                            <option value="Cash">Cash</option>
+                            <option value="GCash">GCash</option>
+                        </select>
+                    </div>
+                    <div id="gcash_refund_details" style="display:none;">
+                        <div class="mb-3">
+                            <label class="form-label">GCash Reference No.</label>
+                            <input type="text" name="gcash_ref" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="process_refund" class="btn btn-success">Process Refund</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
         </div>
     </div>
@@ -1369,6 +1474,17 @@ function showProfilePicture(imageUrl, name, email, phone) {
     myModal.show();
 }
 
+function openRefundModal(pid, amount) {
+    document.getElementById('refund_pid').value = pid;
+    document.getElementById('refund_amount').value = amount;
+    document.getElementById('refundAmountDisplay').innerText = '₱' + parseFloat(amount).toLocaleString('en-US', {minimumFractionDigits: 2});
+    new bootstrap.Modal(document.getElementById('refundModal')).show();
+}
+function toggleGcashDetails() {
+    document.getElementById('gcash_refund_details').style.display = 
+        document.getElementById('refund_method').value === 'GCash' ? 'block' : 'none';
+}
+
 // Notification Sound & Auto Refresh Logic
 let lastUpdate = 0;
 function checkUpdates() {
@@ -1411,6 +1527,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         }
+    });
+});
+
+// Keep active tab in URL so it persists on refresh
+document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
+    tab.addEventListener('shown.bs.tab', event => {
+        const target = event.target.getAttribute('data-bs-target');
+        let tabName = 'reservations';
+        if(target === '#payments') tabName = 'payments';
+        else if(target === '#security-deposit') tabName = 'sd';
+        
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tabName);
+        window.history.replaceState({}, '', url);
     });
 });
 </script>

@@ -296,6 +296,25 @@ function setup_waitlist_table($conn) {
 setup_waitlist_table($conn);
 }
 
+// --- WITHDRAWAL REQUESTS TABLE ---
+if (!function_exists('setup_withdrawal_requests_table')) {
+function setup_withdrawal_requests_table($conn) {
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS withdrawal_requests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        gcash_name VARCHAR(100) NOT NULL,
+        gcash_number VARCHAR(20) NOT NULL,
+        status ENUM('Pending', 'Processed', 'Rejected') DEFAULT 'Pending',
+        requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        processed_at DATETIME NULL,
+        admin_notes TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    )");
+}
+setup_withdrawal_requests_table($conn);
+}
+
 // --- ACCOUNT DELETION REQUESTS TABLE ---
 if (!function_exists('setup_deletion_requests_table')) {
 function setup_deletion_requests_table($conn) {
