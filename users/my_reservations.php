@@ -9,6 +9,28 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
+// Ensure room_transfers table exists
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS room_transfers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    reservation_id INT NOT NULL,
+    old_room_id INT NOT NULL,
+    new_room_id INT NOT NULL,
+    transfer_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('Moved', 'Returned') DEFAULT 'Moved'
+)");
+
+// Ensure return_requested column exists for reverting
+$check_col = mysqli_query($conn, "SHOW COLUMNS FROM room_transfers LIKE 'return_requested'");
+if(mysqli_num_rows($check_col) == 0) {
+    mysqli_query($conn, "ALTER TABLE room_transfers ADD COLUMN return_requested TINYINT(1) DEFAULT 0");
+}
+
+// Ensure return_date column exists
+$check_col_rd = mysqli_query($conn, "SHOW COLUMNS FROM room_transfers LIKE 'return_date'");
+if(mysqli_num_rows($check_col_rd) == 0) {
+    mysqli_query($conn, "ALTER TABLE room_transfers ADD COLUMN return_date DATETIME NULL DEFAULT NULL");
+}
+
 // Calculate Balance for Navbar Badge
 $financial_q = mysqli_query($conn, "SELECT IFNULL(SUM(p.amount), 0) as total_billed, IFNULL(SUM(CASE WHEN p.payment_status='Paid' THEN p.amount ELSE 0 END), 0) as total_paid FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$user_id AND p.payment_status != 'Cancelled'");
 $fin = mysqli_fetch_assoc($financial_q);
@@ -55,6 +77,16 @@ if(isset($_POST['update_info'])){
             $_SESSION['swal'] = ['title' => 'Error', 'text' => 'Failed to submit request.', 'icon' => 'error'];
         }
     }
+}
+
+// Handle Return Request Action
+if(isset($_POST['request_return'])){
+    $transfer_id = (int)$_POST['transfer_id'];
+    mysqli_query($conn, "UPDATE room_transfers SET return_requested=1 WHERE id=$transfer_id AND reservation_id IN (SELECT reservation_id FROM reservations WHERE user_id=$user_id)");
+    $_SESSION['swal'] = ['title' => 'Request Sent', 'text' => 'Admin has been notified of your request to return to your previous room.', 'icon' => 'success'];
+    log_activity($conn, $user_id, "Room Return Requested", "User requested to return to their old room (Transfer ID: $transfer_id)");
+    header("Location: my_reservations.php");
+    exit;
 }
 
 // Handle Archive Action
@@ -256,6 +288,29 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                             <?php if(!empty($row['bed_preference']) && $row['bed_preference'] != 'Any'): ?>
                                 <div class="mt-1"><span class="badge bg-light text-dark border"><i class="fas fa-bed me-1"></i><?= $row['bed_preference'] ?></span></div>
                             <?php endif; ?>
+                            <?php
+                            $rid = $row['reservation_id'];
+                            $transfers_q = mysqli_query($conn, "
+                                SELECT t.*, 
+                                       r1.room_name as old_name, r1.room_number as old_num, r1.room_type as old_type, 
+                                       r2.room_name as new_name, r2.room_number as new_num, r2.room_type as new_type 
+                                FROM room_transfers t 
+                                JOIN rooms r1 ON t.old_room_id = r1.room_id 
+                                JOIN rooms r2 ON t.new_room_id = r2.room_id 
+                                WHERE t.reservation_id = $rid ORDER BY t.transfer_date DESC
+                            ");
+                            if($transfers_q && mysqli_num_rows($transfers_q) > 0):
+                                $transfer_list = [];
+                                while($tr = mysqli_fetch_assoc($transfers_q)) {
+                                    $transfer_list[] = $tr;
+                                }
+                            ?>
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary w-100 py-1" style="font-size: 0.7rem;" onclick="openTransfersModal(<?= htmlspecialchars(json_encode($transfer_list), ENT_QUOTES, 'UTF-8') ?>)">
+                                    <i class="fas fa-exchange-alt me-1"></i> View Transfers (<?= count($transfer_list) ?>)
+                                </button>
+                            </div>
+                            <?php endif; ?>
                         </td>
                         <td>
                             <small class="d-block"><i class="fas fa-calendar-check text-success me-1"></i> In: <strong><?= $start_date ?></strong></small>
@@ -450,6 +505,44 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     </div>
 </div>
 
+<!-- Hidden Request Return Form -->
+<form method="POST" id="requestReturnForm" style="display:none;">
+    <input type="hidden" name="transfer_id" id="return_transfer_id">
+    <input type="hidden" name="request_return" value="1">
+</form>
+
+<!-- Room Transfers Modal -->
+<div class="modal fade" id="transfersModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-success"><i class="fas fa-exchange-alt me-2"></i>Room Transfers</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Move Date</th>
+                                <th>Return Date</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th class="pe-4">Status & Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transfersModalBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 justify-content-center">
+                <button type="button" class="btn btn-secondary-custom px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Room Details Modal -->
 <div class="modal fade" id="roomDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -580,6 +673,83 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     }
     // Init on load
     document.addEventListener('DOMContentLoaded', toggleCompanyField);
+
+    function openTransfersModal(transfers) {
+        const tbody = document.getElementById('transfersModalBody');
+        tbody.innerHTML = '';
+        
+        transfers.forEach(tr => {
+            const oldRoom = tr.old_num ? 'Room ' + tr.old_num : tr.old_name;
+            const newRoom = tr.new_num ? 'Room ' + tr.new_num : tr.new_name;
+            
+            const dateObj = new Date(tr.transfer_date);
+            const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+            let returnDateHtml = '<span class="text-muted small">-</span>';
+            if (tr.return_date) {
+                const retObj = new Date(tr.return_date);
+                const retD = retObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                const retT = retObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                returnDateHtml = `<span class="d-block fw-bold text-dark small">${retD}</span><span class="d-block text-muted" style="font-size: 0.7rem;"><i class="far fa-clock me-1"></i>${retT}</span>`;
+            }
+            
+            const statusBadge = tr.status === 'Moved' ? '<span class="badge bg-primary">Moved</span>' : '<span class="badge bg-secondary">Returned</span>';
+            
+            let actionHtml = '';
+            if(tr.status === 'Moved') {
+                if(tr.return_requested == 1) {
+                    actionHtml = '<span class="badge bg-warning text-dark mt-1 d-block" style="font-size: 0.6rem;">Return Requested</span>';
+                } else {
+                    actionHtml = `<button type="button" class="btn btn-sm btn-outline-danger mt-1 py-0 d-block w-100" style="font-size: 0.6rem;" onclick="requestRoomReturn(${tr.id}, '${oldRoom.replace(/'/g, "\\'")}')">Request Return</button>`;
+                }
+            }
+
+            tbody.innerHTML += `
+                <tr>
+                    <td class="ps-4">
+                        <span class="d-block fw-bold text-dark small">${dateStr}</span>
+                        <span class="d-block text-muted" style="font-size: 0.7rem;"><i class="far fa-clock me-1"></i>${timeStr}</span>
+                    </td>
+                    <td>
+                        ${returnDateHtml}
+                    </td>
+                    <td>
+                        <span class="text-danger fw-bold small d-block"><i class="fas fa-sign-out-alt me-1"></i> ${oldRoom}</span>
+                        <span class="badge bg-light text-dark border mt-1" style="font-size: 0.65rem;">${tr.old_type}</span>
+                    </td>
+                    <td>
+                        <span class="text-success fw-bold small d-block"><i class="fas fa-sign-in-alt me-1"></i> ${newRoom}</span>
+                        <span class="badge bg-light text-dark border mt-1" style="font-size: 0.65rem;">${tr.new_type}</span>
+                    </td>
+                    <td class="pe-4">
+                        ${statusBadge}
+                        ${actionHtml}
+                    </td>
+                </tr>
+            `;
+        });
+        
+        var myModal = new bootstrap.Modal(document.getElementById('transfersModal'));
+        myModal.show();
+    }
+
+    function requestRoomReturn(transferId, oldRoom) {
+        Swal.fire({
+            title: 'Request Return?',
+            text: `Send a request to the admin to return to ${oldRoom}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#2E7D32',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, request it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('return_transfer_id').value = transferId;
+                document.getElementById('requestReturnForm').submit();
+            }
+        });
+    }
 
     function viewRoomDetails(roomId, duration, totalPrice, bedPref, months) {
         var myModal = new bootstrap.Modal(document.getElementById('roomDetailsModal'));

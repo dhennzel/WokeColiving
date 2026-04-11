@@ -5,6 +5,16 @@ include('../db.php');
 if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit; }
 $user_id = $_SESSION['user_id'];
 
+// Ensure room_transfers table exists
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS room_transfers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    reservation_id INT NOT NULL,
+    old_room_id INT NOT NULL,
+    new_room_id INT NOT NULL,
+    transfer_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('Moved', 'Returned') DEFAULT 'Moved'
+)");
+
 // Fetch active or pending reservations
 $query = mysqli_query($conn, "
     SELECT r.*, rm.room_name, rm.room_number, rm.room_type, rm.image,
@@ -72,6 +82,32 @@ $sd_query = mysqli_query($conn, "
                                             <i class="fas fa-calendar-alt me-1 text-primary"></i> 
                                             <?= date('M d', strtotime($res['start_date'])) ?> - <?= date('M d, Y', strtotime($res['end_date'])) ?>
                                         </div>
+
+                                        <?php
+                                        $rid = $res['reservation_id'];
+                                        $transfers_q = mysqli_query($conn, "
+                                            SELECT t.*, r1.room_name as old_name, r1.room_number as old_num, r2.room_name as new_name, r2.room_number as new_num 
+                                            FROM room_transfers t 
+                                            JOIN rooms r1 ON t.old_room_id = r1.room_id 
+                                            JOIN rooms r2 ON t.new_room_id = r2.room_id 
+                                            WHERE t.reservation_id = $rid ORDER BY t.transfer_date DESC
+                                        ");
+                                        if($transfers_q && mysqli_num_rows($transfers_q) > 0):
+                                        ?>
+                                        <div class="small bg-light p-2 rounded mb-3" style="font-size: 0.75rem;">
+                                            <div class="fw-bold text-muted mb-1"><i class="fas fa-exchange-alt me-1"></i> Room History</div>
+                                            <ul class="list-unstyled mb-0">
+                                            <?php while($tr = mysqli_fetch_assoc($transfers_q)): 
+                                                $old = !empty($tr['old_num']) ? "Room ".$tr['old_num'] : $tr['old_name'];
+                                                $new = !empty($tr['new_num']) ? "Room ".$tr['new_num'] : $tr['new_name'];
+                                            ?>
+                                                <li class="text-truncate">
+                                                    <span class="text-danger"><?= $old ?></span> &rarr; <span class="text-success"><?= $new ?></span> 
+                                                </li>
+                                            <?php endwhile; ?>
+                                            </ul>
+                                        </div>
+                                        <?php endif; ?>
 
                                         <?php if($res['balance'] > 0): ?>
                                             <div class="alert alert-warning py-2 mb-3 border-0">

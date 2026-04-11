@@ -18,6 +18,22 @@ $uid = (int)$_GET['uid'];
 
 $admin_username = $_SESSION['admin_username'] ?? 'Admin';
 
+// Ensure room_transfers table exists
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS room_transfers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    reservation_id INT NOT NULL,
+    old_room_id INT NOT NULL,
+    new_room_id INT NOT NULL,
+    transfer_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('Moved', 'Returned') DEFAULT 'Moved'
+)");
+
+// Ensure return_date column exists
+$check_col_rd = mysqli_query($conn, "SHOW COLUMNS FROM room_transfers LIKE 'return_date'");
+if(mysqli_num_rows($check_col_rd) == 0) {
+    mysqli_query($conn, "ALTER TABLE room_transfers ADD COLUMN return_date DATETIME NULL DEFAULT NULL");
+}
+
 // Clean up any erroneous system wallet credits from previous refunds to fix negative balances
 mysqli_query($conn, "DELETE FROM payments WHERE description = 'Security Deposit Refund Credit'");
 
@@ -709,6 +725,11 @@ $theme = get_theme_colors($conn);
                                 Security Deposit
                             </button>
                         </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="transfers-tab" data-bs-toggle="tab" data-bs-target="#room-transfers" type="button">
+                                Transfers
+                            </button>
+                        </li>
                     </ul>
                 </div>
                 <div class="card-body p-4">
@@ -1020,6 +1041,56 @@ $theme = get_theme_colors($conn);
                                         <?php endwhile; ?>
                                         <?php if(mysqli_num_rows($sd_query) == 0): ?>
                                             <tr><td colspan="6" class="text-center text-muted py-4">No security deposit records found.</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Room Transfers Tab -->
+                        <div class="tab-pane fade" id="room-transfers" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold mb-0 text-muted">Room Transfer History</h6>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Move Date</th>
+                                            <th>Return Date</th>
+                                            <th>Moved From</th>
+                                            <th>Moved To</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php 
+                                        $transfers_q = mysqli_query($conn, "
+                                            SELECT t.*, 
+                                                   r1.room_name as old_name, r1.room_number as old_num,
+                                                   r2.room_name as new_name, r2.room_number as new_num
+                                            FROM room_transfers t
+                                            JOIN reservations res ON t.reservation_id = res.reservation_id
+                                            JOIN rooms r1 ON t.old_room_id = r1.room_id
+                                            JOIN rooms r2 ON t.new_room_id = r2.room_id
+                                            WHERE res.user_id = $uid
+                                            ORDER BY t.transfer_date DESC
+                                        ");
+                                        if($transfers_q && mysqli_num_rows($transfers_q) > 0):
+                                            while($tr = mysqli_fetch_assoc($transfers_q)):
+                                                $old = !empty($tr['old_num']) ? "Room ".$tr['old_num'] : $tr['old_name'];
+                                                $new = !empty($tr['new_num']) ? "Room ".$tr['new_num'] : $tr['new_name'];
+                                        ?>
+                                        <tr>
+                                            <td><?= date('M d, Y h:i A', strtotime($tr['transfer_date'])) ?></td>
+                                            <td><?= $tr['return_date'] ? date('M d, Y h:i A', strtotime($tr['return_date'])) : '<span class="text-muted">-</span>' ?></td>
+                                            <td class="text-danger fw-bold"><i class="fas fa-sign-out-alt me-1"></i> <?= $old ?></td>
+                                            <td class="text-success fw-bold"><i class="fas fa-sign-in-alt me-1"></i> <?= $new ?></td>
+                                            <td><span class="badge <?= $tr['status'] == 'Moved' ? 'bg-primary' : 'bg-secondary' ?>"><?= $tr['status'] ?></span></td>
+                                        </tr>
+                                        <?php endwhile; ?>
+                                        <?php else: ?>
+                                            <tr><td colspan="4" class="text-center text-muted py-4">No room transfers recorded.</td></tr>
                                         <?php endif; ?>
                                     </tbody>
                                 </table>

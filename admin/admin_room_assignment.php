@@ -14,6 +14,28 @@ $current_page = basename($_SERVER['PHP_SELF']);
 $msg = "";
 $error = "";
 
+// Ensure room_transfers table exists
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS room_transfers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    reservation_id INT NOT NULL,
+    old_room_id INT NOT NULL,
+    new_room_id INT NOT NULL,
+    transfer_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('Moved', 'Returned') DEFAULT 'Moved'
+)");
+
+// Ensure return_requested column exists
+$check_col = mysqli_query($conn, "SHOW COLUMNS FROM room_transfers LIKE 'return_requested'");
+if(mysqli_num_rows($check_col) == 0) {
+    mysqli_query($conn, "ALTER TABLE room_transfers ADD COLUMN return_requested TINYINT(1) DEFAULT 0");
+}
+
+// Ensure return_date column exists
+$check_col_rd = mysqli_query($conn, "SHOW COLUMNS FROM room_transfers LIKE 'return_date'");
+if(mysqli_num_rows($check_col_rd) == 0) {
+    mysqli_query($conn, "ALTER TABLE room_transfers ADD COLUMN return_date DATETIME NULL DEFAULT NULL");
+}
+
 // Handle Move Tenant
 if(isset($_POST['move_tenant'])){
     $reservation_id = (int)$_POST['reservation_id'];
@@ -21,6 +43,10 @@ if(isset($_POST['move_tenant'])){
     $bed_pref = $_POST['bed_preference'] ?? 'Any';
 
     if($reservation_id > 0 && $new_room_id > 0){
+        // Get old room
+        $old_q = mysqli_query($conn, "SELECT room_id FROM reservations WHERE reservation_id=$reservation_id");
+        $old_room_id = mysqli_fetch_assoc($old_q)['room_id'] ?? 0;
+
         // Fetch target room details
         $chk = mysqli_query($conn, "SELECT room_name, room_type FROM rooms WHERE room_id=$new_room_id");
         $room = mysqli_fetch_assoc($chk);
@@ -28,6 +54,11 @@ if(isset($_POST['move_tenant'])){
         // Update reservation
         $query = "UPDATE reservations SET room_id=$new_room_id, bed_preference='$bed_pref' WHERE reservation_id=$reservation_id";
         if(mysqli_query($conn, $query)){
+            // Record the transfer
+            if($old_room_id > 0 && $old_room_id != $new_room_id){
+                mysqli_query($conn, "INSERT INTO room_transfers (reservation_id, old_room_id, new_room_id) VALUES ($reservation_id, $old_room_id, $new_room_id)");
+            }
+
             // Log & Notify
             $u_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE reservation_id=$reservation_id");
             $uid = mysqli_fetch_assoc($u_q)['user_id'];
@@ -42,6 +73,34 @@ if(isset($_POST['move_tenant'])){
         }
     } else {
         $error = "Invalid room selection.";
+    }
+}
+
+// Handle Return Tenant
+if(isset($_POST['return_tenant'])){
+    $transfer_id = (int)$_POST['transfer_id'];
+    $t_q = mysqli_query($conn, "SELECT * FROM room_transfers WHERE id=$transfer_id");
+    $transfer = mysqli_fetch_assoc($t_q);
+    
+    if($transfer){
+        $res_id = $transfer['reservation_id'];
+        $orig_room = $transfer['old_room_id'];
+        
+        $chk = mysqli_query($conn, "SELECT room_name FROM rooms WHERE room_id=$orig_room");
+        $room = mysqli_fetch_assoc($chk);
+        
+        mysqli_query($conn, "UPDATE reservations SET room_id=$orig_room, bed_preference='Any' WHERE reservation_id=$res_id");
+        mysqli_query($conn, "UPDATE room_transfers SET status='Returned', return_date=NOW() WHERE id=$transfer_id");
+        
+        $u_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE reservation_id=$res_id");
+        $uid = mysqli_fetch_assoc($u_q)['user_id'] ?? 0;
+        
+        if($uid) {
+            log_activity($conn, $uid, "Room Returned", "Returned to " . $room['room_name'] . " by $admin_username");
+            send_notification($conn, $uid, "🏠 <strong>Room Returned</strong><br>You have been returned to your previous room: <strong>" . $room['room_name'] . "</strong>.", "System");
+        }
+        $msg = "Tenant returned successfully to " . $room['room_name'];
+        trigger_update($conn);
     }
 }
 
@@ -149,9 +208,25 @@ $theme = get_theme_colors($conn);
                                     <small class="d-block">End: <?= date('M d, Y', strtotime($res['end_date'])) ?></small>
                                 </td>
                                 <td>
+                                    <?php
+                                    $rid = $res['reservation_id'];
+                                    $trans_q = mysqli_query($conn, "SELECT t.*, rm.room_name, rm.room_number FROM room_transfers t JOIN rooms rm ON t.old_room_id = rm.room_id WHERE t.reservation_id=$rid AND t.status='Moved' ORDER BY t.id DESC LIMIT 1");
+                                    $latest_transfer = mysqli_fetch_assoc($trans_q);
+                                    ?>
                                     <button class="btn btn-sm btn-primary px-3" onclick="openMoveModal(<?= $res['reservation_id'] ?>, '<?= addslashes($res['full_name']) ?>', '<?= addslashes($room_display) ?>', '<?= $res['gender'] ?>')">
                                         <i class="fas fa-exchange-alt me-1"></i> Move
                                     </button>
+                                    <?php if($latest_transfer): 
+                                        $old_display = !empty($latest_transfer['room_number']) ? "Room ".$latest_transfer['room_number'] : $latest_transfer['room_name'];
+                                        $req_flag = isset($latest_transfer['return_requested']) && $latest_transfer['return_requested'] == 1;
+                                    ?>
+                                        <button class="btn btn-sm <?= $req_flag ? 'btn-danger position-relative' : 'btn-outline-warning text-dark' ?> px-3 ms-1 mt-1 mt-md-0" onclick="confirmReturn(<?= $latest_transfer['id'] ?>, '<?= addslashes($old_display) ?>')">
+                                            <i class="fas <?= $req_flag ? 'fa-exclamation-circle' : 'fa-undo' ?> me-1"></i> <?= $req_flag ? 'Approve Return' : 'Return' ?> (<?= htmlspecialchars($old_display) ?>)
+                                            <?php if($req_flag): ?>
+                                                <span class="position-absolute top-0 start-100 translate-middle p-1 bg-warning border border-light rounded-circle"></span>
+                                            <?php endif; ?>
+                                        </button>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
@@ -339,6 +414,12 @@ $theme = get_theme_colors($conn);
     <input type="hidden" name="move_tenant" value="1">
 </form>
 
+<!-- Hidden Return Form -->
+<form method="POST" id="returnForm" style="display:none;">
+    <input type="hidden" name="transfer_id" id="returnTransferId">
+    <input type="hidden" name="return_tenant" value="1">
+</form>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
@@ -366,6 +447,23 @@ $theme = get_theme_colors($conn);
                 document.getElementById('formRoomId').value = roomId;
                 document.getElementById('formBedPref').value = bedPref;
                 document.getElementById('moveForm').submit();
+            }
+        });
+    }
+
+    function confirmReturn(transferId, roomName) {
+        Swal.fire({
+            title: 'Return Tenant?',
+            text: `Return tenant back to ${roomName}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#2E7D32',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, Return'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('returnTransferId').value = transferId;
+                document.getElementById('returnForm').submit();
             }
         });
     }

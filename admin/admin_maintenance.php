@@ -630,6 +630,34 @@ $theme = get_theme_colors($conn);
     <input type="hidden" name="return_tenant" value="1">
 </form>
 
+<!-- Price Settings Modal -->
+<div class="modal fade" id="priceSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-tags me-2"></i>Maintenance Price Settings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Standard Maintenance Fee (₱)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">₱</span>
+                            <input type="number" step="0.01" name="price_maintenance_standard" class="form-control" value="<?= $standard_maint_price ?>" required>
+                        </div>
+                        <small class="text-muted">This price will be pre-filled when updating pending requests.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" name="update_maintenance_price" class="btn btn-success">Save Price</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
