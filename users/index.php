@@ -57,6 +57,12 @@ foreach ($all_rooms as $room) {
     if(isset($room['is_archived']) && $room['is_archived'] == 1) continue;
     $g = $room['gender'] ?? 'Any';
     $t = $room['room_type'];
+    
+    // Remove gender separation for Single rooms
+    if ($t === 'Single') {
+        $g = 'Any';
+    }
+    
     if(!isset($gender_grouped[$g])) $gender_grouped[$g] = [];
     if(!isset($gender_grouped[$g][$t])) $gender_grouped[$g][$t] = [];
     $gender_grouped[$g][$t][] = $room;
@@ -295,22 +301,43 @@ if(isset($_SESSION['user_id'])){
     <?php 
     // I-filter ang mga room cards base sa kasarian ng tenant. Kung guest (hindi naka-login), ipakita ang lahat.
     $display_genders = $user_gender ? [$user_gender, 'Any'] : ['Male', 'Female', 'Any'];
-    foreach($display_genders as $g_key): 
-        $types_in_gender = $gender_grouped[$g_key] ?? [];
-        if(empty($types_in_gender)) continue;
-        
-        $section_title = ($g_key == 'Any') ? 'Mixed / All Genders' : $g_key . ' Dormitories';
-        $section_icon = ($g_key == 'Male') ? 'fa-mars text-primary' : (($g_key == 'Female') ? 'fa-venus text-danger' : 'fa-venus-mars text-success');
+    
+    if ($user_gender) {
+        // For logged in users, combine all allowed rooms into a single row
+        $merged_types = [];
+        foreach($display_genders as $g_key) {
+            if(!empty($gender_grouped[$g_key])) {
+                foreach($gender_grouped[$g_key] as $type => $rooms_in_type) {
+                    $merged_types[$type] = $rooms_in_type;
+                }
+            }
+        }
+        $sections_to_render = [['title' => '', 'icon' => '', 'types' => $merged_types]];
+    } else {
+        // For guests, separate by gender
+        $sections_to_render = [];
+        foreach($display_genders as $g_key) {
+            if(!empty($gender_grouped[$g_key])) {
+                $sections_to_render[] = [
+                    'title' => ($g_key == 'Any') ? 'Mixed / All Genders' : $g_key . ' Dormitories',
+                    'icon' => ($g_key == 'Male') ? 'fa-mars text-primary' : (($g_key == 'Female') ? 'fa-venus text-danger' : 'fa-venus-mars text-success'),
+                    'types' => $gender_grouped[$g_key]
+                ];
+            }
+        }
+    }
+    
+    foreach($sections_to_render as $section): 
     ?>
-        <?php if(!$user_gender): ?>
+        <?php if(!empty($section['title'])): ?>
         <div class="mb-4" data-aos="fade-right">
-            <h4 class="fw-bold d-flex align-items-center"><i class="fas <?= $section_icon ?> me-2"></i><?= $section_title ?></h4>
+            <h4 class="fw-bold d-flex align-items-center"><i class="fas <?= $section['icon'] ?> me-2"></i><?= $section['title'] ?></h4>
             <hr class="w-25 mt-1 border-2 border-success opacity-50">
         </div>
         <?php endif; ?>
         
-        <div class="row g-4 mb-5">
-            <?php foreach($types_in_gender as $type => $rooms_in_type): 
+        <div class="row g-4 mb-5 rooms-slider-row">
+            <?php foreach($section['types'] as $type => $rooms_in_type): 
                 $type_total_beds = array_sum(array_column($rooms_in_type, 'total_beds'));
                 $type_avail_beds = array_sum(array_column($rooms_in_type, 'available_beds'));
                 $first_room = $rooms_in_type[0] ?? null;
