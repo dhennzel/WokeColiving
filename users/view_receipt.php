@@ -10,7 +10,7 @@ $user_id = $_SESSION['user_id'];
 
 // Fetch Reservation & User & Room Details, including emergency contacts
 $query = "
-    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, rm.room_name 
+    SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, u.email, u.phone_number, rm.room_name, r.security_deposit
     FROM reservations r
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
@@ -24,8 +24,8 @@ $data = mysqli_fetch_assoc($result);
 // Fetch Payments and categorize
 $pay_query = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id = $id AND payment_status = 'Paid' ORDER BY payment_date ASC");
 $total_paid = 0;
-$cat_sd = 0; $cat_rent = 0; $cat_cusa = 0; $cat_util = 0; $cat_other = 0;
-$cat_parking = 0; // New category for parking
+$cat_sd_paid = 0; $cat_rent = 0; $cat_cusa = 0; $cat_util = 0; $cat_other = 0;
+$cat_parking = 0;
 $last_method = 'Cash'; // Default
 
 while($p = mysqli_fetch_assoc($pay_query)){
@@ -34,12 +34,23 @@ while($p = mysqli_fetch_assoc($pay_query)){
     $last_method = $p['payment_method']; // Capture last method used
 
     $desc = strtolower($p['description']);
-    if(strpos($desc, 'security') !== false || strpos($desc, 'deposit') !== false) $cat_sd += $amt;
-    elseif(strpos($desc, 'parking') !== false) $cat_parking += $amt; // Categorize parking
+    if(strpos($desc, 'security') !== false || strpos($desc, 'deposit') !== false) $cat_sd_paid += $amt;
+    elseif(strpos($desc, 'parking') !== false) $cat_parking += $amt;
     elseif(strpos($desc, 'utility') !== false) $cat_util += $amt;
     elseif(strpos($desc, 'cusa') !== false) $cat_cusa += $amt;
     elseif(strpos($desc, 'rent') !== false) $cat_rent += $amt;
     else $cat_other += $amt;
+}
+
+// Correct the security deposit amount based on the reservation's record.
+// This ensures the receipt accurately reflects the required deposit if it was part of the payment.
+$required_sd = (float)($data['security_deposit'] ?? 0);
+$cat_sd = $cat_sd_paid; // Start with the amount paid towards SD
+
+if ($cat_sd_paid > 0 && $required_sd > 0 && $cat_sd_paid != $required_sd) {
+    $spillover = $cat_sd_paid - $required_sd;
+    $cat_sd = $required_sd;
+    $cat_rent += $spillover; // Assume any overpayment on SD was intended for rent.
 }
 ?>
 <!DOCTYPE html>

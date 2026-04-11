@@ -247,6 +247,7 @@ function setup_reservations_table($conn) {
     if(!in_array('company_or_school', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN company_or_school VARCHAR(100) DEFAULT NULL");
     if(!in_array('contact_person_name', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN contact_person_name VARCHAR(100) DEFAULT NULL");
     if(!in_array('contact_person_number', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN contact_person_number VARCHAR(20) DEFAULT NULL");
+    if(!in_array('security_deposit', $existing_res_cols)) mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN security_deposit DECIMAL(10,2) DEFAULT 0.00");
 }
 setup_reservations_table($conn);
 }

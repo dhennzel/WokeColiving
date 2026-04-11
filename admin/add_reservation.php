@@ -372,9 +372,9 @@ if(isset($_POST['add_reservation'])){
             $totalAmount += $prev_balance;
             $pay_desc = "Walk-in Booking Payment" . ($prev_balance > 0 ? " (Includes carried over balance: ₱" . number_format($prev_balance, 2) . ")" : "");
 
-            // Insert
-            $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, occupation, company_or_school, contact_person_name, contact_person_number) VALUES (?, ?, ?, ?, ?, ?, 'Approved', ?, ?, ?, ?, ?)");
-            $stmt->bind_param("iissidsssss", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $bed_preference, $occupation, $company, $em_name, $em_num);
+            // Insert with security deposit
+            $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, occupation, company_or_school, contact_person_name, contact_person_number, security_deposit) VALUES (?, ?, ?, ?, ?, ?, 'Approved', ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("iissidsssssd", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $bed_preference, $occupation, $company, $em_name, $em_num, $security_deposit);
             
             if($stmt->execute()){
                 $res_id = $conn->insert_id;
