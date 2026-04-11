@@ -96,7 +96,13 @@ $theme = get_theme_colors($conn);
                             <?php while($row = mysqli_fetch_assoc($logs)): ?>
                             <tr>
                                 <td class="text-muted small"><?= date('M d, Y h:i A', strtotime($row['created_at'])) ?></td>
-                                <td class="fw-bold"><?= $row['full_name'] ? htmlspecialchars($row['full_name']) : 'System/Admin' ?></td>
+                                <td class="fw-bold">
+                                    <?php if(!empty($row['full_name']) && $row['user_id'] > 0): ?>
+                                        <a href="view_user.php?uid=<?= $row['user_id'] ?>" class="text-decoration-none text-primary" title="View Profile"><?= htmlspecialchars($row['full_name']) ?></a>
+                                    <?php else: ?>
+                                        System/Admin
+                                    <?php endif; ?>
+                                </td>
                                 <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($row['action']) ?></span></td>
                                 <td class="small text-secondary"><?= htmlspecialchars($row['details']) ?></td>
                                 <td>

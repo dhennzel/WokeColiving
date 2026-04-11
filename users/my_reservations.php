@@ -127,6 +127,8 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         body.night-mode .table-striped>tbody>tr:nth-of-type(odd)>* { --bs-table-accent-bg: rgba(255, 255, 255, 0.05); color: #e0e0e0 !important; }
 
         @media print {
+            @page { margin: 0 !important; }
+            body, html { margin: 0 !important; padding: 15mm !important; background: #fff !important; }
             body * { visibility: hidden; }
             .modal.show, .modal.show * { visibility: visible; }
             .modal.show { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; background: none; }

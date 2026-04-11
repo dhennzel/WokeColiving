@@ -73,6 +73,19 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="admin.css">
+    <style>
+        @media print {
+            @page { margin: 0 !important; }
+            body, html { margin: 0 !important; padding: 15mm !important; background: #fff !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .sidebar, .top-navbar, .no-print, form, .btn { display: none !important; }
+            .dashboard-container, .main-wrapper, .main-content { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+            .card { border: none !important; box-shadow: none !important; }
+            .table { border-collapse: collapse !important; width: 100% !important; }
+            .table th, .table td { border: 1px solid #ddd !important; }
+            .alert-info { display: none !important; }
+        }
+    </style>
 </head>
 <body>
 <div class="dashboard-container">

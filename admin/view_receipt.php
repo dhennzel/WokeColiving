@@ -248,8 +248,10 @@ $theme = get_theme_colors($conn);
         .sig-image-on-receipt { max-height: 60px; position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); pointer-events: none; }
 
         .logo { width: 70px; height: 70px; object-fit: cover; border-radius: 50%; border: 3px solid var(--accent-yellow); }
+        
+        @page { size: A5 landscape; margin: 0; }
+        
         @media print {
-            @page { size: A5 landscape; margin: 0; }
             html, body { height: 148mm !important; width: 210mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .receipt-wrapper { display: block !important; padding: 0 !important; margin: 0 !important; background: none !important; width: 210mm; height: 148mm; }
@@ -397,7 +399,6 @@ $theme = get_theme_colors($conn);
             </form>
         <?php endif; ?>
         <button onclick="window.print()" class="btn btn-success rounded-pill shadow-lg px-4 fw-bold"><i class="fas fa-print me-2"></i>Print</button>
-        <button onclick="window.close()" class="btn btn-secondary rounded-pill shadow-lg px-4 fw-bold">Close</button>
     </div>
 </div>
 

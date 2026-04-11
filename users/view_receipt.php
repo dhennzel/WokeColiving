@@ -88,8 +88,9 @@ while($p = mysqli_fetch_assoc($pay_query)){
         .sig-img { max-height: 60px; margin-bottom: -10px; }
 
         @media print {
-            body { background: none; padding: 0; }
-            .receipt-container { border: none; box-shadow: none; width: 100%; }
+            @page { margin: 0; }
+            html, body { margin: 0 !important; padding: 15mm !important; background: #fff !important; }
+            .receipt-container { border: none !important; box-shadow: none !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
             .no-print { display: none !important; }
         }
     </style>

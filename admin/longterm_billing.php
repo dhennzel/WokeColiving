@@ -150,6 +150,8 @@ $theme = get_theme_colors($conn);
         
         .print-only { display: none; }
         @media print {
+            @page { margin: 0 !important; }
+            body, html { margin: 0 !important; padding: 15mm !important; background: #fff !important; }
             body * { visibility: hidden; }
             #billModal .modal-content, #billModal .modal-content * { visibility: visible; }
             #billModal .modal-content { position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none; background: white !important; }

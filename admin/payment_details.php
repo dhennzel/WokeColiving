@@ -131,8 +131,8 @@ if(!empty($payment['user_id'])){
         }
         
         @media print {
-            @page { size: A4 portrait; margin: 10mm; }
-            body, html { height: 100vh; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+            @page { size: A4 portrait; margin: 0 !important; }
+            body, html { height: auto !important; margin: 0 !important; padding: 15mm !important; background: #fff !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .no-print { display: none !important; }
             .dashboard-container, .main-wrapper, .main-content { display: block !important; padding: 0 !important; overflow: visible !important; height: auto !important; }

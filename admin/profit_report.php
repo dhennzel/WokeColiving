@@ -42,6 +42,7 @@ $type_query = mysqli_query($conn, "
     JOIN payments p ON res.reservation_id = p.reservation_id
     WHERE p.payment_status='Paid' $filter_payments_p
     GROUP BY r.room_type
+    ORDER BY room_type ASC
 ");
 $room_type_data = [];
 while($row = mysqli_fetch_assoc($type_query)){
@@ -148,14 +149,97 @@ $theme = get_theme_colors($conn);
     <link rel="stylesheet" href="admin.css">
     <style>
         .print-header { display: none; }
+        
         @media print {
-            #sidebar-wrapper, #menu-toggle, .btn-export, .btn-print, .no-print { display: none !important; }
-            #page-content-wrapper { margin: 0; padding: 0; width: 100%; }
-            .card { border: 1px solid #ddd !important; box-shadow: none !important; break-inside: avoid; margin-bottom: 20px; }
-            .container-fluid { padding: 0 !important; }
-            body { background-color: white; font-size: 11pt; }
-            .print-header { display: block !important; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-            canvas { max-height: 300px !important; width: 100% !important; }
+            /* 1. Remove Browser Headers & Footers (Removes the localhost URL) */
+            @page { 
+                size: A4 portrait; 
+                margin: 0mm !important; 
+            }
+
+            /* 2. Base Document Reset for Paper */
+            body, html { 
+                background: #ffffff !important; 
+                margin: 0 !important; 
+                padding: 15mm !important; 
+                font-family: 'Poppins', sans-serif !important;
+                font-size: 11pt !important;
+            }
+            
+            * { 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+            }
+
+            /* 3. Hide UI Interactivity Elements & Dropdowns */
+            .sidebar, .top-navbar, .no-print, .btn, form, 
+            select, option, .form-select,  /* Hides the chart filters */
+            [class*="fa-chevron-down"], /* Hides generic dropdown arrows */
+            .dropdown-toggle /* Hides bootstrap dropdowns */
+            { 
+                display: none !important; 
+            }
+
+            /* Hiding the specific yellow arrow button you pointed out */
+            .btn-warning, .bg-warning[role="button"], button[style*="background-color: var(--warning)"] {
+                display: none !important;
+            }
+
+            /* 4. Fix the Dark Chart Headers */
+            /* Forces backgrounds to white and text to black */
+            .card-header, .bg-dark, [style*="background-color: #212529"], [style*="background-color: rgb(33, 37, 41)"] {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                border-bottom: 2px solid #ccc !important; /* Adds a line to separate from chart */
+            }
+
+            /* 5. Force Pure Black Text for general readability */
+            h1, h2, h3, h4, h5, h6, p, span, div, td, th, small, a, i,
+            .text-muted, .text-secondary, .text-success, .text-danger, .text-dark, .text-white, .opacity-25 { 
+                color: #000000 !important; 
+                opacity: 1 !important; 
+                text-decoration: none !important;
+            }
+
+            /* 6. Reset App Layouts */
+            .dashboard-container, .main-wrapper, .main-content { 
+                display: block !important; 
+                width: 100% !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                overflow: visible !important; 
+            }
+
+            /* 7. Professional Header Styling */
+            .print-header { 
+                display: block !important; 
+                text-align: center;
+                margin-bottom: 25px; 
+                padding-bottom: 15px;
+                border-bottom: 2px solid #2e7d32; 
+            }
+            .print-header h2 { font-size: 24pt !important; font-weight: bold !important; color: #2e7d32 !important; }
+
+            /* 8. Cards Styling */
+            .card { 
+                border: 1px solid #c4c4c4 !important; 
+                box-shadow: none !important; 
+                break-inside: avoid !important; 
+                page-break-inside: avoid !important; 
+                margin-bottom: 15px !important; 
+                background-color: #ffffff !important; 
+                border-radius: 6px !important;
+            }
+            .card-stat { border-left-width: 4px !important; }
+
+            /* 9. Tables */
+            .table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 0 !important; }
+            .table th, .table td { border: 1px solid #dcdcdc !important; padding: 8px !important; }
+            .table-light th { background-color: #f8f9fa !important; font-weight: bold !important; }
+
+            /* 10. Progress bars & Charts */
+            .progress { border: 1px solid #e0e0e0 !important; background-color: #f5f5f5 !important; }
+            canvas { max-width: 100% !important; max-height: 250px !important; height: auto !important; break-inside: avoid !important; page-break-inside: avoid !important; }
         }
     </style>
 </head>
@@ -192,15 +276,14 @@ $theme = get_theme_colors($conn);
 
             <div class="row mb-4">
                 <div class="col-md-12">
-                    <div class="card card-stat p-4 text-white" style="background-color: var(--primary-green);">
-                        <h5 class="card-title">Total System Earnings</h5>
+                    <div class="card card-stat p-4 text-dark" style="background-color: var(--primary-green);">
+                        <h5 class="card-title text-dark">Total System Earnings</h5>
                         <h2 class="fw-bold">₱<?= number_format($total_earnings, 2) ?></h2>
-                        <p class="mb-0">Total revenue from approved reservations</p>
+                        <p class="mb-0 text-dark">Total revenue from approved reservations</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Revenue Breakdown Cards -->
             <div class="row mb-4 g-3">
                 <?php 
                 $icons = [
@@ -230,7 +313,6 @@ $theme = get_theme_colors($conn);
                 <?php endforeach; ?>
             </div>
 
-            <!-- Detailed Breakdown Table -->
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card card-stat p-4">
@@ -254,7 +336,10 @@ $theme = get_theme_colors($conn);
                                         $color = $colors[$cat] ?? 'secondary';
                                     ?>
                                     <tr>
-                                        <td><i class="fas <?= $icons[$cat] ?? 'fa-circle' ?> text-<?= $color ?> me-2"></i> <?= $cat ?></td>
+                                    <td>
+                                        <i class="fas <?= $icons[$cat] ?? 'fa-circle' ?> text-<?= $color ?> me-2"></i> 
+                                        <?= $cat ?>
+                                    </td>
                                         <td><?= $count ?></td>
                                         <td style="width: 40%;">
                                             <div class="d-flex align-items-center">
@@ -277,9 +362,9 @@ $theme = get_theme_colors($conn);
             <div class="row mb-4">
                 <div class="col-lg-8 mb-4 mb-lg-0">
                     <div class="card card-stat h-100">
-                        <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                            <div><i class="fas fa-chart-line me-2 text-secondary"></i> <span id="lineChartTitle">Monthly Earnings Trend</span></div>
-                            <select id="lineChartFilter" class="form-select form-select-sm w-auto shadow-none" onchange="updateLineChart()">
+                        <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                            <div><i class="fas fa-chart-line me-2"></i> <span id="lineChartTitle">Monthly Earnings Trend</span></div>
+                            <select id="lineChartFilter" class="form-select form-select-sm w-auto shadow-none bg-dark text-white border-secondary" onchange="updateLineChart()">
                                 <option value="earnings">Earnings</option>
                                 <option value="bookings">Bookings</option>
                             </select>
@@ -291,9 +376,9 @@ $theme = get_theme_colors($conn);
                 </div>
                 <div class="col-lg-4">
                     <div class="card card-stat h-100">
-                        <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                            <div><i class="fas fa-chart-pie me-2 text-secondary"></i> <span id="pieChartTitle">Earnings by Room Type</span></div>
-                            <select id="pieChartFilter" class="form-select form-select-sm w-auto shadow-none" onchange="updatePieChart()">
+                        <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                            <div><i class="fas fa-chart-pie me-2"></i> <span id="pieChartTitle">Earnings by Room Type</span></div>
+                            <select id="pieChartFilter" class="form-select form-select-sm w-auto shadow-none bg-dark text-white border-secondary" onchange="updatePieChart()">
                                 <option value="earnings">Earnings</option>
                                 <option value="bookings">Bookings</option>
                             </select>
@@ -355,7 +440,6 @@ $theme = get_theme_colors($conn);
                 </div>
             </div>
 
-            <!-- Recent Transactions -->
             <div class="card card-stat p-4 mb-4 no-print">
                 <h5 class="fw-bold mb-3 text-secondary">Recent Transactions</h5>
                 <div class="table-responsive">
@@ -413,6 +497,15 @@ const labels = monthlyData.map(item => {
 const earnings = monthlyData.map(item => item.earnings);
 const bookings = monthlyData.map(item => item.bookings);
 
+// Default theme colors if not provided by get_theme_colors()
+const defaultTheme = {
+    primary: '#2e7d32',
+    accent: '#fbc02d',
+    dark: '#212529'
+};
+
+const themeColors = <?= isset($theme) ? json_encode($theme) : 'defaultTheme' ?>;
+
 let lineChart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -420,7 +513,7 @@ let lineChart = new Chart(ctx, {
         datasets: [{
             label: 'Total Earnings',
             data: earnings,
-            borderColor: <?= json_encode($theme['primary']) ?>,
+            borderColor: themeColors.primary,
             backgroundColor: 'rgba(46, 125, 50, 0.1)',
             borderWidth: 2,
             fill: true,
@@ -479,13 +572,13 @@ function updateLineChart() {
         title.innerText = 'Monthly Earnings Trend';
         lineChart.data.datasets[0].label = 'Total Earnings';
         lineChart.data.datasets[0].data = earnings;
-        lineChart.data.datasets[0].borderColor = <?= json_encode($theme['primary']) ?>;
+        lineChart.data.datasets[0].borderColor = themeColors.primary;
         lineChart.data.datasets[0].backgroundColor = 'rgba(46, 125, 50, 0.1)';
     } else {
         title.innerText = 'Monthly Bookings Trend';
         lineChart.data.datasets[0].label = 'Total Bookings';
         lineChart.data.datasets[0].data = bookings;
-        lineChart.data.datasets[0].borderColor = <?= json_encode($theme['accent']) ?>;
+        lineChart.data.datasets[0].borderColor = themeColors.accent;
         lineChart.data.datasets[0].backgroundColor = 'rgba(251, 192, 45, 0.1)';
     }
     lineChart.update();
@@ -497,19 +590,22 @@ const roomTypeData = <?= json_encode($room_type_data) ?>;
 const pieEarnings = roomTypeData.map(item => item.earnings);
 const pieBookings = roomTypeData.map(item => item.bookings);
 
+// Defaulting to typical colors based on the image if theme colors aren't enough
+const chartColors = [
+    themeColors.primary || '#2e7d32', 
+    themeColors.accent || '#fbc02d', 
+    themeColors.dark || '#1b5e20',
+    '#66bb6a',
+    '#fff59d'
+];
+
 let pieChart = new Chart(ctxPie, {
     type: 'pie',
     data: {
         labels: roomTypeData.map(item => item.room_type),
         datasets: [{
             data: pieEarnings,
-            backgroundColor: [
-                <?= json_encode($theme['primary']) ?>,
-                <?= json_encode($theme['accent']) ?>,
-                <?= json_encode($theme['dark']) ?>,
-                '#81C784',
-                '#FFF176'
-            ],
+            backgroundColor: chartColors,
             borderWidth: 1
         }]
     },
@@ -517,7 +613,13 @@ let pieChart = new Chart(ctxPie, {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { position: 'bottom' },
+            legend: { 
+                position: 'bottom',
+                labels: {
+                    usePointStyle: true,
+                    padding: 20
+                }
+            },
             tooltip: {
                 callbacks: {
                     label: function(context) {
