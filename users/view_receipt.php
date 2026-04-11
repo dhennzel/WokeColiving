@@ -99,7 +99,7 @@ if ($cat_sd_paid > 0 && $required_sd > 0 && $cat_sd_paid != $required_sd) {
         .sig-img { max-height: 60px; margin-bottom: -10px; }
 
         @media print {
-            @page { margin: 0; }
+            @page { margin: 0 !important; }
             html, body { margin: 0 !important; padding: 15mm !important; background: #fff !important; }
             .receipt-container { border: none !important; box-shadow: none !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
             .no-print { display: none !important; }
@@ -188,5 +188,15 @@ if ($cat_sd_paid > 0 && $required_sd > 0 && $cat_sd_paid != $required_sd) {
     </div>
 </div>
 
+<script>
+// Remove browser headers and footers (Title, Date, URL, Page No.) during print
+window.onbeforeprint = function() {
+    window.oldTitle = document.title;
+    document.title = "";
+};
+window.onafterprint = function() {
+    document.title = window.oldTitle;
+};
+</script>
 </body>
 </html>

@@ -93,6 +93,27 @@ $theme = get_theme_colors($conn);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="admin.css">
+    <style>
+        @media print {
+            @page { size: A4 portrait; margin: 0; }
+            body, html { background: #fff !important; margin: 0 !important; padding: 10mm !important; color: #000 !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .sidebar, .top-navbar, .navbar-restore-trigger, .no-print, form, .btn, .dropdown { display: none !important; }
+            .dashboard-container, .main-wrapper, .main-content { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+            .page-header, .alert { display: none !important; }
+            .card { border: none !important; box-shadow: none !important; padding: 0 !important; }
+            .table { border-collapse: collapse !important; width: 100% !important; }
+            .table th, .table td { border: 1px solid #ccc !important; padding: 10px !important; color: #000 !important; font-size: 11pt !important; vertical-align: middle !important; }
+            .table thead th { background-color: #f8f9fa !important; font-weight: bold !important; color: #000 !important; border-bottom: 2px solid #ccc !important; }
+            .badge { border: 1px solid #666 !important; color: #000 !important; background: transparent !important; padding: 3px 6px !important; }
+            #cardsView { display: none !important; }
+            #tableView { display: block !important; }
+            .print-header { display: block !important; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #2e7d32; padding-bottom: 10px; }
+            .print-header h2 { margin: 0; color: #2e7d32 !important; font-weight: bold; font-size: 24px; }
+            .print-header p { margin: 0; color: #555 !important; font-size: 14px; }
+        }
+        .print-header { display: none; }
+    </style>
 </head>
 <body>
 <div class="dashboard-container">
@@ -103,7 +124,7 @@ $theme = get_theme_colors($conn);
             <div class="page-header d-flex justify-content-between align-items-center">
                 <h1>Residents Directory <span class="badge bg-success fs-6 align-middle ms-2"><?= count($residents) ?> Total</span></h1>
                 <div class="d-flex gap-2">
-                    <form method="GET" class="d-flex">
+                    <form method="GET" class="d-flex no-print">
                         <select name="status_filter" class="form-select form-select-sm me-2" onchange="this.form.submit()">
                             <option value="all" <?= $status_filter == 'all' ? 'selected' : '' ?>>All Status</option>
                             <option value="active" <?= $status_filter == 'active' ? 'selected' : '' ?>>Active</option>
@@ -117,8 +138,9 @@ $theme = get_theme_colors($conn);
                         <input type="text" name="search" class="form-control form-control-sm me-2" placeholder="Search residents..." value="<?= htmlspecialchars($search) ?>">
                         <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
                     </form>
-                    <a href="add_reservation.php" class="btn btn-sm btn-custom"><i class="fas fa-user-plus me-1"></i> Add Resident</a>
-                    <div class="dropdown">
+                    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-2"></i>Print</button>
+                    <a href="add_reservation.php" class="btn btn-sm btn-custom no-print"><i class="fas fa-user-plus me-1"></i> Add Resident</a>
+                    <div class="dropdown no-print">
                         <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="padding-left: 10px; padding-right: 10px;">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
@@ -135,9 +157,14 @@ $theme = get_theme_colors($conn);
 
             <!-- Table View -->
             <div class="card card-table p-4" id="tableView">
+                <div class="print-header text-center">
+                    <h2>Woke Coliving INC</h2>
+                    <p>Residents Directory</p>
+                    <small>Generated on <?= date('F d, Y h:i A') ?></small>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Resident</th><th>Contact</th><th>Billing Summary</th><th>Status</th><th>Joined</th><th class="text-end">Action</th></tr></thead>
+                        <thead><tr><th>Resident</th><th>Contact</th><th>Billing Summary</th><th>Status</th><th>Joined</th><th class="text-end no-print">Action</th></tr></thead>
                         <tbody>
                             <?php foreach($residents as $row): ?>
                             <tr>
@@ -180,7 +207,7 @@ $theme = get_theme_colors($conn);
                                     endif; ?>
                                 </td>
                                 <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
-                                <td class="text-end">
+                                <td class="text-end no-print">
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-user='<?= htmlspecialchars(json_encode($row), ENT_QUOTES, 'UTF-8') ?>' onclick="openResidentModal(this)"><i class="fas fa-eye"></i> View</button>
                                     <?php if($is_super): ?>
                                     <form method="POST" class="d-inline" onsubmit="confirmDeleteUser(event)">
@@ -500,6 +527,15 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.removeItem('playNotifSound');
     }
 });
+
+// Remove browser headers (Title, URL) during print
+window.onbeforeprint = function() {
+    window.oldTitle = document.title;
+    document.title = "";
+};
+window.onafterprint = function() {
+    document.title = window.oldTitle;
+};
 </script>
 </body>
 </html>

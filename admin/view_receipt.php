@@ -249,7 +249,7 @@ $theme = get_theme_colors($conn);
 
         .logo { width: 70px; height: 70px; object-fit: cover; border-radius: 50%; border: 3px solid var(--accent-yellow); }
         
-        @page { size: A5 landscape; margin: 0; }
+        @page { size: A5 landscape; margin: 0 !important; }
         
         @media print {
             html, body { height: 148mm !important; width: 210mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
