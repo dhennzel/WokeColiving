@@ -373,7 +373,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                                     <div class="mb-3">
                                         <label class="form-label fw-bold small">Email & Phone Number</label>
                                         <div class="input-group input-group-sm mb-2"><span class="input-group-text"><i class="fas fa-envelope"></i></span><input type="email" name="email" class="form-control" value="<?= htmlspecialchars($admin_info['email'] ?? '') ?>"></div>
-                                        <div class="input-group input-group-sm"><span class="input-group-text"><i class="fas fa-phone"></i></span><input type="text" name="phone_number" class="form-control" value="<?= htmlspecialchars($admin_info['phone_number'] ?? '') ?>"></div>
+                                        <div class="input-group input-group-sm"><span class="input-group-text"><i class="fas fa-phone"></i></span><input type="text" name="phone_number" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" value="<?= htmlspecialchars($admin_info['phone_number'] ?? '') ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')"></div>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label fw-bold small">Login Username</label>

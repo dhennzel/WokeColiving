@@ -105,18 +105,18 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
         </div>
 
         <!-- System Settings -->
+        <?php if($is_super): ?>
         <a href="#settingsSubmenu" data-bs-toggle="collapse" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? '' : 'collapsed' ?>">
             <div><i class="fas fa-cog"></i><span>Settings</span></div>
             <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0; margin-left: 10px;"></i>
         </a>
         <div class="collapse <?= in_array($current_page, ['admin_roles.php', 'manage_hero.php', 'system_logs.php', 'backup.php']) ? 'show' : '' ?>" id="settingsSubmenu">
-            <?php if($is_super): ?>
             <a href="admin_roles.php" class="nav-item <?= $current_page == 'admin_roles.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-users-cog" style="width: 25px;"></i><span>Manage Roles</span></a>
             <a href="manage_hero.php" class="nav-item <?= $current_page == 'manage_hero.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-image" style="width: 25px;"></i><span>Hero Image</span></a>
             <a href="system_logs.php" class="nav-item <?= ($current_page == 'system_logs.php') ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-list-alt" style="width: 25px;"></i><span>System Logs</span></a>
             <a href="backup.php" class="nav-item <?= $current_page == 'backup.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;"><i class="fas fa-database" style="width: 25px;"></i><span>Backup</span></a>
-            <?php endif; ?>
         </div>
+        <?php endif; ?>
     </nav>
 </aside>
 <script>

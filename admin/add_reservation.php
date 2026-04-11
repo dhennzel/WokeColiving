@@ -106,7 +106,7 @@ $f_new_em_name = $_POST['new_em_name'] ?? '';
 $f_new_em_num = $_POST['new_em_num'] ?? '';
 $f_room_type = $_POST['room_type'] ?? ($pre_room_type ?: 'Single');
 $f_bed_preference = $_POST['bed_preference'] ?? 'Any';
-$f_duration = $_POST['duration_select'] ?? '1';
+$f_duration = $_POST['duration_select'] ?? '';
 $f_cin = $_POST['cin'] ?? $pre_cin;
 $f_cout = $_POST['cout'] ?? '';
 $f_pay_method = $_POST['payment_method'] ?? 'Cash';
@@ -147,7 +147,7 @@ if(isset($_POST['add_reservation'])){
 
         $em_name = trim($_POST['new_em_name'] ?? '');
         $em_num = trim($_POST['new_em_num'] ?? '');
-        $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : 'WokeCol1';
+        $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : 'Wokecoliving101';
         $name_regex = "/^[a-zA-Z\sñÑ]+$/";
         
         if (!preg_match($name_regex, $fname) || !preg_match($name_regex, $lname) || (!empty($mname) && !preg_match($name_regex, $mname)) || (!empty($suffix) && !preg_match($name_regex, $suffix))) {
@@ -613,9 +613,9 @@ $theme = get_theme_colors($conn);
                             </div>
                             <div class="col-md-6"><label class="small fw-bold" id="new_em_name_label">Emergency Name</label><input type="text" name="new_em_name" class="form-control" value="<?= htmlspecialchars($f_new_em_name) ?>"></div>
                             <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_em_num) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: WokeCol1" minlength="6" maxlength="8"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: Wokecoliving101" minlength="6" maxlength="8"></div>
                         </div>
-                        <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>WokeCol1</strong> (7 letters, 1 number).</small>
+                        <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>Wokecoliving101</strong> (7 letters, 1 number).</small>
                     </div>
 
                     <div class="row">
@@ -641,7 +641,8 @@ $theme = get_theme_colors($conn);
 
                     <div class="mb-3">
                         <label class="form-label fw-bold">Duration</label>
-                        <select id="duration_select" name="duration_select" class="form-select" onchange="updateCheckoutDate()">
+                        <select id="duration_select" name="duration_select" class="form-select" required onchange="updateCheckoutDate()">
+                            <option value="" disabled <?= empty($f_duration) ? 'selected' : '' ?>>Select Duration</option>
                             <option value="1" <?= $f_duration == '1' ? 'selected' : '' ?>>Short Term (1 Month)</option>
                             <option value="6" <?= $f_duration == '6' ? 'selected' : '' ?>>Long Term (6 Months Contract)</option>
                             <option value="Daily" <?= $f_duration == 'Daily' ? 'selected' : '' ?>>Daily</option>
@@ -969,7 +970,7 @@ function updateCheckoutDate() {
         cinInput.value = `${yyyy}-${mm}-${dd}`;
     }
 
-    if(cinInput.value) {
+        if(cinInput.value && duration) {
         let d = new Date(cinInput.value);
 
         if (duration === '1') {
@@ -980,7 +981,7 @@ function updateCheckoutDate() {
             d.setMonth(d.getMonth() + 6);
             coutInput.value = d.toISOString().split('T')[0];
             termInput.value = 'Long';
-        } else {
+            } else if (duration === 'Daily') {
             d.setDate(d.getDate() + 1);
             coutInput.value = d.toISOString().split('T')[0];
             termInput.value = 'Daily';
@@ -1033,7 +1034,7 @@ function calculateTotal() {
     let bedPref = document.querySelector('select[name="bed_preference"]').value;
     let durationType = document.getElementById('duration_select').value;
 
-    if(room && cin && cout) {
+        if(room && cin && cout && durationType) {
         let priceData = roomPrices[room] || {};
         let total = 0;
         let sd = 0;
@@ -1336,12 +1337,98 @@ Swal.fire({
 
 // Initialize on load if room type is pre-selected
 window.addEventListener('DOMContentLoaded', (event) => {
+    // Form Auto-Save & Restore Logic
+    const form = document.getElementById('reservationForm');
+    if(form) {
+        <?php if(!empty($success)): ?>
+        // Clear saved state if reservation was successful
+        sessionStorage.removeItem('add_reservation_form_state');
+        <?php else: ?>
+        // Restore state
+        const savedStateStr = sessionStorage.getItem('add_reservation_form_state');
+        if (savedStateStr) {
+            try {
+                const state = JSON.parse(savedStateStr);
+                for (const [key, value] of Object.entries(state)) {
+                    if (key === 'new_password' || key.startsWith('_')) continue;
+                    
+                    const elements = form.querySelectorAll(`[name="${key}"]`);
+                    if (elements.length > 1 && elements[0].type === 'radio') {
+                        elements.forEach(el => { if(el.value === value) el.checked = true; });
+                    } else if (elements.length === 1) {
+                        elements[0].value = value;
+                        if(key === 'user_id' && window.jQuery) {
+                            $('#existing_user_id').val(value).trigger('change');
+                        }
+                    }
+                }
+
+                // Restore street manually
+                if(state['_street']) {
+                    const streetEl = document.getElementById('street');
+                    if(streetEl) streetEl.value = state['_street'];
+                }
+
+                // Restore Address Dropdowns (Async cascade)
+                if (state['_region']) {
+                    const reg = document.getElementById('region');
+                    if(reg) {
+                        reg.value = state['_region'];
+                        reg.dispatchEvent(new Event('change'));
+                        setTimeout(() => {
+                            const prov = document.getElementById('province');
+                            if(prov && state['_province']) {
+                                prov.value = state['_province'];
+                                prov.dispatchEvent(new Event('change'));
+                                setTimeout(() => {
+                                    const city = document.getElementById('city');
+                                    if(city && state['_city']) {
+                                        city.value = state['_city'];
+                                        city.dispatchEvent(new Event('change'));
+                                        setTimeout(() => {
+                                            const brgy = document.getElementById('barangay');
+                                            if(brgy && state['_barangay']) {
+                                                brgy.value = state['_barangay'];
+                                            }
+                                        }, 600);
+                                    }
+                                }, 600);
+                            }
+                        }, 600);
+                    }
+                }
+            } catch (e) { console.error('Error restoring form state:', e); }
+        }
+
+        // Save state function
+        function saveFormState() {
+            const formData = new FormData(form);
+            const state = {};
+            for (const [key, value] of formData.entries()) {
+                if (key !== 'new_password') state[key] = value;
+            }
+            ['region', 'province', 'city', 'barangay', 'street'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) state['_' + id] = el.value;
+            });
+            sessionStorage.setItem('add_reservation_form_state', JSON.stringify(state));
+        }
+
+        form.addEventListener('input', saveFormState);
+        form.addEventListener('change', saveFormState);
+        if (window.jQuery) { $('#existing_user_id').on('change', saveFormState); }
+        <?php endif; ?>
+    }
+
     if(document.getElementById('room_type').value) {
         updateRoomOptions();
     }
 
     // Re-trigger new guest field logic if values were persisted
-    if(document.getElementById('type_new').checked) toggleNewGuestCompany();
+    if(document.getElementById('type_new').checked) {
+        toggleUserSection();
+        toggleNewGuestCompany();
+    }
     
     // Re-trigger preview if existing user was persisted
     if(document.getElementById('type_existing').checked && document.getElementById('existing_user_id').value) updateUserPreview();
