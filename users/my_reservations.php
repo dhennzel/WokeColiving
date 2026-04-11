@@ -140,6 +140,18 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
             body.night-mode .modal-content { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
             body.night-mode .table-light th, body.night-mode .table-light td { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-color: #444 !important; }
         }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .table th, .table td { padding: 8px 10px !important; font-size: 0.85rem; }
+            .table th { font-size: 0.75rem; }
+            .btn-sm { padding: 4px 8px !important; font-size: 0.75rem !important; }
+            .badge { padding: 4px 8px !important; }
+            .card-custom { padding: 15px !important; }
+            .container { margin-top: 80px !important; }
+            .anim-trigger { flex-direction: column; align-items: flex-start !important; gap: 15px; }
+            .anim-trigger > div:last-child { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
+        }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">

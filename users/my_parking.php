@@ -52,6 +52,17 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
         body.night-mode::-webkit-scrollbar-track, body.night-mode *::-webkit-scrollbar-track { background: #121212 !important; }
         body.night-mode::-webkit-scrollbar-thumb, body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }
         body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .table th, .table td { padding: 8px 10px !important; font-size: 0.85rem; }
+            .table th { font-size: 0.75rem; }
+            .btn-sm { padding: 4px 8px !important; font-size: 0.75rem !important; }
+            .badge { padding: 4px 8px !important; }
+            .card-custom { padding: 15px !important; }
+            .container { margin-top: 80px !important; }
+            .anim-trigger { flex-direction: column; align-items: flex-start !important; gap: 15px; }
+        }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">

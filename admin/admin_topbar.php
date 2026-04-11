@@ -40,7 +40,10 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
     <i class="fas fa-chevron-down"></i>
 </div>
 <header class="top-navbar">
-    <div class="navbar-left">
+    <div class="navbar-left d-flex align-items-center">
+        <button id="mobileSidebarToggle" class="icon-btn me-3 d-lg-none" type="button" title="Toggle Menu">
+            <i class="fas fa-bars"></i>
+        </button>
         <form action="<?= htmlspecialchars($search_action) ?>" method="GET" class="search-bar d-none d-md-flex">
             <i class="fas fa-search"></i>
             <input type="search" name="search" placeholder="<?= htmlspecialchars($search_placeholder) ?>" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" autocomplete="off">

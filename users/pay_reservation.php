@@ -148,6 +148,16 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
         body.night-mode .table { color: #e0e0e0 !important; border-color: #444 !important; }
         body.night-mode .table th, body.night-mode .table td { background-color: transparent !important; color: #e0e0e0 !important; border-color: #444 !important; }
         body.night-mode .table-light th, body.night-mode .table-light td { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-color: #444 !important; }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .table th, .table td { padding: 8px 10px !important; font-size: 0.85rem; }
+            .table th { font-size: 0.75rem; }
+            .card-custom { padding: 15px !important; }
+            .container { margin-top: 20px !important; }
+            .fs-5 { font-size: 1.1rem !important; }
+            .h3 { font-size: 1.5rem !important; }
+        }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">

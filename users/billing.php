@@ -55,6 +55,17 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
         body.night-mode .table { color: #e0e0e0 !important; }
         body.night-mode .table th, body.night-mode .table td { border-color: #444 !important; background-color: transparent !important; color: #e0e0e0 !important; }
         body.night-mode .balance-card { background: linear-gradient(135deg, #1B5E20, #0a3a10) !important; color: #e0e0e0 !important; }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .table th, .table td { padding: 8px 10px !important; font-size: 0.85rem; }
+            .table th { font-size: 0.75rem; }
+            .btn-sm { padding: 4px 8px !important; font-size: 0.75rem !important; }
+            .badge { padding: 4px 8px !important; }
+            .summary-card { padding: 15px !important; }
+            .mb-4.d-flex { flex-direction: column; align-items: flex-start !important; gap: 15px; }
+            .mb-4.d-flex > div:last-child { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
+        }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">

@@ -18,6 +18,7 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
         }
     })();
 </script>
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo-placeholder" id="sidebarToggle" title="Toggle Sidebar">
@@ -118,3 +119,48 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
         </div>
     </nav>
 </aside>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebar = document.getElementById('sidebar');
+    const mobileToggle = document.getElementById('mobileSidebarToggle');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    
+    function openSidebar() {
+        sidebar.classList.add('mobile-open');
+        backdrop.classList.add('show');
+    }
+    
+    function closeSidebar() {
+        sidebar.classList.remove('mobile-open');
+        backdrop.classList.remove('show');
+    }
+
+    if(mobileToggle && sidebar && backdrop) {
+        mobileToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            openSidebar();
+        });
+        
+        backdrop.addEventListener('click', closeSidebar);
+        
+        // --- Swipable Sidebar Logic ---
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        document.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+        
+        document.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, {passive: true});
+        
+        function handleSwipe() {
+            const swipeDistance = touchEndX - touchStartX;
+            if (swipeDistance > 50 && touchStartX < 40 && !sidebar.classList.contains('mobile-open')) openSidebar(); // Swipe Right from edge
+            else if (swipeDistance < -50 && sidebar.classList.contains('mobile-open')) closeSidebar(); // Swipe Left to close
+        }
+    }
+});
+</script>

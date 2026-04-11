@@ -100,7 +100,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    transition: width var(--transition-speed);
+    transition: width var(--transition-speed), transform var(--transition-speed);
     z-index: 100;
 }
 
@@ -980,4 +980,75 @@ body.theme-transition input,
 body.theme-transition select,
 body.theme-transition .form-control {
     transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+}
+
+/* --- Mobile Responsiveness --- */
+.sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.5);
+    z-index: 1040; /* Just below the sidebar */
+    display: none;
+    opacity: 0;
+    transition: opacity var(--transition-speed);
+}
+.sidebar-backdrop.show {
+    display: block;
+    opacity: 1;
+}
+
+@media (max-width: 991.98px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 1050; /* Above topbar */
+        transform: translateX(-100%);
+        width: var(--sidebar-width) !important;
+        box-shadow: var(--shadow-md);
+    }
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+    .top-navbar {
+        padding: 0 15px;
+    }
+    .main-content {
+        padding: 15px;
+    }
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 15px;
+    }
+    .page-header h1 {
+        font-size: 1.5rem;
+    }
+    .page-header > div {
+        width: 100%;
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding-bottom: 5px;
+    }
+
+    /* Tighter Tables for Mobile */
+    .table th, .table td, .data-table th, .data-table td {
+        padding: 8px 10px !important;
+        font-size: 0.85rem;
+    }
+    .table th, .data-table th {
+        font-size: 0.75rem;
+    }
+    .btn-sm {
+        padding: 4px 8px !important;
+        font-size: 0.75rem !important;
+    }
+    .badge {
+        padding: 4px 8px !important;
+    }
 }

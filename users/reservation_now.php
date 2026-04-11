@@ -674,6 +674,15 @@ if (isset($_POST['confirm_booking'])) {
             box-shadow: 0 4px 15px rgba(52, 184, 117, 0.2);
         }
         .btn-custom:hover { background-color: #2A9A60; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(52, 184, 117, 0.3); color: white; }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .card-custom { padding: 15px !important; }
+            .card-header { padding: 1rem 1rem !important; }
+            .card-body { padding: 1rem 0.5rem !important; }
+            .utility-block { padding: 15px !important; }
+            .btn-custom { padding: 12px !important; }
+        }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">

@@ -279,3 +279,50 @@ button:hover {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* =========================================
+   Mobile Responsiveness & Swipe Sliders
+   ========================================= */
+@media (max-width: 768px) {
+    /* Make Room & Amenities Grids Swipeable Sliders */
+    .room-grid, 
+    .amenities-grid, 
+    .features-grid {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scroll-snap-type: x mandatory;
+        scroll-padding-left: 5%;
+        gap: 15px;
+        padding-bottom: 20px;
+        margin-left: -5%;
+        margin-right: -5%;
+        padding-left: 5%;
+        padding-right: 5%;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
+    }
+    
+    .room-grid::-webkit-scrollbar, 
+    .amenities-grid::-webkit-scrollbar, 
+    .features-grid::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+    }
+    
+    .room-card, 
+    .amenity-card, 
+    .feature-card {
+        flex: 0 0 85% !important; /* Peek effect: shows 85% of card */
+        scroll-snap-align: start;
+    }
+    
+    .hero {
+        padding: 5rem 5% 3rem;
+    }
+    
+    .hero h1 {
+        font-size: 2.2rem;
+    }
+}
