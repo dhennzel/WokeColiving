@@ -9,6 +9,34 @@ if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true
 
 $admin_username = $_SESSION['admin_username'] ?? 'Admin';
 
+// Handle Price Settings Update
+if(isset($_POST['update_maintenance_price'])){
+    $standard_price = (float)$_POST['price_maintenance_standard'];
+    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('price_maintenance_standard', '$standard_price') ON DUPLICATE KEY UPDATE setting_value='$standard_price'");
+
+    // Bulk Update existing records that haven't been priced yet
+    mysqli_query($conn, "UPDATE maintenance_requests SET cost='$standard_price' WHERE (cost=0 OR cost IS NULL) AND status IN ('Pending', 'Scheduled')");
+    
+    trigger_update($conn);
+    header("Location: admin_maintenance.php?msg=price_updated");
+    exit;
+}
+
+// Fetch Standard Price
+$standard_maint_price = 0.00; // System default
+$q_price = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key = 'price_maintenance_standard'");
+if($row_p = mysqli_fetch_assoc($q_price)){ $standard_maint_price = (float)$row_p['setting_value']; }
+
+$message = "";
+// Handle success message from redirect
+if(isset($_GET['msg'])){
+    if($_GET['msg'] == 'price_updated') $message = "Standard maintenance price updated successfully.";
+    elseif($_GET['msg'] == 'scheduled') $message = "Maintenance scheduled successfully.";
+    elseif($_GET['msg'] == 'moved') $message = "Tenant moved temporarily.";
+    elseif($_GET['msg'] == 'returned') $message = "Tenant returned to original room successfully.";
+    elseif($_GET['msg'] == 'full') $message = "Target room is full. Move failed.";
+}
+
 // Create table for temporary moves if not exists
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS temporary_moves (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -124,7 +152,7 @@ if(isset($_POST['schedule_maintenance'])){
     $u_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE room_id=$room_id AND status='Approved' LIMIT 1");
     $uid = ($u_row = mysqli_fetch_assoc($u_q)) ? $u_row['user_id'] : 'NULL';
     
-    $sql = "INSERT INTO maintenance_requests (user_id, room_id, description, status, scheduled_date) VALUES ($uid, $room_id, '$desc', 'Scheduled', '$sched_date')";
+    $sql = "INSERT INTO maintenance_requests (user_id, room_id, description, status, scheduled_date, cost) VALUES ($uid, $room_id, '$desc', 'Scheduled', '$sched_date', '$standard_maint_price')";
     mysqli_query($conn, $sql);
     
     trigger_update($conn);
@@ -147,7 +175,7 @@ if(isset($_POST['auto_schedule_maintenance'])){
     $rooms = mysqli_query($conn, "SELECT room_id FROM rooms WHERE $where");
     while($r = mysqli_fetch_assoc($rooms)){
         $rid = $r['room_id'];
-        mysqli_query($conn, "INSERT INTO maintenance_requests (user_id, room_id, description, status, scheduled_date) VALUES (NULL, $rid, '$desc', 'Scheduled', '$sched_date')");
+        mysqli_query($conn, "INSERT INTO maintenance_requests (user_id, room_id, description, status, scheduled_date, cost) VALUES (NULL, $rid, '$desc', 'Scheduled', '$sched_date', '$standard_maint_price')");
     }
     trigger_update($conn);
     header("Location: admin_maintenance.php");
@@ -235,12 +263,14 @@ $theme = get_theme_colors($conn);
         <?php include 'admin_topbar.php'; ?>
         <main class="main-content">
             <div class="page-header">
-                <h1>Maintenance Management</h1>
+                <div class="d-flex justify-content-between align-items-center w-100">
+                    <h1>Maintenance Management</h1>
+                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#priceSettingsModal"><i class="fas fa-tags me-2"></i>Set Standard Price</button>
+                </div>
             </div>
 
-    <?php if(isset($_GET['msg']) && $_GET['msg']=='moved') echo "<div class='alert alert-success'>Tenant moved temporarily.</div>"; ?>
-    <?php if(isset($_GET['msg']) && $_GET['msg']=='full') echo "<div class='alert alert-danger'>Target room is full. Move failed.</div>"; ?>
-    
+    <?php if($message) echo "<div class='alert alert-success'>$message</div>"; ?>
+
     <h5 class="fw-bold text-secondary mb-3">Maintenance</h5>
     <div class="row g-4 mb-4">
         <div class="col-md-6">
@@ -363,7 +393,7 @@ $theme = get_theme_colors($conn);
                                         </div>
                                         <div class="mb-2">
                                             <label class="small fw-bold text-muted">Cost (₱)</label>
-                                            <input type="number" step="0.01" name="cost" class="form-control form-control-sm" value="<?= $row['cost'] ?>">
+                                            <input type="number" step="0.01" name="cost" class="form-control form-control-sm" value="<?= $row['cost'] > 0 ? $row['cost'] : $standard_maint_price ?>">
                                         </div>
                                         <?php if($row['user_id']): ?>
                                         <div class="form-check mb-3">

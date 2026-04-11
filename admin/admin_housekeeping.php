@@ -12,6 +12,26 @@ $admin_username = $_SESSION['admin_username'] ?? 'Admin';
 $message = "";
 $error = "";
 
+// Handle Price Settings Update
+if(isset($_POST['update_housekeeping_price'])){
+    $standard_price = (float)$_POST['price_housekeeping_standard'];
+    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('price_housekeeping_standard', '$standard_price') ON DUPLICATE KEY UPDATE setting_value='$standard_price'");
+    
+    trigger_update($conn);
+    header("Location: admin_housekeeping.php?msg=price_updated");
+    exit;
+}
+
+// Fetch Standard Price
+$standard_hk_price = 200.00; // System default
+$q_price = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key = 'price_housekeeping_standard'");
+if($row_p = mysqli_fetch_assoc($q_price)){ $standard_hk_price = (float)$row_p['setting_value']; }
+
+// Handle success message from redirect
+if(isset($_GET['msg']) && $_GET['msg'] == 'price_updated'){
+    $message = "Standard housekeeping price updated successfully.";
+}
+
 // Ensure schema supports room-based requests and billing
 mysqli_query($conn, "ALTER TABLE housekeeping_requests MODIFY COLUMN user_id INT NULL");
 $chk_cost = mysqli_query($conn, "SHOW COLUMNS FROM housekeeping_requests LIKE 'cost'");
@@ -168,7 +188,10 @@ $theme = get_theme_colors($conn);
         <?php include 'admin_topbar.php'; ?>
         <main class="main-content">
             <div class="page-header">
-                <h1>Housekeeping Management</h1>
+                <div class="d-flex justify-content-between align-items-center w-100">
+                    <h1>Housekeeping Management</h1>
+                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#priceSettingsModal"><i class="fas fa-tags me-2"></i>Set Standard Price</button>
+                </div>
             </div>
     
     <?php if($message) echo "<div class='alert alert-success'>$message</div>"; ?>
@@ -280,7 +303,7 @@ $theme = get_theme_colors($conn);
                                         </div>
                                         <div class="mb-2">
                                             <label class="small fw-bold text-muted">Cost (₱)</label>
-                                            <input type="number" step="0.01" name="cost" class="form-control form-control-sm" value="<?= $row['cost'] ?>">
+                                            <input type="number" step="0.01" name="cost" class="form-control form-control-sm" value="<?= $row['cost'] > 0 ? $row['cost'] : $standard_hk_price ?>">
                                         </div>
                                         <?php if($row['user_id']): ?>
                                         <div class="form-check mb-3">
@@ -455,6 +478,34 @@ $theme = get_theme_colors($conn);
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" name="auto_schedule_weekly" class="btn btn-primary">Generate Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Price Settings Modal -->
+<div class="modal fade" id="priceSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-tags me-2"></i>Housekeeping Price Settings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Standard Housekeeping Fee (₱)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">₱</span>
+                            <input type="number" step="0.01" name="price_housekeeping_standard" class="form-control" value="<?= $standard_hk_price ?>" required>
+                        </div>
+                        <small class="text-muted">This price will be pre-filled when updating pending requests.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" name="update_housekeeping_price" class="btn btn-success">Save Price</button>
                 </div>
             </form>
         </div>

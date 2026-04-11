@@ -10,6 +10,43 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 $admin_username = $_SESSION['admin_username'] ?? 'Admin';
 
+// Handle Price Settings Update
+if(isset($_POST['update_parking_prices'])){
+    $prices = [
+        'price_parking_car_monthly' => $_POST['car_monthly'],
+        'price_parking_car_daily' => $_POST['car_daily'],
+        'price_parking_motor_monthly' => $_POST['motor_monthly'],
+        'price_parking_motor_daily' => $_POST['motor_daily']
+    ];
+    
+    foreach($prices as $key => $val){
+        $val = (float)$val;
+        mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('$key', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+    }
+
+    // Bulk Update Existing Slots
+    mysqli_query($conn, "UPDATE parking_slots SET monthly_rate='{$prices['price_parking_car_monthly']}', daily_rate='{$prices['price_parking_car_daily']}' WHERE slot_type='Car'");
+    mysqli_query($conn, "UPDATE parking_slots SET monthly_rate='{$prices['price_parking_motor_monthly']}', daily_rate='{$prices['price_parking_motor_daily']}' WHERE slot_type='Motorcycle'");
+
+    trigger_update($conn);
+    header("Location: admin_parking.php?msg=prices_updated");
+    exit;
+}
+
+// Fetch Current Prices
+$default_parking_prices = [
+    'car_monthly' => 600.00, 'car_daily' => 50.00,
+    'motor_monthly' => 600.00, 'motor_daily' => 50.00
+];
+$q_prices = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key LIKE 'price_parking_%'");
+while($row = mysqli_fetch_assoc($q_prices)){ 
+    $key = str_replace('price_parking_', '', $row['setting_key']);
+    $default_parking_prices[$key] = (float)$row['setting_value']; 
+}
+
+$message = "";
+$msg_class = "alert-success";
+
 // Handle Actions
 if (isset($_POST['add_parking_reservation'])) {
     $user_id = (int)$_POST['user_id'];
@@ -162,12 +199,13 @@ $theme = get_theme_colors($conn);
         <main class="main-content">
             <div class="page-header d-flex justify-content-between align-items-center">
                 <h1>Parking Management</h1>
-                <?php if($show_overdue_modal): ?>
-                <button class="btn btn-danger btn-sm" onclick="openOverdueModal()">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Overdue Alert (<?= $overdue_count ?>)
-                </button>
-                <?php endif; ?>
                 <div>
+                    <?php if($show_overdue_modal): ?>
+                    <button class="btn btn-danger btn-sm me-2" onclick="openOverdueModal()">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Overdue Alert (<?= $overdue_count ?>)
+                    </button>
+                    <?php endif; ?>
+                    <button type="button" class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#priceSettingsModal"><i class="fas fa-tags me-2"></i>Set Prices</button>
                     <a href="admin_parking_reports.php" class="btn btn-outline-success"><i class="fas fa-chart-bar me-2"></i>View Reports</a>
                     <button class="btn btn-custom" data-bs-toggle="modal" data-bs-target="#addReservationModal"><i class="fas fa-plus me-2"></i>New Parking Reservation</button>
                 </div>
@@ -180,6 +218,7 @@ $theme = get_theme_colors($conn);
                 if($_GET['msg'] == 'added') { $msg_text = 'Parking reservation created successfully.'; }
                 elseif($_GET['msg'] == 'ended') { $msg_text = 'Parking reservation ended successfully.'; }
                 elseif($_GET['msg'] == 'user_has_slot') { $msg_class = 'alert-danger'; $msg_text = 'Failed: This user already has an active parking reservation.'; }
+                elseif($_GET['msg'] == 'prices_updated') { $msg_text = 'Default parking rates updated successfully.'; }
                 elseif($_GET['msg'] == 'slot_occupied') { $msg_class = 'alert-danger'; $msg_text = 'Failed: This parking slot is already occupied.'; }
             ?>
             <?php if($msg_text): ?><div class="alert <?= $msg_class ?>"><?= $msg_text ?></div><?php endif; ?>
@@ -409,6 +448,59 @@ $theme = get_theme_colors($conn);
                 <div class="modal-footer bg-white border-top-0">
                     <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" name="add_parking_reservation" class="btn btn-success fw-bold rounded-pill px-4" onclick="return validateSlot()"><i class="fas fa-check me-2"></i>Confirm Reservation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Price Settings Modal -->
+<div class="modal fade" id="priceSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-tags me-2"></i>Parking Rate Settings</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body bg-light p-4">
+                    <p class="text-muted small mb-4">Set the default rates for parking slots. Saving these values will update all existing slots.</p>
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="card h-100 border shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="fw-bold text-primary mb-3"><i class="fas fa-car me-2"></i>Car Rates</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Monthly Rate</label>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="car_monthly" class="form-control" value="<?= $default_parking_prices['car_monthly'] ?>" required></div>
+                                    </div>
+                                    <div>
+                                        <label class="form-label small fw-bold">Daily Rate</label>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="car_daily" class="form-control" value="<?= $default_parking_prices['car_daily'] ?>" required></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100 border shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="fw-bold text-warning mb-3"><i class="fas fa-motorcycle me-2"></i>Motorcycle Rates</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Monthly Rate</label>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="motor_monthly" class="form-control" value="<?= $default_parking_prices['motor_monthly'] ?>" required></div>
+                                    </div>
+                                    <div>
+                                        <label class="form-label small fw-bold">Daily Rate</label>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="motor_daily" class="form-control" value="<?= $default_parking_prices['motor_daily'] ?>" required></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white border-top-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" name="update_parking_prices" class="btn btn-primary fw-bold rounded-pill px-4">Update Rates</button>
                 </div>
             </form>
         </div>

@@ -21,6 +21,12 @@ if(!$res_data){ header("Location: my_reservations.php"); exit; }
 $pay_q = mysqli_query($conn, "SELECT * FROM payments WHERE reservation_id=$reservation_id AND payment_status='Unpaid' ORDER BY payment_date ASC");
 $unpaid_bills = []; // This will be passed to JS
 while($row = mysqli_fetch_assoc($pay_q)) {
+    $desc_lower = strtolower($row['description']);
+    if (strpos($desc_lower, 'security deposit') !== false || strpos($desc_lower, 'downpayment') !== false || strpos($desc_lower, 'initial') !== false) {
+        $row['is_deposit'] = true;
+    } else {
+        $row['is_deposit'] = false;
+    }
     $unpaid_bills[] = $row;
 }
 
@@ -68,7 +74,8 @@ if(isset($_POST['submit_payment'])){
                 // Payments start as Unpaid until verified by admin
                 $status = 'Unpaid';
                 $is_full = (count($final_ids) >= count($unpaid_bills)) ? " [FULL]" : "";
-                $new_desc_sql = "CONCAT(description, ?)";
+                // Prevent duplicate [FULL] tags. If already present, don't append.
+                $new_desc_sql = "IF(description LIKE '%[FULL]%', description, CONCAT(description, ?))";
 
                 $stmt = mysqli_prepare($conn, "UPDATE payments SET payment_method=?, payment_status=?, reference_number=?, proof_image=?, payment_date=NOW(), description=$new_desc_sql WHERE payment_id IN ($payment_ids_str)");
                 mysqli_stmt_bind_param($stmt, "sssss", $method, $status, $ref_number, $proof_filename, $is_full);
@@ -157,24 +164,20 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                     Room: <?= $res_data['room_name'] ?> (<?= $res_data['room_type'] ?>)<br>
                 </div>
                 
+                <?php 
+                $has_sd = false;
+                foreach($unpaid_bills as $b) if(isset($b['is_deposit']) && $b['is_deposit']) $has_sd = true;
+                if($has_sd): ?>
+                    <div class="alert alert-warning border-0 shadow-sm rounded-4 small mb-4">
+                        <i class="fas fa-info-circle me-2"></i> <strong>Refund Policy:</strong> 
+                        Security deposits are <strong>always refundable</strong> for short-term stays. For 6 months or more, it is only refundable upon <strong>contract completion</strong>.
+                    </div>
+                <?php endif; ?>
+
                 <?php if($error) echo "<div class='alert alert-danger'>$error</div>"; ?>
 
                 <?php if(!empty($unpaid_bills)): ?>
                 <form method="POST" enctype="multipart/form-data" id="paymentForm" onsubmit="return validatePaymentForm()">
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">Payment Plan</label>
-                        <div class="d-flex gap-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="pay_type" id="type_partial" value="partial" checked onclick="togglePayType('partial')">
-                                <label class="form-check-label small" for="type_partial">Selected Bills</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="pay_type" id="type_full" value="full" onclick="togglePayType('full')">
-                                <label class="form-check-label small" for="type_full">Full Payment (Pay All Outstanding)</label>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <div class="accordion mb-4 shadow-sm" id="billsAccordion">
                         <div class="accordion-item border-0 rounded-4 overflow-hidden">
                             <h2 class="accordion-header" id="headingBills">
@@ -198,6 +201,15 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                                                     <div>
                                                         <div class="fw-bold"><?= htmlspecialchars($bill['description']) ?></div>
                                                         <div class="small text-muted">Added: <?= date('M d, Y', strtotime($bill['payment_date'])) ?></div>
+                                                        <?php if(isset($bill['is_deposit']) && $bill['is_deposit']): ?>
+                                                            <div class="small mt-1">
+                                                                <?php if($res_data['months'] < 6): ?>
+                                                                    <span class="badge bg-info text-dark" style="font-size: 0.65rem;"><i class="fas fa-check-circle me-1"></i> Always Refundable</span>
+                                                                <?php else: ?>
+                                                                    <span class="badge bg-secondary" style="font-size: 0.65rem;"><i class="fas fa-exclamation-triangle me-1"></i> Forfeited if early exit</span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        <?php endif; ?>
                                                     </div>
                                                 </div>
                                                 <div class="fw-bold text-success fs-5">
@@ -313,17 +325,6 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
 const reservationTermType = "<?= $res_data['term_type'] ?? '' ?>";
 const reservationMonths = <?= $res_data['months'] ?? 0 ?>;
 const unpaidBills = <?= json_encode($unpaid_bills) ?>;
-
-function togglePayType(type) {
-    const accordion = document.getElementById('collapseBills');
-    const selectAll = document.getElementById('selectAllBills');
-    if(type === 'full') {
-        if(selectAll && !selectAll.checked) selectAll.click();
-        bootstrap.Collapse.getOrCreateInstance(accordion).hide();
-    } else {
-        bootstrap.Collapse.getOrCreateInstance(accordion).show();
-    }
-}
 
 function togglePaymentDetails() {
     let method = document.getElementById('payment_method').value;

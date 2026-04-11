@@ -242,6 +242,16 @@ $pay_query = mysqli_query($conn, "
     ORDER BY p.payment_id ASC
 ");
 
+// Fetch Security Deposit Records Specifically
+$sd_query = mysqli_query($conn, "
+    SELECT p.*, r.reservation_id, r.months, r.status as res_status, rm.room_name, rm.room_number 
+    FROM payments p 
+    JOIN reservations r ON p.reservation_id = r.reservation_id 
+    LEFT JOIN rooms rm ON r.room_id = rm.room_id 
+    WHERE r.user_id=$uid AND (p.description LIKE '%Security Deposit%' OR p.description LIKE '%Downpayment%' OR p.description LIKE '%Initial%')
+    ORDER BY p.payment_id ASC
+");
+
 // Fetch Activity Logs (Ensure table exists first)
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (
     log_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -636,6 +646,11 @@ $theme = get_theme_colors($conn);
                                 <?php endif; ?>
                             </button>
                         </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="sd-tab" data-bs-toggle="tab" data-bs-target="#security-deposit" type="button">
+                                Security Deposit
+                            </button>
+                        </li>
                     </ul>
                 </div>
                 <div class="card-body p-4">
@@ -866,6 +881,80 @@ $theme = get_theme_colors($conn);
                     <button type="button" class="btn btn-sm btn-success" onclick="confirmBulkPaid()"><i class="fas fa-check-double me-1"></i> Mark Selected as Paid</button>
                 </div>
                 </form>
+                        </div>
+
+                        <!-- Security Deposit Tab -->
+                        <div class="tab-pane fade" id="security-deposit" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold mb-0 text-muted">Deposit & Initial Payments</h6>
+                            </div>
+                            <div class="alert alert-info border-0 shadow-sm rounded-4 small mb-4">
+                                <i class="fas fa-info-circle me-2"></i> <strong>Refund Policy:</strong> 
+                                Security deposits are <strong>always refundable</strong> for short-term stays. 
+                                For contracts of 6 months or more, the deposit is only refundable upon <strong>contract completion</strong>; otherwise, it is forfeited.
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Room</th>
+                                            <th>Description</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                            <th>Refund Eligibility</th>
+                                            <th class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php 
+                                        while($sd = mysqli_fetch_assoc($sd_query)): 
+                                        ?>
+                                        <tr>
+                                            <td><?= date('M d, Y', strtotime($sd['payment_date'])) ?></td>
+                                            <td><?= !empty($sd['room_number']) ? 'Room ' . htmlspecialchars($sd['room_number']) : htmlspecialchars($sd['room_name']) ?></td>
+                                            <td class="small text-muted"><?= htmlspecialchars($sd['description']) ?></td>
+                                            <td class="fw-bold">₱<?= number_format($sd['amount'], 2) ?></td>
+                                            <td>
+                                                <span class="badge <?= $sd['payment_status'] == 'Paid' ? 'bg-success' : 'bg-warning text-dark' ?>">
+                                                    <?= $sd['payment_status'] ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <?php 
+                                                if($sd['months'] < 6) {
+                                                    echo '<span class="badge bg-info"><i class="fas fa-check-circle me-1"></i> Always Refundable</span>';
+                                                } else {
+                                                    if($sd['res_status'] == 'Completed') {
+                                                        echo '<span class="badge bg-success"><i class="fas fa-check-double me-1"></i> Refundable (Completed)</span>';
+                                                    } elseif($sd['res_status'] == 'Cancelled') {
+                                                        echo '<span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i> Forfeited (Early Term)</span>';
+                                                    } elseif($sd['res_status'] == 'Approved') {
+                                                        echo '<span class="badge bg-warning text-dark"><i class="fas fa-hourglass-half me-1"></i> Eligible if Completed</span>';
+                                                    } else {
+                                                        echo '<span class="badge bg-secondary">Pending Contract</span>';
+                                                    }
+                                                }
+                                                ?>
+                                            </td>
+                                            <td class="text-end">
+                                                <a href="payment_details.php?id=<?= $sd['payment_id'] ?>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
+                                                <?php if($sd['payment_status'] == 'Paid' && strpos($sd['description'], '(Refunded)') === false && strpos($sd['description'], '(Forfeited)') === false): ?>
+                                                    <?php if(($sd['months'] < 6) || ($sd['res_status'] == 'Completed')): ?>
+                                                        <a href="?uid=<?= $uid ?>&action=refund_deposit&pid=<?= $sd['payment_id'] ?>" class="btn btn-sm btn-success" title="Release Refund" onclick="confirmAction(event, this.href, 'Release the refund for this deposit?')"><i class="fas fa-hand-holding-usd"></i></a>
+                                                    <?php elseif($sd['res_status'] == 'Cancelled'): ?>
+                                                        <a href="?uid=<?= $uid ?>&action=forfeit_deposit&pid=<?= $sd['payment_id'] ?>" class="btn btn-sm btn-danger" title="Forfeit Deposit" onclick="confirmAction(event, this.href, 'Mark this deposit as Forfeited due to early termination?')"><i class="fas fa-gavel"></i></a>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                        <?php endwhile; ?>
+                                        <?php if(mysqli_num_rows($sd_query) == 0): ?>
+                                            <tr><td colspan="6" class="text-center text-muted py-4">No security deposit records found.</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                     </div>

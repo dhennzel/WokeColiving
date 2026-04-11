@@ -308,7 +308,14 @@ if(isset($_POST['add_reservation'])){
             // --- NEW CALCULATION LOGIC ---
             $term_type = $_POST['term_type'] ?? 'Short';
             $totalAmount = 0;
-            $security_deposit = 3000;
+            $security_deposit = 0;
+            if ($room_type === 'Single') {
+                $security_deposit = 8000;
+            } elseif ($term_type === 'Long') {
+                $security_deposit = 3000;
+            } elseif ($term_type === 'Short') {
+                $security_deposit = 1000;
+            }
 
             if ($term_type === 'Daily') {
                 $nights = $d1->diff($d2)->days;
@@ -379,9 +386,22 @@ if(isset($_POST['add_reservation'])){
                 $pay_method = $_POST['payment_method'] ?? 'Cash';
                 $pay_status = $_POST['payment_status'] ?? 'Unpaid';
                 
-                $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, ?, NOW(), ?)");
-                $pay_stmt->bind_param("idsss", $res_id, $totalAmount, $pay_method, $pay_status, $pay_desc);
-                $pay_stmt->execute();
+                if($security_deposit > 0) {
+                    $rent_part = $totalAmount - $security_deposit;
+                    // 1. Security Deposit
+                    $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, ?, NOW(), 'Security Deposit')");
+                    $pay_stmt->bind_param("idss", $res_id, $security_deposit, $pay_method, $pay_status);
+                    $pay_stmt->execute();
+                    // 2. Rent Part
+                    $rent_desc = ($term_type == 'Daily') ? "Daily Stay Payment" : "First Month Rent";
+                    $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, ?, NOW(), ?)");
+                    $pay_stmt->bind_param("idsss", $res_id, $rent_part, $pay_method, $pay_status, $rent_desc);
+                    $pay_stmt->execute();
+                } else {
+                    $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, ?, NOW(), ?)");
+                    $pay_stmt->bind_param("idsss", $res_id, $totalAmount, $pay_method, $pay_status, $pay_desc);
+                    $pay_stmt->execute();
+                }
                 
                 log_activity($conn, $user_id, "Walk-in Booking", "Reservation #$res_id created by $admin_username");
                 
@@ -550,10 +570,6 @@ $theme = get_theme_colors($conn);
                             <div class="col-md-6" id="new_company_div" style="display: <?= in_array($f_new_occupation, ['Student', 'Employed']) ? 'block' : 'none' ?>;">
                                 <label class="small fw-bold" id="new_company_label">Company/School Name</label>
                                 <input type="text" name="new_company" id="new_company" class="form-control" value="<?= htmlspecialchars($f_new_company) ?>">
-                            </div>
-                            <div class="col-md-12" id="new_school_id_div" style="display: <?= $f_new_occupation == 'Student' ? 'block' : 'none' ?>;">
-                                <label class="small fw-bold">Upload School ID</label>
-                                <input type="file" name="school_id" class="form-control form-control-sm" accept="image/*">
                             </div>
                             <div class="col-md-12">
                                 <label class="small fw-bold">Permanent Address</label>
@@ -1020,7 +1036,14 @@ function calculateTotal() {
     if(room && cin && cout) {
         let priceData = roomPrices[room] || {};
         let total = 0;
-        let sd = 3000;
+        let sd = 0;
+        if (room === 'Single') {
+            sd = 8000;
+        } else if (durationType === '6') {
+            sd = 3000;
+        } else if (durationType === '1') {
+            sd = 1000;
+        }
 
         if (durationType === 'Daily') {
             document.getElementById('utility_display').innerHTML = '<span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> Included</span>';
@@ -1055,7 +1078,7 @@ function calculateTotal() {
 
         } else if (durationType === '6') {
             document.getElementById('utility_display').innerHTML = '<span class="text-danger fw-bold"><i class="fas fa-exclamation-circle me-1"></i> Excludes Utility Charges</span>';
-            document.getElementById('sd_display').innerText = '₱3,000.00 (Refundable)';
+            document.getElementById('sd_display').innerText = '₱' + sd.toLocaleString() + '.00 (Refundable)';
             
             let monthlyRate = 0;
             if (room === 'Single') {
@@ -1087,7 +1110,7 @@ function calculateTotal() {
 
         } else {
             document.getElementById('utility_display').innerHTML = '<span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> Included in Rent</span>';
-            document.getElementById('sd_display').innerText = '₱3,000.00 (Refundable)';
+            document.getElementById('sd_display').innerText = '₱' + sd.toLocaleString() + '.00 (Refundable)';
             let monthlyRate = 0;
             if (room === 'Single') {
                 monthlyRate = parseFloat(priceData.short_base || 0);

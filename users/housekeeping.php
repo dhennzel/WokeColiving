@@ -57,6 +57,11 @@ $requests_query = mysqli_query($conn, "SELECT h.*, r.room_name
     WHERE h.user_id='$user_id' 
     ORDER BY h.created_at DESC");
 
+// Fetch Standard Price
+$standard_hk_price = 200.00; // System default
+$q_price = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key = 'price_housekeeping_standard'");
+if($row_p = mysqli_fetch_assoc($q_price)){ $standard_hk_price = (float)$row_p['setting_value']; }
+
 // Get User Name for Navbar
 $u_query = mysqli_query($conn, "SELECT first_name FROM users WHERE user_id=$user_id");
 $user_info = mysqli_fetch_assoc($u_query);
@@ -136,13 +141,13 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     <div class="card card-custom p-4 mb-5 anim-trigger delay-1">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="fw-bold mb-0">Request Housekeeping Service</h5>
-            <span class="badge bg-warning text-dark">Fee: ₱200.00</span>
+            <span class="badge bg-warning text-dark">Fee: ₱<?= number_format($standard_hk_price, 2) ?></span>
         </div>
         <form method="POST">
             <div class="mb-3">
                 <label class="form-label">Service Details</label>
                 <textarea name="description" class="form-control" rows="3" placeholder="Describe the service needed (e.g., Room cleaning, Change bed sheets, Restock toiletries)..." required></textarea>
-                <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Note: A fee of ₱200 will be charged for on-demand housekeeping requests.</small>
+                <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Note: A fee of ₱<?= number_format($standard_hk_price, 0) ?> will be charged for on-demand housekeeping requests.</small>
             </div>
             <button type="submit" name="submit_request" class="btn btn-custom px-4">Submit Request</button>
         </form>

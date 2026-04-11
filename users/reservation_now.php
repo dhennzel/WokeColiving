@@ -344,7 +344,16 @@ if (isset($_POST['confirm_booking'])) {
                 $term_type = $_POST['term_type'] ?? 'Short'; // Default
                 $totalAmount = 0;
                 $contract_price = 0;
-                $security_deposit = $is_extension ? 0 : 3000;
+                $security_deposit = 0;
+                if (!$is_extension) {
+                    if ($troom === 'Single') {
+                        $security_deposit = 8000;
+                    } elseif ($term_type === 'Long') {
+                        $security_deposit = 3000;
+                    } elseif ($term_type === 'Short') {
+                        $security_deposit = 1000;
+                    }
+                }
 
                 if ($term_type === 'Daily') {
                     // Daily Rate Calculation
@@ -451,12 +460,23 @@ if (isset($_POST['confirm_booking'])) {
                 if ($exec_result) {
                     // Insert first part (Paid or Unpaid depending on method)
                     $p_status = ($payment_method == 'Cash') ? 'Unpaid' : 'Unpaid'; // Dragonpay will update this
-                    $p_desc = ($remaining > 0) ? "Reservation Fee / Downpayment" : "Full Payment";
                     
-                    $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image, description) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)");
-                    $pay_stmt->bind_param("idsssss", $reservation_id, $initial_payment, $payment_method, $p_status, $ref_number, $proof_filename, $p_desc);
-                    $pay_stmt->execute();
-                    $pay_stmt->close();
+                    // Split Security Deposit and Rent if applicable
+                    if($security_deposit > 0) {
+                        $rent_part = $initial_payment - $security_deposit;
+                        
+                        // 1. Insert Security Deposit
+                        $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image, description) VALUES (?, ?, ?, ?, NOW(), ?, ?, 'Security Deposit')");
+                        $pay_stmt->bind_param("idsssss", $reservation_id, $security_deposit, $payment_method, $p_status, $ref_number, $proof_filename);
+                        $pay_stmt->execute();
+                        
+                        // 2. Insert Rent Part
+                        $rent_desc = ($term_type == 'Daily') ? "Daily Stay Payment" : "First Month Rent";
+                        $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image, description) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)");
+                        $pay_stmt->bind_param("idsssss", $reservation_id, $rent_part, $payment_method, $p_status, $ref_number, $proof_filename, $rent_desc);
+                        $pay_stmt->execute();
+                        $pay_stmt->close();
+                    }
 
                     // Handle remaining balance record for partial payments
                     if ($remaining > 0) {
@@ -1342,7 +1362,16 @@ function confirmReservation() {
             if (room) {
                 let priceData = roomPrices[room] || {};
                 let total = 0;
-                let sd = isExtension ? 0 : 3000;
+                let sd = 0;
+                if (!isExtension) {
+                    if (room === 'Single') {
+                        sd = 8000;
+                    } else if (durationType === '6') {
+                        sd = 3000;
+                    } else if (durationType === '1') {
+                        sd = 1000;
+                    }
+                }
 
                 if (durationType === 'Daily') {
                     // Daily Calculation
@@ -1375,7 +1404,7 @@ function confirmReservation() {
                 } else if (durationType === '6') {
                     // Long Term Calculation
                     document.getElementById('utility_display').innerHTML = '<span class="text-danger fw-bold"><i class="fas fa-exclamation-circle me-1"></i> Excludes Utility Charges</span>';
-                    document.getElementById('sd_display').innerText = isExtension ? '₱0.00 (Existing)' : '₱3,000.00 (Refundable)';
+                    document.getElementById('sd_display').innerText = isExtension ? '₱0.00 (Existing)' : '₱' + sd.toLocaleString() + '.00 (Refundable)';
                     
                     let monthlyRate = 0;
                     if (room === 'Single') {
@@ -1403,7 +1432,7 @@ function confirmReservation() {
                 } else {
                     // Short Term (1 Month) Calculation
                     document.getElementById('utility_display').innerHTML = '<span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> Included in Rent</span>';
-                    document.getElementById('sd_display').innerText = isExtension ? '₱0.00 (Existing)' : '₱3,000.00 (Refundable)';
+                    document.getElementById('sd_display').innerText = isExtension ? '₱0.00 (Existing)' : '₱' + sd.toLocaleString() + '.00 (Refundable)';
                     
                     let monthlyRate = 0;
                     if (room === 'Single') {
