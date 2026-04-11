@@ -14,9 +14,20 @@ $theme = get_theme_colors($conn);
 $message = "";
 $threshold = 5000;
 
+$user_filter = isset($_GET['filter']) ? $_GET['filter'] : 'active';
+$status_condition = "";
+if($user_filter == 'active') {
+    $status_condition = " AND EXISTS (SELECT 1 FROM reservations res2 WHERE res2.user_id = u.user_id AND res2.status IN ('Approved', 'Pending', 'Verifying')) ";
+}
+
 // Handle Bulk Reminders
 if (isset($_POST['send_bulk_reminders'])) {
-    $rem_query = "SELECT u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name, SUM(p.amount) as total_balance FROM users u JOIN reservations r ON u.user_id = r.user_id JOIN payments p ON r.reservation_id = p.reservation_id WHERE p.payment_status = 'Unpaid' AND u.is_archived = 0 GROUP BY u.user_id HAVING total_balance > $threshold";
+    $filter_val = $_POST['filter'] ?? 'active';
+    $rem_status_condition = "";
+    if($filter_val == 'active') {
+        $rem_status_condition = " AND EXISTS (SELECT 1 FROM reservations res2 WHERE res2.user_id = u.user_id AND res2.status IN ('Approved', 'Pending', 'Verifying')) ";
+    }
+    $rem_query = "SELECT u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name, SUM(p.amount) as total_balance FROM users u JOIN reservations r ON u.user_id = r.user_id JOIN payments p ON r.reservation_id = p.reservation_id WHERE p.payment_status = 'Unpaid' AND u.is_archived = 0 $rem_status_condition GROUP BY u.user_id HAVING total_balance > $threshold";
     $rem_result = mysqli_query($conn, $rem_query);
     $count = 0;
     while ($row = mysqli_fetch_assoc($rem_result)) {
@@ -46,7 +57,7 @@ $query = "
     FROM users u
     JOIN reservations r ON u.user_id = r.user_id
     JOIN payments p ON r.reservation_id = p.reservation_id
-    WHERE p.payment_status = 'Unpaid' AND u.is_archived = 0
+    WHERE p.payment_status = 'Unpaid' AND u.is_archived = 0 $status_condition
     GROUP BY u.user_id
     HAVING total_balance > $threshold
     ORDER BY total_balance DESC
@@ -95,11 +106,19 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
         <main class="main-content">
             <div class="page-header d-flex justify-content-between align-items-center">
                 <h1>Outstanding Balances Report</h1>
-                <div class="d-flex gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <form method="GET" class="d-flex align-items-center bg-white border px-2 py-1 rounded shadow-sm no-print">
+                        <i class="fas fa-filter text-muted me-2"></i>
+                        <select name="filter" class="form-select form-select-sm border-0 shadow-none fw-bold text-dark" onchange="this.form.submit()" style="background-color: transparent; cursor:pointer;">
+                            <option value="active" <?= $user_filter == 'active' ? 'selected' : '' ?>>Active Tenants</option>
+                            <option value="all" <?= $user_filter == 'all' ? 'selected' : '' ?>>All with Balance</option>
+                        </select>
+                    </form>
                     <form method="POST" id="reminderForm" onsubmit="confirmBulkReminders(event)">
+                        <input type="hidden" name="filter" value="<?= htmlspecialchars($user_filter) ?>">
                         <button type="submit" name="send_bulk_reminders" class="btn btn-primary btn-sm no-print"><i class="fas fa-paper-plane me-2"></i>Send Bulk Reminders</button>
                     </form>
-                    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-2"></i>Print Report</button>
+                    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-2"></i>Print</button>
                 </div>
             </div>
 
@@ -111,7 +130,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
             <?php endif; ?>
 
             <div class="alert alert-info no-print">
-                <i class="fas fa-info-circle me-2"></i> This report lists all active tenants with a total unpaid balance exceeding <strong>₱<?= number_format($threshold, 2) ?></strong>.
+                <i class="fas fa-info-circle me-2"></i> This report lists <strong><?= $user_filter == 'active' ? 'currently active' : 'all' ?></strong> tenants with a total unpaid balance exceeding <strong>₱<?= number_format($threshold, 2) ?></strong>.
             </div>
 
             <div class="card card-table p-4">
