@@ -55,6 +55,8 @@ if (isset($_POST['add_parking_reservation'])) {
     $billing_type = $_POST['billing_type'];
     $payment_method = $_POST['payment_method'];
     $payment_status = $_POST['payment_status'] ?? 'Unpaid';
+    $vehicle_plate = mysqli_real_escape_string($conn, $_POST['vehicle_plate'] ?? '');
+    $vehicle_details = mysqli_real_escape_string($conn, $_POST['vehicle_details'] ?? '');
 
     // Validate: Check if user already has an active parking reservation
     $check_user_q = mysqli_query($conn, "SELECT id FROM parking_reservations WHERE user_id=$user_id AND status='Active'");
@@ -79,8 +81,8 @@ if (isset($_POST['add_parking_reservation'])) {
     $end_date_sql_val = ($billing_type == 'Monthly') ? null : $start_date;
 
     // Insert parking reservation FIRST to get ID
-    $pr_stmt = mysqli_prepare($conn, "INSERT INTO parking_reservations (user_id, slot_id, start_date, end_date, total_cost, billing_type) VALUES (?, ?, ?, ?, ?, ?)");
-    mysqli_stmt_bind_param($pr_stmt, "iisdss", $user_id, $slot_id, $start_date, $end_date_sql_val, $cost, $billing_type);
+    $pr_stmt = mysqli_prepare($conn, "INSERT INTO parking_reservations (user_id, slot_id, start_date, end_date, total_cost, billing_type, vehicle_plate, vehicle_details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    mysqli_stmt_bind_param($pr_stmt, "iisdssss", $user_id, $slot_id, $start_date, $end_date_sql_val, $cost, $billing_type, $vehicle_plate, $vehicle_details);
     mysqli_stmt_execute($pr_stmt);
     $pr_id = mysqli_insert_id($conn);
 
@@ -128,7 +130,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'end') {
 // Fetch Data for Display
 $slots_q = mysqli_query($conn, "
     SELECT ps.*, CONCAT(u.first_name, ' ', u.last_name) as occupant_name 
-    , pr.start_date as res_start
+    , pr.start_date as res_start, pr.vehicle_plate
     FROM parking_slots ps 
     LEFT JOIN parking_reservations pr ON ps.id = pr.slot_id AND pr.status = 'Active'
     LEFT JOIN users u ON pr.user_id = u.user_id 
@@ -182,6 +184,7 @@ $theme = get_theme_colors($conn);
         .slot-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
         .slot-card.occupied { border-top: 4px solid var(--danger-color); }
         .slot-card.available { border-top: 4px solid var(--primary-green); }
+        .slot-card.available:hover { background-color: rgba(52, 184, 117, 0.05); }
         .slot-card .status-icon { font-size: 2rem; margin-bottom: 10px; color: var(--text-muted); transition: color 0.3s; }
         .slot-select-card { cursor: pointer; border: 2px solid transparent; transition: all 0.2s; border-radius: 12px; background: var(--bg-surface); box-shadow: var(--shadow-sm); }
         .slot-select-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
@@ -207,7 +210,6 @@ $theme = get_theme_colors($conn);
                     <?php endif; ?>
                     <button type="button" class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#priceSettingsModal"><i class="fas fa-tags me-2"></i>Set Prices</button>
                     <a href="admin_parking_reports.php" class="btn btn-outline-success"><i class="fas fa-chart-bar me-2"></i>View Reports</a>
-                    <button class="btn btn-custom" data-bs-toggle="modal" data-bs-target="#addReservationModal"><i class="fas fa-plus me-2"></i>New Parking Reservation</button>
                 </div>
             </div>
 
@@ -237,12 +239,15 @@ $theme = get_theme_colors($conn);
                         $status_class = $is_reserved ? ($is_actually_parked ? 'occupied' : 'reserved') : 'available';
                     ?>
                     <div class="col-xl-2 col-lg-3 col-md-4 col-6">
-                        <div class="slot-card <?= $status_class ?> h-100 d-flex flex-column justify-content-center">
+                        <div class="slot-card <?= $status_class ?> h-100 d-flex flex-column justify-content-center" <?= !$is_reserved ? 'onclick="openReservationModal('.$slot['id'].')" style="cursor: pointer;" title="Click to assign tenant"' : '' ?>>
                             <i class="fas fa-car status-icon <?= $is_reserved ? ($is_actually_parked ? 'text-danger' : 'text-warning') : 'text-success' ?>"></i>
                             <div class="fw-bold text-dark mb-1"><?= $slot['slot_name'] ?></div>
                             <?php if($is_reserved): ?>
                                 <span class="badge <?= $is_actually_parked ? 'bg-danger' : 'bg-warning text-dark' ?> mb-2 mx-auto"><?= $is_actually_parked ? 'Occupied' : 'Reserved' ?></span>
                                 <div class="mt-auto pt-2 border-top small fw-bold text-muted text-truncate" title="<?= htmlspecialchars($slot['occupant_name']) ?>">
+                                    <?php if(!empty($slot['vehicle_plate'])): ?>
+                                        <div class="text-primary mb-1"><i class="fas fa-hashtag me-1"></i><?= htmlspecialchars($slot['vehicle_plate']) ?></div>
+                                    <?php endif; ?>
                                     <i class="fas fa-user-lock me-1"></i><?= htmlspecialchars($slot['occupant_name']) ?>
                                     <?php if(!$is_actually_parked): ?><br><small class="text-muted">Starts: <?= date('M d', strtotime($slot['res_start'])) ?></small><?php endif; ?>
                                 </div>
@@ -265,12 +270,15 @@ $theme = get_theme_colors($conn);
                         $status_class = $is_reserved ? ($is_actually_parked ? 'occupied' : 'reserved') : 'available';
                     ?>
                     <div class="col-xl-2 col-lg-3 col-md-4 col-6">
-                        <div class="slot-card <?= $status_class ?> h-100 d-flex flex-column justify-content-center">
-                            <i class="fas fa-motorcycle status-icon <?= $is_occupied ? 'text-danger' : 'text-success' ?>"></i>
+                        <div class="slot-card <?= $status_class ?> h-100 d-flex flex-column justify-content-center" <?= !$is_reserved ? 'onclick="openReservationModal('.$slot['id'].')" style="cursor: pointer;" title="Click to assign tenant"' : '' ?>>
+                            <i class="fas fa-motorcycle status-icon <?= $is_reserved ? ($is_actually_parked ? 'text-danger' : 'text-warning') : 'text-success' ?>"></i>
                             <div class="fw-bold text-dark mb-1"><?= $slot['slot_name'] ?></div>
                             <?php if($is_reserved): ?>
                                 <span class="badge <?= $is_actually_parked ? 'bg-danger' : 'bg-warning text-dark' ?> mb-2 mx-auto"><?= $is_actually_parked ? 'Occupied' : 'Reserved' ?></span>
                                 <div class="mt-auto pt-2 border-top small fw-bold text-muted text-truncate" title="<?= htmlspecialchars($slot['occupant_name']) ?>">
+                                    <?php if(!empty($slot['vehicle_plate'])): ?>
+                                        <div class="text-primary mb-1"><i class="fas fa-hashtag me-1"></i><?= htmlspecialchars($slot['vehicle_plate']) ?></div>
+                                    <?php endif; ?>
                                     <i class="fas fa-user-lock me-1"></i><?= htmlspecialchars($slot['occupant_name']) ?>
                                     <?php if(!$is_actually_parked): ?><br><small class="text-muted">Starts: <?= date('M d', strtotime($slot['res_start'])) ?></small><?php endif; ?>
                                 </div>
@@ -291,7 +299,7 @@ $theme = get_theme_colors($conn);
                 <h5 class="fw-bold text-secondary mb-4"><i class="fas fa-list me-2"></i>Active Parking Reservations</h5>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead class="table-light"><tr><th class="ps-3">Tenant</th><th>Slot</th><th>Billing</th><th>Start Date</th><th>Payment</th><th class="text-end pe-3">Action</th></tr></thead>
+                        <thead class="table-light"><tr><th class="ps-3">Tenant</th><th>Slot</th><th>Vehicle Info</th><th>Billing</th><th>Start Date</th><th>Payment</th><th class="text-end pe-3">Action</th></tr></thead>
                         <tbody>
                             <?php while($row = mysqli_fetch_assoc($reservations_q)): ?>
                             <tr>
@@ -299,6 +307,14 @@ $theme = get_theme_colors($conn);
                                 <td>
                                     <?= htmlspecialchars($row['slot_name']) ?> 
                                     <span class="badge bg-light text-dark border ms-1"><?= $row['slot_type'] ?> Slot</span>
+                                </td>
+                                <td>
+                                    <?php if(!empty($row['vehicle_plate'])): ?>
+                                        <div class="fw-bold text-primary"><?= htmlspecialchars($row['vehicle_plate']) ?></div>
+                                        <small class="text-muted"><?= htmlspecialchars($row['vehicle_details']) ?></small>
+                                    <?php else: ?>
+                                        <span class="text-muted small fst-italic">N/A</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td><span class="badge bg-info text-dark"><?= $row['billing_type'] ?></span></td>
                                 <td><?= date('M d, Y', strtotime($row['start_date'])) ?></td>
@@ -315,7 +331,7 @@ $theme = get_theme_colors($conn);
                             </tr>
                             <?php endwhile; ?>
                             <?php if(mysqli_num_rows($reservations_q) == 0): ?>
-                                <tr><td colspan="5" class="text-center text-muted">No active parking reservations.</td></tr>
+                                <tr><td colspan="7" class="text-center text-muted">No active parking reservations.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -418,6 +434,17 @@ $theme = get_theme_colors($conn);
                     </div>
 
                     <div class="row bg-white p-3 rounded-4 border shadow-sm mx-0">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-muted">VEHICLE PLATE NUMBER</label>
+                            <input type="text" name="vehicle_plate" class="form-control" placeholder="e.g. ABC 1234">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-muted">VEHICLE MAKE/MODEL</label>
+                            <input type="text" name="vehicle_details" class="form-control" placeholder="e.g. Toyota Vios Black">
+                        </div>
+                    </div>
+
+                    <div class="row bg-white p-3 rounded-4 border shadow-sm mx-0 mt-3">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-muted">START DATE</label>
                             <input type="date" name="start_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
@@ -571,6 +598,21 @@ function validateSlot() {
         return false;
     }
     return true;
+}
+
+function openReservationModal(slotId) {
+    // Find the slot inside the modal visual picker and trigger a click to select it
+    const card = document.querySelector(`.slot-select-card[onclick*="selectSlot(this, ${slotId})"]`);
+    if (card) {
+        const isMotor = card.closest('#motor_slots');
+        if (isMotor) {
+            document.getElementById('motor-tab').click();
+        } else {
+            document.getElementById('car-tab').click();
+        }
+        selectSlot(card, slotId);
+    }
+    new bootstrap.Modal(document.getElementById('addReservationModal')).show();
 }
 
 function endParkingReservation(id, tenantName, slotName, slotType) {

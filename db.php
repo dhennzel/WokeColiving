@@ -353,10 +353,19 @@ function setup_parking_tables($conn) {
         total_cost DECIMAL(10,2) NOT NULL,
         billing_type ENUM('Monthly', 'Daily') NOT NULL,
         status ENUM('Active', 'Completed') DEFAULT 'Active',
+        vehicle_plate VARCHAR(50) DEFAULT NULL,
+        vehicle_details VARCHAR(100) DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
         FOREIGN KEY (slot_id) REFERENCES parking_slots(id)
     )");
+
+    // Ensure vehicle columns exist for existing tables
+    $check_pr_plate = mysqli_query($conn, "SHOW COLUMNS FROM parking_reservations LIKE 'vehicle_plate'");
+    if(mysqli_num_rows($check_pr_plate) == 0) {
+        mysqli_query($conn, "ALTER TABLE parking_reservations ADD COLUMN vehicle_plate VARCHAR(50) DEFAULT NULL AFTER status");
+        mysqli_query($conn, "ALTER TABLE parking_reservations ADD COLUMN vehicle_details VARCHAR(100) DEFAULT NULL AFTER vehicle_plate");
+    }
 
     // 3. Pre-populate slots if table is empty
     // 3. Pre-populate slots if table is empty

@@ -91,6 +91,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                     <tr>
                         <th>Slot Name</th>
                         <th>Slot Type</th>
+                        <th>Vehicle Info</th>
                         <th>Start Date</th>
                         <th>Billing Types</th>
                         <th>Status</th>
@@ -109,6 +110,14 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                                 <?php endif; ?>
                                 <?= htmlspecialchars($row['slot_type']) ?>
                             </td>
+                            <td>
+                                <?php if(!empty($row['vehicle_plate'])): ?>
+                                    <div class="fw-bold text-primary"><?= htmlspecialchars($row['vehicle_plate']) ?></div>
+                                    <small class="text-muted"><?= htmlspecialchars($row['vehicle_details']) ?></small>
+                                <?php else: ?>
+                                    <span class="text-muted small fst-italic">Not specified</span>
+                                <?php endif; ?>
+                            </td>
                             <td><?= date('M d, Y', strtotime($row['start_date'])) ?></td>
                             <td><span class="badge bg-info text-dark"><?= htmlspecialchars($row['billing_type']) ?></span></td>
                             <td>
@@ -121,7 +130,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                         <?php endwhile; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="5" class="text-center text-muted py-4">
+                            <td colspan="6" class="text-center text-muted py-4">
                                 You have no active or past parking reservations.
                             </td>
                         </tr>
