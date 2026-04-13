@@ -6,7 +6,6 @@ $p_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reser
 $p_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'] ?? 0;
 $p_res += $p_pay;
 
-$w_cnt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'] ?? 0;
 $d_cnt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'] ?? 0;
 $m_cnt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'] ?? 0;
 $h_cnt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'] ?? 0;
@@ -23,7 +22,7 @@ try {
     if($fin_q) $fin_cnt = mysqli_fetch_assoc($fin_q)['c'];
 } catch(Exception $e){}
 
-$front_desk_total = $p_res + $w_cnt + $d_cnt;
+$front_desk_total = $p_res + $d_cnt;
 $operations_total = $m_cnt + $h_cnt;
 $facilities_total = $pk_cnt;
 $finance_total = $fin_cnt;
@@ -57,14 +56,14 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
         </a>
         
         <!-- Front Desk -->
-        <a href="#frontDeskSubmenu" data-bs-toggle="collapse" onclick="document.getElementById('frontDeskBadge')?.style.setProperty('display', 'none', 'important');" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? '' : 'collapsed' ?>">
+        <a href="#frontDeskSubmenu" data-bs-toggle="collapse" onclick="document.getElementById('frontDeskBadge')?.style.setProperty('display', 'none', 'important');" class="nav-item d-flex justify-content-between align-items-center <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_deletion_requests.php', 'view_user.php']) ? '' : 'collapsed' ?>">
             <div><i class="fas fa-concierge-bell"></i><span>Front Desk</span></div>
             <div class="d-flex align-items-center">
                 <?php if($front_desk_total > 0): ?><span class="badge bg-danger rounded-pill me-2" id="frontDeskBadge"><?= $front_desk_total ?></span><?php endif; ?>
                 <i class="fas fa-chevron-down" style="font-size: 0.8rem; width: auto; flex-shrink: 0;"></i>
             </div>
         </a>
-        <div class="collapse <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_waitlist.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'show' : '' ?>" id="frontDeskSubmenu">
+        <div class="collapse <?= in_array($current_page, ['residents.php', 'booking_management.php', 'admin_deletion_requests.php', 'view_user.php']) ? 'show' : '' ?>" id="frontDeskSubmenu">
             <a href="residents.php" class="nav-item <?= $current_page == 'residents.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-users" style="width: 25px;"></i><span>Residents</span>
             </a>
@@ -72,10 +71,10 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
                 <i class="fas fa-calendar-check" style="width: 25px;"></i><span>Bookings</span>
                 <?php if($p_res > 0): ?><span class="badge bg-danger rounded-pill ms-auto nav-badge"><?= $p_res ?></span><?php endif; ?>
             </a>
-            <a href="admin_waitlist.php" onclick="this.querySelector('.nav-badge')?.style.setProperty('display', 'none', 'important');" class="nav-item <?= $current_page == 'admin_waitlist.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
+            <!-- Waitlist hidden per request
+            <a href="admin_waitlist.php" class="nav-item <?= $current_page == 'admin_waitlist.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-list-ol" style="width: 25px;"></i><span>Waitlist</span>
-                <?php if($w_cnt > 0): ?><span class="badge bg-warning text-dark rounded-pill ms-auto nav-badge"><?= $w_cnt ?></span><?php endif; ?>
-            </a>
+            </a> -->
             <a href="admin_deletion_requests.php" onclick="this.querySelector('.nav-badge')?.style.setProperty('display', 'none', 'important');" class="nav-item <?= $current_page == 'admin_deletion_requests.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-user-times" style="width: 25px;"></i><span>Deletion Req</span>
                 <?php if($d_cnt > 0): ?><span class="badge bg-danger rounded-pill ms-auto nav-badge"><?= $d_cnt ?></span><?php endif; ?>
