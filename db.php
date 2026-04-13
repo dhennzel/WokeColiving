@@ -219,6 +219,11 @@ function setup_payments_table($conn) {
             FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE CASCADE
         )";
         mysqli_query($conn, $sql);
+    } else {
+        $check_col = mysqli_query($conn, "SHOW COLUMNS FROM payments LIKE 'is_archived'");
+        if(mysqli_num_rows($check_col) == 0) {
+            mysqli_query($conn, "ALTER TABLE payments ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
+        }
     }
 }
 }

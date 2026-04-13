@@ -233,6 +233,22 @@ if(isset($_POST['approve_with_room'])){
     exit;
 }
 
+// Handle Archiving a Reservation
+if (isset($_GET['archive_reservation'])) {
+    $archive_res_id = (int)$_GET['archive_reservation'];
+    mysqli_query($conn, "UPDATE reservations SET is_archived = 1 WHERE reservation_id = $archive_res_id AND user_id = $uid");
+    echo "<script>window.location.href='view_user.php?uid=$uid&msg=archived';</script>";
+    exit;
+}
+
+// Handle Archiving a Payment
+if (isset($_GET['archive_payment'])) {
+    $archive_pay_id = (int)$_GET['archive_payment'];
+    mysqli_query($conn, "UPDATE payments SET is_archived = 1 WHERE payment_id = $archive_pay_id");
+    echo "<script>window.location.href='view_user.php?uid=$uid&msg=archived';</script>";
+    exit;
+}
+
 // Fetch User Details
 $user_query = mysqli_query($conn, "
     SELECT u.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', middle_name), ''), IF(suffix IS NOT NULL AND suffix != '', CONCAT(' ', suffix), '')) as full_name,
@@ -242,11 +258,17 @@ $user_query = mysqli_query($conn, "
 ");
 $user = mysqli_fetch_assoc($user_query);
 
+// Ensure payments table has is_archived column before querying it
+$check_col_arch = mysqli_query($conn, "SHOW COLUMNS FROM payments LIKE 'is_archived'");
+if(mysqli_num_rows($check_col_arch) == 0) {
+    mysqli_query($conn, "ALTER TABLE payments ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
+}
+
 // Fetch Total Outstanding Balance
-$balance_q = mysqli_query($conn, "SELECT SUM(p.amount) as balance FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid'");
+$balance_q = mysqli_query($conn, "SELECT SUM(p.amount) as balance FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid' AND p.is_archived = 0");
 $total_balance = mysqli_fetch_assoc($balance_q)['balance'] ?? 0;
 
-$financial_q = mysqli_query($conn, "SELECT IFNULL(SUM(p.amount), 0) as total_billed, IFNULL(SUM(CASE WHEN p.payment_status='Paid' THEN p.amount ELSE 0 END), 0) as total_paid FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status != 'Cancelled'");
+$financial_q = mysqli_query($conn, "SELECT IFNULL(SUM(p.amount), 0) as total_billed, IFNULL(SUM(CASE WHEN p.payment_status='Paid' THEN p.amount ELSE 0 END), 0) as total_paid FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status != 'Cancelled' AND p.is_archived = 0");
 $fin = mysqli_fetch_assoc($financial_q);
 $total_billed = $fin['total_billed'] ?? 0;
 $total_paid = $fin['total_paid'] ?? 0;
@@ -267,7 +289,7 @@ $res_query = mysqli_query($conn, "
     SELECT r.*, rm.room_name, rm.room_number, rm.room_type
     FROM reservations r 
     JOIN rooms rm ON r.room_id = rm.room_id 
-    WHERE r.user_id=$uid 
+    WHERE r.user_id=$uid AND r.is_archived = 0
     ORDER BY r.created_at DESC
 ");
 
@@ -276,7 +298,7 @@ $pay_status_filter = isset($_GET['pay_status']) ? $_GET['pay_status'] : '';
 $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
 $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
 
-$pay_where = "r.user_id=$uid";
+$pay_where = "r.user_id=$uid AND p.is_archived = 0";
 if($pay_status_filter){
     $pay_where .= " AND p.payment_status = '" . mysqli_real_escape_string($conn, $pay_status_filter) . "'";
 }
@@ -299,7 +321,7 @@ $pay_query = mysqli_query($conn, "
 
 // Fetch Security Deposit Records Specifically
 $sd_filter = isset($_GET['sd_filter']) ? $_GET['sd_filter'] : 'Active';
-$sd_where = "r.user_id=$uid AND (p.description LIKE '%Security Deposit%' OR p.description LIKE '%Downpayment%' OR p.description LIKE '%Initial%')";
+$sd_where = "r.user_id=$uid AND p.is_archived = 0 AND (p.description LIKE '%Security Deposit%' OR p.description LIKE '%Downpayment%' OR p.description LIKE '%Initial%')";
 if($sd_filter == 'Active'){
     $sd_where .= " AND r.status IN ('Pending', 'Verifying', 'Approved')";
 } elseif($sd_filter == 'Completed'){
@@ -366,9 +388,9 @@ if(isset($_GET['pay_status']) || isset($_GET['start_date']) || isset($_GET['end_
 }
 
 // Fetch User-Specific Pending Counts for Tabs
-$user_pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE user_id=$uid AND status IN ('Pending', 'Verifying')"))['c'];
-$user_pending_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL"))['c'];
-$user_unpaid_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid' AND p.proof_image IS NULL"))['c'];
+$user_pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE user_id=$uid AND status IN ('Pending', 'Verifying') AND is_archived = 0"))['c'];
+$user_pending_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL AND p.is_archived = 0"))['c'];
+$user_unpaid_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid' AND p.proof_image IS NULL AND p.is_archived = 0"))['c'];
 
 // Fetch Pending Counts for Sidebar
 $pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
@@ -532,6 +554,9 @@ $theme = get_theme_colors($conn);
             <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'room_updated'): ?>
                 <div class="alert alert-success">Room assignment updated successfully.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'archived'): ?>
+                <div class="alert alert-success">Item archived successfully.</div>
             <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'update_approved'): ?>
                 <div class="alert alert-success">User profile update approved successfully.</div>
@@ -813,9 +838,8 @@ $theme = get_theme_colors($conn);
                                                 <?php endif; ?>
                                                 <button onclick="renewContract(<?= $row['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt"></i></button>
                                                 <a href="booking_management.php?action=terminate&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract?')"><i class="fas fa-ban"></i></a>
-                                            <?php else: ?>
-                                                <span class="text-muted small">-</span>
                                             <?php endif; ?>
+                                            <a href="view_user.php?uid=<?= $uid ?>&archive_reservation=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-secondary ms-1" title="Archive Reservation" onclick="confirmAction(event, this.href, 'Archive this reservation?')"><i class="fas fa-archive"></i></a>
                                         </td>
                                     </tr>
                                     <?php endwhile; ?>
@@ -938,8 +962,9 @@ $theme = get_theme_colors($conn);
                                             <?php endif; ?>
                                             <a href="booking_management.php?action=cancel_payment&pid=<?= $pay['payment_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-danger" title="Cancel Payment" onclick="confirmAction(event, this.href, 'Cancel this payment? Use this if the guest no longer wants to continue.')"><i class="fas fa-times"></i></a>
                                         </div>
-                                    <?php else: ?>
-                                        <span class="text-muted small">-</span>
+                                    <?php endif; ?>
+                                    <?php if($pay['payment_status'] == 'Paid' || $pay['payment_status'] == 'Cancelled'): ?>
+                                        <a href="view_user.php?uid=<?= $uid ?>&archive_payment=<?= $pay['payment_id'] ?>" class="btn btn-sm btn-outline-secondary ms-1" title="Archive Payment" onclick="confirmAction(event, this.href, 'Archive this payment?')"><i class="fas fa-archive"></i></a>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -1035,6 +1060,9 @@ $theme = get_theme_colors($conn);
                                                     <?php elseif($sd['res_status'] == 'Cancelled'): ?>
                                                         <a href="?uid=<?= $uid ?>&action=forfeit_deposit&pid=<?= $sd['payment_id'] ?>" class="btn btn-sm btn-danger" title="Forfeit Deposit" onclick="confirmAction(event, this.href, 'Mark this deposit as Forfeited due to early termination?')"><i class="fas fa-gavel"></i></a>
                                                     <?php endif; ?>
+                                                <?php endif; ?>
+                                                <?php if($sd['payment_status'] == 'Paid' || $sd['payment_status'] == 'Cancelled'): ?>
+                                                    <a href="view_user.php?uid=<?= $uid ?>&archive_payment=<?= $sd['payment_id'] ?>" class="btn btn-sm btn-outline-secondary ms-1" title="Archive Payment" onclick="confirmAction(event, this.href, 'Archive this payment?')"><i class="fas fa-archive"></i></a>
                                                 <?php endif; ?>
                                             </td>
                                         </tr>

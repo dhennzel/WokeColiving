@@ -333,7 +333,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                         <td class="text-end">
                             <?php 
                                 $rid = $row['reservation_id'];
-                                $pay_chk = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM payments WHERE reservation_id=$rid AND payment_status='Unpaid'");
+                                $pay_chk = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM payments WHERE reservation_id=$rid AND (payment_status='Unpaid' OR (payment_status='Cancelled' AND (description LIKE '%Security Deposit%' OR description LIKE '%Downpayment%' OR description LIKE '%Initial%')))");
                                 $has_unpaid = mysqli_fetch_assoc($pay_chk)['cnt'] > 0;
                                 if($has_unpaid && in_array($row['status'], ['Pending', 'Verifying', 'Approved'])): 
                             ?>
@@ -368,9 +368,9 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                                 <?php endif; ?>
                             <?php } ?>
                             
-                            <?php // Show Remove button for Cancelled or Past End Date (Completed)
+                            <?php // Show Remove button for Cancelled, Completed, or Past End Date
                                 $is_past = (strtotime($end_date) < time());
-                                if($row['status'] == 'Cancelled' || ($row['status'] == 'Approved' && $is_past)) { ?>
+                                if($row['status'] == 'Cancelled' || $row['status'] == 'Completed' || ($row['status'] == 'Approved' && $is_past)) { ?>
                                 <a href="my_reservations.php?archive_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-danger ms-1" onclick="confirmArchive(event, this.href)">
                                     <i class="fas fa-archive"></i> Remove
                                 </a>

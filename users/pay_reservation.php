@@ -21,7 +21,7 @@ $reservation_id = $res_data['reservation_id']; // Use the latest active reservat
 $pay_q = mysqli_query($conn, "
     SELECT p.* FROM payments p 
     JOIN reservations r ON p.reservation_id = r.reservation_id 
-    WHERE r.user_id=$user_id AND p.payment_status='Unpaid' ORDER BY p.payment_date ASC
+    WHERE r.user_id=$user_id AND (p.payment_status='Unpaid' OR (p.payment_status='Cancelled' AND (p.description LIKE '%Security Deposit%' OR p.description LIKE '%Downpayment%' OR p.description LIKE '%Initial%') AND r.status IN ('Pending', 'Verifying', 'Approved'))) ORDER BY p.payment_date ASC
 ");
 $unpaid_bills = []; // This will be passed to JS
 while($row = mysqli_fetch_assoc($pay_q)) {
@@ -220,7 +220,11 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                                                     <div>
                                                         <div class="fw-bold"><?= htmlspecialchars($bill['description']) ?></div>
                                                         <div class="small text-muted">Added: <?= date('M d, Y', strtotime($bill['payment_date'])) ?></div>
-                                                        <?php if(isset($bill['is_deposit']) && $bill['is_deposit']): ?>
+                                                    <?php if($bill['payment_status'] == 'Cancelled'): ?>
+                                                        <div class="small mt-1">
+                                                            <span class="badge bg-danger text-white" style="font-size: 0.65rem;"><i class="fas fa-redo me-1"></i> Re-submitting Cancelled Payment</span>
+                                                        </div>
+                                                    <?php elseif(isset($bill['is_deposit']) && $bill['is_deposit']): ?>
                                                             <div class="small mt-1">
                                                                 <?php if($res_data['months'] < 6): ?>
                                                                     <span class="badge bg-info text-dark" style="font-size: 0.65rem;"><i class="fas fa-check-circle me-1"></i> Always Refundable</span>
