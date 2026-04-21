@@ -72,7 +72,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="mb-4">
         <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 4px solid var(--accent-yellow); padding: 2px; background: white;">
     </div>
-    <h2 class="mb-4">Admin Portal</h2>
+    <h2 class="mb-4">Woke Coliving INC</h2>
     <?php if ($error) { echo "<div class='alert alert-danger py-2 small'>$error</div>"; } ?>
     <form method="POST" class="text-start">
         <div class="mb-3">

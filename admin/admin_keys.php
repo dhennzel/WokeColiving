@@ -598,14 +598,18 @@ function openRoomKeysModal(element) {
             let borderColor = key.key_status === 'Available' ? '#c3e6cb' : '#ffeeba';
             let actionBtn = '';
             
+            const safeKeyName = (key.key_name || '').replace(/'/g, "\\'");
+            const safeRoomName = (roomName || '').replace(/'/g, "\\'");
+            const safeHolderName = (key.key_holder_name || 'Unknown User').replace(/'/g, "\\'");
+
             if (key.key_status === 'Available') {
-                actionBtn = `<button class="btn btn-sm btn-primary rounded-pill px-3" onclick="event.stopPropagation(); openReleaseModal(${key.key_id}, '${key.key_name.replace(/'/g, "\\'")}', ${roomId}, '${roomName.replace(/'/g, "\\'")}')"><i class="fas fa-sign-out-alt me-1"></i> Release</button>`;
+                actionBtn = `<button class="btn btn-sm btn-primary rounded-pill px-3" onclick="event.stopPropagation(); openReleaseModal(${key.key_id}, '${safeKeyName}', ${roomId}, '${safeRoomName}')"><i class="fas fa-sign-out-alt me-1"></i> Release</button>`;
             } else {
-                actionBtn = `<button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation(); confirmUnrelease(${key.trans_id}, '${key.key_name.replace(/'/g, "\\'")}', '${key.key_holder_name.replace(/'/g, "\\'")}')"><i class="fas fa-undo me-1"></i> Return</button>`;
+                actionBtn = `<button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation(); confirmUnrelease(${key.trans_id || 0}, '${safeKeyName}', '${safeHolderName}')"><i class="fas fa-undo me-1"></i> Return</button>`;
             }
 
             let holderInfo = key.key_status === 'Released'
-                ? `<div class="text-muted small mt-1"><i class="fas fa-user-tag me-1"></i><a href="view_user.php?uid=${key.key_holder_id}" class="text-decoration-none fw-bold" target="_blank">${key.key_holder_name}</a>
+                ? `<div class="text-muted small mt-1"><i class="fas fa-user-tag me-1"></i><a href="view_user.php?uid=${key.key_holder_id || 0}" class="text-decoration-none fw-bold" target="_blank">${key.key_holder_name || 'Unknown User'}</a>
                    ${key.holder_bed ? `<div class="small text-primary mt-1 ms-3"><i class="fas fa-bed me-1"></i>${key.holder_bed}</div>` : ''}</div>`
                 : `<div class="text-success small mt-1"><i class="fas fa-check-circle me-1"></i>Available in desk</div>`;
             
@@ -666,20 +670,23 @@ function loadReleasedKeys(room = '') {
                 tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No currently released keys.</td></tr>';
                 return;
             }
-            tbody.innerHTML = data.map(row => `
+            tbody.innerHTML = data.map(row => {
+                const safeKeyName = (row.key_name || '').replace(/'/g, "\\'");
+                const safeHolderName = (row.holder_name || 'Unknown User').replace(/'/g, "\\'");
+                return `
                 <tr>
                     <td><strong>${row.room_number || row.room_name || 'N/A'}</strong></td>
                     <td><code>${row.key_name}</code></td>
-                    <td>${row.holder_name}
+                    <td>${row.holder_name || 'Unknown User'}
                         ${row.bed_preference ? `<br><small class="text-muted"><i class="fas fa-bed me-1"></i>${row.bed_preference}</small>` : ''}</td>
                     <td>${new Date(row.released_at).toLocaleDateString()}</td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger" onclick="confirmUnrelease(${row.trans_id}, '${row.key_name.replace(/'/g, "\\'")}', '${row.holder_name.replace(/'/g, "\\'")}')">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="confirmUnrelease(${row.trans_id || 0}, '${safeKeyName}', '${safeHolderName}')">
                             <i class="fas fa-undo"></i> Unrelease
                         </button>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         })
         .catch(err => {
             console.error('Error loading released keys:', err);
