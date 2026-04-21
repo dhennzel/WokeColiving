@@ -16,6 +16,13 @@ if (isset($_POST['release_key'])) {
     $key_id = (int)$_POST['key_id'];
     $user_id = (int)$_POST['user_id'];
     
+    // Check if user already has an active key
+    $check_user = mysqli_query($conn, "SELECT id FROM key_transactions WHERE user_id=$user_id AND status='Active'");
+    if (mysqli_num_rows($check_user) > 0) {
+        header("Location: admin_keys.php?msg=user_has_key");
+        exit;
+    }
+
     $chk = mysqli_query($conn, "SELECT status FROM `keys` WHERE id=$key_id");
     $k = mysqli_fetch_assoc($chk);
     
@@ -32,21 +39,29 @@ if (isset($_POST['release_key'])) {
 }
 
 // Handle Return Key
-if (isset($_GET['action']) && $_GET['action'] == 'return' && isset($_GET['id'])) {
-    $trans_id = (int)$_GET['id'];
+if (isset($_GET['action']) && $_GET['action'] == 'return') {
+    $trans_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    $key_id = isset($_GET['key_id']) ? (int)$_GET['key_id'] : 0;
     
-    $t_q = mysqli_query($conn, "SELECT key_id, user_id FROM key_transactions WHERE id=$trans_id");
-    if ($t = mysqli_fetch_assoc($t_q)) {
-        $key_id = $t['key_id'];
-        mysqli_query($conn, "UPDATE key_transactions SET status='Returned', returned_at=NOW() WHERE id=$trans_id");
+    if ($trans_id > 0) {
+        $t_q = mysqli_query($conn, "SELECT key_id, user_id FROM key_transactions WHERE id=$trans_id");
+        if ($t = mysqli_fetch_assoc($t_q)) {
+            $k_id = $t['key_id'];
+            mysqli_query($conn, "UPDATE key_transactions SET status='Returned', returned_at=NOW() WHERE id=$trans_id");
+            mysqli_query($conn, "UPDATE `keys` SET status='Available' WHERE id=$k_id");
+            
+            send_notification($conn, $t['user_id'], "🔑 <strong>Key Returned</strong><br>Key (ID: $k_id) has been marked as returned.", "Key System");
+            log_activity($conn, $t['user_id'], "Key Returned", "Key ID $k_id marked as returned by $admin_username");
+        }
+    } elseif ($key_id > 0) {
+        // Fallback for out-of-sync keys stuck in Released state
+        mysqli_query($conn, "UPDATE key_transactions SET status='Returned', returned_at=NOW() WHERE key_id=$key_id AND status='Active'");
         mysqli_query($conn, "UPDATE `keys` SET status='Available' WHERE id=$key_id");
-        
-        send_notification($conn, $t['user_id'], "🔑 <strong>Key Returned</strong><br>Key (ID: $key_id) has been marked as returned.", "Key System");
-        log_activity($conn, $t['user_id'], "Key Returned", "Key ID $key_id marked as returned by $admin_username");
-        trigger_update($conn);
-        header("Location: admin_keys.php?msg=returned");
-        exit;
     }
+    
+    trigger_update($conn);
+    header("Location: admin_keys.php?msg=returned");
+    exit;
 }
 
 // Get show_hidden parameter
@@ -214,13 +229,17 @@ $theme = get_theme_colors($conn);
             </div>
 
             <?php if(isset($_GET['msg'])): ?>
-                <div class="alert alert-success">
-                    <?php 
-                    $msg = $_GET['msg'];
-                    if($msg == 'released') echo 'Key released successfully!';
-                    elseif($msg == 'returned') echo 'Key returned successfully!';
-                    ?>
-                </div>
+                <?php if($_GET['msg'] == 'user_has_key'): ?>
+                    <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-1"></i> Failed: This user already has an active key. Only one key per account is allowed.</div>
+                <?php else: ?>
+                    <div class="alert alert-success">
+                        <?php 
+                        $msg = $_GET['msg'];
+                        if($msg == 'released') echo 'Key released successfully!';
+                        elseif($msg == 'returned') echo 'Key returned successfully!';
+                        ?>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
 
             <div class="row mb-4 g-3">
@@ -553,7 +572,7 @@ function openReleaseModal(id, name, roomId, roomName) {
         .then(data => {
             select.innerHTML = '<option value="">-- Choose Tenant --</option>';
             if (data.length === 0) {
-                select.innerHTML = '<option value="">No tenants found for this room</option>';
+                select.innerHTML = '<option value="">No eligible tenants (or all have keys)</option>';
             } else {
                 data.forEach(function(user) {
                     var option = document.createElement('option');
@@ -569,13 +588,13 @@ function openReleaseModal(id, name, roomId, roomName) {
         });
 }
 
-function confirmUnrelease(transId, keyName, holderName) {
+function confirmUnrelease(transId, keyName, holderName, keyId = 0) {
     var keysModalObj = bootstrap.Modal.getInstance(document.getElementById('roomKeysModal'));
     if (keysModalObj) keysModalObj.hide();
 
     document.getElementById('unreleaseKeyName').innerText = keyName;
     document.getElementById('unreleaseHolderName').innerText = holderName;
-    document.getElementById('confirmUnreleaseBtn').href = `?action=return&id=${transId}`;
+    document.getElementById('confirmUnreleaseBtn').href = `?action=return&id=${transId}&key_id=${keyId}`;
     var myModal = new bootstrap.Modal(document.getElementById('confirmUnreleaseModal'));
     myModal.show();
 }
@@ -604,7 +623,7 @@ function openRoomKeysModal(element) {
             if (key.key_status === 'Available') {
                 actionBtn = `<button class="btn btn-sm btn-primary rounded-pill px-3" onclick="event.stopPropagation(); openReleaseModal(${key.key_id}, '${safeKeyName}', ${roomId}, '${safeRoomName}')"><i class="fas fa-sign-out-alt me-1"></i> Release</button>`;
             } else {
-                actionBtn = `<button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation(); confirmUnrelease(${key.trans_id || 0}, '${safeKeyName}', '${safeHolderName}')"><i class="fas fa-undo me-1"></i> Return</button>`;
+                actionBtn = `<button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation(); confirmUnrelease(${key.trans_id || 0}, '${safeKeyName}', '${safeHolderName}', ${key.key_id})"><i class="fas fa-undo me-1"></i> Return</button>`;
             }
 
             let holderInfo = key.key_status === 'Released'
@@ -680,7 +699,7 @@ function loadReleasedKeys(room = '') {
                         ${row.bed_preference ? `<br><small class="text-muted"><i class="fas fa-bed me-1"></i>${row.bed_preference}</small>` : ''}</td>
                     <td>${new Date(row.released_at).toLocaleDateString()}</td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger" onclick="confirmUnrelease(${row.trans_id || 0}, '${safeKeyName}', '${safeHolderName}')">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="confirmUnrelease(${row.trans_id || 0}, '${safeKeyName}', '${safeHolderName}', ${row.key_id})">
                             <i class="fas fa-undo"></i> Unrelease
                         </button>
                     </td>

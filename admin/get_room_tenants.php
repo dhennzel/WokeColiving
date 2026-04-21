@@ -26,7 +26,11 @@ $occupants = get_room_occupants($conn, $room_id);
 $tenants = [];
 foreach($occupants as $occupant){
     if($occupant['status'] == 'Approved'){
-        $tenants[] = ['user_id' => $occupant['user_id'], 'full_name' => $occupant['full_name']];
+        $uid = (int)$occupant['user_id'];
+        $check_active_key = mysqli_query($conn, "SELECT id FROM key_transactions WHERE user_id=$uid AND status='Active'");
+        if(mysqli_num_rows($check_active_key) == 0){
+            $tenants[] = ['user_id' => $uid, 'full_name' => $occupant['full_name']];
+        }
     }
 }
 
