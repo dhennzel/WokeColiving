@@ -1,8 +1,8 @@
 <?php
 include '../db.php';
 
- $checkin = $_GET['checkin'] ?? date('Y-m-d');
- $checkout = $_GET['checkout'] ?? date('Y-m-d', strtotime('+1 day'));
+ $checkin = isset($_GET['checkin']) ? mysqli_real_escape_string($conn, $_GET['checkin']) : date('Y-m-d');
+ $checkout = isset($_GET['checkout']) ? mysqli_real_escape_string($conn, $_GET['checkout']) : date('Y-m-d', strtotime('+1 day'));
 
 // GET SINGLE ROOM BY ID (For Modal)
 if (isset($_GET['id'])) {

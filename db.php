@@ -228,20 +228,6 @@ function setup_payments_table($conn) {
 }
 }
 
-// --- WAITLIST TABLE ---
-if (!function_exists('setup_waitlist_table')) {
-function setup_waitlist_table($conn) {
-    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS waitlist (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        room_type VARCHAR(50) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        notified_at TIMESTAMP NULL DEFAULT NULL,
-        UNIQUE KEY `user_room` (`user_id`,`room_type`)
-    )");
-}
-}
-
 // --- WITHDRAWAL REQUESTS TABLE ---
 if (!function_exists('setup_withdrawal_requests_table')) {
 function setup_withdrawal_requests_table($conn) {

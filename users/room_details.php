@@ -119,7 +119,9 @@ if(isset($_SESSION['user_id'])){
         body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
     </style>
 </head>
-<bodyfunction() {
+<body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
+<script>
+    (function() {
         const currentUserId = "<?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : '' ?>";
         const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
         if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');

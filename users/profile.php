@@ -216,12 +216,6 @@ try {
     if($p_q) $c_park = mysqli_fetch_assoc($p_q)['c'];
 } catch(Exception $e){}
 
-$c_wait = 0;
-try {
-    $w_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE user_id=$user_id");
-    if($w_q) $c_wait = mysqli_fetch_assoc($w_q)['c'];
-} catch(Exception $e){}
-
 $c_unpaid = 0;
 try {
     $unpaid_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$user_id AND p.payment_status='Unpaid'");
@@ -433,17 +427,6 @@ try {
             </a>
         </div>
 
-        <!-- My Waitlist -->
-        <div class="col-md-3 anim-trigger anim-zoom delay-2" data-card-id="waitlist">
-            <a href="my_waitlist.php" class="text-decoration-none" onclick="markAsRead('waitlist', <?= $c_wait ?>)">
-                <div class="card card-custom profile-card h-100">
-                    <?php if($c_wait > 0): ?><div class="card-badge" id="badge-waitlist" data-count="<?= $c_wait ?>" title="Waitlisted Rooms"><?= $c_wait ?></div><?php endif; ?>
-                    <div class="icon-box"><i class="fas fa-list-ol"></i></div>
-                    <h5 class="fw-bold text-dark">My Waitlist</h5>
-                    <p class="small">View rooms you are waiting for.</p>
-                </div>
-            </a>
-        </div>
 
         <!-- Billing & Payments -->
         <div class="col-md-3 anim-trigger anim-zoom delay-3" data-card-id="billing">
@@ -566,10 +549,6 @@ try {
                                 <div class="form-check form-switch mb-2">
                                     <input class="form-check-input" type="checkbox" id="show-billing" checked onchange="toggleCard('billing')">
                                     <label class="form-check-label small" for="show-billing">Billing & Payments</label>
-                                </div>
-                                <div class="form-check form-switch mb-2">
-                                    <input class="form-check-input" type="checkbox" id="show-waitlist" checked onchange="toggleCard('waitlist')">
-                                    <label class="form-check-label small" for="show-waitlist">My Waitlist</label>
                                 </div>
                                 <div class="form-check form-switch mb-2">
                                     <input class="form-check-input" type="checkbox" id="show-reservations" checked onchange="toggleCard('reservations')">
@@ -877,7 +856,7 @@ try {
 
     // Card Badge Logic (Hide if seen)
     function checkCardBadges() {
-        const types = ['waitlist', 'reservations', 'maintenance', 'housekeeping', 'archives', 'parking', 'billing'];
+        const types = ['reservations', 'maintenance', 'housekeeping', 'archives', 'parking', 'billing'];
         types.forEach(type => {
             const badge = document.getElementById('badge-' + type);
             if(badge) {

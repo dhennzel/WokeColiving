@@ -6,7 +6,6 @@ echo "<h1>Woke Coliving Database Setup & Migration</h1>";
 echo "Setting up Core Tables...<br>";
 setup_reservations_table($conn);
 setup_payments_table($conn);
-setup_waitlist_table($conn);
 setup_withdrawal_requests_table($conn);
 setup_deletion_requests_table($conn);
 setup_parking_tables($conn);

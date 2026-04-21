@@ -71,10 +71,6 @@ $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super 
                 <i class="fas fa-calendar-check" style="width: 25px;"></i><span>Bookings</span>
                 <?php if($p_res > 0): ?><span class="badge bg-danger rounded-pill ms-auto nav-badge"><?= $p_res ?></span><?php endif; ?>
             </a>
-            <!-- Waitlist hidden per request
-            <a href="admin_waitlist.php" class="nav-item <?= $current_page == 'admin_waitlist.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
-                <i class="fas fa-list-ol" style="width: 25px;"></i><span>Waitlist</span>
-            </a> -->
             <a href="admin_deletion_requests.php" onclick="this.querySelector('.nav-badge')?.style.setProperty('display', 'none', 'important');" class="nav-item <?= $current_page == 'admin_deletion_requests.php' ? 'active' : '' ?>" style="padding-left: 55px; font-size: 0.9rem;">
                 <i class="fas fa-user-times" style="width: 25px;"></i><span>Deletion Req</span>
                 <?php if($d_cnt > 0): ?><span class="badge bg-danger rounded-pill ms-auto nav-badge"><?= $d_cnt ?></span><?php endif; ?>

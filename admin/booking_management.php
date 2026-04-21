@@ -309,6 +309,20 @@ $sql = "
     (SELECT COUNT(*) FROM payments p WHERE p.reservation_id = r.reservation_id AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL) as pending_payments,
     (SELECT payment_status FROM payments p WHERE p.reservation_id = r.reservation_id ORDER BY payment_id ASC LIMIT 1) as initial_pay_status
     FROM reservations r
+    INNER JOIN (
+        SELECT user_id, 
+               SUBSTRING_INDEX(GROUP_CONCAT(reservation_id ORDER BY 
+                   CASE status 
+                       WHEN 'Pending' THEN 1 
+                       WHEN 'Verifying' THEN 2 
+                       WHEN 'Approved' THEN 3 
+                       WHEN 'Completed' THEN 4 
+                       WHEN 'Cancelled' THEN 5 
+                       ELSE 6 
+                   END ASC, reservation_id DESC), ',', 1) as latest_reservation_id 
+        FROM reservations 
+        GROUP BY user_id
+    ) latest_res ON r.user_id = latest_res.user_id AND r.reservation_id = latest_res.latest_reservation_id
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
     WHERE $where_clause
@@ -330,7 +344,6 @@ $pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 $pending_res = $pending_res_q + $pending_pay_q;
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
-$waitlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM waitlist WHERE notified_at IS NULL"))['c'];
 $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 
 $theme = get_theme_colors($conn);

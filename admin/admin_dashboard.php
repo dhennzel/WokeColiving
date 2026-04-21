@@ -105,10 +105,6 @@ $pending_maint = ($pending_maint_query) ? mysqli_fetch_assoc($pending_maint_quer
 $pending_house_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM housekeeping_requests WHERE status='Pending'");
 $pending_house = ($pending_house_query) ? mysqli_fetch_assoc($pending_house_query)['count'] : 0;
 
-// Stats: Waitlist Count
-$waitlist_count_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM waitlist WHERE notified_at IS NULL");
-$waitlist_count = ($waitlist_count_query) ? mysqli_fetch_assoc($waitlist_count_query)['count'] : 0;
-
 // Stats: Deletion Requests Count
 $del_req_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM account_deletion_requests WHERE status='Pending'");
 $del_req_count = ($del_req_query) ? mysqli_fetch_assoc($del_req_query)['count'] : 0;

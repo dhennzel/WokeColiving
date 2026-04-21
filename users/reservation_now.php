@@ -88,20 +88,6 @@ while($row = mysqli_fetch_assoc($price_query)){
     ];
 }
 
-// Handle Waitlist Join
-if (isset($_POST['join_waitlist'])) {
-    $wl_room = $_POST['wl_room'];
-    $check_wl = mysqli_query($conn, "SELECT * FROM waitlist WHERE user_id=$user_id AND room_type='$wl_room'");
-    if(mysqli_num_rows($check_wl) == 0){
-        mysqli_query($conn, "INSERT INTO waitlist (user_id, room_type) VALUES ($user_id, '$wl_room')");
-        $_SESSION['swal'] = ['title' => 'Waitlist Joined', 'text' => "You have been added to the waitlist for $wl_room. We will notify you when it becomes available.", 'icon' => 'success'];
-        header("Location: reservation_now.php");
-        exit;
-    } else {
-        $error = "You are already on the waitlist for this room type.";
-    }
-}
-
 // Fetch Unread Count & Notifications
 $unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHERE user_id=$user_id AND is_read=0");
 $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
@@ -569,25 +555,7 @@ if (isset($_POST['confirm_booking'])) {
                     $error = "Database Error: " . mysqli_error($conn);
                 }
             } else {
-                // Room is FULL: Automatically add to waitlist
-                $troom_safe = mysqli_real_escape_string($conn, $troom);
-                $check_wl = mysqli_query($conn, "SELECT id FROM waitlist WHERE user_id=$user_id AND room_type='$troom_safe'");
-                if(mysqli_num_rows($check_wl) == 0){
-                    mysqli_query($conn, "INSERT INTO waitlist (user_id, room_type) VALUES ($user_id, '$troom_safe')");
-                    $_SESSION['swal'] = [
-                        'title' => 'Added to Waitlist', 
-                        'text' => "Sorry, $troom is currently fully booked for those dates. You have been automatically added to the waitlist and we will notify you once a spot opens up.", 
-                        'icon' => 'info'
-                    ];
-                } else {
-                    $_SESSION['swal'] = [
-                        'title' => 'Already on Waitlist', 
-                        'text' => "Sorry, $troom is still fully booked. You are already on the waitlist for this room type.", 
-                        'icon' => 'warning'
-                    ];
-                }
-                header("Location: my_reservations.php");
-                exit;
+            $error = "Sorry, $troom is currently fully booked for those dates.";
             }
         }
     }
@@ -701,12 +669,6 @@ if (isset($_POST['confirm_booking'])) {
     <?php if(!empty($error)): ?>
     <div class="alert alert-danger">
         <?= $error ?>
-        <?php if(isset($show_waitlist) && $show_waitlist): ?>
-            <form method="POST" class="mt-2">
-                <input type="hidden" name="wl_room" value="<?= htmlspecialchars($troom) ?>">
-                <button type="submit" name="join_waitlist" class="btn btn-sm btn-accent fw-bold mt-2">Join Waitlist for <?= htmlspecialchars($troom) ?></button>
-            </form>
-        <?php endif; ?>
     </div>
     <?php endif; ?>
 
@@ -1207,7 +1169,7 @@ function confirmReservation() {
                         statusSpan.innerHTML = '<i class="fas fa-check-circle"></i> Available';
                         statusSpan.className = 'fw-bold mt-1 d-block text-success';
                     } else {
-                        statusSpan.innerHTML = '<i class="fas fa-times-circle"></i> Fully Booked (Waitlist available on submit)';
+                        statusSpan.innerHTML = '<i class="fas fa-times-circle"></i> Fully Booked';
                         statusSpan.className = 'fw-bold mt-1 d-block text-danger';
                     }
                 });
