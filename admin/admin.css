@@ -1051,4 +1051,25 @@ body.theme-transition .form-control {
     .badge {
         padding: 4px 8px !important;
     }
+
+    .mobile-horizontal-scroll {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        padding-bottom: 15px; /* space for scrollbar if it appears */
+        margin-bottom: 0 !important; /* override mb-4 */
+    }
+    .mobile-horizontal-scroll::-webkit-scrollbar {
+        display: none;
+    }
+    .mobile-horizontal-scroll > [class*="col-"] {
+        flex-shrink: 0;
+        width: 80%;
+    }
+    .mobile-horizontal-scroll > .col-md-6 { width: 70%; }
+    .mobile-horizontal-scroll > .col-lg-4 { width: 65%; }
+    .mobile-horizontal-scroll > .col-xl-3 { width: 55%; }
 }

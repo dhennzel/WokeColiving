@@ -442,6 +442,32 @@ if(isset($_SESSION['user_id'])){
         body.night-mode::-webkit-scrollbar-track, body.night-mode *::-webkit-scrollbar-track { background: #121212 !important; }
         body.night-mode::-webkit-scrollbar-thumb, body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }
         body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
+
+        @media (max-width: 767.98px) {
+            .rooms-scroll-container {
+                display: flex;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            .rooms-scroll-container::-webkit-scrollbar {
+                display: none;
+            }
+            .rooms-scroll-container > .col-lg-4.col-md-6 {
+                flex: 0 0 85%;
+                max-width: 85%;
+            }
+        }
+
+        @media (max-width: 991.98px) {
+            .navbar-nav .d-flex .btn {
+                padding: 6px 16px !important;
+                font-size: 0.85rem !important;
+            }
+            .navbar-collapse { padding-bottom: 15px; }
+        }
     </style>
 </head>
 <body>
@@ -456,27 +482,31 @@ if(isset($_SESSION['user_id'])){
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto align-items-center gap-3">
+            <ul class="navbar-nav ms-auto align-items-lg-center">
                 <li class="nav-item"><a href="#home" class="nav-link text-white">Home</a></li>
                 <li class="nav-item"><a href="#rooms" class="nav-link text-white">Rooms</a></li>
                 <li class="nav-item"><a href="#amenities" class="nav-link text-white">Amenities</a></li>
                 <li class="nav-item"><a href="#contact" class="nav-link text-white">Contact</a></li>
+                <li class="d-lg-none"><hr class="dropdown-divider text-white-50 mb-2"></li>
+                <li class="nav-item ms-lg-3 mt-2 mt-lg-0">
+                    <div class="d-flex gap-2">
+                        <?php if(isset($_SESSION['user_id'])): ?>
+                            <a href="users/profile.php" class="btn btn-outline-light rounded-pill px-4 position-relative" title="Go to Dashboard">
+                                Dashboard
+                                <?php if($unread_count > 0): ?>
+                                    <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                        <span class="visually-hidden">New alerts</span>
+                                    </span>
+                                <?php endif; ?>
+                            </a>
+                            <a href="users/logout.php" class="btn btn-custom fw-bold">Logout</a>
+                        <?php else: ?>
+                            <a href="users/login.php" class="btn btn-light rounded-pill px-4 fw-bold text-success">Login</a>
+                            <a href="users/register.php" class="btn btn-custom">Register</a>
+                        <?php endif; ?>
+                    </div>
+                </li>
             </ul>
-        <div class="d-flex gap-2">
-            <?php if(isset($_SESSION['user_id'])): ?>
-                <a href="users/profile.php" class="btn btn-outline-light rounded-pill px-4 position-relative" title="Go to Dashboard">
-                    Dashboard
-                    <?php if($unread_count > 0): ?>
-                        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
-                            <span class="visually-hidden">New alerts</span>
-                        </span>
-                    <?php endif; ?>
-                </a>
-                <a href="users/logout.php" class="btn btn-custom text-dark fw-bold">Logout</a>
-            <?php else: ?>
-                <a href="users/login.php" class="btn btn-light rounded-pill px-4 fw-bold text-success">Login</a>
-                <a href="users/register.php" class="btn btn-custom">Register</a>
-            <?php endif; ?>
         </div>
     </div>
 </nav>
@@ -504,7 +534,7 @@ if(isset($_SESSION['user_id'])){
         <h2 class="section-title display-5">Available Rooms</h2>
         <p class="text-muted">Choose the perfect space for your needs.</p>
     </div>
-    <div class="row g-4">
+    <div class="row g-4 rooms-scroll-container">
         <?php foreach($grouped_rooms as $type => $rooms_in_type): 
             $type_total_beds = array_sum(array_column($rooms_in_type, 'total_beds'));
             $type_avail_beds = array_sum(array_column($rooms_in_type, 'available_beds'));

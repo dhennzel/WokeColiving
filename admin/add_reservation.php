@@ -174,11 +174,14 @@ if(isset($_POST['add_reservation'])){
         if(empty($error)){
             $check_email = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'");
             $check_name = mysqli_query($conn, "SELECT user_id FROM users WHERE first_name='$fname' AND last_name='$lname' AND middle_name='$mname' AND suffix='$suffix'");
+            $check_phone = mysqli_query($conn, "SELECT user_id FROM users WHERE phone_number='$phone'");
 
             if(mysqli_num_rows($check_email) > 0){
                 $error = "Email address already registered.";
             } elseif(mysqli_num_rows($check_name) > 0) {
                 $error = "A guest with this full name is already registered.";
+            } elseif(mysqli_num_rows($check_phone) > 0) {
+                $error = "Phone number is already registered.";
             } else {
                 $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, suffix, email, phone_number, gender, occupation, company, address, password, role, is_walkin, emergency_contact_name, emergency_contact_number, school_id_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 1, ?, ?, ?)");
                 mysqli_stmt_bind_param($stmt, "ssssssssssssss", $lname, $fname, $mname, $suffix, $email, $phone, $gender, $occupation, $company, $address, $password, $em_name, $em_num, $school_id_image);

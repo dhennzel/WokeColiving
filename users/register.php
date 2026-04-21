@@ -41,6 +41,8 @@ if (isset($_POST['register'])) {
     } elseif (mysqli_num_rows(mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'")) > 0) {
         // Check if email already exists
         $error = "Email address is already registered."; 
+    } elseif (mysqli_num_rows(mysqli_query($conn, "SELECT user_id FROM users WHERE phone_number='$phone'")) > 0) {
+        $error = "Phone number is already registered."; 
     } else {
         $pass = password_hash($raw_pass, PASSWORD_DEFAULT);
         

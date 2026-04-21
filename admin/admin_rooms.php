@@ -332,7 +332,7 @@ $theme = get_theme_colors($conn);
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="row g-4" id="room-container-<?= md5($type) ?>">
+                <div class="row g-4 mobile-horizontal-scroll" id="room-container-<?= md5($type) ?>">
                     <?php foreach($rooms_in_type as $room): 
     // Detailed Calculation for Individual Room
     $floor = $room['floor'] ?? 2;

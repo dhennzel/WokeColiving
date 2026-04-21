@@ -475,7 +475,7 @@ $theme = get_theme_colors($conn);
                         <h6 class="fw-bold text-success mb-3 small text-uppercase pb-1 opacity-75 letter-spacing-1">
                             <i class="fas fa-layer-group me-2"></i><?= $floor == 2 ? '2nd' : ($floor == 3 ? '3rd' : $floor.'th') ?> Floor
                         </h6>
-                        <div class="row g-3 mb-4">
+                        <div class="row g-3 mb-4 mobile-horizontal-scroll">
                             <?php foreach($rooms as $room): ?>
                             <?php 
                                 $status_tag = 'available';

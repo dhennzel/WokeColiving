@@ -123,22 +123,24 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                 <div class="col-md-8">
                     <div class="card card-custom p-4">
                         <h5 class="fw-bold mb-3">Existing Admins</h5>
-                        <table class="table table-hover">
-                            <thead><tr><th>Name / Contact</th><th>Username</th><th>Role</th><th>Action</th></tr></thead>
-                            <tbody>
-                                <?php while($row = mysqli_fetch_assoc($admins)): ?>
-                                <tr>
-                                    <td>
-                                        <div class="fw-bold"><?= htmlspecialchars(trim($row['first_name'] . ' ' . $row['last_name'])) ?: '<span class="text-muted fst-italic">Not Set</span>' ?></div>
-                                        <div class="small text-muted"><?= htmlspecialchars($row['email'] ?? '') ?></div>
-                                    </td>
-                                    <td><?= htmlspecialchars($row['username']) ?></td>
-                                    <td><span class="badge <?= $row['role'] == 'Super Admin' ? 'bg-danger' : 'bg-primary' ?>"><?= $row['role'] ?></span></td>
-                                    <td><?php if($current_role == 'Super Admin' && $row['username'] != $_SESSION['admin_username']): ?><a href="?delete=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this admin?')">Delete</a><?php endif; ?></td>
-                                </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead><tr><th>Name / Contact</th><th>Username</th><th>Role</th><th>Action</th></tr></thead>
+                                <tbody>
+                                    <?php while($row = mysqli_fetch_assoc($admins)): ?>
+                                    <tr>
+                                        <td>
+                                            <div class="fw-bold"><?= htmlspecialchars(trim($row['first_name'] . ' ' . $row['last_name'])) ?: '<span class="text-muted fst-italic">Not Set</span>' ?></div>
+                                            <div class="small text-muted"><?= htmlspecialchars($row['email'] ?? '') ?></div>
+                                        </td>
+                                        <td><?= htmlspecialchars($row['username']) ?></td>
+                                        <td><span class="badge <?= $row['role'] == 'Super Admin' ? 'bg-danger' : 'bg-primary' ?>"><?= $row['role'] ?></span></td>
+                                        <td><?php if($current_role == 'Super Admin' && $row['username'] != $_SESSION['admin_username']): ?><a href="?delete=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this admin?')">Delete</a><?php endif; ?></td>
+                                    </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>

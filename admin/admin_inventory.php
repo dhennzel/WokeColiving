@@ -221,8 +221,8 @@ $theme = get_theme_colors($conn);
                 <h5 class="modal-title fw-bold text-success"><i class="fas fa-layer-group me-2"></i><?= $type ?> Rooms</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4">
-                <div class="row g-4">
+            <div class="modal-body p-4" style="overflow-x: hidden;">
+                <div class="row g-4 mobile-horizontal-scroll">
                     <?php foreach($rooms_in_type as $room): 
                         $room_display_name = !empty($room['room_number']) ? "Room " . $room['room_number'] : $room['room_name'];
                         $is_shared = ($room['room_type'] == '4-Bed' || $room['room_type'] == '6-Bed');

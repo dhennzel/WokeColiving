@@ -353,7 +353,7 @@ $theme = get_theme_colors($conn);
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="row g-3">
+                <div class="row g-3 mobile-horizontal-scroll">
                     <?php foreach($rooms_in_type as $room): ?>
                     <?php
                         $room_display = $room['room_name'];

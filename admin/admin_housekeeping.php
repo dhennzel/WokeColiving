@@ -268,7 +268,7 @@ $theme = get_theme_colors($conn);
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="row g-4" id="list_<?= $status ?>">
+                <div class="row g-4 mobile-horizontal-scroll" id="list_<?= $status ?>">
                     <?php foreach($items as $row): 
                         $search_tags = strtolower((!empty($row['room_number']) ? 'Room ' . $row['room_number'] : $row['room_name']) . ' ' . ($row['room_number'] ?? '') . ' ' . $row['room_name']);
                     ?>
@@ -368,8 +368,8 @@ $theme = get_theme_colors($conn);
                     <!-- Tab Content -->
                     <div class="tab-content" id="scheduleRoomContainer">
                         <?php $first=true; foreach($grouped_rooms as $type => $rooms): $tid = md5($type); ?>
-                        <div class="tab-pane fade <?= $first?'show active':'' ?>" id="content-<?=$tid?>" role="tabpanel">
-                            <div class="row g-3">
+                        <div class="tab-pane fade <?= $first?'show active':'' ?>" id="content-<?=$tid?>" role="tabpanel" style="overflow-x: hidden;">
+                            <div class="row g-3 mobile-horizontal-scroll">
                                 <?php foreach($rooms as $room): ?>
                                 <div class="col-md-4 col-lg-3 room-item-filter" data-floor="<?= $room['floor'] ?>">
                                     <div class="card room-select-card h-100" onclick="selectRoom(this, <?= $room['room_id'] ?>)">
@@ -438,8 +438,8 @@ $theme = get_theme_colors($conn);
 
                     <div class="tab-content" id="autoRoomContainer">
                         <?php $first=true; foreach($grouped_rooms as $type => $rooms): $tid = md5($type . '_auto'); ?>
-                        <div class="tab-pane fade <?= $first?'show active':'' ?>" id="content-<?=$tid?>" role="tabpanel">
-                            <div class="row g-3">
+                        <div class="tab-pane fade <?= $first?'show active':'' ?>" id="content-<?=$tid?>" role="tabpanel" style="overflow-x: hidden;">
+                            <div class="row g-3 mobile-horizontal-scroll">
                                 <?php foreach($rooms as $room): ?>
                                 <div class="col-md-4 col-lg-3 room-item-filter" data-floor="<?= $room['floor'] ?>">
                                     <div class="card card-req h-100 border-0 shadow-sm auto-select-card" onclick="toggleAutoSelect(this, <?= $room['room_id'] ?>)" style="cursor: pointer; transition: transform 0.2s;">
