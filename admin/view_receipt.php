@@ -249,33 +249,93 @@ $theme = get_theme_colors($conn);
 
         .logo { width: 70px; height: 70px; object-fit: cover; border-radius: 50%; border: 3px solid var(--accent-yellow); }
         
-        @page { size: A5 landscape; margin: 0 !important; }
-        
-        @media print {
-            html, body { height: 148mm !important; width: 210mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .receipt-wrapper { display: block !important; padding: 0 !important; margin: 0 !important; background: none !important; width: 210mm; height: 148mm; }
-            .receipt-container { 
-                box-shadow: none !important; border: 1.5px solid #000 !important; margin: 0 !important; border-radius: 0 !important;
-                width: 210mm !important; height: 148mm !important; padding: 5mm !important;
-            }
-            .receipt-header { background: #fff !important; color: #000 !important; margin: 0 0 10px 0 !important; padding: 0 0 5px 0 !important; border-bottom: 1px solid #000 !important; }
-            .receipt-header::after { display: none !important; } /* Remove accent line for ordinary print */
-            .logo-text { color: #000 !important; font-size: 1.5rem !important; font-weight: bold !important; }
-            .logo-subtitle { font-size: 0.6rem !important; color: #000 !important; }
-            .logo { border: 1px solid #000 !important; filter: grayscale(100%); width: 50px; height: 50px; }
-            .receipt-no { font-size: 0.8rem !important; }
-            .company-details { font-size: 0.6rem !important; }
-            .receipt-title-centered { font-size: 0.9rem !important; }
-            .particulars-table th, .particulars-table td { border: 1px solid #000 !important; font-size: 0.8rem !important; padding: 2px 5px !important; }
-            .particulars-table .sub-item { font-size: 0.75rem !important; }
-            .form-panel { font-size: 0.9rem !important; }
-            .name-val { font-size: 0.85rem !important; }
-            .sig-line { font-size: 0.7rem !important; }
-            .sig-image-on-receipt { bottom: 95px !important; max-height: 40px !important; }
-            .sidebar, .top-navbar, .page-header { display: none !important; }
-            .no-print { display: none !important; }
-        }
+       @page {
+    size: A5 landscape;
+    margin: 0;
+}
+
+@media print {
+    html, body {
+        width: 210mm !important;
+        height: 148mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+    }
+
+    /* KEEP COLORS (IMPORTANT) */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .receipt-wrapper {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 210mm;
+        height: 148mm;
+    }
+
+    .receipt-container {
+        box-shadow: none !important;
+        border: 1.5px solid #000 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        width: 210mm !important;
+        height: 148mm !important;
+        padding: 5mm !important;
+    }
+
+    /* ✅ KEEP HEADER COLOR (NO FORCED WHITE) */
+    .receipt-header {
+        background: linear-gradient(135deg, var(--primary-green), #209158) !important;
+        color: white !important;
+        margin: 0 0 10px 0 !important;
+        padding: 10px !important;
+    }
+
+    .receipt-header::after {
+        display: block !important;
+    }
+
+    .logo {
+        border: 2px solid #000 !important;
+        /* ❌ REMOVE grayscale so printer decides */
+    }
+
+    .particulars-table th,
+    .particulars-table td {
+        border: 1px solid #000 !important;
+        font-size: 0.8rem !important;
+        padding: 2px 5px !important;
+    }
+
+    .form-panel {
+        font-size: 0.9rem !important;
+    }
+
+    .name-val {
+        font-size: 0.85rem !important;
+    }
+
+    .sig-line {
+        font-size: 0.7rem !important;
+    }
+
+    .sig-image-on-receipt {
+        bottom: 95px !important;
+        max-height: 40px !important;
+    }
+
+    /* REMOVE NON-PRINT ELEMENTS */
+    .sidebar,
+    .top-navbar,
+    .page-header,
+    .no-print {
+        display: none !important;
+    }
+}
     </style>
 </head>
 <body>
