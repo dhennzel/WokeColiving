@@ -144,7 +144,8 @@ while ($row = mysqli_fetch_assoc($slots_q)) {
 
 $reservations_q = mysqli_query($conn, "
     SELECT pr.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, ps.slot_name, ps.slot_type,
-    (SELECT payment_status FROM payments WHERE description LIKE CONCAT('%(Parking ID: ', pr.id, ')') ORDER BY payment_id DESC LIMIT 1) as pay_status
+    (SELECT payment_status FROM payments WHERE description LIKE CONCAT('%(Parking ID: ', pr.id, ')%') ORDER BY payment_id DESC LIMIT 1) as pay_status,
+    (SELECT description FROM payments WHERE description LIKE CONCAT('%(Parking ID: ', pr.id, ')%') ORDER BY payment_id DESC LIMIT 1) as pay_desc
     FROM parking_reservations pr 
     JOIN users u ON pr.user_id = u.user_id 
     JOIN parking_slots ps ON pr.slot_id = ps.id 
@@ -320,7 +321,13 @@ $theme = get_theme_colors($conn);
                                 <td>
                                     <?php 
                                         $ps = $row['pay_status'] ?? 'Unpaid';
+                                        $pdesc = $row['pay_desc'] ?? '';
                                         $ps_class = ($ps == 'Paid') ? 'bg-success' : 'bg-warning text-dark';
+                                        
+                                        if ($ps == 'Cancelled' && strpos($pdesc, 'Carried over') !== false) {
+                                            $ps = 'Merged to Next Bill';
+                                            $ps_class = 'bg-info text-dark';
+                                        }
                                     ?>
                                     <span class="badge <?= $ps_class ?>"><?= $ps ?></span>
                                 </td>

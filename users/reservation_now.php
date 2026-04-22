@@ -388,9 +388,16 @@ if (isset($_POST['confirm_booking'])) {
                 }
 
                 // Check for carried over unpaid balances from previous reservations
-                $prev_bal_q = mysqli_query($conn, "SELECT SUM(p.amount) as balance FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id = $user_id AND p.payment_status = 'Unpaid'");
-                $prev_bal_row = mysqli_fetch_assoc($prev_bal_q);
-                $prev_balance = (float)($prev_bal_row['balance'] ?? 0);
+                $prev_bal_q = mysqli_query($conn, "SELECT p.amount, p.description FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id = $user_id AND p.payment_status = 'Unpaid'");
+                $prev_balance = 0;
+                $carried_items = [];
+                while($prev_bal_row = mysqli_fetch_assoc($prev_bal_q)) {
+                    $prev_balance += (float)($prev_bal_row['amount'] ?? 0);
+                    $c_desc = preg_replace('/\s*\(Carried over to.*?\)/i', '', $prev_bal_row['description']);
+                    $c_desc = preg_replace('/\s*\[FULL\]\s*/i', '', $c_desc);
+                    $c_desc = preg_replace('/\s*\(Parking ID: \d+\)/i', '', $c_desc);
+                    $carried_items[] = trim($c_desc);
+                }
                 
                 $totalAmount += $prev_balance; // Add previous debt to initial payment required
 
@@ -464,6 +471,11 @@ if (isset($_POST['confirm_booking'])) {
                         
                         // 2. Insert Rent Part
                         $rent_desc = ($term_type == 'Daily') ? "Daily Stay Payment" : "First Month Rent";
+                        if ($prev_balance > 0 && !empty($carried_items)) {
+                            $rent_desc .= " + " . implode(' + ', $carried_items);
+                        }
+                        if (strlen($rent_desc) > 250) $rent_desc = substr($rent_desc, 0, 247) . '...';
+                        
                         $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image, description) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)");
                         $pay_stmt->bind_param("idsssss", $reservation_id, $rent_part, $payment_method, $p_status, $ref_number, $proof_filename, $rent_desc);
                         $pay_stmt->execute();
@@ -472,6 +484,11 @@ if (isset($_POST['confirm_booking'])) {
                         // Direct insert for Extensions or zero deposit bookings
                         if ($initial_payment > 0) {
                             $rent_desc = ($is_extension) ? "Extension Rent Payment" : (($term_type == 'Daily') ? "Daily Stay Payment" : "First Month Rent");
+                            if ($prev_balance > 0 && !empty($carried_items)) {
+                                $rent_desc .= " + " . implode(' + ', $carried_items);
+                            }
+                            if (strlen($rent_desc) > 250) $rent_desc = substr($rent_desc, 0, 247) . '...';
+                            
                             $pay_stmt = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, reference_number, proof_image, description) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)");
                             $pay_stmt->bind_param("idsssss", $reservation_id, $initial_payment, $payment_method, $p_status, $ref_number, $proof_filename, $rent_desc);
                             $pay_stmt->execute();

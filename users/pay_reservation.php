@@ -21,7 +21,7 @@ $reservation_id = $res_data['reservation_id']; // Use the latest active reservat
 $pay_q = mysqli_query($conn, "
     SELECT p.* FROM payments p 
     JOIN reservations r ON p.reservation_id = r.reservation_id 
-    WHERE r.user_id=$user_id AND (p.payment_status='Unpaid' OR (p.payment_status='Cancelled' AND (p.description LIKE '%Security Deposit%' OR p.description LIKE '%Downpayment%' OR p.description LIKE '%Initial%') AND r.status IN ('Pending', 'Verifying', 'Approved'))) ORDER BY p.payment_date ASC
+    WHERE r.user_id=$user_id AND (p.payment_status='Unpaid' OR (p.payment_status='Cancelled' AND p.description NOT LIKE '%Carried over%' AND (p.description LIKE '%Security Deposit%' OR p.description LIKE '%Downpayment%' OR p.description LIKE '%Initial%') AND r.status IN ('Pending', 'Verifying', 'Approved'))) ORDER BY p.payment_date ASC
 ");
 $unpaid_bills = []; // This will be passed to JS
 while($row = mysqli_fetch_assoc($pay_q)) {
@@ -92,14 +92,24 @@ if(isset($_POST['submit_payment'])){
                 // Payments start as Unpaid until verified by admin
                 $status = 'Unpaid';
                 $is_full = (count($final_ids) >= count($unpaid_bills)) ? " [FULL]" : "";
-                // Prevent duplicate [FULL] tags. If already present, don't append.
-                $new_desc_sql = "IF(description LIKE '%[FULL]%', description, CONCAT(description, ?))";
 
+                 // Keep original individual descriptions but mark as paid/submitted together
+                $new_desc_sql = "IF(description LIKE '%[FULL]%', description, CONCAT(description, ?))";
                 $stmt = mysqli_prepare($conn, "UPDATE payments SET payment_method=?, payment_status=?, reference_number=?, proof_image=?, payment_date=NOW(), description=$new_desc_sql WHERE payment_id IN ($payment_ids_str)");
                 mysqli_stmt_bind_param($stmt, "sssss", $method, $status, $ref_number, $proof_filename, $is_full);
+
                 
                 if(mysqli_stmt_execute($stmt)){
-                    log_activity($conn, $user_id, "Payment Submitted", "Reservation #$reservation_id via $method for " . count($final_ids) . " bill(s)");
+                    // Log the detailed breakdown for admin reference
+                    $selected_descs = [];
+                    foreach ($unpaid_bills as $ub) {
+                        if (in_array($ub['payment_id'], $final_ids)) {
+                            $selected_descs[] = $ub['display_description'];
+                        }
+                    }
+                    $log_desc = (count($final_ids) > 1) ? implode(', ', $selected_descs) : ($selected_descs[0] ?? 'Unknown Bill');
+                    if (strlen($log_desc) > 150) $log_desc = substr($log_desc, 0, 147) . '...';
+                    log_activity($conn, $user_id, "Payment Submitted", "Reservation #$reservation_id via $method for: " . $log_desc);
                     trigger_update($conn);
                     header("Location: my_reservations.php?msg=payment_submitted");
                     exit;

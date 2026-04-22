@@ -98,7 +98,8 @@ if(isset($_GET['archive_id'])){
 }
 
 // Fetch Reservations
-$query = mysqli_query($conn, "SELECT r.*, rm.room_name, rm.room_type, rm.image 
+$query = mysqli_query($conn, "SELECT r.*, rm.room_name, rm.room_type, rm.image,
+    (SELECT COUNT(*) FROM reservations ext WHERE ext.extended_from = r.reservation_id AND ext.status IN ('Pending', 'Verifying', 'Approved')) as is_extended
 FROM reservations r
 JOIN rooms rm ON r.room_id = rm.room_id
 WHERE r.user_id = $user_id AND r.is_archived = 0 ORDER BY r.reservation_id DESC");
@@ -333,12 +334,12 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                         <td class="text-end">
                             <?php 
                                 $rid = $row['reservation_id'];
-                                $pay_chk = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM payments WHERE reservation_id=$rid AND (payment_status='Unpaid' OR (payment_status='Cancelled' AND (description LIKE '%Security Deposit%' OR description LIKE '%Downpayment%' OR description LIKE '%Initial%')))");
+                                $pay_chk = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM payments WHERE reservation_id=$rid AND (payment_status='Unpaid' OR (payment_status='Cancelled' AND description NOT LIKE '%Carried over%' AND (description LIKE '%Security Deposit%' OR description LIKE '%Downpayment%' OR description LIKE '%Initial%')))");
                                 $has_unpaid = mysqli_fetch_assoc($pay_chk)['cnt'] > 0;
-                                if($has_unpaid && in_array($row['status'], ['Pending', 'Verifying', 'Approved'])): 
+                                if($has_unpaid && !$row['is_extended'] && in_array($row['status'], ['Pending', 'Verifying', 'Approved'])): 
                             ?>
                                 <a href="pay_reservation.php?id=<?= $rid ?>" class="btn btn-sm btn-accent mb-1">
-                                    <i class="fas fa-credit-card me-1"></i> <?= $row['status'] == 'Approved' ? 'Pay Bills / Advance' : 'Pay Now' ?>
+                                    <i class="fas fa-credit-card me-1"></i> Pay Now
                                 </a>
                             <?php endif; ?>
 
@@ -360,7 +361,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                                     </a>
                                 <?php } ?>
 
-                                <?php if($row['status'] == 'Approved'): ?>
+                                <?php if($row['status'] == 'Approved' && !$row['is_extended']): ?>
                                     <!-- Extend Stay Button -->
                                     <a href="reservation_now.php?extend_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-accent ms-1">
                                         <i class="fas fa-history me-1"></i> Extend

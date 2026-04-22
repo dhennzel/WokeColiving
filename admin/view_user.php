@@ -917,7 +917,7 @@ $theme = get_theme_colors($conn);
 
                                 $is_overdue = ($pay['payment_status'] == 'Unpaid' && strtotime($pay['payment_date']) < strtotime('-5 days'));
                                 $row_class = $is_overdue ? 'table-danger' : '';
-                                $desc = $desc_text;
+                                $desc = preg_replace('/\s*\[FULL\]\s*/i', '', $desc_text);
                                 $room_info = !empty($pay['room_number']) ? 'Room ' . htmlspecialchars($pay['room_number']) : ($pay['room_name'] ? htmlspecialchars($pay['room_name']) : '<span class="text-muted">Unknown Room</span>');
                             ?>
                             <tr class="<?= $row_class ?>">
@@ -1032,7 +1032,7 @@ $theme = get_theme_colors($conn);
                                         <tr>
                                             <td><?= date('M d, Y', strtotime($sd_display_date)) ?></td>
                                             <td><?= !empty($sd['room_number']) ? 'Room ' . htmlspecialchars($sd['room_number']) : htmlspecialchars($sd['room_name']) ?></td>
-                                            <td class="small text-muted"><?= htmlspecialchars($sd['description']) ?></td>
+                                            <td class="small text-muted"><?= htmlspecialchars(preg_replace('/\s*\[FULL\]\s*/i', '', $sd['description'])) ?></td>
                                             <td class="fw-bold">₱<?= number_format($sd['amount'], 2) ?></td>
                                             <td>
                                                 <span class="badge <?= $sd['payment_status'] == 'Paid' ? 'bg-success' : 'bg-warning text-dark' ?>">

@@ -19,7 +19,8 @@ mysqli_query($conn, "CREATE TABLE IF NOT EXISTS room_transfers (
 $query = mysqli_query($conn, "
     SELECT r.*, rm.room_name, rm.room_number, rm.room_type, rm.image,
     (SELECT COUNT(*) FROM payments WHERE reservation_id = r.reservation_id AND payment_status = 'Unpaid') as unpaid_count,
-    (SELECT SUM(amount) FROM payments WHERE reservation_id = r.reservation_id AND payment_status = 'Unpaid') as balance
+    (SELECT SUM(amount) FROM payments WHERE reservation_id = r.reservation_id AND payment_status = 'Unpaid') as balance,
+    (SELECT COUNT(*) FROM reservations ext WHERE ext.extended_from = r.reservation_id AND ext.status IN ('Pending', 'Verifying', 'Approved')) as is_extended
     FROM reservations r
     JOIN rooms rm ON r.room_id = rm.room_id
     WHERE r.user_id = $user_id AND r.is_archived = 0
@@ -109,20 +110,20 @@ $sd_query = mysqli_query($conn, "
                                         </div>
                                         <?php endif; ?>
 
-                                        <?php if($res['balance'] > 0): ?>
+                                        <?php if($res['balance'] > 0 && !$res['is_extended']): ?>
                                             <div class="alert alert-warning py-2 mb-3 border-0">
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <span class="small fw-bold">Unpaid: ₱<?= number_format($res['balance'], 2) ?></span>
                                                     <a href="pay_reservation.php?id=<?= $res['reservation_id'] ?>" class="btn btn-sm btn-primary rounded-pill px-3">Pay Now</a>
                                                 </div>
                                             </div>
-                                        <?php else: ?>
+                                        <?php elseif($res['balance'] <= 0): ?>
                                             <div class="text-success small fw-bold mb-3"><i class="fas fa-check-circle"></i> No Outstanding Bills</div>
                                         <?php endif; ?>
 
                                         <div class="d-flex gap-2">
                                             <button class="btn btn-sm btn-outline-success rounded-pill" onclick="viewStayDetails(<?= $res['reservation_id'] ?>)">Details</button>
-                                            <?php if($res['status'] == 'Approved'): ?>
+                                            <?php if($res['status'] == 'Approved' && !$res['is_extended']): ?>
                                                 <a href="reservation_now.php?extend_id=<?= $res['reservation_id'] ?>" class="btn btn-sm btn-outline-primary rounded-pill">Extend Stay</a>
                                             <?php endif; ?>
                                         </div>

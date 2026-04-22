@@ -152,7 +152,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                     <?php while($pay = mysqli_fetch_assoc($payments)): ?>
                     <?php
                         $display_date = $pay['payment_date'];
-                        $desc = $pay['description'];
+                        $desc = preg_replace('/\s*\[FULL\]\s*/i', '', $pay['description']);
 
                         // Logic para itugma ang date sa billing month/period kung ito ay recurring rent o utility
                         if (preg_match('/Month (\d+) Rent/i', $desc, $matches)) {
