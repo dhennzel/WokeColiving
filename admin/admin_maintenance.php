@@ -466,7 +466,7 @@ $theme = get_theme_colors($conn);
                     </ul>
 
                     <!-- Tab Content -->
-                    <div class="tab-content" id="scheduleRoomContainer">
+                    <div class="tab-content" id="scheduleRoomContainer" style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding: 5px;">
                         <?php $first=true; foreach($grouped_rooms as $type => $rooms): $tid = md5($type); ?>
                         <div class="tab-pane fade <?= $first?'show active':'' ?>" id="content-<?=$tid?>" role="tabpanel" style="overflow-x: hidden;">
                             <div class="row g-3 mobile-horizontal-scroll">
@@ -535,7 +535,7 @@ $theme = get_theme_colors($conn);
                         <?php $first=false; endforeach; ?>
                     </ul>
 
-                    <div class="tab-content" id="autoRoomContainer">
+                    <div class="tab-content" id="autoRoomContainer" style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding: 5px;">
                         <?php $first=true; foreach($grouped_rooms as $type => $rooms): $tid = md5($type . '_auto'); ?>
                         <div class="tab-pane fade <?= $first?'show active':'' ?>" id="content-<?=$tid?>" role="tabpanel" style="overflow-x: hidden;">
                             <div class="row g-3 mobile-horizontal-scroll">
@@ -576,7 +576,7 @@ $theme = get_theme_colors($conn);
 
 <!-- Move Tenant Modal -->
 <div class="modal fade" id="moveTenantModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Move Tenant Temporarily</h5>
@@ -631,7 +631,7 @@ $theme = get_theme_colors($conn);
 
 <!-- Price Settings Modal -->
 <div class="modal fade" id="priceSettingsModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold"><i class="fas fa-tags me-2"></i>Maintenance Price Settings</h5>

@@ -83,7 +83,7 @@ $theme = get_theme_colors($conn);
         @media print {
             @page { size: A4 portrait; margin: 0 !important; }
             body, html { background: white !important; font-size: 11pt; margin: 0 !important; padding: 15mm !important; }
-            .receipt-container { box-shadow: none; border-radius: 0; max-width: 100%; border: none !important; margin: 0; }
+            .receipt-container { box-shadow: none; border-radius: 0; max-width: 100%; border: 1px solid #000 !important; margin: 0; page-break-inside: avoid !important; break-inside: avoid !important; }
             .no-print { display: none !important; }
             .receipt-body { padding: 20px !important; }
         }

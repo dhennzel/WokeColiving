@@ -481,7 +481,7 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
-<div class="modal fade" id="modalMaintenance" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalMaintenance" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -528,7 +528,7 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
-<div class="modal fade" id="modalHousekeeping" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalHousekeeping" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -575,7 +575,7 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
-<div class="modal fade" id="modalBilling" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalBilling" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
@@ -627,7 +627,7 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
-<div class="modal fade" id="modalRooms" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalRooms" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -675,7 +675,7 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
-<div class="modal fade" id="modalReports" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalReports" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -726,7 +726,7 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
-<div class="modal fade" id="modalUsers" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalUsers" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -753,29 +753,32 @@ $theme = get_theme_colors($conn);
                             </tr>
                             <tr class="collapse" id="history_<?= $row['user_id'] ?>">
                                 <td colspan="4" class="p-0 border-0 bg-light">
+                                    <?php if($row['is_archived'] == 1): ?>
+                                    <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-white">
+                                        <h6 class="fw-bold text-danger mb-0"><i class="fas fa-user-slash me-2"></i>Archived Account Actions</h6>
+                                        <div class="d-flex gap-2">
+                                            <form method="POST" onsubmit="confirmForm(event, 'Restore account and all its archived records?')">
+                                                <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
+                                                <input type="hidden" name="type" value="user">
+                                                <input type="hidden" name="archive_action" value="restore">
+                                                <button type="submit" class="btn btn-sm btn-outline-success fw-bold px-3 shadow-sm"><i class="fas fa-undo me-1"></i> Restore Account</button>
+                                            </form>
+                                            
+                                            <?php if($is_super): ?>
+                                            <form method="POST" onsubmit="confirmForm(event, 'Permanently delete ENTIRE account?')">
+                                                <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
+                                                <input type="hidden" name="type" value="user">
+                                                <input type="hidden" name="archive_action" value="delete">
+                                                <button type="submit" class="btn btn-sm btn-danger text-white fw-bold px-3 shadow-sm"><i class="fas fa-trash-alt me-1"></i> Delete Permanently</button>
+                                            </form>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
+
                                     <div class="p-3 border-bottom">
                                         <div class="d-flex justify-content-between align-items-center mb-3">
                                             <h6 class="fw-bold text-secondary mb-0"><i class="fas fa-suitcase me-2"></i>Archived Reservations</h6>
-                                            
-                                            <div class="d-flex gap-2">
-                                                <?php if($row['is_archived'] == 1): ?>
-                                                <form method="POST" onsubmit="confirmForm(event, 'Restore account and all its archived records?')">
-                                                    <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
-                                                    <input type="hidden" name="type" value="user">
-                                                    <input type="hidden" name="archive_action" value="restore">
-                                                    <button type="submit" class="btn btn-sm btn-outline-success fw-bold px-3 shadow-sm"><i class="fas fa-undo me-1"></i> Restore</button>
-                                                </form>
-                                                
-                                                <?php if($is_super): ?>
-                                                <form method="POST" onsubmit="confirmForm(event, 'Permanently delete ENTIRE account?')">
-                                                    <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
-                                                    <input type="hidden" name="type" value="user">
-                                                    <input type="hidden" name="archive_action" value="delete">
-                                                    <button type="submit" class="btn btn-sm btn-danger text-white fw-bold px-3 shadow-sm"><i class="fas fa-user-slash me-1"></i> Delete Account</button>
-                                                </form>
-                                                <?php endif; ?>
-                                                <?php endif; ?>
-                                            </div>
                                         </div>
                                         <?php 
                                         $uid = $row['user_id'];
@@ -828,6 +831,13 @@ $theme = get_theme_colors($conn);
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
+// Fix accessibility warning (Blocked aria-hidden) when closing modals
+document.addEventListener('hide.bs.modal', function () {
+    if (document.activeElement) {
+        document.activeElement.blur();
+    }
+});
+
 // Horizontal Slider Logic
 const slider = document.getElementById('archiveSlider');
 document.getElementById('slideLeft').addEventListener('click', () => {

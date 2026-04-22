@@ -172,6 +172,8 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
             body.night-mode, body.night-mode * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             body.night-mode .modal-content { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
             body.night-mode .table-light th, body.night-mode .table-light td { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-color: #444 !important; }
+            .card, .table, tr, .list-group-item { page-break-inside: avoid !important; break-inside: avoid !important; }
+            table th, table td { border: 1px solid #ccc !important; }
         }
 
         /* Mobile Responsiveness */
@@ -494,7 +496,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                     </div>
                     <div class="mb-3">
                         <label class="form-label" id="label_emergency_number">Emergency Contact Number</label>
-                        <input type="text" name="emergency_contact_number" id="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_number'] ?? '') ?>" maxlength="11" required>
+                        <input type="text" name="emergency_contact_number" id="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user_info['emergency_contact_number'] ?? '') ?>" maxlength="11" required oninput="let v = this.value.replace(/[^0-9]/g, ''); if(v.length > 0 && v[0] !== '0') v = '0' + v; if(v.length > 1 && v[1] !== '9') v = '09' + v.substring(2); this.value = v;">
                     </div>
                 </div>
                 <div class="modal-footer">

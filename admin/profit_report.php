@@ -235,6 +235,7 @@ $theme = get_theme_colors($conn);
             .table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 0 !important; }
             .table th, .table td { border: 1px solid #dcdcdc !important; padding: 8px !important; }
             .table-light th { background-color: #f8f9fa !important; font-weight: bold !important; }
+            tr { page-break-inside: avoid !important; break-inside: avoid !important; }
 
             /* 10. Progress bars & Charts */
             .progress { border: 1px solid #e0e0e0 !important; background-color: #f5f5f5 !important; }

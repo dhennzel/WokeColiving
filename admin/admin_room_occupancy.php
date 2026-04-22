@@ -328,6 +328,12 @@ $theme = get_theme_colors($conn);
                             <option value="<?= $i ?>"><?= $i ?>th Floor</option>
                         <?php endfor; ?>
                     </select>
+                    <select class="form-select form-select-sm border-0 shadow-sm" id="genderFilter_<?= md5($type) ?>" onchange="filterOccupancyModal('<?= md5($type) ?>')" style="width: 120px; margin-left: 8px;">
+                        <option value="all">All Genders</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Any">Mixed</option>
+                    </select>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -369,7 +375,7 @@ $theme = get_theme_colors($conn);
                             $occupant_names_str = htmlspecialchars(implode(' ', $occupant_names), ENT_QUOTES);
                         }
                     ?>
-                    <div class="col-md-6 col-lg-4 occupancy-room-item" data-floor="<?= $floor ?>" data-status="<?= $room['occupancy_status'] ?>" data-name="<?= strtolower($room_display) ?>" data-occupants="<?= $occupant_names_str ?>">
+                    <div class="col-md-6 col-lg-4 occupancy-room-item" data-floor="<?= $floor ?>" data-status="<?= $room['occupancy_status'] ?>" data-name="<?= strtolower($room_display) ?>" data-occupants="<?= $occupant_names_str ?>" data-gender="<?= $room['gender'] ?? 'Any' ?>">
                         <div class="card card-custom h-100 room-card-clickable" style="overflow: hidden; cursor: pointer;" onclick="openRoomOccupantsModal(this)" data-room-name="<?= htmlspecialchars($room_display, ENT_QUOTES) ?>" data-occupants="<?= htmlspecialchars(json_encode($room['occupants']), ENT_QUOTES, 'UTF-8') ?>">
                             <img src="../assets/images/<?= $room['image'] ?>" alt="<?= $room_display ?>" style="height: 150px; object-fit: cover; width: 100%;">
                             <div class="card-body d-flex flex-column">
@@ -467,9 +473,11 @@ function openOccupancyModal(typeId) {
 function filterOccupancyModal(typeId) {
     const modal = document.getElementById('occupancy_' + typeId);
     const floorSelect = modal.querySelector('select');
+    const genderSelect = document.getElementById('genderFilter_' + typeId);
     const searchInput = modal.querySelector('input[type="text"]');
     
     const floor = floorSelect ? floorSelect.value : 'all';
+    const genderFilter = genderSelect ? genderSelect.value : 'all';
     const search = searchInput ? searchInput.value.toLowerCase() : '';
     const items = modal.querySelectorAll('.occupancy-room-item');
     
@@ -477,8 +485,10 @@ function filterOccupancyModal(typeId) {
         const itemFloor = item.getAttribute('data-floor');
         const itemName = item.getAttribute('data-name') || '';
         const itemOccupants = item.getAttribute('data-occupants') || '';
+        const itemGender = item.getAttribute('data-gender') || 'Any';
         
         let show = (floor === 'all' || itemFloor === floor);
+        if (show && genderFilter !== 'all' && itemGender !== genderFilter) show = false;
         if (show && search !== '') {
             if (!itemName.includes(search) && !itemOccupants.includes(search)) show = false;
         }

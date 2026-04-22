@@ -416,25 +416,6 @@ if(isset($_POST['add_reservation'])){
                 
                 log_activity($conn, $user_id, "Walk-in Booking", "Reservation #$res_id created by $admin_username");
                 
-                // 🚀 DRAGONPAY REDIRECT LOGIC
-                if ($pay_method == 'GCash' && $pay_status == 'Unpaid') {
-                    $merchant_id = 'YOUR_MERCHANT_ID'; // Replace with your Dragonpay Merchant ID
-                    $secret_key  = 'YOUR_SECRET_KEY';  // Replace with your Dragonpay Password
-                    
-                    $txn_id      = 'RES-' . $res_id;
-                    $amount      = number_format((float)$totalAmount, 2, '.', '');
-                    $ccy         = 'PHP';
-                    $description = 'Woke Coliving Reservation: ' . $room_type;
-                    
-                    $message = "$merchant_id:$txn_id:$amount:$ccy:$description:$email:$secret_key";
-                    $digest = sha1($message);
-
-                    $url = "https://test.dragonpay.ph/Pay.aspx?" . 
-                           "merchantid=$merchant_id&txnid=$txn_id&amount=$amount&ccy=$ccy&description=" . urlencode($description) . "&email=" . urlencode($email) . "&digest=$digest&procid=GCSH";
-
-                    header("Location: $url");
-                    exit;
-                }
                 
                 $success = $account_msg . "Reservation created successfully!";
                 $new_reservation_id = $res_id; // For JS Print Popup
@@ -561,7 +542,7 @@ $theme = get_theme_colors($conn);
                                 </select>
                             </div>
                             <div class="col-md-6"><label class="small fw-bold">Email</label><input type="email" name="new_email" class="form-control" value="<?= htmlspecialchars($f_new_email) ?>"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_phone) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_phone) ?>" oninput="let v = this.value.replace(/[^0-9]/g, ''); if(v.length > 0 && v[0] !== '0') v = '0' + v; if(v.length > 1 && v[1] !== '9') v = '09' + v.substring(2); this.value = v;"></div>
                             <div class="col-md-6">
                                 <label class="small fw-bold">Gender</label>
                                 <select name="new_gender" id="new_gender" class="form-select" onchange="updateGenderConstraint(); checkAvailability()">
@@ -623,7 +604,7 @@ $theme = get_theme_colors($conn);
                                 <input type="hidden" name="new_address" id="full_address">
                             </div>
                             <div class="col-md-6"><label class="small fw-bold" id="new_em_name_label">Emergency Name</label><input type="text" name="new_em_name" class="form-control" value="<?= htmlspecialchars($f_new_em_name) ?>"></div>
-                            <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_em_num) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')"></div>
+                            <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_em_num) ?>" oninput="let v = this.value.replace(/[^0-9]/g, ''); if(v.length > 0 && v[0] !== '0') v = '0' + v; if(v.length > 1 && v[1] !== '9') v = '09' + v.substring(2); this.value = v;"></div>
                             <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: Wokecoliving101" minlength="6" maxlength="8"></div>
                         </div>
                         <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>Wokecoliving101</strong> (7 letters, 1 number).</small>

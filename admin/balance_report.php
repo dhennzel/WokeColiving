@@ -12,6 +12,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 $theme = get_theme_colors($conn);
 
 $message = "";
+$error = "";
 $threshold = 5000;
 
 $user_filter = isset($_GET['filter']) ? $_GET['filter'] : 'active';
@@ -23,11 +24,17 @@ if($user_filter == 'active') {
 // Handle Bulk Reminders
 if (isset($_POST['send_bulk_reminders'])) {
     $filter_val = $_POST['filter'] ?? 'active';
+    $tenant_ids = $_POST['tenant_ids'] ?? [];
+    
+    if(empty($tenant_ids)) {
+        $error = "No tenants selected.";
+    } else {
+        $ids_str = implode(',', array_map('intval', $tenant_ids));
     $rem_status_condition = "";
     if($filter_val == 'active') {
         $rem_status_condition = " AND EXISTS (SELECT 1 FROM reservations res2 WHERE res2.user_id = u.user_id AND res2.status IN ('Approved', 'Pending', 'Verifying')) ";
     }
-    $rem_query = "SELECT u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name, SUM(p.amount) as total_balance FROM users u JOIN reservations r ON u.user_id = r.user_id JOIN payments p ON r.reservation_id = p.reservation_id WHERE p.payment_status = 'Unpaid' AND u.is_archived = 0 $rem_status_condition GROUP BY u.user_id HAVING total_balance > $threshold";
+        $rem_query = "SELECT u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name, SUM(p.amount) as total_balance FROM users u JOIN reservations r ON u.user_id = r.user_id JOIN payments p ON r.reservation_id = p.reservation_id WHERE p.payment_status = 'Unpaid' AND u.is_archived = 0 AND u.user_id IN ($ids_str) $rem_status_condition GROUP BY u.user_id HAVING total_balance > $threshold";
     $rem_result = mysqli_query($conn, $rem_query);
     $count = 0;
     while ($row = mysqli_fetch_assoc($rem_result)) {
@@ -40,6 +47,7 @@ if (isset($_POST['send_bulk_reminders'])) {
         $count++;
     }
     $message = "Reminders successfully sent to $count residents.";
+    }
 }
 
 // Threshold for the report
@@ -90,9 +98,10 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .sidebar, .top-navbar, .no-print, form, .btn { display: none !important; }
             .dashboard-container, .main-wrapper, .main-content { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
-            .card { border: none !important; box-shadow: none !important; }
+            .card { border: 1px solid #000 !important; box-shadow: none !important; page-break-inside: avoid !important; break-inside: avoid !important; }
             .table { border-collapse: collapse !important; width: 100% !important; }
             .table th, .table td { border: 1px solid #ddd !important; }
+            tr { page-break-inside: avoid !important; }
             .alert-info { display: none !important; }
         }
     </style>
@@ -113,14 +122,17 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                             <option value="all" <?= $user_filter == 'all' ? 'selected' : '' ?>>All with Balance</option>
                         </select>
                     </form>
-                    <form method="POST" id="reminderForm" onsubmit="confirmBulkReminders(event)">
-                        <input type="hidden" name="filter" value="<?= htmlspecialchars($user_filter) ?>">
-                        <button type="submit" name="send_bulk_reminders" class="btn btn-primary btn-sm no-print"><i class="fas fa-paper-plane me-2"></i>Send Bulk Reminders</button>
-                    </form>
+                    <button type="submit" form="reminderForm" name="send_bulk_reminders" class="btn btn-primary btn-sm no-print"><i class="fas fa-paper-plane me-2"></i>Send Bulk Reminders</button>
                     <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-2"></i>Print</button>
                 </div>
             </div>
 
+            <?php if($error): ?>
+                <div class="alert alert-danger alert-dismissible fade show no-print" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i><?= $error ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
             <?php if($message): ?>
                 <div class="alert alert-success alert-dismissible fade show no-print" role="alert">
                     <i class="fas fa-check-circle me-2"></i><?= $message ?>
@@ -134,9 +146,12 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 
             <div class="card card-table p-4">
                 <div class="table-responsive">
+                    <form method="POST" id="reminderForm" onsubmit="confirmBulkReminders(event)">
+                    <input type="hidden" name="filter" value="<?= htmlspecialchars($user_filter) ?>">
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
+                                <th class="no-print" style="width: 40px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
                                 <th>Resident</th>
                                 <th>Contact</th>
                                 <th>Unpaid Items</th>
@@ -148,6 +163,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                             <?php if(mysqli_num_rows($result) > 0): ?>
                                 <?php while($row = mysqli_fetch_assoc($result)): ?>
                                 <tr>
+                                    <td class="no-print"><input type="checkbox" name="tenant_ids[]" value="<?= $row['user_id'] ?>" class="tenant-checkbox"></td>
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="user-avatar me-2" style="width:40px; height:40px; border-radius:50%; background:var(--primary-green); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; overflow:hidden;">
@@ -174,10 +190,11 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                                 </tr>
                                 <?php endwhile; ?>
                             <?php else: ?>
-                                <tr><td colspan="5" class="text-center text-muted py-5"><i class="fas fa-check-circle fa-3x mb-3 opacity-25"></i><p>No tenants currently exceed the balance threshold.</p></td></tr>
+                                <tr><td colspan="6" class="text-center text-muted py-5"><i class="fas fa-check-circle fa-3x mb-3 opacity-25"></i><p>No tenants currently exceed the balance threshold.</p></td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
+                    </form>
                 </div>
             </div>
         </main>
@@ -186,11 +203,28 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
+document.addEventListener('DOMContentLoaded', () => {
+    const financeBadge = document.getElementById('financeBadge');
+    if(financeBadge) financeBadge.style.display = 'none';
+    const navBadge = document.querySelector('a[href="balance_report.php"] .nav-badge');
+    if(navBadge) navBadge.style.display = 'none';
+});
+
+function toggleSelectAll(source) {
+    const checkboxes = document.querySelectorAll('.tenant-checkbox');
+    checkboxes.forEach(cb => cb.checked = source.checked);
+}
+
 function confirmBulkReminders(e) {
     e.preventDefault();
+    const selected = document.querySelectorAll('.tenant-checkbox:checked').length;
+    if (selected === 0) {
+        Swal.fire('No selection', 'Please select at least one tenant.', 'warning');
+        return;
+    }
     Swal.fire({
         title: 'Send Bulk Reminders?',
-        text: "This will send an email and in-app notification to everyone listed in this report.",
+        text: `This will send an email and in-app notification to ${selected} selected resident(s).`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#34B875',

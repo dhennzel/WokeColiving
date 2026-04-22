@@ -105,6 +105,7 @@ $theme = get_theme_colors($conn);
             .table th, .table td { border: 1px solid #ccc !important; padding: 10px !important; color: #000 !important; font-size: 11pt !important; vertical-align: middle !important; }
             .table thead th { background-color: #f8f9fa !important; font-weight: bold !important; color: #000 !important; border-bottom: 2px solid #ccc !important; }
             .badge { border: 1px solid #666 !important; color: #000 !important; background: transparent !important; padding: 3px 6px !important; }
+            tr, .card { page-break-inside: avoid !important; break-inside: avoid !important; }
             #cardsView { display: none !important; }
             #tableView { display: block !important; }
             .print-header { display: block !important; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #2e7d32; padding-bottom: 10px; }

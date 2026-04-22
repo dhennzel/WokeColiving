@@ -128,7 +128,7 @@ if (isset($_POST['register'])) {
                 <input type="email" name="email" class="form-control" placeholder="Email Address" required value="<?= htmlspecialchars($email) ?>">
             </div>
             <div class="mb-2">
-                <input type="text" name="phone" class="form-control" placeholder="Phone Number (e.g. 09xxxxxxxxx)" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($phone) ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                <input type="text" name="phone" class="form-control" placeholder="Phone Number (e.g. 09xxxxxxxxx)" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" required value="<?= htmlspecialchars($phone) ?>" oninput="let v = this.value.replace(/[^0-9]/g, ''); if(v.length > 0 && v[0] !== '0') v = '0' + v; if(v.length > 1 && v[1] !== '9') v = '09' + v.substring(2); this.value = v;">
             </div>
             <div class="mb-3 position-relative">
                 <input type="password" name="password" id="password" class="form-control" placeholder="Password (min. 8 chars, with number)" required minlength="8">

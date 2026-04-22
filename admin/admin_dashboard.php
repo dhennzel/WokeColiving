@@ -178,7 +178,8 @@ if(mysqli_num_rows($check_col_hidden) == 0) {
             $room_data = [
                 'id' => $rid, 'name' => $room['room_name'], 'room_number' => $room_number, 'display_name' => $room_display, 'type' => $rtype, 'total' => $total_beds,
                 'occupied' => $total_room_occ, 'avail_lower' => $avail_lower, 'avail_upper' => $avail_upper,
-                'cap_lower' => $cap_lower, 'cap_upper' => $cap_upper, 'status' => $room['status'], 'floor' => $floor
+                'cap_lower' => $cap_lower, 'cap_upper' => $cap_upper, 'status' => $room['status'], 'floor' => $floor,
+                'gender' => $room['gender'] ?? 'Any'
             ];
             
             $rooms_on_floor[] = $room_data;
@@ -261,7 +262,7 @@ $theme = get_theme_colors($conn);
         .task-item:hover { background-color: #f8f9fa; }
         .task-item:last-child { border-bottom: none; }
         
-        .room-box { border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; transition: border-color 0.2s; }
+        .room-box { border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; transition: border-color 0.2s; page-break-inside: avoid !important; break-inside: avoid !important; }
         .room-box:hover { border-color: rgba(0,0,0,0.2); }
         .progress-slim { height: 6px; border-radius: 10px; background-color: rgba(0,0,0,0.05); }
 
@@ -278,6 +279,11 @@ $theme = get_theme_colors($conn);
         .navbar-right.fixed-bottom-right .scroll-top-btn { display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; background: #e8f5e9; color: #34B875; border-radius: 50%; transition: all 0.2s; }
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .card-header-custom[aria-expanded="true"] .collapse-icon { transform: rotate(-180deg); }
+        
+        @media print {
+            .card, .stat-card, tr { page-break-inside: avoid !important; break-inside: avoid !important; border: 1px solid #000 !important; }
+            .room-box { border: 1px solid #000 !important; }
+        }
     </style>
 </head>
 <body>
@@ -459,6 +465,14 @@ $theme = get_theme_colors($conn);
                                 <option value="6-Bed">6-Bed Dorms</option>
                             </select>
                         </div>
+                        <div class="col-md-auto col-6">
+                            <select id="genderFilter" class="form-select form-select-sm border-0 shadow-sm fw-medium text-dark" onchange="filterOccupancy()">
+                                <option value="all">All Genders</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Any">Mixed</option>
+                            </select>
+                        </div>
                         <div class="col-md col-6 ms-md-auto">
                             <div class="input-group input-group-sm shadow-sm rounded">
                                 <span class="input-group-text bg-white border-0 text-muted"><i class="fas fa-search"></i></span>
@@ -482,7 +496,7 @@ $theme = get_theme_colors($conn);
                                 if($room['status'] == 'Maintenance') $status_tag = 'maintenance';
                                 elseif($room['occupied'] >= $room['total']) $status_tag = 'full';
                             ?>
-                            <div class="col-xl-3 col-lg-4 col-md-6 room-item" data-status="<?= $status_tag ?>" data-room-type="<?= $room['type'] ?>">
+                            <div class="col-xl-3 col-lg-4 col-md-6 room-item" data-status="<?= $status_tag ?>" data-room-type="<?= $room['type'] ?>" data-gender="<?= $room['gender'] ?>">
                                 <div class="room-box bg-white p-3 h-100 d-flex flex-column">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <span class="fw-bold text-dark"><?= $room['display_name'] ?></span>
@@ -792,6 +806,7 @@ function filterOccupancy() {
     const filter = document.getElementById('occupancyFilter').value;
     const floorFilter = document.getElementById('floorFilter').value;
     const roomTypeFilter = document.getElementById('roomTypeFilter') ? document.getElementById('roomTypeFilter').value : 'all';
+    const genderFilter = document.getElementById('genderFilter') ? document.getElementById('genderFilter').value : 'all';
     const search = document.getElementById('roomSearch').value.toLowerCase();
     const groups = document.querySelectorAll('.floor-group');
     
@@ -810,12 +825,14 @@ function filterOccupancy() {
                 const roomType = item.dataset.roomType || '';
                 const name = item.querySelector('.fw-bold').innerText.toLowerCase();
                 const type = item.querySelector('.badge').innerText.toLowerCase();
+                const gender = item.dataset.gender || 'Any';
                 
                 const matchesFilter = (filter === 'all') || (filter === status);
                 const matchesRoomType = (roomTypeFilter === 'all') || (roomType === roomTypeFilter);
+                const matchesGender = (genderFilter === 'all') || (gender === genderFilter);
                 const matchesSearch = name.includes(search) || type.includes(search);
                 
-                const show = matchesFilter && matchesRoomType && matchesSearch;
+                const show = matchesFilter && matchesRoomType && matchesSearch && matchesGender;
                 
                 item.style.display = show ? 'block' : 'none';
                 if(show) visibleCount++;
@@ -865,12 +882,14 @@ function filterOccupancy() {
                 const roomType = item.dataset.roomType || '';
                 const name = item.querySelector('.fw-bold').innerText.toLowerCase();
                 const type = item.querySelector('.badge').innerText.toLowerCase();
+                const gender = item.dataset.gender || 'Any';
                 
                 const matchesFilter = (filter === 'all') || (filter === status);
                 const matchesRoomType = (roomTypeFilter === 'all') || (roomType === roomTypeFilter);
+                const matchesGender = (genderFilter === 'all') || (gender === genderFilter);
                 const matchesSearch = name.includes(search) || type.includes(search);
                 
-                const show = matchesFilter && matchesRoomType && matchesSearch;
+                const show = matchesFilter && matchesRoomType && matchesSearch && matchesGender;
                 
                 item.style.display = show ? 'block' : 'none';
                 if(show) visibleCount++;

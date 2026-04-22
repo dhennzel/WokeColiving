@@ -352,7 +352,7 @@ $theme = get_theme_colors($conn);
                                     $gender_icon = 'fa-mars text-primary';
                                 }
                             ?>
-                            <div class="col-md-4 col-lg-3 room-card-item" data-floor="<?= $room['floor'] ?>" data-gender="<?= $room_gender_status ?>">
+                            <div class="col-md-4 col-lg-3 room-card-item" data-floor="<?= $room['floor'] ?>" data-gender="<?= $room_gender_status ?>" data-type="<?= $type ?>">
                                 <div class="card card-room-select h-100 shadow-sm border-0">
                                     <img src="../assets/images/<?= $room['image'] ?>" class="card-img-top" style="height: 120px; object-fit: cover;">
                                     <div class="card-body p-3 d-flex flex-column">
@@ -475,12 +475,13 @@ $theme = get_theme_colors($conn);
         cards.forEach(card => {
             const cardFloor = card.getAttribute('data-floor');
             const cardGender = card.getAttribute('data-gender');
+            const cardType = card.getAttribute('data-type');
             let show = true;
 
             if (floor !== 'all' && cardFloor !== floor) show = false;
             
             // Filter by gender if tenant gender is present and room gender is strict
-            if (show && tenantGender && cardGender && cardGender !== tenantGender) show = false;
+            if (show && tenantGender && cardGender && cardGender !== tenantGender && cardType !== 'Single') show = false;
 
             if (show) {
                 card.style.display = 'block';
