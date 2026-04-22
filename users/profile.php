@@ -367,13 +367,17 @@ try {
                 <?php if($notif_query && mysqli_num_rows($notif_query) > 0): ?>
                     <?php while($notif = mysqli_fetch_assoc($notif_query)): ?>
                         <li>
-                            <div class="dropdown-item p-3 border-bottom <?= $notif['is_read'] == 0 ? 'bg-white' : 'bg-light text-muted' ?>" style="white-space: normal;">
+                            <a href="#" class="dropdown-item p-3 border-bottom <?= $notif['is_read'] == 0 ? 'bg-white' : 'bg-light text-muted' ?>" style="white-space: normal;"
+                               data-notif-type="<?= htmlspecialchars($notif['type']) ?>"
+                               data-notif-date="<?= date('M d, h:i A', strtotime($notif['created_at'])) ?>"
+                               data-notif-message="<?= htmlspecialchars($notif['message']) ?>"
+                               onclick="showNotificationModal(this); return false;">
                                 <div class="d-flex justify-content-between mb-1">
                                     <strong class="small <?= $notif['is_read'] == 0 ? 'text-success' : '' ?>"><?= htmlspecialchars($notif['type']) ?></strong>
                                     <small class="text-muted" style="font-size: 0.7rem;"><?= date('M d, h:i A', strtotime($notif['created_at'])) ?></small>
                                 </div>
                                 <p class="mb-0 small"><?= $notif['message'] ?></p>
-                            </div>
+                            </a>
                         </li>
                     <?php endwhile; ?>
                 <?php else: ?>
@@ -737,6 +741,26 @@ try {
     </div>
 </div>
 
+<!-- Notification Details Modal -->
+<div class="modal fade" id="notificationModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="notifModalTitle">Notification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-muted small mb-3" id="notifModalDate"></div>
+                <div id="notifModalMessage"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Close</button>
+                <a href="#" id="notifModalActionBtn" class="btn btn-custom d-none">Action</a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Scroll to Top Button -->
 <a href="#" class="scroll-top-btn" id="scrollTopBtn"><i class="fas fa-chevron-up"></i></a>
 
@@ -817,14 +841,21 @@ try {
                     data.notifications.forEach(notif => {
                         const bgClass = notif.is_read == 0 ? 'bg-white' : 'bg-light text-muted';
                         const textClass = notif.is_read == 0 ? 'text-success' : '';
+                        
+                        const safeType = notif.type.replace(/"/g, '&quot;');
+                        const safeDate = notif.created_at.replace(/"/g, '&quot;');
+                        const safeMsg = notif.message.replace(/"/g, '&quot;');
+
                         html += `<li>
-                                <div class="dropdown-item p-3 border-bottom ${bgClass}" style="white-space: normal;">
+                                <a href="#" class="dropdown-item p-3 border-bottom ${bgClass}" style="white-space: normal;"
+                                   data-notif-type="${safeType}" data-notif-date="${safeDate}" data-notif-message="${safeMsg}"
+                                   onclick="showNotificationModal(this); return false;">
                                     <div class="d-flex justify-content-between mb-1">
                                         <strong class="small ${textClass}">${notif.type}</strong>
                                         <small class="text-muted" style="font-size: 0.7rem;">${notif.created_at}</small>
                                     </div>
                                     <p class="mb-0 small">${notif.message}</p>
-                                </div>
+                                </a>
                             </li>`;
                     });
                 } else {
@@ -850,6 +881,55 @@ try {
             if(badge) badge.remove(); isMarkingRead = false; lastUnreadCount = 0; 
         });
     });
+
+    function showNotificationModal(elem) {
+        const type = elem.getAttribute('data-notif-type');
+        const date = elem.getAttribute('data-notif-date');
+        const message = elem.getAttribute('data-notif-message');
+        
+        document.getElementById('notifModalTitle').innerText = type;
+        document.getElementById('notifModalDate').innerText = date;
+        document.getElementById('notifModalMessage').innerHTML = message;
+        
+        const actionBtn = document.getElementById('notifModalActionBtn');
+        actionBtn.classList.add('d-none');
+        
+        let actionUrl = '';
+        let actionText = '';
+        let actionIcon = '';
+        const lowerType = type.toLowerCase();
+
+        if (lowerType.includes('parking')) {
+            actionUrl = 'my_parking.php';
+            actionText = 'Go to Parking';
+            actionIcon = 'fas fa-parking';
+        } else if (lowerType.includes('bill') || lowerType.includes('payment')) {
+            actionUrl = 'billing.php';
+            actionText = 'View Billing';
+            actionIcon = 'fas fa-file-invoice-dollar';
+        } else if (lowerType.includes('booking') || lowerType.includes('contract') || lowerType.includes('reminder') || lowerType.includes('extension') || lowerType.includes('action required')) {
+            actionUrl = 'my_reservations.php';
+            actionText = 'View Reservations';
+            actionIcon = 'fas fa-suitcase';
+        } else if (lowerType.includes('housekeeping')) {
+            actionUrl = 'housekeeping.php';
+            actionText = 'View Housekeeping';
+            actionIcon = 'fas fa-broom';
+        } else if (lowerType.includes('maintenance')) {
+            actionUrl = 'maintenance.php';
+            actionText = 'View Maintenance';
+            actionIcon = 'fas fa-tools';
+        }
+
+        if (actionUrl !== '') {
+            actionBtn.href = actionUrl;
+            actionBtn.innerHTML = `<i class="${actionIcon} me-1"></i> ${actionText}`;
+            actionBtn.classList.remove('d-none');
+        }
+
+        const notifModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('notificationModal'));
+        notifModal.show();
+    }
 
     // Poll every 5 seconds
     setInterval(fetchNotifications, 5000);

@@ -83,22 +83,22 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
                 <li class="px-3 py-2 border-bottom bg-light fw-bold small text-muted text-uppercase">Pending Actions</li>
                 <?php if($total_notifications > 0): ?>
                     <?php if($top_pending_res > 0): ?>
-                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="booking_management.php?status=Pending"><span class="small fw-bold"><i class="fas fa-calendar-check text-warning me-2"></i> Bookings</span> <span class="badge bg-warning text-dark rounded-pill" style="box-shadow: none !important;"><?= $top_pending_res ?></span></a></li>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="#" data-title="Pending Bookings" data-message="You have <?= $top_pending_res ?> pending reservation request(s) waiting for review." data-url="booking_management.php?status=Pending" data-icon="fas fa-calendar-check text-warning" onclick="showAdminNotifModal(this); return false;"><span class="small fw-bold"><i class="fas fa-calendar-check text-warning me-2"></i> Bookings</span> <span class="badge bg-warning text-dark rounded-pill" style="box-shadow: none !important;"><?= $top_pending_res ?></span></a></li>
                     <?php endif; ?>
                     <?php if($top_pending_maint > 0): ?>
-                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_maintenance.php"><span class="small fw-bold"><i class="fas fa-wrench text-danger me-2"></i> Maintenance</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_pending_maint ?></span></a></li>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="#" data-title="Pending Maintenance" data-message="There are <?= $top_pending_maint ?> maintenance request(s) that need scheduling." data-url="admin_maintenance.php" data-icon="fas fa-wrench text-danger" onclick="showAdminNotifModal(this); return false;"><span class="small fw-bold"><i class="fas fa-wrench text-danger me-2"></i> Maintenance</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_pending_maint ?></span></a></li>
                     <?php endif; ?>
                     <?php if($top_pending_house > 0): ?>
-                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_housekeeping.php"><span class="small fw-bold"><i class="fas fa-broom text-info me-2"></i> Housekeeping</span> <span class="badge bg-info text-dark rounded-pill" style="box-shadow: none !important;"><?= $top_pending_house ?></span></a></li>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="#" data-title="Pending Housekeeping" data-message="There are <?= $top_pending_house ?> housekeeping request(s) waiting to be scheduled." data-url="admin_housekeeping.php" data-icon="fas fa-broom text-info" onclick="showAdminNotifModal(this); return false;"><span class="small fw-bold"><i class="fas fa-broom text-info me-2"></i> Housekeeping</span> <span class="badge bg-info text-dark rounded-pill" style="box-shadow: none !important;"><?= $top_pending_house ?></span></a></li>
                     <?php endif; ?>
                     <?php if($top_del_req > 0): ?>
-                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_deletion_requests.php"><span class="small fw-bold"><i class="fas fa-user-times text-danger me-2"></i> Deletion</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_del_req ?></span></a></li>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="#" data-title="Account Deletions" data-message="You have <?= $top_del_req ?> account deletion request(s) to process." data-url="admin_deletion_requests.php" data-icon="fas fa-user-times text-danger" onclick="showAdminNotifModal(this); return false;"><span class="small fw-bold"><i class="fas fa-user-times text-danger me-2"></i> Deletion</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_del_req ?></span></a></li>
                     <?php endif; ?>
                     <?php if($top_pk > 0): ?>
-                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="admin_parking.php"><span class="small fw-bold"><i class="fas fa-parking text-warning me-2"></i> Overdue Parking</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_pk ?></span></a></li>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="#" data-title="Overdue Parking" data-message="There are <?= $top_pk ?> overdue parking reservation(s)." data-url="admin_parking.php" data-icon="fas fa-parking text-warning" onclick="showAdminNotifModal(this); return false;"><span class="small fw-bold"><i class="fas fa-parking text-warning me-2"></i> Overdue Parking</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_pk ?></span></a></li>
                     <?php endif; ?>
                     <?php if($top_fin > 0): ?>
-                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="balance_report.php"><span class="small fw-bold"><i class="fas fa-file-invoice-dollar text-primary me-2"></i> Overdue Balances</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_fin ?></span></a></li>
+                        <li><a class="dropdown-item py-2 d-flex justify-content-between align-items-center" href="#" data-title="Overdue Balances" data-message="You have <?= $top_fin ?> tenant(s) with an overdue balance." data-url="balance_report.php" data-icon="fas fa-file-invoice-dollar text-primary" onclick="showAdminNotifModal(this); return false;"><span class="small fw-bold"><i class="fas fa-file-invoice-dollar text-primary me-2"></i> Overdue Balances</span> <span class="badge bg-danger rounded-pill" style="box-shadow: none !important;"><?= $top_fin ?></span></a></li>
                     <?php endif; ?>
                 <?php else: ?>
                     <li><span class="dropdown-item text-muted small text-center py-3">No pending actions</span></li>
@@ -107,9 +107,46 @@ $total_notifications = $top_pending_res + $top_pending_maint + $top_pending_hous
         </div>
     </div>
 </header>
+
+<!-- Admin Notification Modal -->
+<div class="modal fade" id="adminNotifModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold" id="adminNotifModalTitle">System Alert</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <p id="adminNotifModalMessage" class="fs-6 mb-0 text-muted"></p>
+            </div>
+            <div class="modal-footer bg-light border-top-0 justify-content-center">
+                <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">Close</button>
+                <a href="#" id="adminNotifModalActionBtn" class="btn btn-success px-4 rounded-pill fw-bold">View Details</a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     window.currentAdminUser = "<?= htmlspecialchars($admin_name ?? 'admin', ENT_QUOTES, 'UTF-8') ?>";
     
+    function showAdminNotifModal(elem) {
+        const title = elem.getAttribute('data-title');
+        const message = elem.getAttribute('data-message');
+        const url = elem.getAttribute('data-url');
+        const icon = elem.getAttribute('data-icon');
+
+        document.getElementById('adminNotifModalTitle').innerHTML = `<i class="${icon} me-2"></i> ${title}`;
+        document.getElementById('adminNotifModalMessage').innerHTML = message;
+        
+        const actionBtn = document.getElementById('adminNotifModalActionBtn');
+        actionBtn.href = url;
+        actionBtn.innerHTML = `Go to ${title}`;
+
+        const notifModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('adminNotifModal'));
+        notifModal.show();
+    }
+
     // Profile Toggle Logic
     document.addEventListener('DOMContentLoaded', function() {
         const profileToggle = document.getElementById('profileToggle');
