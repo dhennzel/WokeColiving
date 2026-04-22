@@ -107,14 +107,6 @@ if(isset($_POST['archive_action'])) {
     }
 }
 
-// Handle Tag Cleanup (Bulk Fix for [FULL] duplication)
-if(isset($_POST['cleanup_tags'])){
-    if($is_super){
-        mysqli_query($conn, "UPDATE payments SET description = REPLACE(REPLACE(description, ' [FULL] [FULL] [FULL]', ' [FULL]'), ' [FULL] [FULL]', ' [FULL]') WHERE description LIKE '% [FULL] [FULL]%'");
-        $message = "Duplicate [FULL] tags have been successfully merged across all records.";
-    }
-}
-
 // Search Logic
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
 if($search) $active_modal = 'searchResults'; // Optional: Handle search visibility if needed
@@ -321,11 +313,6 @@ $theme = get_theme_colors($conn);
                         <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalUsers">
                             <i class="fas fa-user-slash"></i>
                             <h3>Archived Users</h3>
-                        </div>
-
-                        <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalCleanup">
-                            <i class="fas fa-magic"></i>
-                            <h3>Fix Duplicate Tags</h3>
                         </div>
                     </div>
 
@@ -590,24 +577,6 @@ $theme = get_theme_colors($conn);
                         </tbody>
                     </table>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="modalCleanup" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-md modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="fas fa-magic me-2"></i>Database Cleanup Utility</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4 text-center">
-                <i class="fas fa-broom fa-4x text-primary mb-3 opacity-50"></i>
-                <p class="mb-4">This will scan all payment descriptions and fix instances where <code>[FULL] [FULL]</code> appears due to re-submissions.</p>
-                <form method="POST">
-                    <button type="submit" name="cleanup_tags" class="btn btn-primary rounded-pill px-5 fw-bold shadow-sm">Run Cleanup Utility</button>
-                </form>
             </div>
         </div>
     </div>

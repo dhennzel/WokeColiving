@@ -303,7 +303,7 @@ $pay_status_filter = isset($_GET['pay_status']) ? $_GET['pay_status'] : '';
 $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
 $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
 
-$pay_where = "r.user_id=$uid AND p.is_archived = 0";
+$pay_where = "r.user_id=$uid AND p.is_archived = 0 AND r.is_archived = 0";
 if($pay_status_filter){
     $pay_where .= " AND p.payment_status = '" . mysqli_real_escape_string($conn, $pay_status_filter) . "'";
 }
@@ -321,7 +321,7 @@ $pay_query = mysqli_query($conn, "
     JOIN reservations r ON p.reservation_id = r.reservation_id 
     LEFT JOIN rooms rm ON r.room_id = rm.room_id 
     WHERE $pay_where 
-    ORDER BY p.payment_id DESC
+    ORDER BY p.payment_id ASC
 ");
 
 // Fetch Security Deposit Records Specifically
