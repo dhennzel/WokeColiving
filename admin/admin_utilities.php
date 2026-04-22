@@ -93,6 +93,28 @@ if(isset($_POST['archive_action'])) {
                 $message = "Error permanently deleting user: " . $e->getMessage();
             }
         }
+        } elseif ($type == 'reservation') {
+        if ($action == 'restore') {
+            mysqli_query($conn, "UPDATE reservations SET is_archived='0' WHERE reservation_id=$id");
+            $message = "Reservation restored successfully.";
+        } elseif ($action == 'delete') {
+            if (!$is_super) {
+                $message = "Error: Only Super Admins can perform this action.";
+            } else {
+                mysqli_begin_transaction($conn);
+                try {
+                    mysqli_query($conn, "DELETE FROM payments WHERE reservation_id=$id");
+                    try { mysqli_query($conn, "DELETE FROM utility_bills WHERE reservation_id=$id"); } catch(Exception $e){}
+                    try { mysqli_query($conn, "DELETE FROM temporary_moves WHERE reservation_id=$id"); } catch(Exception $e){}
+                    mysqli_query($conn, "DELETE FROM reservations WHERE reservation_id=$id");
+                    mysqli_commit($conn);
+                    $message = "Reservation deleted permanently.";
+                } catch (Exception $e) {
+                    mysqli_rollback($conn);
+                    $message = "Error deleting reservation: " . $e->getMessage();
+                }
+            }
+        }
 
     } else {
         $table = ($type == 'maintenance') ? 'maintenance_requests' : 'housekeeping_requests';
@@ -141,10 +163,15 @@ if($search) $u_sql .= " AND (u.last_name LIKE '%$search%' OR u.first_name LIKE '
 $u_sql .= " ORDER BY p.payment_date DESC";
 $utility_bills_query = mysqli_query($conn, $u_sql);
 
-// Fetch Archived Users
-$archived_users_sql = "SELECT user_id, first_name, last_name, email, created_at FROM users WHERE is_archived=1";
-if($search) $archived_users_sql .= " AND (first_name LIKE '%$search%' OR last_name LIKE '%$search%' OR email LIKE '%$search%')";
-$archived_users_sql .= " ORDER BY created_at DESC";
+// Fetch Archived Tenants and Users with Archived Records
+$archived_users_sql = "
+    SELECT DISTINCT u.user_id, u.first_name, u.last_name, u.email, u.created_at, u.is_archived
+    FROM users u 
+    LEFT JOIN reservations r ON u.user_id = r.user_id AND r.is_archived = 1
+    WHERE u.is_archived = 1 OR r.reservation_id IS NOT NULL
+";
+if($search) $archived_users_sql .= " AND (u.first_name LIKE '%$search%' OR u.last_name LIKE '%$search%' OR u.email LIKE '%$search%')";
+$archived_users_sql .= " ORDER BY u.last_name ASC";
 $archived_users_query = mysqli_query($conn, $archived_users_sql);
 
 // Fetch Pending Counts for Sidebar
@@ -241,6 +268,34 @@ $theme = get_theme_colors($conn);
             background: var(--dark-green);
             color: var(--accent-yellow);
         }
+
+        /* Folder Animation */
+        .folder-icon-stack {
+            position: relative;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 4rem;
+            height: 4rem;
+            margin-bottom: 1rem;
+        }
+        .folder-icon-stack .fa-folder, .folder-icon-stack .fa-folder-open {
+            position: absolute;
+            font-size: 3.5rem;
+            transition: all 0.3s ease;
+        }
+        .folder-icon-stack .fa-user {
+            position: absolute;
+            font-size: 1.2rem;
+            color: #fff;
+            bottom: 10px;
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+        .archive-card:hover .folder-icon-stack .fa-folder { opacity: 0; }
+        .archive-card:hover .folder-icon-stack .fa-folder-open { opacity: 1; color: var(--accent-yellow); }
+        .archive-card:hover .folder-icon-stack .fa-user { transform: translateY(-8px); color: var(--dark-green); }
+        .folder-icon-stack .fa-folder-open { opacity: 0; }
         
         /* Modal Customization */
         .modal-header {
@@ -311,8 +366,12 @@ $theme = get_theme_colors($conn);
                         </div>
 
                         <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalUsers">
-                            <i class="fas fa-user-slash"></i>
-                            <h3>Archived Users</h3>
+                            <div class="folder-icon-stack">
+                                <i class="fas fa-folder"></i>
+                                <i class="fas fa-folder-open"></i>
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <h3>Tenant Archives</h3>
                         </div>
                     </div>
 
@@ -538,41 +597,96 @@ $theme = get_theme_colors($conn);
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="fas fa-user-slash me-2"></i>Archived Users</h5>
+                <h5 class="modal-title fw-bold"><i class="fas fa-users-slash me-2"></i>Tenant Archives</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th class="text-end">Actions</th></tr></thead>
+                        <thead><tr><th>Tenant</th><th>Email</th><th>Account Status</th><th class="text-end">Actions</th></tr></thead>
                         <tbody>
                             <?php while($row = mysqli_fetch_assoc($archived_users_query)): ?>
                             <tr>
-                                <td class="fw-bold"><?= htmlspecialchars($row['last_name'] . ', ' . $row['first_name']) ?></td>
+                                <td class="fw-bold">
+                                    <?= htmlspecialchars($row['last_name'] . ', ' . $row['first_name']) ?>
+                                </td>
                                 <td><?= htmlspecialchars($row['email']) ?></td>
-                                <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
-                                <td class="text-end">
-                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this user account?')">
-                                        <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
-                                        <input type="hidden" name="type" value="user">
-                                        <input type="hidden" name="archive_action" value="restore">
-                                        <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
-                                    </form>
-                                    <?php if($is_super): // Only Super Admin can permanently delete ?>
-                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this user and ALL their data? This cannot be undone.')">
-                                        <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
-                                        <input type="hidden" name="type" value="user">
-                                        <input type="hidden" name="archive_action" value="delete">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Permanently Delete"><i class="fas fa-user-slash"></i></button>
-                                    </form>
+                                <td>
+                                    <?php if($row['is_archived']): ?>
+                                        <span class="badge bg-danger">Archived Account</span>
                                     <?php else: ?>
-                                        <button type="button" class="btn btn-sm btn-outline-danger disabled" title="Super Admin Only"><i class="fas fa-user-slash"></i></button>
+                                        <span class="badge bg-success">Active Account</span>
                                     <?php endif; ?>
+                                </td>
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="collapse" data-bs-target="#history_<?= $row['user_id'] ?>" title="Open History">
+                                        <i class="fas fa-folder-open"></i> Open
+                                    </button>
+                                    <?php if($row['is_archived']): ?>
+                                        <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this user account?')">
+                                            <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
+                                            <input type="hidden" name="type" value="user">
+                                            <input type="hidden" name="archive_action" value="restore">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore Account"><i class="fas fa-undo"></i></button>
+                                        </form>
+                                        <?php if($is_super): ?>
+                                        <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this user and ALL their data? This cannot be undone.')">
+                                            <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
+                                            <input type="hidden" name="type" value="user">
+                                            <input type="hidden" name="archive_action" value="delete">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Permanently Delete Account"><i class="fas fa-user-slash"></i></button>
+                                        </form>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <tr class="collapse" id="history_<?= $row['user_id'] ?>">
+                                <td colspan="4" class="p-0 border-0 bg-light">
+                                    <div class="p-3 border-bottom">
+                                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-suitcase me-2"></i>Archived Reservations</h6>
+                                        <?php 
+                                        $uid = $row['user_id'];
+                                        $res_q = mysqli_query($conn, "SELECT r.*, rm.room_name FROM reservations r LEFT JOIN rooms rm ON r.room_id = rm.room_id WHERE r.user_id = $uid AND r.is_archived = 1");
+                                        if(mysqli_num_rows($res_q) > 0):
+                                        ?>
+                                            <table class="table table-sm table-bordered bg-white shadow-sm mb-0">
+                                                <thead class="table-light"><tr><th>Room</th><th>Dates</th><th>Total Price</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+                                                <tbody>
+                                                    <?php while($res = mysqli_fetch_assoc($res_q)): ?>
+                                                    <tr>
+                                                        <td><?= htmlspecialchars($res['room_name']) ?></td>
+                                                        <td><?= date('M d, Y', strtotime($res['start_date'])) ?> to <?= date('M d, Y', strtotime($res['end_date'])) ?></td>
+                                                        <td>₱<?= number_format($res['total_price'], 2) ?></td>
+                                                        <td><span class="badge bg-secondary"><?= $res['status'] ?></span></td>
+                                                        <td class="text-end">
+                                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this reservation?')">
+                                                                <input type="hidden" name="id" value="<?= $res['reservation_id'] ?>">
+                                                                <input type="hidden" name="type" value="reservation">
+                                                                <input type="hidden" name="archive_action" value="restore">
+                                                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Restore Reservation"><i class="fas fa-undo"></i></button>
+                                                            </form>
+                                                            <?php if($is_super): ?>
+                                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this reservation? Payments linked will also be removed.')">
+                                                                <input type="hidden" name="id" value="<?= $res['reservation_id'] ?>">
+                                                                <input type="hidden" name="type" value="reservation">
+                                                                <input type="hidden" name="archive_action" value="delete">
+                                                                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" title="Delete Reservation"><i class="fas fa-trash"></i></button>
+                                                            </form>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                    </tr>
+                                                    <?php endwhile; ?>
+                                                </tbody>
+                                            </table>
+                                        <?php else: ?>
+                                            <p class="text-muted small mb-0 fst-italic">No archived reservations found for this tenant.</p>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
                             <?php if(mysqli_num_rows($archived_users_query) == 0): ?>
-                                <tr><td colspan="4" class="text-center text-muted py-3">No archived users found.</td></tr>
+                                <tr><td colspan="4" class="text-center text-muted py-3">No archived tenants or records found.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -606,6 +720,20 @@ if (activeModalID) {
         myModal.show();
     }
 }
+
+// Toggle Open/Close button text for Tenant Archives
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.collapse[id^="history_"]').forEach(function(collapseEl) {
+        collapseEl.addEventListener('show.bs.collapse', function() {
+            const btn = document.querySelector(`[data-bs-target="#${this.id}"]`);
+            if (btn) { btn.innerHTML = '<i class="fas fa-folder"></i> Close'; btn.title = "Close History"; }
+        });
+        collapseEl.addEventListener('hide.bs.collapse', function() {
+            const btn = document.querySelector(`[data-bs-target="#${this.id}"]`);
+            if (btn) { btn.innerHTML = '<i class="fas fa-folder-open"></i> Open'; btn.title = "Open History"; }
+        });
+    });
+});
 
 // Confirmation Dialogs
 function confirmForm(e, msg) {
