@@ -28,75 +28,89 @@ if(isset($_POST['archive_action'])) {
     elseif($type == 'maintenance') $active_modal = 'modalMaintenance';
     elseif($type == 'housekeeping') $active_modal = 'modalHousekeeping';
     elseif($type == 'user') $active_modal = 'modalUsers';
+    elseif($type == 'utility') $active_modal = 'modalBilling';
+    elseif($type == 'reservation') $active_modal = 'modalUsers';
+    elseif($type == 'transaction') $active_modal = 'modalReports';
 
     if ($type == 'room') {
         if ($action == 'restore') {
             mysqli_query($conn, "UPDATE rooms SET is_archived='0' WHERE room_id=$id");
+            trigger_update($conn);
             $message = "Room restored successfully.";
         } elseif ($action == 'delete') {
             try {
                 mysqli_query($conn, "DELETE FROM rooms WHERE room_id=$id");
+                trigger_update($conn);
                 $message = "Room deleted permanently.";
             } catch (Exception $e) {
                 $message = "Error: Cannot delete room. It may be linked to reservations.";
             }
         }
     } elseif ($type == 'user') {
-        if (!$is_super) {
-            $message = "Error: Only Super Admins can perform this action.";
-        } elseif ($action == 'restore') {
+        if ($action == 'restore') {
             mysqli_query($conn, "UPDATE users SET is_archived='0' WHERE user_id=$id");
-            $message = "User restored successfully.";
+            mysqli_query($conn, "UPDATE reservations SET is_archived='0' WHERE user_id=$id");
+            try { mysqli_query($conn, "UPDATE residents SET is_archived='0' WHERE user_id=$id"); } catch(Exception $e){}
+            trigger_update($conn);
+            $message = "User and their records restored successfully. <a href='residents.php' class='alert-link fw-bold ms-2'>View in Residents &rarr;</a>";
         } elseif ($action == 'delete') {
-            // Permanent delete logic for user
-            mysqli_begin_transaction($conn);
-            try {
-                // 1. Get Reservation IDs to clean up child records
-                $res_ids = [];
-                $r_q = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id=$id");
-                while($row = mysqli_fetch_assoc($r_q)){
-                    $res_ids[] = $row['reservation_id'];
+            if (!$is_super) {
+                $message = "Error: Only Super Admins can perform this action.";
+            } else {
+                // Permanent delete logic for user
+                mysqli_begin_transaction($conn);
+                try {
+                    // 1. Get Reservation IDs to clean up child records
+                    $res_ids = [];
+                    $r_q = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id=$id");
+                    while($row = mysqli_fetch_assoc($r_q)){
+                        $res_ids[] = $row['reservation_id'];
+                    }
+        
+                    if(!empty($res_ids)){
+                        $ids_str = implode(',', $res_ids);
+                        // Delete Payments linked to reservations
+                        mysqli_query($conn, "DELETE FROM payments WHERE reservation_id IN ($ids_str)");
+                        // Try deleting from optional tables (ignore if not exists)
+                        try { mysqli_query($conn, "DELETE FROM utility_bills WHERE reservation_id IN ($ids_str)"); } catch(Exception $e){}
+                        try { mysqli_query($conn, "DELETE FROM temporary_moves WHERE reservation_id IN ($ids_str)"); } catch(Exception $e){}
+                    }
+        
+                    // 2. Delete records linked directly to user
+                    // Break self-referencing constraints if any
+                    try { mysqli_query($conn, "UPDATE reservations SET extended_from = NULL WHERE user_id=$id"); } catch(Exception $e){}
+                    mysqli_query($conn, "DELETE FROM reservations WHERE user_id=$id");
+                    
+                    try { mysqli_query($conn, "DELETE FROM activity_logs WHERE user_id=$id"); } catch(Exception $e){}
+                    try { mysqli_query($conn, "DELETE FROM maintenance_requests WHERE user_id=$id"); } catch(Exception $e){}
+                    try { mysqli_query($conn, "DELETE FROM housekeeping_requests WHERE user_id=$id"); } catch(Exception $e){}
+                    try { mysqli_query($conn, "DELETE FROM notifications WHERE user_id=$id"); } catch(Exception $e){}
+                    try { mysqli_query($conn, "DELETE FROM user_update_requests WHERE user_id=$id"); } catch(Exception $e){}
+                    try { mysqli_query($conn, "DELETE FROM account_deletion_requests WHERE user_id=$id"); } catch(Exception $e){}
+                    try { mysqli_query($conn, "DELETE FROM parking_reservations WHERE user_id=$id"); } catch(Exception $e){}
+                    try { mysqli_query($conn, "DELETE FROM key_transactions WHERE user_id=$id"); } catch(Exception $e){}
+        
+                    mysqli_query($conn, "DELETE FROM users WHERE user_id=$id");
+                    trigger_update($conn);
+                    mysqli_commit($conn);
+                    $message = "User permanently deleted.";
+                } catch (mysqli_sql_exception $e) {
+                    mysqli_rollback($conn);
+                    $message = "Error permanently deleting user: " . $e->getMessage();
+                } catch (Exception $e) {
+                    mysqli_rollback($conn);
+                    $message = "Error permanently deleting user: " . $e->getMessage();
                 }
-    
-                if(!empty($res_ids)){
-                    $ids_str = implode(',', $res_ids);
-                    // Delete Payments linked to reservations
-                    mysqli_query($conn, "DELETE FROM payments WHERE reservation_id IN ($ids_str)");
-                    // Try deleting from optional tables (ignore if not exists)
-                    try { mysqli_query($conn, "DELETE FROM utility_bills WHERE reservation_id IN ($ids_str)"); } catch(Exception $e){}
-                    try { mysqli_query($conn, "DELETE FROM temporary_moves WHERE reservation_id IN ($ids_str)"); } catch(Exception $e){}
-                }
-    
-                // 2. Delete records linked directly to user
-                // Break self-referencing constraints if any
-                try { mysqli_query($conn, "UPDATE reservations SET extended_from = NULL WHERE user_id=$id"); } catch(Exception $e){}
-                mysqli_query($conn, "DELETE FROM reservations WHERE user_id=$id");
-                
-                try { mysqli_query($conn, "DELETE FROM activity_logs WHERE user_id=$id"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM maintenance_requests WHERE user_id=$id"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM housekeeping_requests WHERE user_id=$id"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM notifications WHERE user_id=$id"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM user_update_requests WHERE user_id=$id"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM account_deletion_requests WHERE user_id=$id"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM parking_reservations WHERE user_id=$id"); } catch(Exception $e){}
-                try { mysqli_query($conn, "DELETE FROM key_transactions WHERE user_id=$id"); } catch(Exception $e){}
-    
-                mysqli_query($conn, "DELETE FROM users WHERE user_id=$id");
-                trigger_update($conn);
-                mysqli_commit($conn);
-                $message = "User permanently deleted.";
-            } catch (mysqli_sql_exception $e) {
-                mysqli_rollback($conn);
-                $message = "Error permanently deleting user: " . $e->getMessage();
-            } catch (Exception $e) {
-                mysqli_rollback($conn);
-                $message = "Error permanently deleting user: " . $e->getMessage();
             }
         }
         } elseif ($type == 'reservation') {
         if ($action == 'restore') {
             mysqli_query($conn, "UPDATE reservations SET is_archived='0' WHERE reservation_id=$id");
-            $message = "Reservation restored successfully.";
+            // Automatically un-archive the user so they appear in the Residents list
+            mysqli_query($conn, "UPDATE users SET is_archived='0' WHERE user_id=(SELECT user_id FROM reservations WHERE reservation_id=$id)");
+            try { mysqli_query($conn, "UPDATE residents SET is_archived='0' WHERE user_id=(SELECT user_id FROM reservations WHERE reservation_id=$id)"); } catch(Exception $e){}
+            trigger_update($conn);
+            $message = "Reservation restored successfully. <a href='residents.php' class='alert-link fw-bold ms-2'>View in Residents &rarr;</a>";
         } elseif ($action == 'delete') {
             if (!$is_super) {
                 $message = "Error: Only Super Admins can perform this action.";
@@ -108,6 +122,7 @@ if(isset($_POST['archive_action'])) {
                     try { mysqli_query($conn, "DELETE FROM temporary_moves WHERE reservation_id=$id"); } catch(Exception $e){}
                     mysqli_query($conn, "DELETE FROM reservations WHERE reservation_id=$id");
                     mysqli_commit($conn);
+                    trigger_update($conn);
                     $message = "Reservation deleted permanently.";
                 } catch (Exception $e) {
                     mysqli_rollback($conn);
@@ -115,15 +130,31 @@ if(isset($_POST['archive_action'])) {
                 }
             }
         }
+        } elseif ($type == 'utility' || $type == 'transaction') {
+        if ($action == 'delete') {
+            if (!$is_super) {
+                $message = "Error: Only Super Admins can perform this action.";
+            } else {
+                mysqli_query($conn, "DELETE FROM payments WHERE payment_id=$id");
+                trigger_update($conn);
+                $message = ucfirst($type) . " record permanently deleted.";
+            }
+            } elseif ($action == 'restore') {
+            mysqli_query($conn, "UPDATE payments SET is_archived=0 WHERE payment_id=$id");
+            trigger_update($conn);
+            $message = ucfirst($type) . " record restored.";
+        }
 
     } else {
         $table = ($type == 'maintenance') ? 'maintenance_requests' : 'housekeeping_requests';
         
         if($action == 'delete') {
             mysqli_query($conn, "DELETE FROM $table WHERE request_id=$id");
+            trigger_update($conn);
             $message = ucfirst($type) . " record deleted permanently.";
         } elseif($action == 'restore') {
             mysqli_query($conn, "UPDATE $table SET status='Pending' WHERE request_id=$id");
+            trigger_update($conn);
             $message = ucfirst($type) . " record restored to Pending.";
         }
     }
@@ -297,6 +328,59 @@ $theme = get_theme_colors($conn);
         .archive-card:hover .folder-icon-stack .fa-user { transform: translateY(-8px); color: var(--dark-green); }
         .folder-icon-stack .fa-folder-open { opacity: 0; }
         
+        /* General Animation Stacks for Cards */
+        .anim-icon-stack {
+            position: relative;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 4rem;
+            height: 4rem;
+            margin-bottom: 1rem;
+        }
+        .anim-icon-stack .main-icon {
+            position: absolute;
+            font-size: 3.5rem;
+            transition: all 0.3s ease;
+            z-index: 2;
+        }
+        .anim-icon-stack .sub-icon {
+            position: absolute;
+            z-index: 1;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0;
+        }
+
+        /* Maintenance */
+        .maint-stack .main-icon { transform: rotate(0deg); }
+        .archive-card:hover .maint-stack .main-icon { transform: rotate(45deg); color: var(--accent-yellow); }
+        .maint-stack .sub-icon { font-size: 1.5rem; top: 0; right: -5px; transform: scale(0); color: var(--dark-green); }
+        .archive-card:hover .maint-stack .sub-icon { transform: scale(1); opacity: 1; color: #fff; }
+
+        /* Housekeeping */
+        .house-stack .main-icon { transform: rotate(0deg); transform-origin: bottom left; }
+        .archive-card:hover .house-stack .main-icon { transform: rotate(-20deg); color: var(--accent-yellow); }
+        .house-stack .sub-icon { font-size: 1.5rem; bottom: 0; right: -10px; transform: translateY(10px) scale(0.5); color: var(--dark-green); }
+        .archive-card:hover .house-stack .sub-icon { transform: translateY(-10px) scale(1); opacity: 1; color: #fff; }
+
+        /* Utility */
+        .util-stack .main-icon { transform: translateY(0); }
+        .archive-card:hover .util-stack .main-icon { transform: translateY(5px); color: var(--accent-yellow); }
+        .util-stack .sub-icon { font-size: 1.8rem; top: 5px; right: 10px; transform: translateY(20px); color: var(--dark-green); z-index: 3;}
+        .archive-card:hover .util-stack .sub-icon { transform: translateY(-10px); opacity: 1; color: #fff; }
+
+        /* Room Archives */
+        .room-stack .main-icon { transform: translateY(0) scale(1); opacity: 1; z-index: 1; }
+        .archive-card:hover .room-stack .main-icon { transform: translateY(15px) scale(0.4); opacity: 0; }
+        .room-stack .sub-icon { font-size: 3.5rem; transform: translateY(-20px) scale(1.2); opacity: 0; z-index: 2; color: var(--dark-green); }
+        .archive-card:hover .room-stack .sub-icon { transform: translateY(0) scale(1); opacity: 1; color: var(--accent-yellow); }
+
+        /* Transactions */
+        .chart-stack .main-icon { transform: scale(1); }
+        .archive-card:hover .chart-stack .main-icon { color: var(--accent-yellow); }
+        .chart-stack .sub-icon { font-size: 1.5rem; top: 10px; right: -5px; transform: translate(-10px, 10px); color: var(--dark-green); z-index: 3;}
+        .archive-card:hover .chart-stack .sub-icon { transform: translate(5px, -5px); opacity: 1; color: #fff; }
+
         /* Modal Customization */
         .modal-header {
             background-color: var(--dark-green);
@@ -341,27 +425,42 @@ $theme = get_theme_colors($conn);
                     
                     <div class="archive-slider" id="archiveSlider">
                         <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalMaintenance">
-                            <i class="fas fa-wrench"></i>
+                            <div class="anim-icon-stack maint-stack">
+                                <i class="fas fa-wrench main-icon"></i>
+                                <i class="fas fa-cog sub-icon"></i>
+                            </div>
                             <h3>Maintenance</h3>
                         </div>
                         
                         <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalHousekeeping">
-                            <i class="fas fa-broom"></i>
+                            <div class="anim-icon-stack house-stack">
+                                <i class="fas fa-broom main-icon"></i>
+                                <i class="fas fa-star sub-icon"></i>
+                            </div>
                             <h3>Housekeeping</h3>
                         </div>
 
                         <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalBilling">
-                            <i class="fas fa-file-invoice-dollar"></i>
+                            <div class="anim-icon-stack util-stack">
+                                <i class="fas fa-file-invoice main-icon"></i>
+                                <i class="fas fa-dollar-sign sub-icon"></i>
+                            </div>
                             <h3>Utility Bills</h3>
                         </div>
 
                         <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalRooms">
-                            <i class="fas fa-bed"></i>
-                            <h3>Archived & Maint.</h3>
+                            <div class="anim-icon-stack room-stack">
+                                <i class="fas fa-bed main-icon"></i>
+                                <i class="fas fa-archive sub-icon"></i>
+                            </div>
+                            <h3>Room Archives</h3>
                         </div>
 
                         <div class="archive-card" data-bs-toggle="modal" data-bs-target="#modalReports">
-                            <i class="fas fa-chart-line"></i>
+                            <div class="anim-icon-stack chart-stack">
+                                <i class="fas fa-chart-line main-icon"></i>
+                                <i class="fas fa-arrow-up sub-icon"></i>
+                            </div>
                             <h3>Transactions</h3>
                         </div>
 
@@ -378,8 +477,6 @@ $theme = get_theme_colors($conn);
                     <button class="slider-btn" id="slideRight"><i class="fas fa-arrow-right"></i></button>
                 </div>
             </div>
-        </div>
-    </div>
         </main>
     </div>
 </div>
@@ -409,7 +506,7 @@ $theme = get_theme_colors($conn);
                                         <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                         <input type="hidden" name="type" value="maintenance">
                                         <input type="hidden" name="archive_action" value="restore">
-                                        <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-outline-success me-1" title="Restore"><i class="fas fa-undo"></i></button>
                                     </form>
                                     <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
                                         <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
@@ -456,7 +553,7 @@ $theme = get_theme_colors($conn);
                                         <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
                                         <input type="hidden" name="type" value="housekeeping">
                                         <input type="hidden" name="archive_action" value="restore">
-                                        <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-outline-success me-1" title="Restore"><i class="fas fa-undo"></i></button>
                                     </form>
                                     <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this record?')">
                                         <input type="hidden" name="id" value="<?= $row['request_id'] ?>">
@@ -489,7 +586,7 @@ $theme = get_theme_colors($conn);
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead>
-                            <tr><th>Payment Date</th><th>Tenant</th><th>Room</th><th>Description</th><th class="text-end">Amount</th></tr>
+                            <tr><th>Payment Date</th><th>Tenant</th><th>Room</th><th>Description</th><th class="text-end">Amount</th><th class="text-end">Actions</th></tr>
                         </thead>
                         <tbody>
                             <?php while($row = mysqli_fetch_assoc($utility_bills_query)): ?>
@@ -499,10 +596,28 @@ $theme = get_theme_colors($conn);
                                 <td><?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?></td>
                                 <td class="small text-muted"><?= htmlspecialchars($row['description']) ?></td>
                                 <td class="text-end fw-bold text-success">₱<?= number_format($row['amount'], 2) ?></td>
+                                <td class="text-end">
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this utility bill?')">
+                                        <input type="hidden" name="id" value="<?= $row['payment_id'] ?>">
+                                        <input type="hidden" name="type" value="utility">
+                                        <input type="hidden" name="archive_action" value="restore">
+                                        <button type="submit" class="btn btn-sm btn-outline-success me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                    </form>
+                                    <?php if($is_super): ?>
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this utility bill?')">
+                                        <input type="hidden" name="id" value="<?= $row['payment_id'] ?>">
+                                        <input type="hidden" name="type" value="utility">
+                                        <input type="hidden" name="archive_action" value="delete">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                    <?php else: ?>
+                                    <button type="button" class="btn btn-sm btn-outline-danger disabled" title="Super Admin Only"><i class="fas fa-trash"></i></button>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                             <?php endwhile; ?>
                             <?php if(mysqli_num_rows($utility_bills_query) == 0): ?>
-                                <tr><td colspan="5" class="text-center text-muted py-3">No paid utility bills found.</td></tr>
+                                <tr><td colspan="6" class="text-center text-muted py-3">No paid utility bills found.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -516,7 +631,7 @@ $theme = get_theme_colors($conn);
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="fas fa-bed me-2"></i>Archived & Maintenance Rooms</h5>
+                <h5 class="modal-title fw-bold"><i class="fas fa-bed me-2"></i>Room Archives</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
@@ -550,7 +665,7 @@ $theme = get_theme_colors($conn);
                             </tr>
                             <?php endwhile; ?>
                             <?php if(mysqli_num_rows($archived_rooms_query) == 0): ?>
-                                <tr><td colspan="5" class="text-center text-muted py-3">No archived or maintenance rooms found.</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted py-3">No archived rooms found.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -570,7 +685,7 @@ $theme = get_theme_colors($conn);
             <div class="modal-body p-4">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Date</th><th>Tenant</th><th>Room</th><th>Description</th><th>Method</th><th class="text-end">Amount</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Tenant</th><th>Room</th><th>Description</th><th>Method</th><th class="text-end">Amount</th><th class="text-end">Actions</th></tr></thead>
                         <tbody>
                             <?php while($row = mysqli_fetch_assoc($transactions_query)): ?>
                             <tr>
@@ -580,10 +695,28 @@ $theme = get_theme_colors($conn);
                                 <td class="small text-muted"><?= htmlspecialchars($row['description'] ?? '') ?></td>
                                 <td><?= $row['payment_method'] ?></td>
                                 <td class="text-end fw-bold text-success">₱<?= number_format($row['amount'], 2) ?></td>
+                                <td class="text-end">
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this transaction?')">
+                                        <input type="hidden" name="id" value="<?= $row['payment_id'] ?>">
+                                        <input type="hidden" name="type" value="transaction">
+                                        <input type="hidden" name="archive_action" value="restore">
+                                        <button type="submit" class="btn btn-sm btn-outline-success me-1" title="Restore"><i class="fas fa-undo"></i></button>
+                                    </form>
+                                    <?php if($is_super): ?>
+                                    <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this transaction?')">
+                                        <input type="hidden" name="id" value="<?= $row['payment_id'] ?>">
+                                        <input type="hidden" name="type" value="transaction">
+                                        <input type="hidden" name="archive_action" value="delete">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                    <?php else: ?>
+                                    <button type="button" class="btn btn-sm btn-outline-danger disabled" title="Super Admin Only"><i class="fas fa-trash"></i></button>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                             <?php endwhile; ?>
                             <?php if(mysqli_num_rows($transactions_query) == 0): ?>
-                                <tr><td colspan="6" class="text-center text-muted py-3">No transactions found.</td></tr>
+                                <tr><td colspan="7" class="text-center text-muted py-3">No transactions found.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -603,7 +736,7 @@ $theme = get_theme_colors($conn);
             <div class="modal-body p-4">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Tenant</th><th>Email</th><th>Account Status</th><th class="text-end">Actions</th></tr></thead>
+                        <thead><tr><th>Tenant</th><th>Email</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
                         <tbody>
                             <?php while($row = mysqli_fetch_assoc($archived_users_query)): ?>
                             <tr>
@@ -611,66 +744,62 @@ $theme = get_theme_colors($conn);
                                     <?= htmlspecialchars($row['last_name'] . ', ' . $row['first_name']) ?>
                                 </td>
                                 <td><?= htmlspecialchars($row['email']) ?></td>
-                                <td>
-                                    <?php if($row['is_archived']): ?>
-                                        <span class="badge bg-danger">Archived Account</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-success">Active Account</span>
-                                    <?php endif; ?>
-                                </td>
+                                <td><span class="badge <?= $row['is_archived'] ? 'bg-danger' : 'bg-success' ?>"><?= $row['is_archived'] ? 'Archived' : 'Active' ?></span></td>
                                 <td class="text-end">
                                     <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="collapse" data-bs-target="#history_<?= $row['user_id'] ?>" title="Open History">
-                                        <i class="fas fa-folder-open"></i> Open
+                                        <i class="fas fa-folder-open"></i>
                                     </button>
-                                    <?php if($row['is_archived']): ?>
-                                        <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this user account?')">
-                                            <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
-                                            <input type="hidden" name="type" value="user">
-                                            <input type="hidden" name="archive_action" value="restore">
-                                            <button type="submit" class="btn btn-sm btn-outline-primary me-1" title="Restore Account"><i class="fas fa-undo"></i></button>
-                                        </form>
-                                        <?php if($is_super): ?>
-                                        <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this user and ALL their data? This cannot be undone.')">
-                                            <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
-                                            <input type="hidden" name="type" value="user">
-                                            <input type="hidden" name="archive_action" value="delete">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Permanently Delete Account"><i class="fas fa-user-slash"></i></button>
-                                        </form>
-                                        <?php endif; ?>
-                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <tr class="collapse" id="history_<?= $row['user_id'] ?>">
                                 <td colspan="4" class="p-0 border-0 bg-light">
                                     <div class="p-3 border-bottom">
-                                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-suitcase me-2"></i>Archived Reservations</h6>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h6 class="fw-bold text-secondary mb-0"><i class="fas fa-suitcase me-2"></i>Archived Reservations</h6>
+                                            
+                                            <div class="d-flex gap-2">
+                                                <?php if($row['is_archived'] == 1): ?>
+                                                <form method="POST" onsubmit="confirmForm(event, 'Restore account and all its archived records?')">
+                                                    <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
+                                                    <input type="hidden" name="type" value="user">
+                                                    <input type="hidden" name="archive_action" value="restore">
+                                                    <button type="submit" class="btn btn-sm btn-outline-success fw-bold px-3 shadow-sm"><i class="fas fa-undo me-1"></i> Restore</button>
+                                                </form>
+                                                
+                                                <?php if($is_super): ?>
+                                                <form method="POST" onsubmit="confirmForm(event, 'Permanently delete ENTIRE account?')">
+                                                    <input type="hidden" name="id" value="<?= $row['user_id'] ?>">
+                                                    <input type="hidden" name="type" value="user">
+                                                    <input type="hidden" name="archive_action" value="delete">
+                                                    <button type="submit" class="btn btn-sm btn-danger text-white fw-bold px-3 shadow-sm"><i class="fas fa-user-slash me-1"></i> Delete Account</button>
+                                                </form>
+                                                <?php endif; ?>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
                                         <?php 
                                         $uid = $row['user_id'];
                                         $res_q = mysqli_query($conn, "SELECT r.*, rm.room_name FROM reservations r LEFT JOIN rooms rm ON r.room_id = rm.room_id WHERE r.user_id = $uid AND r.is_archived = 1");
                                         if(mysqli_num_rows($res_q) > 0):
                                         ?>
                                             <table class="table table-sm table-bordered bg-white shadow-sm mb-0">
-                                                <thead class="table-light"><tr><th>Room</th><th>Dates</th><th>Total Price</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+                                                <thead class="table-light"><tr><th>Room</th><th>Dates</th><th>Price</th><th>Status</th><th class="text-end">Action</th></tr></thead>
                                                 <tbody>
                                                     <?php while($res = mysqli_fetch_assoc($res_q)): ?>
                                                     <tr>
                                                         <td><?= htmlspecialchars($res['room_name']) ?></td>
-                                                        <td><?= date('M d, Y', strtotime($res['start_date'])) ?> to <?= date('M d, Y', strtotime($res['end_date'])) ?></td>
+                                                        <td><?= date('M d', strtotime($res['start_date'])) ?> - <?= date('M d', strtotime($res['end_date'])) ?></td>
                                                         <td>₱<?= number_format($res['total_price'], 2) ?></td>
                                                         <td><span class="badge bg-secondary"><?= $res['status'] ?></span></td>
                                                         <td class="text-end">
-                                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this reservation?')">
-                                                                <input type="hidden" name="id" value="<?= $res['reservation_id'] ?>">
-                                                                <input type="hidden" name="type" value="reservation">
-                                                                <input type="hidden" name="archive_action" value="restore">
-                                                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Restore Reservation"><i class="fas fa-undo"></i></button>
+                                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore reservation?')">
+                                                                <input type="hidden" name="id" value="<?= $res['reservation_id'] ?>"><input type="hidden" name="type" value="reservation"><input type="hidden" name="archive_action" value="restore">
+                                                                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-undo"></i></button>
                                                             </form>
                                                             <?php if($is_super): ?>
-                                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Permanently delete this reservation? Payments linked will also be removed.')">
-                                                                <input type="hidden" name="id" value="<?= $res['reservation_id'] ?>">
-                                                                <input type="hidden" name="type" value="reservation">
-                                                                <input type="hidden" name="archive_action" value="delete">
-                                                                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" title="Delete Reservation"><i class="fas fa-trash"></i></button>
+                                                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Delete reservation permanently?')">
+                                                                <input type="hidden" name="id" value="<?= $res['reservation_id'] ?>"><input type="hidden" name="type" value="reservation"><input type="hidden" name="archive_action" value="delete">
+                                                                <button type="submit" class="btn btn-sm btn-outline-danger ms-1"><i class="fas fa-trash"></i></button>
                                                             </form>
                                                             <?php endif; ?>
                                                         </td>
@@ -725,12 +854,12 @@ if (activeModalID) {
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.collapse[id^="history_"]').forEach(function(collapseEl) {
         collapseEl.addEventListener('show.bs.collapse', function() {
-            const btn = document.querySelector(`[data-bs-target="#${this.id}"]`);
-            if (btn) { btn.innerHTML = '<i class="fas fa-folder"></i> Close'; btn.title = "Close History"; }
+            const btn = document.querySelector(`[data-bs-target="#${this.id}"] i`);
+            if (btn) { btn.classList.replace('fa-folder-open', 'fa-folder'); btn.parentElement.title = "Close History"; }
         });
         collapseEl.addEventListener('hide.bs.collapse', function() {
-            const btn = document.querySelector(`[data-bs-target="#${this.id}"]`);
-            if (btn) { btn.innerHTML = '<i class="fas fa-folder-open"></i> Open'; btn.title = "Open History"; }
+            const btn = document.querySelector(`[data-bs-target="#${this.id}"] i`);
+            if (btn) { btn.classList.replace('fa-folder', 'fa-folder-open'); btn.parentElement.title = "Open History"; }
         });
     });
 });
@@ -739,9 +868,9 @@ document.addEventListener('DOMContentLoaded', function() {
 function confirmForm(e, msg) {
     e.preventDefault();
     Swal.fire({
-        title: 'Are you sure?',
+        title: 'Confirm Action',
         text: msg,
-        icon: 'question',
+        icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#2e7d32',
         cancelButtonColor: '#d33',

@@ -264,7 +264,7 @@ if(isset($_GET['action'])){
 }
 
 // Search & Filter Logic
-$where_clause = "1=1";
+$where_clause = "u.is_archived = 0 AND r.is_archived = 0";
 $params = [];
 $types = "";
 
