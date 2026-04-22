@@ -201,7 +201,7 @@ if (isset($_POST['confirm_booking'])) {
                 }
             } elseif(empty($user_school_id_image)) {
                 // Student must upload school ID
-                $error = "School ID image is required for students.";
+                if (empty($error)) $error = "School ID image is required for students.";
             }
             
             // Save/update school ID if no error
@@ -210,21 +210,25 @@ if (isset($_POST['confirm_booking'])) {
             }
         }
 
-        if (!$agree_rules || !$agree_fees || empty($typed_signature)) {
+        if (empty($error) && (!$agree_rules || !$agree_fees || empty($typed_signature))) {
             $error = "You must agree to the policies and provide a signature to proceed.";
         }
         $ref_number = null;
         $proof_filename = null;
         
-        // Calculate duration based on dates
-        $d1 = new DateTime($cin);
-        $d2 = new DateTime($cout);
-        $interval = $d1->diff($d2);
-        
-        // Calculate accurate months for DB record
-        $months = ($interval->y * 12) + $interval->m;
-        // Minimal logic: if less than a month but has days, treat as 1 month for initial record
-        if ($months == 0 && $interval->d > 0) $months = 1;
+        if (empty($cin) || empty($cout)) {
+            if (empty($error)) $error = "Check-in and Check-out dates are required.";
+        } else {
+            // Calculate duration based on dates
+            $d1 = new DateTime($cin);
+            $d2 = new DateTime($cout);
+            $interval = $d1->diff($d2);
+            
+            // Calculate accurate months for DB record
+            $months = ($interval->y * 12) + $interval->m;
+            // Minimal logic: if less than a month but has days, treat as 1 month for initial record
+            if ($months == 0 && $interval->d > 0) $months = 1;
+        }
 
         // Handle GCash Payment Details & Upload
         // Handle GCash via Dragonpay - No manual proof needed
@@ -262,7 +266,9 @@ if (isset($_POST['confirm_booking'])) {
             $capacity = $room['total_beds'];
             
             // Get detailed occupancy
-            $q_occ = "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id = $rid AND status IN ('Pending','Approved') AND start_date < '$cout' AND end_date > '$cin' GROUP BY bed_preference";
+            $cin_safe = mysqli_real_escape_string($conn, $cin);
+            $cout_safe = mysqli_real_escape_string($conn, $cout);
+            $q_occ = "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id = $rid AND status IN ('Pending','Approved') AND start_date < '$cout_safe' AND end_date > '$cin_safe' GROUP BY bed_preference";
             $res_occ = mysqli_query($conn, $q_occ);
             
             $occ_lower = 0; $occ_upper = 0; $occ_any = 0; $total_booked = 0;

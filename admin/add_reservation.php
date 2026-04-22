@@ -140,7 +140,7 @@ if(isset($_POST['add_reservation'])){
             $error = "Please fill in all required guest details (Name, Email, Phone, Occupation).";
         }
 
-        if(!preg_match('/^09\d{9}$/', $phone)){
+        if(empty($error) && !preg_match('/^09\d{9}$/', $phone)){
             $error = "Invalid phone number. Must be 11 digits starting with 09 and no letters allowed.";
         }
 
@@ -149,9 +149,9 @@ if(isset($_POST['add_reservation'])){
         $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : 'Wokecoliving101';
         $name_regex = "/^[a-zA-Z\sñÑ]+$/";
         
-        if (!preg_match($name_regex, $fname) || !preg_match($name_regex, $lname) || (!empty($mname) && !preg_match($name_regex, $mname)) || (!empty($suffix) && !preg_match($name_regex, $suffix))) {
+        if (empty($error) && (!preg_match($name_regex, $fname) || !preg_match($name_regex, $lname) || (!empty($mname) && !preg_match($name_regex, $mname)) || (!empty($suffix) && !preg_match($name_regex, $suffix)))) {
             $error = "First, Middle, Last names, and Suffixes should only contain letters and spaces. Signs and numbers are not allowed.";
-        } elseif(!empty($_POST['new_password'])){
+        } elseif(empty($error) && !empty($_POST['new_password'])){
             $letter_count = preg_match_all('/[a-zA-Z]/', $raw_pass);
             $digit_count = preg_match_all('/[0-9]/', $raw_pass);
             if(strlen($raw_pass) < 6 || strlen($raw_pass) > 8 || $digit_count < 1){
@@ -172,9 +172,16 @@ if(isset($_POST['add_reservation'])){
         }
 
         if(empty($error)){
-            $check_email = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email'");
-            $check_name = mysqli_query($conn, "SELECT user_id FROM users WHERE first_name='$fname' AND last_name='$lname' AND middle_name='$mname' AND suffix='$suffix'");
-            $check_phone = mysqli_query($conn, "SELECT user_id FROM users WHERE phone_number='$phone'");
+            $email_safe = mysqli_real_escape_string($conn, $email);
+            $fname_safe = mysqli_real_escape_string($conn, $fname);
+            $lname_safe = mysqli_real_escape_string($conn, $lname);
+            $mname_safe = mysqli_real_escape_string($conn, $mname);
+            $suffix_safe = mysqli_real_escape_string($conn, $suffix);
+            $phone_safe = mysqli_real_escape_string($conn, $phone);
+
+            $check_email = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$email_safe'");
+            $check_name = mysqli_query($conn, "SELECT user_id FROM users WHERE first_name='$fname_safe' AND last_name='$lname_safe' AND middle_name='$mname_safe' AND suffix='$suffix_safe'");
+            $check_phone = mysqli_query($conn, "SELECT user_id FROM users WHERE phone_number='$phone_safe'");
 
             if(mysqli_num_rows($check_email) > 0){
                 $error = "Email address already registered.";
@@ -244,7 +251,9 @@ if(isset($_POST['add_reservation'])){
             $total_capacity = $room['total_beds'];
             
             // Get counts for specific dates
-            $q_counts = "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id = $rid AND status IN ('Pending','Approved') AND start_date < '$cout' AND end_date > '$cin' GROUP BY bed_preference";
+            $cin_safe = mysqli_real_escape_string($conn, $cin);
+            $cout_safe = mysqli_real_escape_string($conn, $cout);
+            $q_counts = "SELECT bed_preference, COUNT(*) as cnt FROM reservations WHERE room_id = $rid AND status IN ('Pending','Approved') AND start_date < '$cout_safe' AND end_date > '$cin_safe' GROUP BY bed_preference";
             $res_counts = mysqli_query($conn, $q_counts);
             
             $occ_upper = 0; $occ_lower = 0; $occ_any = 0; $total_taken = 0;

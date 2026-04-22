@@ -193,8 +193,8 @@ if(isset($_POST['bulk_mark_paid']) && !empty($_POST['payment_ids'])){
 if(isset($_POST['process_refund'])){
     $pid = (int)$_POST['refund_pid'];
     $amount = (float)$_POST['refund_amount'];
-    $method = $_POST['refund_method'];
-    $gcash_ref = $_POST['gcash_ref'] ?? null;
+    $method = mysqli_real_escape_string($conn, $_POST['refund_method']);
+    $gcash_ref = isset($_POST['gcash_ref']) ? mysqli_real_escape_string($conn, $_POST['gcash_ref']) : null;
     
     $p_q = mysqli_query($conn, "SELECT * FROM payments WHERE payment_id=$pid");
     if($p_row = mysqli_fetch_assoc($p_q)){

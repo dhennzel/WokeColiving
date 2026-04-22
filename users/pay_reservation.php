@@ -26,6 +26,11 @@ $pay_q = mysqli_query($conn, "
 $unpaid_bills = []; // This will be passed to JS
 while($row = mysqli_fetch_assoc($pay_q)) {
     $desc_lower = strtolower($row['description']);
+    
+    $clean_desc = preg_replace('/\s*\[FULL\]\s*/i', '', $row['description']);
+    $clean_desc = preg_replace('/\s*\(Parking ID: \d+\)/i', '', $clean_desc);
+    $row['display_description'] = trim($clean_desc);
+    
     if (strpos($desc_lower, 'security deposit') !== false || strpos($desc_lower, 'downpayment') !== false || strpos($desc_lower, 'initial') !== false) {
         $row['is_deposit'] = true;
     } else {
@@ -43,6 +48,10 @@ $all_pay_q = mysqli_query($conn, "
 ");
 $all_payments = [];
 while($row = mysqli_fetch_assoc($all_pay_q)) {
+    $clean_desc = preg_replace('/\s*\[FULL\]\s*/i', '', $row['description']);
+    $clean_desc = preg_replace('/\s*\(Parking ID: \d+\)/i', '', $clean_desc);
+    $row['display_description'] = trim($clean_desc);
+    
     $all_payments[] = $row;
 }
 
@@ -216,9 +225,9 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                                         <?php foreach($unpaid_bills as $index => $bill): ?>
                                             <label class="form-check custom-checkbox-box mb-2 p-3 border rounded d-flex justify-content-between align-items-center" style="cursor:pointer;" for="bill_<?= $bill['payment_id'] ?>">
                                                 <div class="d-flex align-items-center">
-                                                    <input class="form-check-input bill-checkbox me-3 mt-0" style="width: 1.5em; height: 1.5em;" type="checkbox" name="selected_payments[]" value="<?= $bill['payment_id'] ?>" id="bill_<?= $bill['payment_id'] ?>" data-amount="<?= $bill['amount'] ?>" data-index="<?= $index ?>" data-desc="<?= htmlspecialchars($bill['description']) ?>" onchange="handleConsecutiveSelection(this); calculateTotal(); checkSelectAllState()">
+                                                    <input class="form-check-input bill-checkbox me-3 mt-0" style="width: 1.5em; height: 1.5em;" type="checkbox" name="selected_payments[]" value="<?= $bill['payment_id'] ?>" id="bill_<?= $bill['payment_id'] ?>" data-amount="<?= $bill['amount'] ?>" data-index="<?= $index ?>" data-desc="<?= htmlspecialchars($bill['display_description']) ?>" onchange="handleConsecutiveSelection(this); calculateTotal(); checkSelectAllState()">
                                                     <div>
-                                                        <div class="fw-bold"><?= htmlspecialchars($bill['description']) ?></div>
+                                                        <div class="fw-bold"><?= htmlspecialchars($bill['display_description']) ?></div>
                                                         <div class="small text-muted">Added: <?= date('M d, Y', strtotime($bill['payment_date'])) ?></div>
                                                     <?php if($bill['payment_status'] == 'Cancelled'): ?>
                                                         <div class="small mt-1">
@@ -317,7 +326,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
                             <tbody>
                                 <?php foreach($all_payments as $pay): ?>
                                 <tr>
-                                    <td class="fw-bold"><?= htmlspecialchars($pay['description']) ?></td>
+                                    <td class="fw-bold"><?= htmlspecialchars($pay['display_description']) ?></td>
                                     <td><?= date('M d, Y', strtotime($pay['payment_date'])) ?></td>
                                     <td>₱<?= number_format($pay['amount'], 2) ?></td>
                                     <td>

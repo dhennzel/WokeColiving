@@ -48,24 +48,25 @@ function send_notification($conn, $user_id, $message, $type = 'System', $custom_
 
     try {
         $msg_safe = mysqli_real_escape_string($conn, $message);
-        mysqli_query($conn, "INSERT INTO notifications (user_id, message, type, created_at) VALUES ('$user_id', '$msg_safe', '$type', NOW())");
+        $type_safe = mysqli_real_escape_string($conn, $type);
+        mysqli_query($conn, "INSERT INTO notifications (user_id, message, type, created_at) VALUES ('$user_id', '$msg_safe', '$type_safe', NOW())");
     } catch (mysqli_sql_exception $e) {
         // Handle missing 'message' column if table existed but was outdated
         if (strpos($e->getMessage(), "Unknown column 'message'") !== false) {
             mysqli_query($conn, "ALTER TABLE notifications ADD COLUMN message TEXT NOT NULL");
             // Retry insert
             try {
-                mysqli_query($conn, "INSERT INTO notifications (user_id, message, type) VALUES ('$user_id', '$msg_safe', '$type')");
+                mysqli_query($conn, "INSERT INTO notifications (user_id, message, type) VALUES ('$user_id', '$msg_safe', '$type_safe')");
             } catch (mysqli_sql_exception $e2) {
                 if (strpos($e2->getMessage(), "Unknown column 'type'") !== false) {
                     mysqli_query($conn, "ALTER TABLE notifications ADD COLUMN type VARCHAR(50) DEFAULT 'System'");
-                    mysqli_query($conn, "INSERT INTO notifications (user_id, message, type) VALUES ('$user_id', '$msg_safe', '$type')");
+                    mysqli_query($conn, "INSERT INTO notifications (user_id, message, type) VALUES ('$user_id', '$msg_safe', '$type_safe')");
                 }
             }
         } elseif (strpos($e->getMessage(), "Unknown column 'type'") !== false) {
             mysqli_query($conn, "ALTER TABLE notifications ADD COLUMN type VARCHAR(50) DEFAULT 'System'");
             // Retry insert
-            mysqli_query($conn, "INSERT INTO notifications (user_id, message, type) VALUES ('$user_id', '$msg_safe', '$type')");
+            mysqli_query($conn, "INSERT INTO notifications (user_id, message, type) VALUES ('$user_id', '$msg_safe', '$type_safe')");
         } else {
             // Log other errors but don't crash the page
             error_log("Notification Error: " . $e->getMessage());
