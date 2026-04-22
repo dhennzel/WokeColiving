@@ -843,7 +843,9 @@ $theme = get_theme_colors($conn);
                                                 <button onclick="renewContract(<?= $row['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt"></i></button>
                                                 <a href="booking_management.php?action=terminate&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract?')"><i class="fas fa-ban"></i></a>
                                             <?php endif; ?>
+                                        <?php if(in_array($row['status'], ['Completed', 'Approved', 'Cancelled'])): ?>
                                             <a href="view_user.php?uid=<?= $uid ?>&archive_reservation=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-secondary ms-1" title="Archive Reservation" onclick="confirmAction(event, this.href, 'Archive this reservation?')"><i class="fas fa-archive"></i></a>
+                                        <?php endif; ?>
                                         </td>
                                     </tr>
                                     <?php endwhile; ?>
