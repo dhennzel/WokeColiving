@@ -64,6 +64,13 @@ if($row_gcash = mysqli_fetch_assoc($q_gcash)){
     $current_gcash_qr = $row_gcash['setting_value'];
 }
 
+// Fetch current Clearance Form
+$current_clearance_file = "";
+$q_clearance = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='clearance_file'");
+if($row_clearance = mysqli_fetch_assoc($q_clearance)){
+    $current_clearance_file = $row_clearance['setting_value'];
+}
+
 // Handle Reset Defaults
 if(isset($_POST['reset_defaults'])){
     if(is_super_admin()){
@@ -360,6 +367,33 @@ if(isset($_POST['update_profile'])){
                     $error = "Failed to upload GCash QR.";
                 }
             }
+
+            // Handle Clearance Form File Upload
+            if(isset($_FILES['clearance_file']) && $_FILES['clearance_file']['error'] == 0){
+                $target_dir = "../uploads/settings/";
+                if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+                
+                $file_ext = strtolower(pathinfo($_FILES["clearance_file"]["name"], PATHINFO_EXTENSION));
+                $new_filename = "clearance_form_" . time() . "." . $file_ext;
+                $target_file = $target_dir . $new_filename;
+                
+                if(move_uploaded_file($_FILES["clearance_file"]["tmp_name"], $target_file)){
+                    $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='clearance_file'");
+                    if($row = mysqli_fetch_assoc($q)){
+                        $old_file = $row['setting_value'];
+                        if(!empty($old_file) && file_exists("../uploads/settings/" . $old_file)){
+                            @unlink("../uploads/settings/" . $old_file);
+                        }
+                    }
+                    
+                    $val = mysqli_real_escape_string($conn, $new_filename);
+                    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('clearance_file', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+                    $message .= " Clearance form updated.";
+                    $current_clearance_file = $new_filename;
+                } else {
+                    $error = "Failed to upload clearance form.";
+                }
+            }
             }
         } else {
             $error = "Error updating profile: " . mysqli_error($conn);
@@ -550,6 +584,18 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                                             </div>
                                         <?php endif; ?>
                                         <small class="text-muted d-block mt-1">Upload the GCash QR Code displayed to guests on the payment page.</small>
+                                    </div>
+
+                                    <!-- Clearance Form -->
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold small">Printable Clearance Form</label>
+                                        <input type="file" name="clearance_file" id="clearance_file" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                                        <?php if(!empty($current_clearance_file)): ?>
+                                            <div class="mt-2 text-end">
+                                                <a href="../uploads/settings/<?= htmlspecialchars($current_clearance_file) ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-print me-1"></i> View / Print Form</a>
+                                            </div>
+                                        <?php endif; ?>
+                                        <small class="text-muted d-block mt-1">Upload a blank clearance form to print for tenants completing their contracts.</small>
                                     </div>
                                 </div>
                                 <?php endif; ?>

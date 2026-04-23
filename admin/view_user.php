@@ -1063,6 +1063,9 @@ $theme = get_theme_colors($conn);
                                                 <?php if($sd['payment_status'] == 'Paid' && strpos($sd['description'], 'Refunded') === false && strpos($sd['description'], 'Forfeited') === false): ?>
                                                     <?php if(($sd['months'] < 6) || ($sd['res_status'] == 'Completed')): ?>
                                                         <button type="button" class="btn btn-sm btn-success" title="Release Refund" onclick="openRefundModal(<?= $sd['payment_id'] ?>, <?= $sd['amount'] ?>)"><i class="fas fa-hand-holding-usd"></i></button>
+                                                        <?php if($sd['res_status'] == 'Completed'): ?>
+                                                            <button type="button" class="btn btn-sm btn-info text-white ms-1" title="Generate Clearance" onclick="openClearanceModal(<?= $uid ?>, '<?= htmlspecialchars(addslashes(!empty($sd['room_number']) ? 'Room ' . $sd['room_number'] : $sd['room_name'])) ?>', <?= $sd['amount'] ?>, <?= $total_balance ?>)"><i class="fas fa-file-signature"></i></button>
+                                                        <?php endif; ?>
                                                     <?php elseif($sd['res_status'] == 'Cancelled'): ?>
                                                         <a href="?uid=<?= $uid ?>&action=forfeit_deposit&pid=<?= $sd['payment_id'] ?>" class="btn btn-sm btn-danger" title="Forfeit Deposit" onclick="confirmAction(event, this.href, 'Mark this deposit as Forfeited due to early termination?')"><i class="fas fa-gavel"></i></a>
                                                     <?php endif; ?>
@@ -1134,6 +1137,56 @@ $theme = get_theme_colors($conn);
                     </div>
                 </div>
             </div>
+
+<!-- Clearance Modal -->
+<div class="modal fade" id="clearanceModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="print_clearance.php" method="POST" target="_blank" class="w-100">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-file-signature me-2"></i>Generate Clearance</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <input type="hidden" name="tenant_id" id="clear_tenant_id">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Room</label>
+                        <input type="text" name="room_info" id="clear_room" class="form-control bg-light" readonly>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Clearance Date</label>
+                            <input type="date" name="clearance_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Security Deposit (₱)</label>
+                            <input type="number" step="0.01" name="deposit_amount" id="clear_deposit" class="form-control bg-light" readonly>
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-danger">Deductions (₱)</label>
+                            <input type="number" step="0.01" name="deduction_amount" id="clear_deduction" class="form-control border-danger" required oninput="calcClearanceRefund()">
+                            <small class="text-muted" style="font-size:0.65rem;">Auto-filled from unpaid bills</small>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-success">Net Refundable (₱)</label>
+                            <input type="number" step="0.01" name="net_refund" id="clear_net" class="form-control bg-light fw-bold text-success" readonly>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold">Deduction Remarks</label>
+                        <textarea name="deduction_remarks" id="clear_remarks" class="form-control" rows="2" placeholder="Itemized deductions..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info text-white fw-bold rounded-pill px-4"><i class="fas fa-print me-2"></i> Print</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
 <!-- Refund Modal -->
 <div class="modal fade" id="refundModal" tabindex="-1">
@@ -1394,6 +1447,24 @@ function confirmForm(e, msg) {
     }).then((result) => {
         if (result.isConfirmed) e.target.submit();
     });
+}
+
+function openClearanceModal(tenantId, roomInfo, depositAmount, unpaidBalance) {
+    document.getElementById('clear_tenant_id').value = tenantId;
+    document.getElementById('clear_room').value = roomInfo;
+    document.getElementById('clear_deposit').value = depositAmount;
+    
+    document.getElementById('clear_deduction').value = unpaidBalance.toFixed(2);
+    document.getElementById('clear_remarks').value = unpaidBalance > 0 ? "Unpaid system balance (₱" + unpaidBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) + ")" : "";
+    
+    calcClearanceRefund();
+    new bootstrap.Modal(document.getElementById('clearanceModal')).show();
+}
+
+function calcClearanceRefund() {
+    let dep = parseFloat(document.getElementById('clear_deposit').value) || 0;
+    let ded = parseFloat(document.getElementById('clear_deduction').value) || 0;
+    document.getElementById('clear_net').value = (dep - ded).toFixed(2);
 }
 
 async function renewContract(id, dnr) {
