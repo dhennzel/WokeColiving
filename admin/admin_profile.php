@@ -50,6 +50,20 @@ if($row_la = mysqli_fetch_assoc($q_la)){
     }
 }
 
+// Fetch current house rules
+$current_house_rules = "";
+$q_rules = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='house_rules'");
+if($row_rules = mysqli_fetch_assoc($q_rules)){
+    $current_house_rules = $row_rules['setting_value'];
+}
+
+// Fetch current GCash QR
+$current_gcash_qr = "";
+$q_gcash = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='gcash_qr'");
+if($row_gcash = mysqli_fetch_assoc($q_gcash)){
+    $current_gcash_qr = $row_gcash['setting_value'];
+}
+
 // Handle Reset Defaults
 if(isset($_POST['reset_defaults'])){
     if(is_super_admin()){
@@ -291,6 +305,61 @@ if(isset($_POST['update_profile'])){
                 }
                 $theme = get_theme_colors($conn); // Refresh
             }
+
+            // Handle House Rules File Upload
+            if(isset($_FILES['house_rules_file']) && $_FILES['house_rules_file']['error'] == 0){
+                $target_dir = "../uploads/settings/";
+                if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+                
+                $file_ext = strtolower(pathinfo($_FILES["house_rules_file"]["name"], PATHINFO_EXTENSION));
+                $new_filename = "house_rules_" . time() . "." . $file_ext;
+                $target_file = $target_dir . $new_filename;
+                
+                if(move_uploaded_file($_FILES["house_rules_file"]["tmp_name"], $target_file)){
+                    // Get old file to delete
+                    $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='house_rules'");
+                    if($row = mysqli_fetch_assoc($q)){
+                        $old_file = $row['setting_value'];
+                        if(!empty($old_file) && file_exists("../uploads/settings/" . $old_file)){
+                            @unlink("../uploads/settings/" . $old_file);
+                        }
+                    }
+                    
+                    $val = mysqli_real_escape_string($conn, $new_filename);
+                    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('house_rules', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+                    $message .= " House rules file updated.";
+                    $current_house_rules = $new_filename;
+                } else {
+                    $error = "Failed to upload house rules file.";
+                }
+            }
+
+            // Handle GCash QR Image Upload
+            if(isset($_FILES['gcash_qr_image']) && $_FILES['gcash_qr_image']['error'] == 0){
+                $target_dir = "../uploads/settings/";
+                if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+                
+                $file_ext = strtolower(pathinfo($_FILES["gcash_qr_image"]["name"], PATHINFO_EXTENSION));
+                $new_filename = "gcash_qr_" . time() . "." . $file_ext;
+                $target_file = $target_dir . $new_filename;
+                
+                if(move_uploaded_file($_FILES["gcash_qr_image"]["tmp_name"], $target_file)){
+                    $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='gcash_qr'");
+                    if($row = mysqli_fetch_assoc($q)){
+                        $old_file = $row['setting_value'];
+                        if(!empty($old_file) && file_exists("../uploads/settings/" . $old_file)){
+                            @unlink("../uploads/settings/" . $old_file);
+                        }
+                    }
+                    
+                    $val = mysqli_real_escape_string($conn, $new_filename);
+                    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('gcash_qr', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+                    $message .= " GCash QR updated.";
+                    $current_gcash_qr = $new_filename;
+                } else {
+                    $error = "Failed to upload GCash QR.";
+                }
+            }
             }
         } else {
             $error = "Error updating profile: " . mysqli_error($conn);
@@ -456,6 +525,31 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                                         <button type="submit" name="reset_defaults" class="btn btn-link btn-sm text-danger p-0 text-decoration-none" style="font-size: 0.75rem;" formnovalidate>
                                             <i class="fas fa-undo me-1"></i> Reset to Default
                                         </button>
+                                    </div>
+                                    
+                                    <!-- House Rules -->
+                                    <h5 class="text-secondary fw-bold mb-4 small text-uppercase border-bottom pb-2 mt-5"><i class="fas fa-file-contract me-2"></i>System Policies</h5>
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold small">House Rules & Regulations File</label>
+                                        <input type="file" name="house_rules_file" id="house_rules_file" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                                        <?php if(!empty($current_house_rules)): ?>
+                                            <div class="mt-2 text-end">
+                                                <a href="../uploads/settings/<?= htmlspecialchars($current_house_rules) ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-download me-1"></i> View Current File</a>
+                                            </div>
+                                        <?php endif; ?>
+                                        <small class="text-muted d-block mt-1">Upload a PDF, DOC, or Image file containing the house rules.</small>
+                                    </div>
+
+                                    <!-- GCash QR -->
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold small">GCash QR Code</label>
+                                        <input type="file" name="gcash_qr_image" id="gcash_qr_image" class="form-control form-control-sm" accept="image/*">
+                                        <?php if(!empty($current_gcash_qr)): ?>
+                                            <div class="mt-2 text-end">
+                                                <a href="../uploads/settings/<?= htmlspecialchars($current_gcash_qr) ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-qrcode me-1"></i> View Current QR</a>
+                                            </div>
+                                        <?php endif; ?>
+                                        <small class="text-muted d-block mt-1">Upload the GCash QR Code displayed to guests on the payment page.</small>
                                     </div>
                                 </div>
                                 <?php endif; ?>

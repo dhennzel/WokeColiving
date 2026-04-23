@@ -13,7 +13,7 @@ $theme = get_theme_colors($conn);
 
 $message = "";
 $error = "";
-$threshold = 5000;
+$threshold = 0;
 
 $user_filter = isset($_GET['filter']) ? $_GET['filter'] : 'active';
 $status_condition = "";
@@ -34,24 +34,41 @@ if (isset($_POST['send_bulk_reminders'])) {
     if($filter_val == 'active') {
         $rem_status_condition = " AND EXISTS (SELECT 1 FROM reservations res2 WHERE res2.user_id = u.user_id AND res2.status IN ('Approved', 'Pending', 'Verifying')) ";
     }
-        $rem_query = "SELECT u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name, SUM(p.amount) as total_balance FROM users u JOIN reservations r ON u.user_id = r.user_id JOIN payments p ON r.reservation_id = p.reservation_id WHERE p.payment_status = 'Unpaid' AND u.is_archived = 0 AND u.user_id IN ($ids_str) $rem_status_condition GROUP BY u.user_id HAVING total_balance > $threshold";
+        $rem_query = "SELECT u.user_id, CONCAT(u.last_name, ', ', u.first_name) as full_name, SUM(p.amount) as total_balance FROM users u JOIN reservations r ON u.user_id = r.user_id JOIN payments p ON r.reservation_id = p.reservation_id WHERE p.payment_status = 'Unpaid' AND p.payment_date <= DATE_ADD(NOW(), INTERVAL 7 DAY) AND u.is_archived = 0 AND u.user_id IN ($ids_str) $rem_status_condition GROUP BY u.user_id HAVING total_balance > $threshold";
     $rem_result = mysqli_query($conn, $rem_query);
     $count = 0;
     while ($row = mysqli_fetch_assoc($rem_result)) {
         $uid = $row['user_id'];
         $bal = number_format($row['total_balance'], 2);
-        $msg = "⚠️ <strong>Outstanding Balance Reminder</strong><br>Dear " . htmlspecialchars($row['full_name']) . ", this is a friendly reminder from Woke Coliving that you have an outstanding balance of <strong>₱$bal</strong>. Please settle this amount at your earliest convenience to ensure continued access to services. Thank you!";
+        $msg = "⚠️ <strong>Billing Reminder</strong><br>Dear " . htmlspecialchars($row['full_name']) . ", this is a friendly reminder from Woke Coliving regarding your current and upcoming dues. Your payable amount for this billing cycle is <strong>₱$bal</strong>. Please settle this amount on or before the due date to avoid penalties. Thank you!";
         $timestamp = date("M d, Y h:i A");
-        $subject = "Action Required: Outstanding Balance of ₱$bal - Woke Coliving ($timestamp)";
+        $subject = "Billing Reminder: ₱$bal Due - Woke Coliving ($timestamp)";
         send_notification($conn, $uid, $msg, "Billing Reminder", $subject);
+        log_activity($conn, $uid, "Reminder Sent", "Admin sent a balance reminder for ₱$bal.");
         $count++;
     }
+    trigger_update($conn);
     $message = "Reminders successfully sent to $count residents.";
     }
 }
 
+// Handle Single Reminder
+if (isset($_POST['send_single_reminder'])) {
+    $uid = (int)$_POST['tenant_id'];
+    $tenant_name = $_POST['tenant_name'];
+    $bal = number_format((float)$_POST['balance'], 2);
+    
+    $msg = "⚠️ <strong>Billing Reminder</strong><br>Dear " . htmlspecialchars($tenant_name) . ", this is a friendly reminder from Woke Coliving regarding your current and upcoming dues. Your payable amount for this billing cycle is <strong>₱$bal</strong>. Please settle this amount on or before the due date to avoid penalties. Thank you!";
+    $timestamp = date("M d, Y h:i A");
+    $subject = "Billing Reminder: ₱$bal Due - Woke Coliving ($timestamp)";
+    send_notification($conn, $uid, $msg, "Billing Reminder", $subject);
+    log_activity($conn, $uid, "Reminder Sent", "Admin sent a balance reminder for ₱$bal.");
+    trigger_update($conn);
+    $message = "Reminder successfully sent to " . htmlspecialchars($tenant_name) . ".";
+}
+
 // Threshold for the report
-$threshold = 5000;
+$threshold = 0;
 
 $query = "
     SELECT 
@@ -65,7 +82,7 @@ $query = "
     FROM users u
     JOIN reservations r ON u.user_id = r.user_id
     JOIN payments p ON r.reservation_id = p.reservation_id
-    WHERE p.payment_status = 'Unpaid' AND u.is_archived = 0 $status_condition
+    WHERE p.payment_status = 'Unpaid' AND p.payment_date <= DATE_ADD(NOW(), INTERVAL 7 DAY) AND u.is_archived = 0 $status_condition
     GROUP BY u.user_id
     HAVING total_balance > $threshold
     ORDER BY total_balance DESC
@@ -141,7 +158,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
             <?php endif; ?>
 
             <div class="alert alert-info no-print">
-                <i class="fas fa-info-circle me-2"></i> This report lists <strong><?= $user_filter == 'active' ? 'currently active' : 'all' ?></strong> tenants with a total unpaid balance exceeding <strong>₱<?= number_format($threshold, 2) ?></strong>.
+                <i class="fas fa-info-circle me-2"></i> This report lists <strong><?= $user_filter == 'active' ? 'currently active' : 'all' ?></strong> tenants with unpaid bills that are currently due or due within the next 7 days.
             </div>
 
             <div class="card card-table p-4">
@@ -185,6 +202,9 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                                     <td><span class="badge bg-warning text-dark"><?= $row['unpaid_count'] ?> Transactions</span></td>
                                     <td class="text-end fw-bold text-danger">₱<?= number_format($row['total_balance'], 2) ?></td>
                                     <td class="text-end no-print">
+                                        <button type="button" class="btn btn-sm btn-warning text-dark me-1" onclick="sendSingleReminder(<?= $row['user_id'] ?>, '<?= addslashes($row['full_name']) ?>', <?= $row['total_balance'] ?>)">
+                                            <i class="fas fa-bell me-1"></i> Remind
+                                        </button>
                                         <a href="view_user.php?uid=<?= $row['user_id'] ?>&pay_status=Unpaid" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye me-1"></i> Review Payments</a>
                                     </td>
                                 </tr>
@@ -197,19 +217,20 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                     </form>
                 </div>
             </div>
+            
+            <!-- Hidden Form for Single Reminder -->
+            <form method="POST" id="singleReminderForm" style="display:none;">
+                <input type="hidden" name="send_single_reminder" value="1">
+                <input type="hidden" name="tenant_id" id="single_tenant_id">
+                <input type="hidden" name="tenant_name" id="single_tenant_name">
+                <input type="hidden" name="balance" id="single_balance">
+            </form>
         </main>
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const financeBadge = document.getElementById('financeBadge');
-    if(financeBadge) financeBadge.style.display = 'none';
-    const navBadge = document.querySelector('a[href="balance_report.php"] .nav-badge');
-    if(navBadge) navBadge.style.display = 'none';
-});
-
 function toggleSelectAll(source) {
     const checkboxes = document.querySelectorAll('.tenant-checkbox');
     checkboxes.forEach(cb => cb.checked = source.checked);
@@ -231,7 +252,34 @@ function confirmBulkReminders(e) {
         cancelButtonColor: '#6c757d',
         confirmButtonText: 'Yes, Send All!'
     }).then((result) => {
-        if (result.isConfirmed) document.getElementById('reminderForm').submit();
+        if (result.isConfirmed) {
+            const form = document.getElementById('reminderForm');
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'send_bulk_reminders';
+            hiddenInput.value = '1';
+            form.appendChild(hiddenInput);
+            form.submit();
+        }
+    });
+}
+
+function sendSingleReminder(uid, name, balance) {
+    Swal.fire({
+        title: 'Send Reminder?',
+        text: `Send a balance reminder to ${name}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#34B875',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, Send!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('single_tenant_id').value = uid;
+            document.getElementById('single_tenant_name').value = name;
+            document.getElementById('single_balance').value = balance;
+            document.getElementById('singleReminderForm').submit();
+        }
     });
 }
 

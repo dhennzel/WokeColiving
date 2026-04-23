@@ -60,7 +60,7 @@ if(isset($_POST['update_request'])){
         if($res_row = mysqli_fetch_assoc($res_q)){
             $rid = $res_row['reservation_id'];
             $desc = "Housekeeping Fee: " . $req_data['description'];
-            $stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'Cash', 'Unpaid', NOW(), ?)");
+            $stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'System', 'Unpaid', NOW(), ?)");
             mysqli_stmt_bind_param($stmt, "ids", $rid, $cost, $desc);
             mysqli_stmt_execute($stmt);
             send_notification($conn, $uid, "🧾 <strong>New Bill</strong><br>A housekeeping fee of ₱".number_format($cost,2)." has been added to your account.", "Billing");
@@ -125,6 +125,9 @@ if(isset($_POST['schedule_cleaning'])){
         send_notification($conn, $uid, "🧹 <strong>Housekeeping Scheduled</strong><br>Admin has scheduled a routine cleaning for your room on " . date('M d, Y', strtotime($sched_date)) . ".", "Housekeeping");
     }
 }
+
+// Auto-cancel housekeeping requests for archived or deleted tenants
+mysqli_query($conn, "UPDATE housekeeping_requests h LEFT JOIN users u ON h.user_id = u.user_id SET h.status = 'Cancelled' WHERE h.status NOT IN ('Completed', 'Cancelled') AND h.user_id IS NOT NULL AND (u.user_id IS NULL OR u.is_archived = 1)");
 
 // Fetch All Requests
 $query = "SELECT h.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name, r.room_number 

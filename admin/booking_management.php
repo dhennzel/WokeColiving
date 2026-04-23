@@ -108,7 +108,7 @@ if(isset($_GET['action'])){
             // Update Reservation & Add Payment Record
             mysqli_query($conn, "UPDATE reservations SET end_date='$new_end_date', months=months+$months_to_add, total_price=total_price+$added_cost WHERE reservation_id=$reservation_id");
             
-            $ins_pay = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'Cash', 'Unpaid', NOW(), ?)");
+            $ins_pay = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'System', 'Unpaid', NOW(), ?)");
             mysqli_stmt_bind_param($ins_pay, "ids", $reservation_id, $added_cost, $description);
             mysqli_stmt_execute($ins_pay);
             

@@ -291,7 +291,8 @@ if(mysqli_num_rows($check_col) == 0) {
 
 // Fetch All Reservations for this User
 $res_query = mysqli_query($conn, "
-    SELECT r.*, rm.room_name, rm.room_number, rm.room_type
+    SELECT r.*, rm.room_name, rm.room_number, rm.room_type,
+    (SELECT IFNULL(SUM(amount), 0) FROM payments WHERE reservation_id = r.reservation_id AND payment_status = 'Paid') as actual_paid
     FROM reservations r 
     JOIN rooms rm ON r.room_id = rm.room_id 
     WHERE r.user_id=$uid AND r.is_archived = 0
@@ -304,8 +305,10 @@ $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
 $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
 
 $pay_where = "r.user_id=$uid AND p.is_archived = 0 AND r.is_archived = 0";
-if($pay_status_filter){
+if($pay_status_filter && $pay_status_filter != 'All'){
     $pay_where .= " AND p.payment_status = '" . mysqli_real_escape_string($conn, $pay_status_filter) . "'";
+} elseif(empty($pay_status_filter)) {
+    $pay_where .= " AND (p.payment_status != 'Unpaid' OR p.proof_image IS NOT NULL)";
 }
 if($start_date){
     $pay_where .= " AND p.payment_date >= '" . mysqli_real_escape_string($conn, $start_date) . " 00:00:00'";
@@ -395,7 +398,6 @@ if(isset($_GET['pay_status']) || isset($_GET['start_date']) || isset($_GET['end_
 // Fetch User-Specific Pending Counts for Tabs
 $user_pending_res = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE user_id=$uid AND status IN ('Pending', 'Verifying') AND is_archived = 0"))['c'];
 $user_pending_pay = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL AND p.is_archived = 0"))['c'];
-$user_unpaid_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments p JOIN reservations r ON p.reservation_id = r.reservation_id WHERE r.user_id=$uid AND p.payment_status='Unpaid' AND p.proof_image IS NULL AND p.is_archived = 0"))['c'];
 
 // Fetch Pending Counts for Sidebar
 $pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
@@ -744,9 +746,6 @@ $theme = get_theme_colors($conn);
                                 <?php if($user_pending_pay > 0): ?>
                                     <span class="badge bg-danger rounded-pill ms-1" title="Proofs to Review"><?= $user_pending_pay ?></span>
                                 <?php endif; ?>
-                                <?php if($user_unpaid_count > 0): ?>
-                                    <span class="badge bg-warning text-dark rounded-pill ms-1" title="Unpaid Bills"><?= $user_unpaid_count ?></span>
-                                <?php endif; ?>
                             </button>
                         </li>
                         <li class="nav-item">
@@ -773,7 +772,7 @@ $theme = get_theme_colors($conn);
                                         <th>Room</th>
                                         <th>Dates</th>
                                         <th>Status</th>
-                                        <th>Total</th>
+                                        <th>Total Paid</th>
                                         <th class="text-end">Actions</th>
                                     </tr>
                                 </thead>
@@ -806,7 +805,7 @@ $theme = get_theme_colors($conn);
                                             ?>
                                             <span class="badge <?= $badge ?>"><?= $row['status'] ?></span>
                                         </td>
-                                        <td>₱<?= number_format($row['total_price'], 2) ?></td>
+                                        <td class="fw-bold text-success">₱<?= number_format($row['actual_paid'], 2) ?></td>
                                         <td class="text-end">
                                             <?php if($row['status'] == 'Pending' || $row['status'] == 'Verifying'): ?>
                                                 <?php
@@ -866,8 +865,9 @@ $theme = get_theme_colors($conn);
                         <input type="date" name="start_date" class="form-control form-control-sm" value="<?= $start_date ?>" title="Start Date">
                         <span class="text-muted">-</span>
                         <input type="date" name="end_date" class="form-control form-control-sm" value="<?= $end_date ?>" title="End Date">
-                        <select name="pay_status" class="form-select form-select-sm" style="width: 110px;">
-                            <option value="">All Status</option>
+                        <select name="pay_status" class="form-select form-select-sm" style="width: 120px;">
+                            <option value="">Submitted</option>
+                            <option value="All" <?= $pay_status_filter == 'All' ? 'selected' : '' ?>>All Bills</option>
                             <option value="Paid" <?= $pay_status_filter == 'Paid' ? 'selected' : '' ?>>Paid</option>
                             <option value="Unpaid" <?= $pay_status_filter == 'Unpaid' ? 'selected' : '' ?>>Unpaid</option>
                             <option value="Cancelled" <?= $pay_status_filter == 'Cancelled' ? 'selected' : '' ?>>Cancelled</option>
@@ -949,7 +949,7 @@ $theme = get_theme_colors($conn);
                                         <?php endif; ?>
                                     </span>
                                     <?php if($is_overdue): ?><br><small class="text-danger fw-bold">Overdue</small><?php endif; ?>
-                                    <?php if($pay['payment_status'] == 'Unpaid' && !empty($pay['proof_image'])): ?><br><small class="text-danger fw-bold mt-1 d-block" style="font-size:0.7rem;"><i class="fas fa-exclamation-circle me-1"></i>Review Proof</small><?php endif; ?>
+                                    <?php if($pay['payment_status'] == 'Unpaid' && !empty($pay['proof_image'])): ?><br><small class="text-danger fw-bold mt-1 d-block" style="font-size:0.7rem;"><i class="fas fa-exclamation-circle me-1"></i><?= $pay['proof_image'] === 'Cash' ? 'Review Payment' : 'Review Proof' ?></small><?php endif; ?>
                                 </td>
                                 <td>
                                     <a href="payment_details.php?id=<?= $pay['payment_id'] ?>" class="btn btn-sm btn-outline-primary position-relative">

@@ -98,7 +98,7 @@ if(isset($_POST['generate_bill'])){
             $res_id = $t['reservation_id'];
             $uid = $t['user_id'];
             $desc = "Utility Bill ($bill_date) - Split 1/$actual_count";
-            $pay_stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'Cash', 'Unpaid', NOW(), ?)");
+            $pay_stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'System', 'Unpaid', NOW(), ?)");
             mysqli_stmt_bind_param($pay_stmt, "ids", $res_id, $per_tenant, $desc);
             mysqli_stmt_execute($pay_stmt);
             

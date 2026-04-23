@@ -130,7 +130,7 @@ if(isset($_POST['update_request'])){
         if($res_row = mysqli_fetch_assoc($res_q)){
             $rid = $res_row['reservation_id'];
             $desc = "Maintenance Fee: " . $req_data['description'];
-            $stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'Cash', 'Unpaid', NOW(), ?)");
+            $stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'System', 'Unpaid', NOW(), ?)");
             mysqli_stmt_bind_param($stmt, "ids", $rid, $cost, $desc);
             mysqli_stmt_execute($stmt);
             send_notification($conn, $uid, "🧾 <strong>New Bill</strong><br>A maintenance fee of ₱".number_format($cost,2)." has been added to your account.", "Billing");
@@ -181,6 +181,9 @@ if(isset($_POST['auto_schedule_maintenance'])){
     header("Location: admin_maintenance.php");
     exit;
 }
+
+// Auto-cancel maintenance requests for archived or deleted tenants
+mysqli_query($conn, "UPDATE maintenance_requests m LEFT JOIN users u ON m.user_id = u.user_id SET m.status = 'Cancelled' WHERE m.status NOT IN ('Completed', 'Cancelled') AND m.user_id IS NOT NULL AND (u.user_id IS NULL OR u.is_archived = 1)");
 
 // Fetch All Requests
 $query = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name, r.room_number 

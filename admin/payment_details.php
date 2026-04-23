@@ -132,12 +132,24 @@ if(!empty($payment['user_id'])){
         @media print {
             @page { size: A4 portrait; margin: 0 !important; }
             body, html { height: auto !important; margin: 0 !important; padding: 15mm !important; background: #fff !important; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: #000 !important; }
             .no-print { display: none !important; }
             .dashboard-container, .main-wrapper, .main-content { display: block !important; padding: 0 !important; overflow: visible !important; height: auto !important; }
             .sidebar, .top-navbar { display: none !important; }
-            .card-custom { box-shadow: none; border: none; border-radius: 0; margin: 0 !important; max-width: 100%; }
+            .card-custom { box-shadow: none; border: 1px solid #ccc; border-radius: 0; margin: 0 !important; max-width: 100%; }
+            .card-header-custom { background: #f8f9fa !important; border-bottom: 2px solid #ccc !important; padding: 15px 20px !important; }
+            .card-header-custom::after { display: none !important; }
             .card-body { padding: 20px !important; }
+            
+            /* Enforce Grid layout for print */
+            .row { display: flex !important; flex-wrap: wrap !important; }
+            .col-md-4 { flex: 0 0 33.333333% !important; max-width: 33.333333% !important; }
+            .col-md-6 { flex: 0 0 50% !important; max-width: 50% !important; }
+            .col-md-12 { flex: 0 0 100% !important; max-width: 100% !important; }
+            
+            .info-label { color: #555 !important; }
+            .info-value, .info-value.amount { color: #000 !important; }
+            .status-badge { border: 2px solid #000 !important; background: transparent !important; color: #000 !important; }
         }
     </style>
 </head>
@@ -210,7 +222,7 @@ if(!empty($payment['user_id'])){
                         </div>
                     </div>
                     
-                    <?php if(!empty($payment['proof_image'])): ?>
+                    <?php if(!empty($payment['proof_image']) && $payment['proof_image'] !== 'Cash'): ?>
                     <h5 class="fw-bold text-secondary mb-4 border-bottom pb-2 mt-3 no-print">Payment Proof</h5>
                     <div class="text-center no-print">
                         <a href="../uploads/proofs/<?= htmlspecialchars($payment['proof_image']) ?>" target="_blank" title="Click to view full size">

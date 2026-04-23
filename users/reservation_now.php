@@ -93,6 +93,11 @@ $unread_res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM notifications WHE
 $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
 $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$user_id ORDER BY created_at DESC LIMIT 10");
 
+// Fetch House Rules
+$q_rules = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='house_rules'");
+$house_rules_file = ($row_rules = mysqli_fetch_assoc($q_rules)) ? $row_rules['setting_value'] : "";
+$house_rules_url = !empty($house_rules_file) ? "../uploads/settings/" . htmlspecialchars($house_rules_file) : "#";
+
 // Handle Extension (Pre-fill data)
 $pre_cin = date("Y-m-d");
 $pre_room = "";
@@ -121,7 +126,7 @@ if (isset($_POST['confirm_booking'])) {
         $cin = $_POST['cin'] ?? '';
         $cout = $_POST['cout'] ?? '';
         $bed_preference = $_POST['bed_preference'] ?? 'Any';
-        $payment_method = $_POST['payment_method'] ?? 'Cash';
+        $payment_method = 'System'; // Default internal placeholder, actual payment happens later
         $agree_rules = isset($_POST['agree_rules']);
         $agree_fees = isset($_POST['agree_fees']);
         $typed_signature = trim($_POST['typed_signature'] ?? '');
@@ -230,14 +235,6 @@ if (isset($_POST['confirm_booking'])) {
             if ($months == 0 && $interval->d > 0) $months = 1;
         }
 
-        // Handle GCash Payment Details & Upload
-        // Handle GCash via Dragonpay - No manual proof needed
-        if ($payment_method == 'GCash') {
-            // We set placeholder values because the actual payment happens on Dragonpay
-            $ref_number = 'PENDING_DRAGONPAY'; 
-            $proof_filename = null; 
-        }
-        
         $specific_room_id = isset($_POST['specific_room_id']) ? (int)$_POST['specific_room_id'] : 0;
         $auto_assigned = ($specific_room_id > 0) ? 0 : 1;
 
@@ -457,8 +454,8 @@ if (isset($_POST['confirm_booking'])) {
                 }
 
                 if ($exec_result) {
-                    // Insert first part (Paid or Unpaid depending on method)
-                    $p_status = ($payment_method == 'Cash') ? 'Unpaid' : 'Unpaid'; // Dragonpay will update this
+                    // All online payments start as Unpaid until verified by admin
+                    $p_status = 'Unpaid';
                     
                     // Split Security Deposit and Rent if applicable
                     if($security_deposit > 0) {
@@ -516,7 +513,7 @@ if (isset($_POST['confirm_booking'])) {
                             $rem_status = "Unpaid";
                             $rem_date = date('Y-m-d H:i:s', strtotime($cin . " + " . ($month_num - 1) . " months"));
                             
-                            $pay_stmt_rem = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'Cash', ?, ?, ?)");
+                            $pay_stmt_rem = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'System', ?, ?, ?)");
                             if ($pay_stmt_rem) {
                                 $pay_stmt_rem->bind_param("idsss", $reservation_id, $lt_price, $rem_status, $rem_date, $rem_desc);
                                 $pay_stmt_rem->execute();
@@ -535,45 +532,9 @@ if (isset($_POST['confirm_booking'])) {
                     log_activity($conn, $user_id, $log_action, "Room: $troom | Status: Pending");
                     trigger_update($conn); // Auto-refresh admin view
 
-                    // 2. Notify Admin (Simulated by sending to ID 1 or specific email)
-                    // send_notification($conn, 1, "New Reservation from User #$user_id for $troom", "Admin Alert");
-
-                    // 🚀 DRAGONPAY REDIRECT LOGIC
-                    if ($payment_method == 'GCash') {
-                        $merchant_id = 'YOUR_MERCHANT_ID'; // Replace with your Dragonpay Merchant ID
-                        $secret_key  = 'YOUR_SECRET_KEY';  // Replace with your Dragonpay Password
-                        
-                        // Transaction details
-                        $txn_id      = 'RES-' . $reservation_id; // e.g., RES-142
-                        $amount      = number_format((float)$totalAmount, 2, '.', ''); // Use the updated amount (Downpayment or Full)
-                        $ccy         = 'PHP';
-                        $description = 'Woke Coliving Reservation: ' . $troom;
-                        $email       = $user_email;
-
-                        // Create the signature
-                        $message = "$merchant_id:$txn_id:$amount:$ccy:$description:$email:$secret_key";
-                        $digest = sha1($message);
-
-                        // Build the URL (Using the test environment URL for now)
-                        $url = "https://test.dragonpay.ph/Pay.aspx?" . 
-                               "merchantid=$merchant_id" .
-                               "&txnid=$txn_id" .
-                               "&amount=$amount" .
-                               "&ccy=$ccy" .
-                               "&description=" . urlencode($description) .
-                               "&email=" . urlencode($email) .
-                               "&digest=$digest" .
-                               "&procid=GCSH";
-
-                        // Send them to Dragonpay
-                        header("Location: $url");
-                        exit;
-                    } else {
-                        // Standard redirect for Cash or PayPal
-                        $_SESSION['swal'] = ['title' => 'Success!', 'text' => 'Reservation successful!', 'icon' => 'success'];
-                        header("Location: my_reservations.php");
-                        exit;
-                    }
+                    $_SESSION['swal'] = ['title' => 'Success!', 'text' => 'Reservation successful! You can pay your bills in the My Reservations page.', 'icon' => 'success'];
+                    header("Location: my_reservations.php");
+                    exit;
                 } else {
                     $error = "Database Error: " . mysqli_error($conn);
                 }
@@ -911,38 +872,6 @@ if (isset($_POST['confirm_booking'])) {
                             </div>
                         </div>
 
-                        <!-- Payment Method -->
-                        <div class="mb-3">
-                            <label class="form-label">Payment Method</label>
-                            <?php $pm = $_POST['payment_method'] ?? 'Cash'; ?>
-                            <select name="payment_method" id="payment_method" class="form-select" required onchange="togglePaymentDetails()">
-                                <option value="Cash" <?= $pm == 'Cash' ? 'selected' : '' ?>>Cash (Pay at Property)</option>
-                                <option value="GCash" <?= $pm == 'GCash' ? 'selected' : '' ?>>GCash</option>
-                            </select>
-                        </div>
-
-                        <!-- GCash Details -->
-                        <div id="gcash_div" class="mb-3 p-3 border rounded bg-light" style="display:none;">
-                            <h6 class="fw-bold text-primary"><i class="fas fa-mobile-alt me-2"></i>Pay via GCash</h6>
-                            <div class="text-center mb-3">
-                                <p class="small text-muted mb-2">Scan the QR code below to pay:</p>
-                                <img src="../Images/gcash_qr.jpg" alt="GCash QR Code" class="img-fluid border rounded shadow-sm mb-2" style="max-height: 250px;">
-                                <p class="fw-bold text-dark mb-0">Account Name: WOKE COLIVING INC</p>
-                                <p class="fw-bold text-dark">Number: 0917 123 4567</p>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small">Amount to Pay</label>
-                                <input type="text" class="form-control fw-bold text-success" id="gcash_amount_display" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small">Reference Number*</label>
-                            <input type="text" name="ref_number" class="form-control" placeholder="Enter the 11-digit Reference No." pattern="\d{11}" maxlength="11" title="Please enter exactly 11 digits" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
-                            </div>
-                            <div class="mb-0">
-                                <label class="form-label small">Proof of Payment* (Screenshot)</label>
-                                <input type="file" name="proof_image" class="form-control" accept="image/*">
-                            </div>
-                        </div>
 
                         <!-- Agreement Section -->
                         <div class="mb-3 p-3 border rounded bg-light">
@@ -951,7 +880,7 @@ if (isset($_POST['confirm_booking'])) {
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" name="agree_rules" id="agree_rules" required>
                                 <label class="form-check-label small" for="agree_rules">
-                                    I agree to the house rules and regulations
+                                    <a href="#" <?= !empty($house_rules_file) ? 'data-bs-toggle="modal" data-bs-target="#rulesModal"' : 'onclick="alert(\'House rules file not uploaded yet.\'); return false;"' ?> class="text-success text-decoration-none fw-bold">I agree to the house rules and regulations</a>
                                 </label>
                             </div>
                             <div class="form-check mb-3">
@@ -978,6 +907,44 @@ if (isset($_POST['confirm_booking'])) {
             </div>
         </div>
     </form>
+</div>
+
+<!-- Rules Modal -->
+<div class="modal fade" id="rulesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content card-custom">
+            <div class="modal-header border-bottom">
+                <div class="d-flex align-items-center">
+                    <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" alt="Logo" style="width: 40px; height: 40px; object-fit: cover;" class="me-3 rounded-circle border border-2 border-warning">
+                    <h5 class="modal-title fw-bold text-success mb-0">House Rules & Regulations</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0" style="min-height: 400px; background-color: #f8f9fa;">
+                <?php if(!empty($house_rules_file)): ?>
+                    <?php 
+                        $ext = strtolower(pathinfo($house_rules_file, PATHINFO_EXTENSION)); 
+                        $file_path = "../uploads/settings/" . htmlspecialchars($house_rules_file);
+                    ?>
+                    <?php if(in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])): ?>
+                        <img src="<?= $file_path ?>" class="img-fluid w-100 h-auto" alt="House Rules">
+                    <?php elseif($ext == 'pdf'): ?>
+                        <iframe src="<?= $file_path ?>" width="100%" height="600px" style="border: none;"></iframe>
+                    <?php else: ?>
+                        <div class="p-5 mt-5">
+                            <i class="fas fa-file-word fa-4x text-primary mb-3"></i>
+                            <h5 class="text-dark fw-bold">Document Uploaded</h5>
+                            <p class="text-muted mb-4">This document type cannot be previewed directly. Please download it to read.</p>
+                            <a href="<?= $file_path ?>" class="btn btn-custom px-4 rounded-pill" download><i class="fas fa-download me-2"></i>Download to Read</a>
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
+            <div class="modal-footer border-top-0 bg-white">
+                <button type="button" class="btn btn-secondary-custom w-100 rounded-pill" data-bs-dismiss="modal">Close & Agree</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Notification Sound -->
@@ -1227,26 +1194,6 @@ function confirmReservation() {
         }
     }
 
-    function togglePaymentDetails() {
-        let method = document.getElementById('payment_method').value;
-        let gcashDiv = document.getElementById('gcash_div');
-        
-        // Inputs
-        let gcashRef = document.querySelector('input[name="ref_number"]');
-        let gcashProof = document.querySelector('input[name="proof_image"]');
-        
-        gcashDiv.style.display = 'none';
-        
-        if(gcashRef) gcashRef.required = false;
-        if(gcashProof) gcashProof.required = false;
-
-        if (method === 'GCash') {
-            gcashDiv.style.display = 'block';
-            if(gcashRef) gcashRef.required = true;
-            if(gcashProof) gcashProof.required = true;
-        }
-    }
-
     function updateDurationFromDates() {
         let cin = document.getElementById('cin').value;
         let cout = document.getElementById('cout').value;
@@ -1462,11 +1409,9 @@ function confirmReservation() {
 
                 let formattedTotal = total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 document.getElementById('totalAmount').innerText = formattedTotal;
-                document.getElementById('gcash_amount_display').value = '₱ ' + formattedTotal;
             }
         } else {
             document.getElementById('totalAmount').innerText = "0";
-            document.getElementById('gcash_amount_display').value = '₱ 0.00';
             document.getElementById('duration_display').innerText = "-";
             document.getElementById('utility_display').innerText = "-";
             if(!coutVal) document.getElementById('cout_display').innerText = "-";

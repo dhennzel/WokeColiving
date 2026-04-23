@@ -16,11 +16,27 @@ try {
     if($pk_q) $pk_cnt = mysqli_fetch_assoc($pk_q)['c'];
 } catch(Exception $e){}
 
+if ($current_page == 'admin_parking.php') {
+    $_SESSION['seen_pk_cnt'] = $pk_cnt;
+}
+$seen_pk = $_SESSION['seen_pk_cnt'] ?? 0;
+if ($pk_cnt <= $seen_pk) {
+    $pk_cnt = 0;
+}
+
 $fin_cnt = 0;
 try {
-    $fin_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM (SELECT u.user_id FROM users u JOIN reservations r ON u.user_id = r.user_id JOIN payments p ON r.reservation_id = p.reservation_id WHERE p.payment_status = 'Unpaid' AND u.is_archived = 0 GROUP BY u.user_id HAVING SUM(p.amount) > 5000) as sub");
+    $fin_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM (SELECT u.user_id FROM users u JOIN reservations r ON u.user_id = r.user_id JOIN payments p ON r.reservation_id = p.reservation_id WHERE p.payment_status = 'Unpaid' AND p.payment_date <= DATE_ADD(NOW(), INTERVAL 7 DAY) AND u.is_archived = 0 GROUP BY u.user_id HAVING SUM(p.amount) > 0) as sub");
     if($fin_q) $fin_cnt = mysqli_fetch_assoc($fin_q)['c'];
 } catch(Exception $e){}
+
+if ($current_page == 'balance_report.php') {
+    $_SESSION['seen_fin_cnt'] = $fin_cnt;
+}
+$seen_fin = $_SESSION['seen_fin_cnt'] ?? 0;
+if ($fin_cnt <= $seen_fin) {
+    $fin_cnt = 0;
+}
 
 $front_desk_total = $p_res + $d_cnt;
 $operations_total = $m_cnt + $h_cnt;
