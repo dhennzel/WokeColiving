@@ -621,7 +621,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 }
 
 .btn-danger {
-    background-color: #e53935 !important;
+    background-color: var(--danger-color) !important;
     color: #ffffff !important;
     border: none !important;
     border-radius: var(--radius-pill) !important;
@@ -630,7 +630,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     text-transform: none !important;
 }
 .btn-danger:hover {
-    background-color: #c62828 !important;
+    filter: brightness(85%);
     transform: translateY(-2px) !important;
     box-shadow: var(--shadow-md) !important;
     color: #ffffff !important;
@@ -675,8 +675,8 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 }
 
 .btn-outline-danger {
-    color: #d32f2f !important;
-    border: 2px solid #d32f2f !important;
+    color: var(--danger-color) !important;
+    border: 2px solid var(--danger-color) !important;
     background: transparent !important;
     box-shadow: none !important;
     transition: all var(--transition-speed) !important;
@@ -684,7 +684,7 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
     text-transform: none !important;
 }
 .btn-outline-danger:hover {
-    background-color: #d32f2f !important;
+    background-color: var(--danger-color) !important;
     color: #ffffff !important;
     transform: translateY(-2px) !important;
     box-shadow: var(--shadow-md) !important;
@@ -889,9 +889,15 @@ h1, h2, h3, h4, h5, h6, .brand-name, .modal-title {
 /* Ensure Bootstrap badges retain theme colors on statuses */
 .bg-success { background-color: var(--primary-green) !important; color: #ffffff !important; }
 .bg-warning { background-color: var(--accent-yellow) !important; color: #1A1D20 !important; }
-.bg-danger { background-color: #d32f2f !important; color: #ffffff !important; }
-.bg-info { background-color: #0288d1 !important; color: #ffffff !important; }
+.bg-danger { background-color: var(--danger-color) !important; color: #ffffff !important; }
+.bg-info { background-color: var(--info-color) !important; color: #ffffff !important; }
 .bg-secondary { background-color: #6c757d !important; color: #ffffff !important; }
+
+/* Ensure text colors sync with theme live */
+.text-success, .text-primary { color: var(--primary-green) !important; }
+.text-warning { color: var(--accent-yellow) !important; }
+.text-danger { color: var(--danger-color) !important; }
+.text-info { color: var(--info-color) !important; }
 
 /* Modal Overlay */
 .modal-overlay {

@@ -651,7 +651,10 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header bg-warning text-dark">
-                <h5 class="modal-title fw-bold"><i class="fas fa-palette me-2"></i>Theme Customization</h5>
+                <div>
+                    <h5 class="modal-title fw-bold mb-0"><i class="fas fa-palette me-2"></i>Theme Customization</h5>
+                    <h6 class="fst-italic mb-0 mt-1 opacity-75" style="font-size: 0.85rem;">(Under Maintenance)</h6>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
@@ -863,7 +866,9 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
         const dataUrl = canvas.toDataURL('image/png');
         if (currentCropTarget === 'logo') {
             document.getElementById('cropped_logo_data').value = dataUrl;
-            document.querySelector('img[src*="WokeLogo.jpg"]').src = dataUrl;
+            document.querySelectorAll('img[src*="WokeLogo.jpg"]').forEach(img => {
+                img.src = dataUrl;
+            });
         } else if (currentCropTarget === 'profile') {
             document.getElementById('cropped_profile_data').value = dataUrl;
             document.getElementById('admin_profile_preview').src = dataUrl;
