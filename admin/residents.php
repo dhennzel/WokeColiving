@@ -94,23 +94,24 @@ $theme = get_theme_colors($conn);
     <link rel="stylesheet" href="admin.css">
     <style>
         @media print {
-            @page { size: A4 portrait; margin: 0; }
-            body, html { background: #fff !important; margin: 0 !important; padding: 10mm !important; color: #000 !important; }
+            @page { size: A4 landscape; margin: 0; }
+            body, html { background: #fff !important; margin: 0 !important; padding: 15mm !important; color: #000 !important; font-family: 'Poppins', sans-serif !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .sidebar, .top-navbar, .navbar-restore-trigger, .no-print, form, .btn, .dropdown { display: none !important; }
             .dashboard-container, .main-wrapper, .main-content { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
             .page-header, .alert { display: none !important; }
-            .card { border: none !important; box-shadow: none !important; padding: 0 !important; }
+            .card { border: none !important; box-shadow: none !important; padding: 0 !important; background: transparent !important; }
             .table { border-collapse: collapse !important; width: 100% !important; }
-            .table th, .table td { border: 1px solid #ccc !important; padding: 10px !important; color: #000 !important; font-size: 11pt !important; vertical-align: middle !important; }
-            .table thead th { background-color: #f8f9fa !important; font-weight: bold !important; color: #000 !important; border-bottom: 2px solid #ccc !important; }
-            .badge { border: 1px solid #666 !important; color: #000 !important; background: transparent !important; padding: 3px 6px !important; }
+            .table th, .table td { border: 1px solid #dcdcdc !important; padding: 10px !important; color: #000 !important; font-size: 10pt !important; vertical-align: middle !important; background: transparent !important; }
+            .table thead th { background-color: #f8f9fa !important; font-weight: bold !important; color: #000 !important; border-bottom: 2px solid #000 !important; }
+            .badge { border: 1px solid #000 !important; color: #000 !important; background: transparent !important; padding: 4px 8px !important; font-size: 9pt !important;}
+            .text-success, .text-danger, .text-warning, .text-primary, .text-info { color: #000 !important; }
             tr, .card { page-break-inside: avoid !important; break-inside: avoid !important; }
             #cardsView { display: none !important; }
             #tableView { display: block !important; }
             .print-header { display: block !important; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #2e7d32; padding-bottom: 10px; }
-            .print-header h2 { margin: 0; color: #2e7d32 !important; font-weight: bold; font-size: 24px; }
-            .print-header p { margin: 0; color: #555 !important; font-size: 14px; }
+            .print-header h2 { margin: 0; color: #2e7d32 !important; font-weight: bold; font-size: 22pt; }
+            .print-header p { margin: 0; color: #555 !important; font-size: 12pt; }
         }
         .print-header { display: none; }
     </style>
@@ -158,6 +159,7 @@ $theme = get_theme_colors($conn);
             <!-- Table View -->
             <div class="card card-table p-4" id="tableView">
                 <div class="print-header text-center">
+                    <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" alt="Logo" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; margin-bottom: 10px; border: 2px solid #2e7d32;">
                     <h2>Woke Coliving INC</h2>
                     <p>Residents Directory</p>
                     <small>Generated on <?= date('F d, Y h:i A') ?></small>

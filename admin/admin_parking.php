@@ -112,6 +112,23 @@ if (isset($_POST['add_parking_reservation'])) {
     exit;
 }
 
+// Handle Edit Parking Reservation
+if (isset($_POST['edit_parking_reservation'])) {
+    $pr_id = (int)$_POST['pr_id'];
+    $vehicle_plate = mysqli_real_escape_string($conn, $_POST['vehicle_plate'] ?? '');
+    $vehicle_details = mysqli_real_escape_string($conn, $_POST['vehicle_details'] ?? '');
+    
+    mysqli_query($conn, "UPDATE parking_reservations SET vehicle_plate='$vehicle_plate', vehicle_details='$vehicle_details' WHERE id=$pr_id");
+    
+    $u_q = mysqli_query($conn, "SELECT user_id FROM parking_reservations WHERE id=$pr_id");
+    if($u_row = mysqli_fetch_assoc($u_q)){
+        log_activity($conn, $u_row['user_id'], "Parking Updated", "Vehicle info updated by $admin_username");
+    }
+    trigger_update($conn);
+    header("Location: admin_parking.php?msg=updated");
+    exit;
+}
+
 if (isset($_GET['action']) && $_GET['action'] == 'end') {
     $pr_id = (int)$_GET['id'];
     $res = mysqli_query($conn, "SELECT * FROM parking_reservations WHERE id=$pr_id");
@@ -130,7 +147,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'end') {
 // Fetch Data for Display
 $slots_q = mysqli_query($conn, "
     SELECT ps.*, CONCAT(u.first_name, ' ', u.last_name) as occupant_name 
-    , pr.start_date as res_start, pr.vehicle_plate
+    , pr.start_date as res_start, pr.vehicle_plate, pr.vehicle_details, pr.id as pr_id
     FROM parking_slots ps 
     LEFT JOIN parking_reservations pr ON ps.id = pr.slot_id AND pr.status = 'Active'
     LEFT JOIN users u ON pr.user_id = u.user_id 
@@ -222,6 +239,7 @@ $theme = get_theme_colors($conn);
                 elseif($_GET['msg'] == 'user_has_slot') { $msg_class = 'alert-danger'; $msg_text = 'Failed: This user already has an active parking reservation.'; }
                 elseif($_GET['msg'] == 'prices_updated') { $msg_text = 'Default parking rates updated successfully.'; }
                 elseif($_GET['msg'] == 'slot_occupied') { $msg_class = 'alert-danger'; $msg_text = 'Failed: This parking slot is already occupied.'; }
+            elseif($_GET['msg'] == 'updated') { $msg_text = 'Parking reservation updated successfully.'; }
             ?>
             <?php if($msg_text): ?><div class="alert <?= $msg_class ?>"><?= $msg_text ?></div><?php endif; ?>
             <?php endif; ?>
@@ -239,7 +257,7 @@ $theme = get_theme_colors($conn);
                         $status_class = $is_reserved ? ($is_actually_parked ? 'occupied' : 'reserved') : 'available';
                     ?>
                     <div class="col-xl-2 col-lg-3 col-md-4 col-6">
-                        <div class="slot-card <?= $status_class ?> h-100 d-flex flex-column justify-content-center" <?= !$is_reserved ? 'onclick="openReservationModal('.$slot['id'].')" style="cursor: pointer;" title="Click to assign tenant"' : '' ?>>
+                    <div class="slot-card <?= $status_class ?> h-100 d-flex flex-column justify-content-center" <?= !$is_reserved ? 'onclick="openReservationModal('.$slot['id'].')" style="cursor: pointer;" title="Click to assign tenant"' : 'onclick="openEditReservationModal('.$slot['pr_id'].', \''.htmlspecialchars(addslashes($slot['vehicle_plate'] ?? '')).'\', \''.htmlspecialchars(addslashes($slot['vehicle_details'] ?? '')).'\', \''.htmlspecialchars(addslashes($slot['occupant_name'] ?? '')).'\', \''.htmlspecialchars(addslashes($slot['slot_name'] ?? '')).'\')" style="cursor: pointer;" title="Click to edit vehicle info"' ?>>
                             <i class="fas fa-car status-icon <?= $is_reserved ? ($is_actually_parked ? 'text-danger' : 'text-warning') : 'text-success' ?>"></i>
                             <div class="fw-bold text-dark mb-1"><?= $slot['slot_name'] ?></div>
                             <?php if($is_reserved): ?>
@@ -270,7 +288,7 @@ $theme = get_theme_colors($conn);
                         $status_class = $is_reserved ? ($is_actually_parked ? 'occupied' : 'reserved') : 'available';
                     ?>
                     <div class="col-xl-2 col-lg-3 col-md-4 col-6">
-                        <div class="slot-card <?= $status_class ?> h-100 d-flex flex-column justify-content-center" <?= !$is_reserved ? 'onclick="openReservationModal('.$slot['id'].')" style="cursor: pointer;" title="Click to assign tenant"' : '' ?>>
+                    <div class="slot-card <?= $status_class ?> h-100 d-flex flex-column justify-content-center" <?= !$is_reserved ? 'onclick="openReservationModal('.$slot['id'].')" style="cursor: pointer;" title="Click to assign tenant"' : 'onclick="openEditReservationModal('.$slot['pr_id'].', \''.htmlspecialchars(addslashes($slot['vehicle_plate'] ?? '')).'\', \''.htmlspecialchars(addslashes($slot['vehicle_details'] ?? '')).'\', \''.htmlspecialchars(addslashes($slot['occupant_name'] ?? '')).'\', \''.htmlspecialchars(addslashes($slot['slot_name'] ?? '')).'\')" style="cursor: pointer;" title="Click to edit vehicle info"' ?>>
                             <i class="fas fa-motorcycle status-icon <?= $is_reserved ? ($is_actually_parked ? 'text-danger' : 'text-warning') : 'text-success' ?>"></i>
                             <div class="fw-bold text-dark mb-1"><?= $slot['slot_name'] ?></div>
                             <?php if($is_reserved): ?>
@@ -487,6 +505,37 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
+<!-- Edit Reservation Modal -->
+<div class="modal fade" id="editReservationModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>Edit Vehicle Info</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body bg-light p-4">
+                    <input type="hidden" name="pr_id" id="edit_pr_id">
+                    <p class="mb-3 text-muted">Updating vehicle information for <strong id="edit_tenant_name" class="text-dark"></strong> at <strong id="edit_slot_name" class="text-dark"></strong>.</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">VEHICLE PLATE NUMBER</label>
+                        <input type="text" name="vehicle_plate" id="edit_vehicle_plate" class="form-control" placeholder="e.g. ABC 1234">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">VEHICLE MAKE/MODEL</label>
+                        <input type="text" name="vehicle_details" id="edit_vehicle_details" class="form-control" placeholder="e.g. Toyota Vios Black">
+                    </div>
+                </div>
+                <div class="modal-footer bg-white border-top-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="edit_parking_reservation" class="btn btn-primary fw-bold rounded-pill px-4"><i class="fas fa-save me-2"></i>Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Price Settings Modal -->
 <div class="modal fade" id="priceSettingsModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -619,6 +668,16 @@ function openReservationModal(slotId) {
         selectSlot(card, slotId);
     }
     new bootstrap.Modal(document.getElementById('addReservationModal')).show();
+}
+
+function openEditReservationModal(prId, plate, details, tenantName, slotName) {
+    document.getElementById('edit_pr_id').value = prId;
+    document.getElementById('edit_vehicle_plate').value = plate;
+    document.getElementById('edit_vehicle_details').value = details;
+    document.getElementById('edit_tenant_name').innerText = tenantName;
+    document.getElementById('edit_slot_name').innerText = slotName;
+    
+    new bootstrap.Modal(document.getElementById('editReservationModal')).show();
 }
 
 function endParkingReservation(id, tenantName, slotName, slotType) {

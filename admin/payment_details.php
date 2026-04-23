@@ -132,13 +132,12 @@ if(!empty($payment['user_id'])){
         @media print {
             @page { size: A4 portrait; margin: 0 !important; }
             body, html { height: auto !important; margin: 0 !important; padding: 15mm !important; background: #fff !important; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: #000 !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .no-print { display: none !important; }
             .dashboard-container, .main-wrapper, .main-content { display: block !important; padding: 0 !important; overflow: visible !important; height: auto !important; }
             .sidebar, .top-navbar { display: none !important; }
             .card-custom { box-shadow: none; border: 1px solid #ccc; border-radius: 0; margin: 0 !important; max-width: 100%; }
-            .card-header-custom { background: #f8f9fa !important; border-bottom: 2px solid #ccc !important; padding: 15px 20px !important; }
-            .card-header-custom::after { display: none !important; }
+            .card-header-custom { padding: 15px 20px !important; }
             .card-body { padding: 20px !important; }
             
             /* Enforce Grid layout for print */
@@ -146,10 +145,6 @@ if(!empty($payment['user_id'])){
             .col-md-4 { flex: 0 0 33.333333% !important; max-width: 33.333333% !important; }
             .col-md-6 { flex: 0 0 50% !important; max-width: 50% !important; }
             .col-md-12 { flex: 0 0 100% !important; max-width: 100% !important; }
-            
-            .info-label { color: #555 !important; }
-            .info-value, .info-value.amount { color: #000 !important; }
-            .status-badge { border: 2px solid #000 !important; background: transparent !important; color: #000 !important; }
         }
     </style>
 </head>
