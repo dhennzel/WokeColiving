@@ -513,7 +513,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" enctype="multipart/form-data">
-                <div class="modal-body bg-light p-4">
+                <div class="modal-body bg-light p-4" style="max-height: 65vh; overflow-y: auto; overflow-x: hidden;">
                     <input type="hidden" name="cropped_profile_data" id="cropped_profile_data">
                     <div class="mb-4 bg-white p-3 rounded shadow-sm">
                         <label class="form-label fw-bold small text-muted">Personal Profile Picture</label>
@@ -588,7 +588,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" enctype="multipart/form-data">
-                <div class="modal-body bg-light p-4">
+                <div class="modal-body bg-light p-4" style="max-height: 65vh; overflow-y: auto; overflow-x: hidden;">
                     <input type="hidden" name="cropped_logo_data" id="cropped_logo_data">
                     
                     <!-- Logo -->
@@ -641,14 +641,14 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 
 <!-- Theme Modal -->
 <div class="modal fade" id="themeModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header bg-warning text-dark">
                 <h5 class="modal-title fw-bold"><i class="fas fa-palette me-2"></i>Theme Customization</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
-                <div class="modal-body bg-light p-4">
+                <div class="modal-body bg-light p-4" style="max-height: 65vh; overflow-y: auto; overflow-x: hidden;">
                     <div class="bg-white p-3 rounded shadow-sm mb-3">
                         <div class="row g-3">
                             <div class="col-4">
@@ -689,7 +689,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" enctype="multipart/form-data">
-                <div class="modal-body bg-light p-4">
+                <div class="modal-body bg-light p-4" style="max-height: 65vh; overflow-y: auto; overflow-x: hidden;">
                     <!-- House Rules -->
                     <div class="mb-4 bg-white p-3 rounded shadow-sm">
                         <label class="form-label fw-bold small text-muted">House Rules & Regulations File</label>
@@ -738,7 +738,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 
 <!-- Crop Modal -->
 <div class="modal fade" id="cropModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow">
             <div class="modal-header text-white" style="background-color: var(--primary-green);">
                 <h5 class="modal-title fw-bold"><i class="fas fa-crop me-2"></i>Crop Image</h5>
@@ -759,7 +759,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 
 <!-- Reset Confirmation Modal -->
 <div class="modal fade" id="resetThemeModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow">
             <div class="modal-header text-white" style="background-color: #dc3545;">
                 <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Reset</h5>
