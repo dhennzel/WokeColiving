@@ -20,6 +20,9 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 // Ensure site_settings table exists globally
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS site_settings (id INT AUTO_INCREMENT PRIMARY KEY, setting_key VARCHAR(50) UNIQUE NOT NULL, setting_value TEXT)");
 
+// Ensure Incomplete status exists in reservations ENUM
+mysqli_query($conn, "ALTER TABLE reservations MODIFY COLUMN status ENUM('Pending','Verifying','Approved','Cancelled','Completed','Incomplete') DEFAULT 'Pending'");
+
 // Auto-migrate new schema changes (Companions Feature)
 $mig_comp = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='migration_companions_v2'");
 if(mysqli_num_rows($mig_comp) == 0) {
@@ -215,7 +218,7 @@ function setup_reservations_table($conn) {
             end_date DATE NOT NULL,
             months INT NOT NULL,
             total_price DECIMAL(10,2) NOT NULL,
-            status ENUM('Pending','Verifying','Approved','Cancelled','Completed') DEFAULT 'Pending',
+            status ENUM('Pending','Verifying','Approved','Cancelled','Completed','Incomplete') DEFAULT 'Pending',
             bed_preference VARCHAR(50) DEFAULT 'Any',
             signature_image VARCHAR(255) DEFAULT NULL,
             signature_required TINYINT(1) DEFAULT 0,

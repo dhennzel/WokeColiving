@@ -1304,7 +1304,7 @@ function confirmReservation() {
                             <label class="form-label">Middle Name</label>
                             <input type="text" name="comp_mname[]" class="form-control" placeholder="Middle Name" oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Gender*</label>
                             <select name="comp_gender[]" class="form-select" required>
                                 <option value="" disabled selected>Select</option>
@@ -1312,11 +1312,15 @@ function confirmReservation() {
                                 <option value="Female">Female</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Contact Number*</label>
                             <input type="text" name="comp_phone[]" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\\d{9}$" maxlength="11" oninput="let v=this.value.replace(/[^0-9]/g,''); if(v.length>0&&v[0]!=='0')v='0'+v; if(v.length>1&&v[1]!=='9')v='09'+v.substring(2); this.value=v;" required>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" name="comp_email[]" class="form-control" placeholder="Optional">
+                        </div>
+                        <div class="col-md-12">
                             <label class="form-label">Valid ID (Image)*</label>
                             <input type="file" name="comp_id_image[]" class="form-control" accept="image/*" required>
                         </div>

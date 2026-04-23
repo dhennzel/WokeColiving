@@ -11,6 +11,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST'){
 }
 
 $tenant_id = (int)$_POST['tenant_id'];
+$res_id = isset($_POST['reservation_id']) ? (int)$_POST['reservation_id'] : 0;
 $room_info = htmlspecialchars($_POST['room_info']);
 $clearance_date = htmlspecialchars($_POST['clearance_date']);
 $deposit_amount = (float)$_POST['deposit_amount'];
@@ -18,9 +19,9 @@ $deduction_amount = (float)$_POST['deduction_amount'];
 $net_refund = (float)$_POST['net_refund'];
 $deduction_remarks = htmlspecialchars($_POST['deduction_remarks']);
 
-$q = mysqli_query($conn, "SELECT CONCAT(first_name, ' ', last_name) as full_name FROM users WHERE user_id=$tenant_id");
+$q = mysqli_query($conn, "SELECT u.first_name, u.last_name, u.email, u.phone_number, u.address, r.start_date, r.end_date FROM users u LEFT JOIN reservations r ON r.reservation_id = $res_id WHERE u.user_id=$tenant_id");
 $tenant = mysqli_fetch_assoc($q);
-$tenant_name = $tenant['full_name'] ?? 'Unknown Tenant';
+$tenant_name = trim(($tenant['first_name'] ?? '') . ' ' . ($tenant['last_name'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -64,11 +65,21 @@ $tenant_name = $tenant['full_name'] ?? 'Unknown Tenant';
         </div>
         
         <div class="content-section">
+            <h5 class="fw-bold mb-3 border-bottom pb-2">Tenant Information</h5>
             <div class="row mb-4">
-                <div class="col-6"><strong>Date:</strong> <?= date('F d, Y', strtotime($clearance_date)) ?></div>
-                <div class="col-6 text-end"><strong>Room:</strong> <?= $room_info ?></div>
+                <div class="col-6">
+                    <strong>Name:</strong> <?= strtoupper(htmlspecialchars($tenant_name ?: 'Unknown Tenant')) ?><br>
+                    <strong>Email:</strong> <?= htmlspecialchars($tenant['email'] ?? 'N/A') ?><br>
+                    <strong>Phone:</strong> <?= htmlspecialchars($tenant['phone_number'] ?? 'N/A') ?>
+                </div>
+                <div class="col-6 text-end">
+                    <strong>Room:</strong> <?= $room_info ?><br>
+                    <strong>Stay Period:</strong> <?= !empty($tenant['start_date']) ? date('M d, Y', strtotime($tenant['start_date'])) . ' to ' . date('M d, Y', strtotime($tenant['end_date'])) : 'N/A' ?><br>
+                    <strong>Clearance Date:</strong> <?= date('F d, Y', strtotime($clearance_date)) ?>
+                </div>
+                <div class="col-12 mt-2"><strong>Address:</strong> <?= htmlspecialchars($tenant['address'] ?? 'N/A') ?></div>
             </div>
-            <p>This is to certify that <strong><?= strtoupper($tenant_name) ?></strong> has successfully completed their stay and is hereby cleared of all property and room accountabilities as of the date stated above.</p>
+            <p>This is to certify that <strong><?= strtoupper(htmlspecialchars($tenant_name ?: 'Unknown Tenant')) ?></strong> has successfully completed their stay and is hereby cleared of all property and room accountabilities as of the date stated above.</p>
             <p>The security deposit will be refunded minus any deductions for property damages, lost items, or unpaid utility bills as detailed below.</p>
         </div>
 

@@ -18,7 +18,7 @@ if(isset($_GET['modal'])){
 }
 
 // Handle Archive Actions (Delete/Restore)
-if(isset($_POST['archive_action'])) {
+if(isset($_POST['archive_action']) && isset($_POST['id']) && isset($_POST['type'])) {
     $id = (int)$_POST['id'];
     $type = $_POST['type']; // 'maintenance' or 'housekeeping'
     $action = $_POST['archive_action']; // 'delete' or 'restore'
@@ -157,6 +157,62 @@ if(isset($_POST['archive_action'])) {
             trigger_update($conn);
             $message = ucfirst($type) . " record restored to Pending.";
         }
+    }
+}
+
+// Handle Restore Companion Action
+if(isset($_POST['archive_action']) && $_POST['archive_action'] == 'restore_companion') {
+    $c_name = mysqli_real_escape_string($conn, $_POST['comp_name']);
+    $c_email = mysqli_real_escape_string($conn, $_POST['comp_email']);
+    $c_phone = mysqli_real_escape_string($conn, $_POST['comp_phone']);
+    $c_gender = mysqli_real_escape_string($conn, $_POST['comp_gender']);
+    $primary = mysqli_real_escape_string($conn, $_POST['primary_tenant']);
+    $res_id = (int)$_POST['res_id'];
+    $comp_idx = (int)$_POST['comp_index'];
+    
+    $parts = explode(' ', trim($_POST['comp_name']));
+    $lname = mysqli_real_escape_string($conn, count($parts) > 1 ? array_pop($parts) : '');
+    $fname = mysqli_real_escape_string($conn, implode(' ', $parts));
+
+    if(empty($c_email)) $c_email = strtolower(preg_replace('/[^a-zA-Z]/', '', $fname)) . rand(100,999) . '@wokecoliving.com';
+
+    $chk = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$c_email' OR (first_name='$fname' AND last_name='$lname')");
+    if(mysqli_num_rows($chk) > 0) {
+        $existing_uid = mysqli_fetch_assoc($chk)['user_id'];
+        
+        // Mark as restored in JSON to avoid duplicate buttons
+        $res_q = mysqli_query($conn, "SELECT companions FROM reservations WHERE reservation_id=$res_id");
+        if($r_row = mysqli_fetch_assoc($res_q)){
+            $comps = json_decode($r_row['companions'], true);
+            if(isset($comps[$comp_idx])){
+                $comps[$comp_idx]['restored'] = true;
+                $comps[$comp_idx]['restored_user_id'] = $existing_uid;
+                $new_json = mysqli_real_escape_string($conn, json_encode($comps));
+                mysqli_query($conn, "UPDATE reservations SET companions='$new_json' WHERE reservation_id=$res_id");
+            }
+        }
+        $message = "Companion $c_name already exists in the system. Link established and restore button removed. <a href='view_user.php?uid=$existing_uid' class='alert-link fw-bold ms-2'>View Profile &rarr;</a>";
+        $active_modal = "modalUsers";
+    } else {
+        $pass = password_hash('Wokecoliving101', PASSWORD_DEFAULT);
+        mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone_number, gender, password, role, is_walkin) VALUES ('$fname', '$lname', '$c_email', '$c_phone', '$c_gender', '$pass', 'user', 0)");
+        $new_uid = mysqli_insert_id($conn);
+        log_activity($conn, $new_uid, "Restored from Companion", "User was previously a companion of $primary.");
+        
+        // Mark as restored in JSON
+        $res_q = mysqli_query($conn, "SELECT companions FROM reservations WHERE reservation_id=$res_id");
+        if($r_row = mysqli_fetch_assoc($res_q)){
+            $comps = json_decode($r_row['companions'], true);
+            if(isset($comps[$comp_idx])){
+                $comps[$comp_idx]['restored'] = true;
+                $comps[$comp_idx]['restored_user_id'] = $new_uid;
+                $new_json = mysqli_real_escape_string($conn, json_encode($comps));
+                mysqli_query($conn, "UPDATE reservations SET companions='$new_json' WHERE reservation_id=$res_id");
+            }
+        }
+        
+        $message = "Companion $c_name restored as a registered resident. <a href='view_user.php?uid=$new_uid' class='alert-link fw-bold ms-2'>View Profile &rarr;</a>";
+        $active_modal = "modalUsers";
     }
 }
 
@@ -790,7 +846,38 @@ $theme = get_theme_colors($conn);
                                                 <tbody>
                                                     <?php while($res = mysqli_fetch_assoc($res_q)): ?>
                                                     <tr>
-                                                        <td><?= htmlspecialchars($res['room_name']) ?></td>
+                                                        <td>
+                                                            <div class="fw-bold text-dark"><?= htmlspecialchars($res['room_name']) ?></div>
+                                                            <?php if(!empty($res['companions'])): 
+                                                                $comps = json_decode($res['companions'], true);
+                                                                if(is_array($comps) && count($comps) > 0):
+                                                            ?>
+                                                                <div class="mt-1 small text-muted border-top pt-1">
+                                                                    <strong><i class="fas fa-users me-1"></i> Companions:</strong><br>
+                                                                    <?php foreach($comps as $idx => $c): 
+                                                                        $c_name = trim(($c['first_name'] ?? '') . ' ' . ($c['last_name'] ?? ''));
+                                                                        if(empty($c_name)) $c_name = $c['name'] ?? 'Unknown';
+                                                                    ?>
+                                                                    <div class="ps-2 d-flex justify-content-between align-items-center mb-1">
+                                                                        <span>- <?= htmlspecialchars($c_name) ?> <?= !empty($c['restored']) ? '<span class="badge bg-secondary ms-1" style="font-size:0.6rem;">Restored</span>' : '' ?></span>
+                                                                        <?php if(empty($c['restored'])): ?>
+                                                                        <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Restore this companion as a registered resident?')">
+                                                                            <input type="hidden" name="archive_action" value="restore_companion">
+                                                                            <input type="hidden" name="res_id" value="<?= $res['reservation_id'] ?>">
+                                                                            <input type="hidden" name="comp_index" value="<?= $idx ?>">
+                                                                            <input type="hidden" name="comp_name" value="<?= htmlspecialchars($c_name) ?>">
+                                                                            <input type="hidden" name="comp_email" value="<?= htmlspecialchars($c['email'] ?? '') ?>">
+                                                                            <input type="hidden" name="comp_phone" value="<?= htmlspecialchars($c['phone'] ?? '') ?>">
+                                                                            <input type="hidden" name="comp_gender" value="<?= htmlspecialchars($c['gender'] ?? 'Any') ?>">
+                                                                            <input type="hidden" name="primary_tenant" value="<?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?>">
+                                                                            <button type="submit" class="btn btn-sm btn-outline-success py-0" style="font-size: 0.65rem;" title="Restore as Resident"><i class="fas fa-user-plus"></i> Restore as Resident</button>
+                                                                        </form>
+                                                                        <?php endif; ?>
+                                                                    </div>
+                                                                    <?php endforeach; ?>
+                                                                </div>
+                                                            <?php endif; endif; ?>
+                                                        </td>
                                                         <td><?= date('M d', strtotime($res['start_date'])) ?> - <?= date('M d', strtotime($res['end_date'])) ?></td>
                                                         <td>₱<?= number_format($res['total_price'], 2) ?></td>
                                                         <td><span class="badge bg-secondary"><?= $res['status'] ?></span></td>

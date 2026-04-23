@@ -649,7 +649,7 @@ function initLineChart() {
                                 if (filter === 'earnings') {
                                     label += new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(context.parsed.y);
                                 } else {
-                                    label += context.parsed.y;
+                                    label += context.parsed.y + ' bookings';
                                 }
                             }
                             return label;
@@ -806,10 +806,13 @@ function initPieChart() {
                             if (label) label += ': ';
                             if (context.parsed !== null) {
                                 let filter = document.getElementById('pieChartFilter').value;
+                                let total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                let percentage = total > 0 ? Math.round((context.parsed / total) * 100) : 0;
+                                
                                 if (filter === 'earnings') {
-                                    label += new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(context.parsed);
+                                    label += new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(context.parsed) + ` (${percentage}%)`;
                                 } else {
-                                    label += context.parsed + ' bookings';
+                                    label += context.parsed + ` bookings (${percentage}%)`;
                                 }
                             }
                             return label;

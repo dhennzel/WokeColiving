@@ -577,7 +577,11 @@ $theme = get_theme_colors($conn);
                                             <td class="text-end pe-4">
                                                 <div class="btn-group btn-group-sm shadow-sm">
                                                     <button onclick="renewContract(<?= $exp['reservation_id'] ?>, <?= (int)$exp['do_not_renew'] ?>)" class="btn btn-outline-success fw-semibold bg-white"><i class="fas fa-sync-alt me-1"></i> Renew</button>
-                                                    <a href="booking_management.php?action=terminate&id=<?= $exp['reservation_id'] ?>" class="btn btn-outline-danger fw-semibold bg-white" onclick="confirmAction(event, this.href, 'End this contract? This will mark it as Completed.')"><i class="fas fa-check me-1"></i> End</a>
+                                                    <button type="button" class="btn btn-outline-danger fw-semibold bg-white dropdown-toggle" data-bs-toggle="dropdown"><i class="fas fa-flag-checkered me-1"></i> End</button>
+                                                    <ul class="dropdown-menu shadow">
+                                                        <li><a class="dropdown-item fw-bold text-success" href="booking_management.php?action=complete&id=<?= $exp['reservation_id'] ?>&redirect=dashboard" onclick="confirmAction(event, this.href, 'Mark as Completed?')"><i class="fas fa-check-circle me-2"></i>Complete Contract</a></li>
+                                                        <li><a class="dropdown-item fw-bold text-danger" href="booking_management.php?action=incomplete&id=<?= $exp['reservation_id'] ?>&redirect=dashboard" onclick="confirmAction(event, this.href, 'End contract early (Incomplete)?')"><i class="fas fa-times-circle me-2"></i>End Early (Incomplete)</a></li>
+                                                    </ul>
                                                 </div>
                                             </td>
                                         </tr>

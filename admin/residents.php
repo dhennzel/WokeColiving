@@ -49,7 +49,7 @@ if($bill_filter == 'unpaid'){
 if($status_filter == 'active'){
     $where .= " AND EXISTS (SELECT 1 FROM reservations WHERE user_id = u.user_id AND status IN ('Approved', 'Pending', 'Verifying'))";
 } elseif($status_filter == 'completed'){
-    $where .= " AND EXISTS (SELECT 1 FROM reservations WHERE user_id = u.user_id AND status = 'Completed') AND NOT EXISTS (SELECT 1 FROM reservations WHERE user_id = u.user_id AND status IN ('Approved', 'Pending', 'Verifying'))";
+    $where .= " AND EXISTS (SELECT 1 FROM reservations WHERE user_id = u.user_id AND status IN ('Completed', 'Incomplete')) AND NOT EXISTS (SELECT 1 FROM reservations WHERE user_id = u.user_id AND status IN ('Approved', 'Pending', 'Verifying'))";
 }
 
 $query = mysqli_query($conn, "
@@ -59,7 +59,7 @@ $query = mysqli_query($conn, "
     (SELECT months FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_months,
     (SELECT DATEDIFF(end_date, start_date) FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_days,
     (SELECT COUNT(*) FROM reservations WHERE user_id = u.user_id AND status IN ('Approved', 'Pending', 'Verifying')) as active_count,
-    (SELECT COUNT(*) FROM reservations WHERE user_id = u.user_id AND status = 'Completed') as completed_count
+    (SELECT COUNT(*) FROM reservations WHERE user_id = u.user_id AND status IN ('Completed', 'Incomplete')) as completed_count
     FROM users u WHERE $where ORDER BY u.last_name ASC
 ");
 
@@ -248,7 +248,7 @@ $theme = get_theme_colors($conn);
                                 <td>
                                     <?php if(isset($row['is_companion']) && $row['is_companion'] == 1): ?><span class="badge bg-info text-dark">Companion</span>
                                     <?php elseif($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
-                                    <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-dark">Completed</span>
+                                    <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-dark">Completed / Incomplete</span>
                                     <?php else: 
                                         $m = $row['res_months'];
                                         $d = $row['res_days'];
@@ -302,7 +302,7 @@ $theme = get_theme_colors($conn);
                             <div class="mb-3 mt-auto">
                                 <?php if(isset($row['is_companion']) && $row['is_companion'] == 1): ?><span class="badge bg-info text-dark">Companion</span>
                                 <?php elseif($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
-                                <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-dark">Completed</span>
+                                <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-dark">Completed / Incomplete</span>
                                 <?php else: 
                                     $m = $row['res_months'];
                                     $d = $row['res_days'];

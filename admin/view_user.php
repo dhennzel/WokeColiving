@@ -192,7 +192,10 @@ if(isset($_POST['bulk_mark_paid']) && !empty($_POST['payment_ids'])){
 // Handle Refund/Forfeit Actions
 if(isset($_POST['process_refund'])){
     $pid = (int)$_POST['refund_pid'];
-    $amount = (float)$_POST['refund_amount'];
+    $orig_amount = (float)$_POST['refund_amount_original'];
+    $deduction = (float)$_POST['refund_deduction'];
+    $net_amount = (float)$_POST['refund_net_amount'];
+    $remarks = mysqli_real_escape_string($conn, trim($_POST['refund_remarks']));
     $method = mysqli_real_escape_string($conn, $_POST['refund_method']);
     $gcash_ref = isset($_POST['gcash_ref']) ? mysqli_real_escape_string($conn, $_POST['gcash_ref']) : null;
     
@@ -200,12 +203,13 @@ if(isset($_POST['process_refund'])){
     if($p_row = mysqli_fetch_assoc($p_q)){
         $res_id = $p_row['reservation_id'];
         
-        $refund_desc_suffix = " (Refunded via $method" . ($method == 'GCash' && $gcash_ref ? " - Ref#$gcash_ref" : "") . ")";
+        $deduct_str = $deduction > 0 ? " | Deductions: ₱" . number_format($deduction, 2) . " ($remarks)" : "";
+        $refund_desc_suffix = " (Refunded ₱".number_format($net_amount, 2)." via $method" . ($method == 'GCash' && $gcash_ref ? " - Ref#$gcash_ref" : "") . "$deduct_str)";
         mysqli_query($conn, "UPDATE payments SET description = CONCAT(description, '$refund_desc_suffix') WHERE payment_id=$pid");
 
         // For Cash or GCash, it's an external transaction. We just log it.
-        log_activity($conn, $uid, "Deposit Refunded", "Security Deposit of ₱".number_format($amount, 2)." refunded via $method.");
-        send_notification($conn, $uid, "💸 <strong>Deposit Refunded</strong><br>Your security deposit of ₱".number_format($amount, 2)." has been released via $method.", "Billing");
+        log_activity($conn, $uid, "Deposit Refunded", "Security Deposit processed. Net Refund: ₱".number_format($net_amount, 2)." via $method.");
+        send_notification($conn, $uid, "💸 <strong>Deposit Refunded</strong><br>Your security deposit has been processed. Net Refund: ₱".number_format($net_amount, 2)." via $method. $deduct_str", "Billing");
         echo "<script>window.location.href='view_user.php?uid=$uid&tab=sd&msg=refunded_external';</script>";
         exit;
     }
@@ -252,6 +256,63 @@ if (isset($_GET['archive_payment'])) {
     mysqli_query($conn, "UPDATE payments SET is_archived = 1 WHERE payment_id = $archive_pay_id");
     echo "<script>window.location.href='view_user.php?uid=$uid&msg=archived';</script>";
     exit;
+}
+
+// Handle Register Companion
+if(isset($_POST['register_companion'])){
+    $c_name = mysqli_real_escape_string($conn, $_POST['comp_name']);
+    $c_email = mysqli_real_escape_string($conn, $_POST['comp_email']);
+    $c_phone = mysqli_real_escape_string($conn, $_POST['comp_phone']);
+    $c_gender = mysqli_real_escape_string($conn, $_POST['comp_gender']);
+    $primary = mysqli_real_escape_string($conn, $_POST['primary_tenant']);
+    $res_id = (int)$_POST['res_id'];
+    $comp_idx = (int)$_POST['comp_index'];
+    
+    $parts = explode(' ', trim($_POST['comp_name']));
+    $lname = mysqli_real_escape_string($conn, count($parts) > 1 ? array_pop($parts) : '');
+    $fname = mysqli_real_escape_string($conn, implode(' ', $parts));
+
+    if(empty($c_email)) $c_email = strtolower(preg_replace('/[^a-zA-Z]/', '', $fname)) . rand(100,999) . '@wokecoliving.com';
+
+    $chk = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$c_email' OR (first_name='$fname' AND last_name='$lname')");
+    if(mysqli_num_rows($chk) > 0) {
+        $existing_uid = mysqli_fetch_assoc($chk)['user_id'];
+        
+        // Mark as restored in JSON to avoid duplicate buttons
+        $res_q = mysqli_query($conn, "SELECT companions FROM reservations WHERE reservation_id=$res_id");
+        if($r_row = mysqli_fetch_assoc($res_q)){
+            $comps = json_decode($r_row['companions'], true);
+            if(isset($comps[$comp_idx])){
+                $comps[$comp_idx]['restored'] = true;
+                $comps[$comp_idx]['restored_user_id'] = $existing_uid;
+                $new_json = mysqli_real_escape_string($conn, json_encode($comps));
+                mysqli_query($conn, "UPDATE reservations SET companions='$new_json' WHERE reservation_id=$res_id");
+            }
+        }
+        
+        echo "<script>window.location.href='view_user.php?uid=$existing_uid&msg=companion_linked';</script>";
+        exit;
+    } else {
+        $pass = password_hash('Wokecoliving101', PASSWORD_DEFAULT);
+        mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone_number, gender, password, role, is_walkin) VALUES ('$fname', '$lname', '$c_email', '$c_phone', '$c_gender', '$pass', 'user', 0)");
+        $new_uid = mysqli_insert_id($conn);
+        log_activity($conn, $new_uid, "Restored from Companion", "User was previously a companion of $primary.");
+        
+        // Mark as restored in JSON
+        $res_q = mysqli_query($conn, "SELECT companions FROM reservations WHERE reservation_id=$res_id");
+        if($r_row = mysqli_fetch_assoc($res_q)){
+            $comps = json_decode($r_row['companions'], true);
+            if(isset($comps[$comp_idx])){
+                $comps[$comp_idx]['restored'] = true;
+                $comps[$comp_idx]['restored_user_id'] = $new_uid;
+                $new_json = mysqli_real_escape_string($conn, json_encode($comps));
+                mysqli_query($conn, "UPDATE reservations SET companions='$new_json' WHERE reservation_id=$res_id");
+            }
+        }
+        
+        echo "<script>window.location.href='view_user.php?uid=$new_uid&msg=companion_registered';</script>";
+        exit;
+    }
 }
 
 // Fetch User Details
@@ -334,7 +395,7 @@ $pay_query = mysqli_query($conn, "
 ");
 
 // Fetch Security Deposit Records Specifically
-$sd_filter = isset($_GET['sd_filter']) ? $_GET['sd_filter'] : 'Active';
+$sd_filter = isset($_GET['sd_filter']) ? $_GET['sd_filter'] : 'All';
 $sd_where = "r.user_id=$uid AND p.is_archived = 0 AND (p.description LIKE '%Security Deposit%' OR p.description LIKE '%Downpayment%' OR p.description LIKE '%Initial%')";
 if($sd_filter == 'Active'){
     $sd_where .= " AND r.status IN ('Pending', 'Verifying', 'Approved')";
@@ -362,6 +423,14 @@ mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )");
 $logs_query = mysqli_query($conn, "SELECT * FROM activity_logs WHERE user_id=$uid ORDER BY created_at DESC");
+
+// Check if user was restored from companion
+$was_companion = false;
+$comp_log_q = mysqli_query($conn, "SELECT * FROM activity_logs WHERE user_id=$uid AND action IN ('Registered from Companion', 'Restored from Companion') LIMIT 1");
+if(mysqli_num_rows($comp_log_q) > 0) {
+    $was_companion = true;
+    $comp_log = mysqli_fetch_assoc($comp_log_q);
+}
 
 // Fetch Expiring Contracts for this User (Approved and ending within 7 days or already ended)
 $expiring_query = mysqli_query($conn, "
@@ -514,6 +583,12 @@ $theme = get_theme_colors($conn);
                             <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i> Missing School ID</span>
                         </div>
                     <?php endif; ?>
+                    <?php if($was_companion): ?>
+                        <div class="mt-2">
+                            <span class="badge bg-info text-dark border"><i class="fas fa-history me-1"></i> Former Companion</span>
+                            <span class="small text-muted ms-1 fst-italic"><?= htmlspecialchars($comp_log['details'] ?? '') ?></span>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
                     <button onclick="location.reload()" class="btn btn-outline-secondary rounded-pill btn-sm"><i class="fas fa-sync-alt me-1"></i> Refresh</button>
@@ -555,6 +630,9 @@ $theme = get_theme_colors($conn);
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'bulk_paid'): ?>
                 <div class="alert alert-success">Selected payments marked as paid successfully.</div>
             <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'companion_linked'): ?>
+                <div class="alert alert-info">Companion was already registered. Account linked successfully.</div>
+            <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'user_updated'): ?>
                 <div class="alert alert-success">User information updated successfully.</div>
             <?php endif; ?>
@@ -569,6 +647,9 @@ $theme = get_theme_colors($conn);
             <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'archived'): ?>
                 <div class="alert alert-success">Item archived successfully.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'companion_registered'): ?>
+                <div class="alert alert-success">Companion registered as an independent resident successfully.</div>
             <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'update_approved'): ?>
                 <div class="alert alert-success">User profile update approved successfully.</div>
@@ -723,7 +804,13 @@ $theme = get_theme_colors($conn);
                                     <td class="<?= $text_class ?>"><?= $status_text ?></td>
                                     <td class="text-end">
                                         <button onclick="renewContract(<?= $exp['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt me-1"></i> Renew</button>
-                                        <a href="booking_management.php?action=terminate&id=<?= $exp['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract? This will mark it as Completed.')"><i class="fas fa-file-contract me-1"></i> End Contract</a>
+                                        <div class="dropdown d-inline">
+                                            <button class="btn btn-sm btn-outline-danger dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-flag-checkered me-1"></i> End</button>
+                                            <ul class="dropdown-menu shadow">
+                                                <li><a class="dropdown-item fw-bold text-success" href="booking_management.php?action=complete&id=<?= $exp['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" onclick="confirmAction(event, this.href, 'Mark as Completed?')"><i class="fas fa-check-circle me-2"></i>Complete Contract</a></li>
+                                                <li><a class="dropdown-item fw-bold text-danger" href="booking_management.php?action=incomplete&id=<?= $exp['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" onclick="confirmAction(event, this.href, 'End contract early (Incomplete)?')"><i class="fas fa-times-circle me-2"></i>End Early (Incomplete)</a></li>
+                                            </ul>
+                                        </div>
                                     </td>
                                 </tr>
                                 <?php endwhile; ?>
@@ -796,6 +883,35 @@ $theme = get_theme_colors($conn);
                                             <?php if(!empty($row['extended_from'])): ?>
                                                 <div class="badge bg-info text-dark mt-1"><i class="fas fa-history me-1"></i> Extension Request</div>
                                             <?php endif; ?>
+                                            <?php if(!empty($row['companions'])): 
+                                                $comps = json_decode($row['companions'], true);
+                                                if(is_array($comps) && count($comps) > 0):
+                                            ?>
+                                                <div class="mt-2 small text-muted border-top pt-1">
+                                                    <strong><i class="fas fa-users me-1"></i> Companions:</strong><br>
+                                                    <?php foreach($comps as $idx => $c): 
+                                                        $c_name = trim(($c['first_name'] ?? '') . ' ' . ($c['last_name'] ?? ''));
+                                                        if(empty($c_name)) $c_name = $c['name'] ?? 'Unknown';
+                                                    ?>
+                                                    <div class="ps-2 d-flex justify-content-between align-items-center mb-1">
+                                                        <span>- <?= htmlspecialchars($c_name) ?> <?= !empty($c['restored']) ? '<span class="badge bg-secondary ms-1" style="font-size:0.6rem;">Registered</span>' : '' ?></span>
+                                                        <?php if(empty($c['restored'])): ?>
+                                                        <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Register this companion as an independent resident?')">
+                                                            <input type="hidden" name="register_companion" value="1">
+                                                            <input type="hidden" name="res_id" value="<?= $row['reservation_id'] ?>">
+                                                            <input type="hidden" name="comp_index" value="<?= $idx ?>">
+                                                            <input type="hidden" name="comp_name" value="<?= htmlspecialchars($c_name) ?>">
+                                                            <input type="hidden" name="comp_email" value="<?= htmlspecialchars($c['email'] ?? '') ?>">
+                                                            <input type="hidden" name="comp_phone" value="<?= htmlspecialchars($c['phone'] ?? '') ?>">
+                                                            <input type="hidden" name="comp_gender" value="<?= htmlspecialchars($c['gender'] ?? 'Any') ?>">
+                                                            <input type="hidden" name="primary_tenant" value="<?= htmlspecialchars($user['full_name']) ?>">
+                                                            <button type="submit" class="btn btn-sm btn-outline-success py-0" style="font-size: 0.65rem;" title="Register as Resident"><i class="fas fa-user-plus"></i> Register</button>
+                                                        </form>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php endif; endif; ?>
                                         </td>
                                         <td>
                                             <small>In: <?= $row['start_date'] ?></small><br>
@@ -808,6 +924,8 @@ $theme = get_theme_colors($conn);
                                                 if($row['status'] == 'Pending') $badge = 'bg-warning text-dark';
                                                 if($row['status'] == 'Verifying') $badge = 'bg-info text-dark';
                                                 if($row['status'] == 'Cancelled') $badge = 'bg-danger';
+                                                if($row['status'] == 'Completed') $badge = 'bg-primary';
+                                                if($row['status'] == 'Incomplete') $badge = 'bg-dark text-white';
                                             ?>
                                             <span class="badge <?= $badge ?>"><?= $row['status'] ?></span>
                                         </td>
@@ -846,9 +964,15 @@ $theme = get_theme_colors($conn);
                                                     </form>
                                                 <?php endif; ?>
                                                 <button onclick="renewContract(<?= $row['reservation_id'] ?>, <?= $user['do_not_renew'] ?>)" class="btn btn-sm btn-success me-1"><i class="fas fa-sync-alt"></i></button>
-                                                <a href="booking_management.php?action=terminate&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, this.href, 'End this contract?')"><i class="fas fa-ban"></i></a>
+                                                <div class="dropdown d-inline">
+                                                    <button class="btn btn-sm btn-outline-danger dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="End Contract"><i class="fas fa-flag-checkered"></i></button>
+                                                    <ul class="dropdown-menu shadow">
+                                                        <li><a class="dropdown-item fw-bold text-success" href="booking_management.php?action=complete&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" onclick="confirmAction(event, this.href, 'Mark as Completed?')"><i class="fas fa-check-circle me-2"></i>Complete</a></li>
+                                                        <li><a class="dropdown-item fw-bold text-danger" href="booking_management.php?action=incomplete&id=<?= $row['reservation_id'] ?>&redirect=view_user&uid=<?= $uid ?>" onclick="confirmAction(event, this.href, 'End early (Incomplete)?')"><i class="fas fa-times-circle me-2"></i>Incomplete</a></li>
+                                                    </ul>
+                                                </div>
                                             <?php endif; ?>
-                                        <?php if(in_array($row['status'], ['Completed', 'Approved', 'Cancelled'])): ?>
+                                        <?php if(in_array($row['status'], ['Completed', 'Incomplete', 'Approved', 'Cancelled'])): ?>
                                             <a href="view_user.php?uid=<?= $uid ?>&archive_reservation=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-secondary ms-1" title="Archive Reservation" onclick="confirmAction(event, this.href, 'Archive this reservation?')"><i class="fas fa-archive"></i></a>
                                         <?php endif; ?>
                                         </td>
@@ -1070,11 +1194,11 @@ $theme = get_theme_colors($conn);
                                                 <a href="payment_details.php?id=<?= $sd['payment_id'] ?>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
                                                 <?php if($sd['payment_status'] == 'Paid' && strpos($sd['description'], 'Refunded') === false && strpos($sd['description'], 'Forfeited') === false): ?>
                                                     <?php if(($sd['months'] < 6) || ($sd['res_status'] == 'Completed')): ?>
-                                                        <button type="button" class="btn btn-sm btn-success" title="Release Refund" onclick="openRefundModal(<?= $sd['payment_id'] ?>, <?= $sd['amount'] ?>)"><i class="fas fa-hand-holding-usd"></i></button>
+                                                        <button type="button" class="btn btn-sm btn-success" title="Release Refund" onclick="openRefundModal(<?= $sd['payment_id'] ?>, <?= $sd['amount'] ?>, <?= $total_balance ?>)"><i class="fas fa-hand-holding-usd"></i></button>
                                                         <?php if($sd['res_status'] == 'Completed'): ?>
-                                                            <button type="button" class="btn btn-sm btn-info text-white ms-1" title="Generate Clearance" onclick="openClearanceModal(<?= $uid ?>, '<?= htmlspecialchars(addslashes(!empty($sd['room_number']) ? 'Room ' . $sd['room_number'] : $sd['room_name'])) ?>', <?= $sd['amount'] ?>, <?= $total_balance ?>)"><i class="fas fa-file-signature"></i></button>
+                                                            <button type="button" class="btn btn-sm btn-info text-white ms-1" title="Generate Clearance" onclick="openClearanceModal(<?= $uid ?>, <?= $sd['reservation_id'] ?>, '<?= htmlspecialchars(addslashes(!empty($sd['room_number']) ? 'Room ' . $sd['room_number'] : $sd['room_name'])) ?>', <?= $sd['amount'] ?>, <?= $total_balance ?>)"><i class="fas fa-file-signature"></i></button>
                                                         <?php endif; ?>
-                                                    <?php elseif($sd['res_status'] == 'Cancelled'): ?>
+                                                    <?php elseif($sd['res_status'] == 'Cancelled' || $sd['res_status'] == 'Incomplete'): ?>
                                                         <a href="?uid=<?= $uid ?>&action=forfeit_deposit&pid=<?= $sd['payment_id'] ?>" class="btn btn-sm btn-danger" title="Forfeit Deposit" onclick="confirmAction(event, this.href, 'Mark this deposit as Forfeited due to early termination?')"><i class="fas fa-gavel"></i></a>
                                                     <?php endif; ?>
                                                 <?php endif; ?>
@@ -1157,6 +1281,7 @@ $theme = get_theme_colors($conn);
                 </div>
                 <div class="modal-body p-4">
                     <input type="hidden" name="tenant_id" id="clear_tenant_id">
+                    <input type="hidden" name="reservation_id" id="clear_res_id">
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Room</label>
                         <input type="text" name="room_info" id="clear_room" class="form-control bg-light" readonly>
@@ -1207,10 +1332,29 @@ $theme = get_theme_colors($conn);
                 </div>
                 <div class="modal-body">
                     <input type="hidden" name="refund_pid" id="refund_pid">
-                    <input type="hidden" name="refund_amount" id="refund_amount">
-                    <p>How do you want to release the refund of <strong id="refundAmountDisplay"></strong>?</p>
+                    <input type="hidden" name="refund_amount_original" id="refund_amount_original">
+                    
+                    <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
+                        <span class="fw-bold">Original Deposit:</span>
+                        <strong id="refundAmountDisplay" class="text-success fs-5"></strong>
+                    </div>
+                    
                     <div class="mb-3">
-                        <label class="form-label">Refund Method</label>
+                        <label class="form-label text-danger fw-bold">Deductions (₱)</label>
+                        <input type="number" step="0.01" name="refund_deduction" id="refund_deduction" class="form-control border-danger" required oninput="calcRefundNet()">
+                        <small class="text-muted" style="font-size:0.75rem;">Auto-filled from unpaid bills/damages.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Deduction Remarks</label>
+                        <input type="text" name="refund_remarks" id="refund_remarks" class="form-control" placeholder="e.g. Damages, Unpaid rent">
+                    </div>
+                    <div class="mb-4 p-3 bg-light rounded">
+                        <label class="form-label text-success fw-bold mb-1">Net Refundable Amount (₱)</label>
+                        <input type="number" step="0.01" name="refund_net_amount" id="refund_net_amount" class="form-control fw-bold text-success fs-5 bg-white" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Refund Method</label>
                         <select name="refund_method" id="refund_method" class="form-select" onchange="toggleGcashDetails()">
                             <option value="Cash">Cash</option>
                             <option value="GCash">GCash</option>
@@ -1457,13 +1601,14 @@ function confirmForm(e, msg) {
     });
 }
 
-function openClearanceModal(tenantId, roomInfo, depositAmount, unpaidBalance) {
+function openClearanceModal(tenantId, resId, roomInfo, depositAmount, unpaidBalance) {
     document.getElementById('clear_tenant_id').value = tenantId;
+    document.getElementById('clear_res_id').value = resId;
     document.getElementById('clear_room').value = roomInfo;
     document.getElementById('clear_deposit').value = depositAmount;
     
     document.getElementById('clear_deduction').value = unpaidBalance.toFixed(2);
-    document.getElementById('clear_remarks').value = unpaidBalance > 0 ? "Unpaid system balance (₱" + unpaidBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) + ")" : "";
+    document.getElementById('clear_remarks').value = unpaidBalance > 0 ? "Unpaid system balance (₱" + unpaidBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) + ")" : "No damages or unpaid bills.";
     
     calcClearanceRefund();
     new bootstrap.Modal(document.getElementById('clearanceModal')).show();
@@ -1658,11 +1803,20 @@ function showProfilePicture(imageUrl, name, email, phone) {
     myModal.show();
 }
 
-function openRefundModal(pid, amount) {
+function openRefundModal(pid, amount, unpaidBalance = 0) {
     document.getElementById('refund_pid').value = pid;
-    document.getElementById('refund_amount').value = amount;
+    document.getElementById('refund_amount_original').value = amount;
     document.getElementById('refundAmountDisplay').innerText = '₱' + parseFloat(amount).toLocaleString('en-US', {minimumFractionDigits: 2});
+    document.getElementById('refund_deduction').value = unpaidBalance.toFixed(2);
+    document.getElementById('refund_remarks').value = unpaidBalance > 0 ? "Unpaid system balance (₱" + unpaidBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) + ")" : "";
+    
+    calcRefundNet();
     new bootstrap.Modal(document.getElementById('refundModal')).show();
+}
+function calcRefundNet() {
+    let dep = parseFloat(document.getElementById('refund_amount_original').value) || 0;
+    let ded = parseFloat(document.getElementById('refund_deduction').value) || 0;
+    document.getElementById('refund_net_amount').value = (dep - ded).toFixed(2);
 }
 function toggleGcashDetails() {
     document.getElementById('gcash_refund_details').style.display = 

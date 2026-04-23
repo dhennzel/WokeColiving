@@ -55,7 +55,7 @@ mysqli_query($conn, "ALTER TABLE payments ADD COLUMN IF NOT EXISTS is_penalized 
 mysqli_query($conn, "ALTER TABLE payments ADD COLUMN IF NOT EXISTS reference_number VARCHAR(100) DEFAULT NULL");
 mysqli_query($conn, "ALTER TABLE payments ADD COLUMN IF NOT EXISTS proof_image VARCHAR(255) DEFAULT NULL");
 mysqli_query($conn, "ALTER TABLE payments ADD COLUMN IF NOT EXISTS description VARCHAR(255) DEFAULT 'Room Payment'");
-mysqli_query($conn, "ALTER TABLE reservations MODIFY COLUMN status ENUM('Pending', 'Verifying', 'Approved', 'Cancelled', 'Completed') DEFAULT 'Pending'");
+mysqli_query($conn, "ALTER TABLE reservations MODIFY COLUMN status ENUM('Pending', 'Verifying', 'Approved', 'Cancelled', 'Completed', 'Incomplete') DEFAULT 'Pending'");
 // Optional Logs
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS activity_logs (log_id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, action VARCHAR(100) NOT NULL, details TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, performed_by VARCHAR(100) DEFAULT 'System', role VARCHAR(50) DEFAULT 'System')");
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS notifications (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, message TEXT NOT NULL, type VARCHAR(50) DEFAULT 'System', is_read TINYINT(1) DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");

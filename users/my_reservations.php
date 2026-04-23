@@ -335,6 +335,8 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                                 if($row['status'] == 'Approved') { $statusClass = 'bg-success text-white'; $icon = 'fa-check-circle'; }
                                 if($row['status'] == 'Verifying') { $statusClass = 'bg-info text-dark'; $icon = 'fa-search'; }
                                 if($row['status'] == 'Cancelled') { $statusClass = 'bg-danger text-white'; $icon = 'fa-times-circle'; }
+                                if($row['status'] == 'Completed') { $statusClass = 'bg-primary text-white'; $icon = 'fa-check-double'; }
+                                if($row['status'] == 'Incomplete') { $statusClass = 'bg-dark text-white'; $icon = 'fa-exclamation-circle'; }
                             ?>
                             <span class="badge <?= $statusClass ?> rounded-pill px-3 py-2">
                                 <i class="fas <?= $icon ?> me-1"></i> <?= $row['status'] ?>
@@ -380,7 +382,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                             
                             <?php // Show Remove button for Cancelled, Completed, or Past End Date
                                 $is_past = (strtotime($end_date) < time());
-                                if($row['status'] == 'Cancelled' || $row['status'] == 'Completed' || ($row['status'] == 'Approved' && $is_past)) { ?>
+                                if($row['status'] == 'Cancelled' || $row['status'] == 'Completed' || $row['status'] == 'Incomplete' || ($row['status'] == 'Approved' && $is_past)) { ?>
                                 <a href="my_reservations.php?archive_id=<?= $row['reservation_id'] ?>" class="btn btn-sm btn-outline-danger ms-1" onclick="confirmArchive(event, this.href)">
                                     <i class="fas fa-archive"></i> Remove
                                 </a>

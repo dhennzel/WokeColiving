@@ -23,30 +23,44 @@ $db_name = "woke_coliving";
 $mysqldump_path = "C:\\xampp\\mysql\\bin\\mysqldump";
 
 $backup_dir = "../backups/";
+$archive_dir = "../backups/archive/";
 if (!file_exists($backup_dir)) {
     mkdir($backup_dir, 0777, true);
+}
+if (!file_exists($archive_dir)) {
+    mkdir($archive_dir, 0777, true);
+}
+
+// Auto archive files older than 30 days
+$files = scandir($backup_dir);
+foreach($files as $f){
+    if($f != '.' && $f != '..' && !is_dir($backup_dir . $f)){
+        if(filemtime($backup_dir . $f) < strtotime('-30 days')){
+            rename($backup_dir . $f, $archive_dir . $f);
+        }
+    }
 }
 
 $message = "";
 $error = "";
 
-// Handle Actions
-if(isset($_GET['action'])) {
-    if($_GET['action'] == 'backup_db') {
+// Handle Password Protected DB Backup
+if(isset($_POST['action']) && $_POST['action'] == 'backup_db') {
+    $admin_user = $_SESSION['admin_username'];
+    $admin_pass = $_POST['admin_password'] ?? '';
+    
+    $q = mysqli_query($conn, "SELECT password FROM admin WHERE username='$admin_user'");
+    $row = mysqli_fetch_assoc($q);
+    
+    if (!$row || $row['password'] !== $admin_pass) {
+        $error = "Incorrect password. Database backup failed.";
+    } else {
         $date = date("Y-m-d_H-i-s");
         $filename = "db_backup_$date.sql";
         $filepath = $backup_dir . $filename;
 
         $password_param = !empty($db_pass) ? "-p" . escapeshellarg($db_pass) : "";
-        $command = sprintf(
-            '"%s" -h %s -u %s %s %s > "%s"',
-            $mysqldump_path,
-            escapeshellarg($db_host),
-            escapeshellarg($db_user),
-            $password_param,
-            escapeshellarg($db_name),
-            $filepath
-        );
+        $command = sprintf('"%s" -h %s -u %s %s %s > "%s"', $mysqldump_path, escapeshellarg($db_host), escapeshellarg($db_user), $password_param, escapeshellarg($db_name), $filepath);
 
         system($command, $return_var);
 
@@ -56,7 +70,11 @@ if(isset($_GET['action'])) {
             $error = "Database backup failed. Check mysqldump path.";
         }
     }
-    elseif($_GET['action'] == 'backup_files') {
+}
+
+// Handle Actions
+if(isset($_GET['action'])) {
+    if($_GET['action'] == 'backup_files') {
         if(class_exists('ZipArchive')) {
             $date = date("Y-m-d_H-i-s");
             $filename = "source_code_$date.zip";
@@ -92,8 +110,10 @@ if(isset($_GET['action'])) {
     }
     elseif($_GET['action'] == 'delete' && isset($_GET['file'])) {
         $file = basename($_GET['file']);
-        if(file_exists($backup_dir . $file)) {
-            unlink($backup_dir . $file);
+        $is_arch = isset($_GET['archived']) && $_GET['archived'] == 1;
+        $del_path = $is_arch ? $archive_dir . $file : $backup_dir . $file;
+        if(file_exists($del_path)) {
+            unlink($del_path);
             $message = "Backup deleted.";
         }
     }
@@ -102,11 +122,12 @@ if(isset($_GET['action'])) {
 // Fetch Backups
 $backups = [];
 $filter_type = isset($_GET['type']) ? $_GET['type'] : 'all';
+$current_dir = ($filter_type == 'archived') ? $archive_dir : $backup_dir;
 
-if(is_dir($backup_dir)){
-    $files = scandir($backup_dir);
+if(is_dir($current_dir)){
+    $files = scandir($current_dir);
     foreach($files as $f){
-        if($f != '.' && $f != '..'){
+        if($f != '.' && $f != '..' && !is_dir($current_dir . $f)){
             $is_sql = (strpos($f, '.sql') !== false);
             
             if($filter_type == 'sql' && !$is_sql) continue;
@@ -114,9 +135,10 @@ if(is_dir($backup_dir)){
 
             $backups[] = [
                 'file' => $f,
-                'size' => round(filesize($backup_dir . $f) / 1024, 2) . ' KB',
-                'date' => date("M d, Y H:i", filemtime($backup_dir . $f)),
-                'type' => $is_sql ? 'Database' : 'Source Code'
+                'size' => round(filesize($current_dir . $f) / 1024, 2) . ' KB',
+                'date' => date("M d, Y H:i", filemtime($current_dir . $f)),
+                'type' => $is_sql ? 'Database' : 'Source Code',
+                'is_archived' => ($filter_type == 'archived')
             ];
         }
     }
@@ -179,18 +201,23 @@ $theme = get_theme_colors($conn);
 
             <div class="card bg-white shadow-sm border-0 rounded-4 p-4">
                 <div class="d-flex gap-3 mb-4">
-                    <a href="?action=backup_db" class="btn btn-success fw-bold"><i class="fas fa-database me-2"></i>Backup Database (SQL)</a>
+                    <button type="button" onclick="confirmBackupDb()" class="btn btn-success fw-bold"><i class="fas fa-database me-2"></i>Backup Database (SQL)</button>
                     <a href="?action=backup_files" class="btn btn-warning text-dark fw-bold"><i class="fas fa-file-archive me-2"></i>Source Code (ZIP)</a>
                 </div>
+                <form id="backupDbForm" method="POST" style="display:none;">
+                    <input type="hidden" name="action" value="backup_db">
+                    <input type="hidden" name="admin_password" id="backupDbPassword">
+                </form>
                 
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="fw-bold mb-0">Existing Backups</h5>
                     <form method="GET" class="d-flex align-items-center gap-2">
                         <label class="fw-bold small">Type:</label>
                         <select name="type" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
-                            <option value="all" <?= $filter_type == 'all' ? 'selected' : '' ?>>All</option>
+                            <option value="all" <?= $filter_type == 'all' ? 'selected' : '' ?>>All Recent</option>
                             <option value="sql" <?= $filter_type == 'sql' ? 'selected' : '' ?>>Database</option>
                             <option value="zip" <?= $filter_type == 'zip' ? 'selected' : '' ?>>Source Code</option>
+                            <option value="archived" <?= $filter_type == 'archived' ? 'selected' : '' ?>>Archived (> 30 Days)</option>
                         </select>
 
                         <label class="fw-bold small ms-2">Show:</label>
@@ -214,15 +241,18 @@ $theme = get_theme_colors($conn);
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach($backups as $b): ?>
+                            <?php foreach($backups as $b): 
+                                $file_path = $b['is_archived'] ? $archive_dir . $b['file'] : $backup_dir . $b['file'];
+                                $del_url = "?action=delete&file=" . urlencode($b['file']) . ($b['is_archived'] ? "&archived=1" : "");
+                            ?>
                             <tr>
                                 <td class="fw-bold"><?= $b['file'] ?></td>
                                 <td><span class="badge <?= $b['type'] == 'Database' ? 'bg-primary' : 'bg-warning text-dark' ?>"><?= $b['type'] ?></span></td>
                                 <td><?= $b['size'] ?></td>
                                 <td><?= $b['date'] ?></td>
                                 <td class="text-end">
-                                    <a href="<?= $backup_dir . $b['file'] ?>" class="btn btn-sm btn-outline-primary me-1" download><i class="fas fa-download"></i></a>
-                                    <a href="?action=delete&file=<?= $b['file'] ?>" class="btn btn-sm btn-outline-danger" onclick="confirmLink(event, this.href, 'Delete this backup?')"><i class="fas fa-trash"></i></a>
+                                    <a href="<?= $file_path ?>" class="btn btn-sm btn-outline-primary me-1" download><i class="fas fa-download"></i></a>
+                                    <a href="<?= $del_url ?>" class="btn btn-sm btn-outline-danger" onclick="confirmLink(event, this.href, 'Delete this backup?')"><i class="fas fa-trash"></i></a>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -241,6 +271,27 @@ $theme = get_theme_colors($conn);
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
+function confirmBackupDb() {
+    Swal.fire({
+        title: 'Security Verification',
+        text: 'Please enter your admin password to backup the database.',
+        input: 'password',
+        inputAttributes: { autocapitalize: 'off' },
+        showCancelButton: true,
+        confirmButtonText: 'Backup Database',
+        confirmButtonColor: '#2e7d32',
+        preConfirm: (password) => {
+            if (!password) Swal.showValidationMessage('Password is required');
+            return password;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('backupDbPassword').value = result.value;
+            document.getElementById('backupDbForm').submit();
+        }
+    });
+}
+
 function confirmLink(e, url, msg) {
     e.preventDefault();
     Swal.fire({

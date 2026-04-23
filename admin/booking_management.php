@@ -48,19 +48,32 @@ if(isset($_GET['action'])){
             log_activity($conn, $target_user_id, "Reservation Rejected", "Reservation #$reservation_id cancelled by $admin_username.");
             send_notification($conn, $target_user_id, "❌ <strong>Reservation Rejected</strong><br>Your booking #$reservation_id has been cancelled. Please contact support for details.", "Booking Rejected");
         }
-    } elseif($action == 'terminate'){
-        // End Contract (Expiring/Expired)
+    } elseif($action == 'complete'){
+        // Complete Contract
         $stmt = mysqli_prepare($conn, "UPDATE reservations SET status='Completed' WHERE reservation_id=?");
         mysqli_stmt_bind_param($stmt, "i", $reservation_id);
         mysqli_stmt_execute($stmt);
 
         // Void associated unpaid payments as the booking is no longer valid
-        mysqli_query($conn, "UPDATE payments SET payment_status='Cancelled', description = CONCAT(description, ' (Voided - Reservation Cancelled)') WHERE reservation_id=$reservation_id AND payment_status='Unpaid'");
+        mysqli_query($conn, "UPDATE payments SET payment_status='Cancelled', description = CONCAT(description, ' (Voided - Reservation Completed)') WHERE reservation_id=$reservation_id AND payment_status='Unpaid'");
 
         mysqli_stmt_close($stmt);
         if($target_user_id) {
             log_activity($conn, $target_user_id, "Contract Ended", "Reservation #$reservation_id marked as Completed by $admin_username.");
             send_notification($conn, $target_user_id, "🏁 <strong>Contract Completed</strong><br>Your stay for reservation #$reservation_id has been marked as completed. Thank you for staying with us!", "Contract Ended");
+        }
+    } elseif($action == 'incomplete'){
+        // End Contract (Incomplete)
+        $stmt = mysqli_prepare($conn, "UPDATE reservations SET status='Incomplete' WHERE reservation_id=?");
+        mysqli_stmt_bind_param($stmt, "i", $reservation_id);
+        mysqli_stmt_execute($stmt);
+
+        mysqli_query($conn, "UPDATE payments SET payment_status='Cancelled', description = CONCAT(description, ' (Voided - Reservation Incomplete)') WHERE reservation_id=$reservation_id AND payment_status='Unpaid'");
+
+        mysqli_stmt_close($stmt);
+        if($target_user_id) {
+            log_activity($conn, $target_user_id, "Contract Ended (Incomplete)", "Reservation #$reservation_id marked as Incomplete by $admin_username.");
+            send_notification($conn, $target_user_id, "⚠️ <strong>Contract Ended</strong><br>Your stay for reservation #$reservation_id has been marked as incomplete/ended early. Please contact admin for clearance.", "Contract Ended");
         }
     } elseif($action == 'verify'){
         $stmt = mysqli_prepare($conn, "UPDATE reservations SET status='Verifying' WHERE reservation_id=?");
@@ -390,6 +403,7 @@ $theme = get_theme_colors($conn);
                             <option value="Approved" <?= (isset($_GET['status']) && $_GET['status']=='Approved')?'selected':'' ?>>Approved</option>
                             <option value="Cancelled" <?= (isset($_GET['status']) && $_GET['status']=='Cancelled')?'selected':'' ?>>Cancelled</option>
                             <option value="Completed" <?= (isset($_GET['status']) && $_GET['status']=='Completed')?'selected':'' ?>>Completed</option>
+                            <option value="Incomplete" <?= (isset($_GET['status']) && $_GET['status']=='Incomplete')?'selected':'' ?>>Incomplete</option>
                         </select>
                         <select name="gender" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">All Genders</option>
@@ -467,6 +481,7 @@ $theme = get_theme_colors($conn);
                                         elseif($s == 'Cancelled') $b_class = 'bg-danger text-white';
                                         elseif($s == 'Verifying') $b_class = 'bg-info text-dark';
                                         elseif($s == 'Completed') $b_class = 'bg-primary text-white';
+                                        elseif($s == 'Incomplete') $b_class = 'bg-dark text-white';
                                     ?>
                                     <span class="badge <?= $b_class ?> rounded-pill px-3"><?= $s ?></span>
                                     <?php if(($res['initial_pay_status'] ?? '') == 'Paid'): ?>
