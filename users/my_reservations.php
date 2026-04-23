@@ -98,7 +98,7 @@ if(isset($_GET['archive_id'])){
 }
 
 // Fetch Reservations
-$query = mysqli_query($conn, "SELECT r.*, rm.room_name, rm.room_type, rm.image,
+$query = mysqli_query($conn, "SELECT r.*, rm.room_name, rm.room_number, rm.room_type, rm.image,
     (SELECT COUNT(*) FROM reservations ext WHERE ext.extended_from = r.reservation_id AND ext.status IN ('Pending', 'Verifying', 'Approved')) as is_extended
 FROM reservations r
 JOIN rooms rm ON r.room_id = rm.room_id
@@ -160,20 +160,17 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
         body.night-mode .table-striped>tbody>tr:nth-of-type(odd)>* { --bs-table-accent-bg: rgba(255, 255, 255, 0.05); color: #e0e0e0 !important; }
 
         @media print {
-            @page { margin: 0 !important; }
-            body, html { margin: 0 !important; padding: 15mm !important; background: #fff !important; }
-            body * { visibility: hidden; }
-            .modal.show, .modal.show * { visibility: visible; }
-            .modal.show { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: 0; padding: 0; background: none; }
-            .modal-dialog { max-width: 100%; margin: 0; }
-            .modal-content { border: none; box-shadow: none; width: 100%; }
-            .no-print { display: none !important; }
-            
-            body.night-mode, body.night-mode * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            body.night-mode .modal-content { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
-            body.night-mode .table-light th, body.night-mode .table-light td { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-color: #444 !important; }
-            .card, .table, tr, .list-group-item { page-break-inside: avoid !important; break-inside: avoid !important; }
-            table th, table td { border: 1px solid #ccc !important; }
+            @page { margin: 10mm; }
+            body, html { background: #fff !important; padding: 0 !important; margin: 0 !important; }
+            .navbar-user, .no-print { display: none !important; }
+            body.modal-open > .container { display: none !important; }
+            .modal { position: absolute; left: 0; top: 0; margin: 0; padding: 0; overflow: visible !important; }
+            .modal-dialog { max-width: 100% !important; margin: 0 !important; }
+            .modal-content { border: none !important; box-shadow: none !important; background: #fff !important; color: #000 !important; }
+            body.night-mode * { color: #000 !important; }
+            body.night-mode .table-light th, body.night-mode .table-light td { background-color: #f8f9fa !important; color: #000 !important; border-color: #dee2e6 !important; }
+            .card, .table, tr, .list-group-item { page-break-inside: avoid !important; break-inside: avoid !important; color: #000 !important; }
+            table th, table td { border: 1px solid #ccc !important; color: #000 !important; }
         }
 
         /* Mobile Responsiveness */
@@ -286,8 +283,18 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
                             <img src="../assets/images/<?= $row['image'] ?>" class="img-fluid rounded shadow-sm" style="height: 60px; width: 80px; object-fit: cover;">
                         </td>
                         <td>
-                            <h6 class="mb-0 fw-bold text-success"><?= $row['room_name'] ?></h6>
+                            <h6 class="mb-0 fw-bold text-success"><?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?></h6>
                             <small class="text-muted"><?= $row['room_type'] ?></small>
+                            <?php
+                            $rid_check = $row['room_id'];
+                            $has_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE room_id=$rid_check AND status IN ('Pending', 'Scheduled')"))['c'] > 0;
+                            $has_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE room_id=$rid_check AND status IN ('Pending', 'Scheduled')"))['c'] > 0;
+                            if($has_maint || $has_house): ?>
+                                <div class="mt-1 d-flex gap-1 flex-wrap">
+                                    <?php if($has_maint): ?><span class="badge bg-danger text-white" style="font-size: 0.6rem;"><i class="fas fa-tools"></i> Maintenance</span><?php endif; ?>
+                                    <?php if($has_house): ?><span class="badge bg-info text-dark" style="font-size: 0.6rem;"><i class="fas fa-broom"></i> Housekeeping</span><?php endif; ?>
+                                </div>
+                            <?php endif; ?>
                             <?php if(!empty($row['bed_preference']) && $row['bed_preference'] != 'Any'): ?>
                                 <div class="mt-1"><span class="badge bg-light text-dark border"><i class="fas fa-bed me-1"></i><?= $row['bed_preference'] ?></span></div>
                             <?php endif; ?>
@@ -776,7 +783,7 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
             .then(response => response.json())
             .then(data => {
                 document.getElementById('modalRoomImg').src = '../assets/images/' + data.image;
-                document.getElementById('modalRoomName').innerText = data.room_name;
+                document.getElementById('modalRoomName').innerText = data.room_number ? 'Room ' + data.room_number : data.room_name;
                 document.getElementById('modalRoomType').innerText = data.room_type;
                 document.getElementById('modalRoomPrice').innerText = parseFloat(data.total_price).toLocaleString('en-US', {minimumFractionDigits: 2});
                 document.getElementById('modalRoomBeds').innerText = data.total_beds;

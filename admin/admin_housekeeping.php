@@ -146,7 +146,8 @@ while($row = mysqli_fetch_assoc($requests)){
 $groups = ['Pending' => $pending_reqs, 'Scheduled' => $scheduled_reqs];
 
 // Fetch Rooms for Visual Picker
-$rooms_inventory = get_all_rooms_with_occupancy($conn);
+$show_hidden = true; // To include maintenance rooms
+$rooms_inventory = get_all_rooms_with_occupancy($conn, $show_hidden);
 $grouped_rooms = [];
 foreach ($rooms_inventory as $room) {
     $grouped_rooms[$room['room_type']][] = $room;

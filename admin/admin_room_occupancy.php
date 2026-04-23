@@ -44,7 +44,8 @@ if(isset($_GET['fetch_history']) && isset($_GET['room_id'])){
 }
 
 // Fetch all rooms with occupancy information
-$raw_rooms = get_all_rooms_with_occupancy($conn);
+$show_hidden = true; // To include maintenance rooms
+$raw_rooms = get_all_rooms_with_occupancy($conn, $show_hidden);
 
 // Deduplicate by Room Name
 $rooms = [];
@@ -65,6 +66,22 @@ foreach ($raw_rooms as $room) {
         }
     }
 }
+
+// Fetch active maintenance and housekeeping requests per room
+$active_maint_q = mysqli_query($conn, "SELECT room_id FROM maintenance_requests WHERE status IN ('Pending', 'Scheduled')");
+$active_maint_rooms = [];
+while($r = mysqli_fetch_assoc($active_maint_q)) $active_maint_rooms[] = $r['room_id'];
+
+$active_house_q = mysqli_query($conn, "SELECT room_id FROM housekeeping_requests WHERE status IN ('Pending', 'Scheduled')");
+$active_house_rooms = [];
+while($r = mysqli_fetch_assoc($active_house_q)) $active_house_rooms[] = $r['room_id'];
+
+// Map to rooms
+foreach ($rooms as &$room) {
+    $room['has_maintenance'] = in_array($room['room_id'], $active_maint_rooms);
+    $room['has_housekeeping'] = in_array($room['room_id'], $active_house_rooms);
+}
+unset($room);
 
 // Group rooms by type
 $grouped_rooms = [];
@@ -392,6 +409,17 @@ $theme = get_theme_colors($conn);
                                         <span class="status-badge <?= $status_class ?>"><?= $room['occupancy_status'] ?></span>
                                     </div>
                                 </div>
+
+                                <?php if($room['has_maintenance'] || $room['has_housekeeping']): ?>
+                                <div class="d-flex gap-2 mb-2">
+                                    <?php if($room['has_maintenance']): ?>
+                                        <span class="badge bg-danger text-white" style="font-size: 0.65rem;"><i class="fas fa-tools me-1"></i> Maintenance</span>
+                                    <?php endif; ?>
+                                    <?php if($room['has_housekeeping']): ?>
+                                        <span class="badge bg-info text-dark" style="font-size: 0.65rem;"><i class="fas fa-broom me-1"></i> Housekeeping</span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
 
                                 <!-- Occupancy Bar -->
                                 <div class="mb-3">

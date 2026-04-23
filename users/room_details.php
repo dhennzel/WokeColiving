@@ -87,12 +87,14 @@ if(isset($_SESSION['user_id'])){
         $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$uid ORDER BY created_at DESC LIMIT 10");
     }
 }
+
+$room_display = !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room['room_number']) : htmlspecialchars($room['room_name']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title><?= $room['room_name'] ?> | Woke Coliving INC</title>
+    <title><?= $room_display ?> | Woke Coliving INC</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -158,7 +160,7 @@ if(isset($_SESSION['user_id'])){
                 <img src="../assets/images/<?= $room['image'] ?>" class="room-img shadow-sm" alt="<?= $room['room_name'] ?>">
         </div>
             <div class="col-lg-6 anim-trigger delay-2">
-            <h2 class="fw-bold text-success display-6"><?= $room['room_name'] ?></h2>
+            <h2 class="fw-bold text-success display-6"><?= $room_display ?></h2>
             <div class="d-flex align-items-center gap-3 mb-2">
                 <span class="badge bg-secondary fs-6"><?= $room['room_type'] ?></span>
                 <span class="text-muted"><i class="fas fa-bed me-2"></i><?= $room['total_beds'] ?> Total Beds</span>
