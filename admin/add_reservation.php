@@ -383,12 +383,46 @@ if(isset($_POST['add_reservation'])){
             $totalAmount += $prev_balance;
             $pay_desc = "Walk-in Booking Payment" . ($prev_balance > 0 ? " (Includes carried over balance: ₱" . number_format($prev_balance, 2) . ")" : "");
 
+            // --- EXTRACT COMPANIONS IF WHOLE ROOM ---
+            $companions = [];
+            if ($bed_preference == 'Whole Room' && in_array($room_type, ['4-Bed', '6-Bed'])) {
+                if (isset($_POST['comp_fname']) && is_array($_POST['comp_fname'])) {
+                    for ($i = 0; $i < count($_POST['comp_fname']); $i++) {
+                        $c_lname = trim($_POST['comp_lname'][$i] ?? '');
+                        $c_fname = trim($_POST['comp_fname'][$i] ?? '');
+                        $c_mname = trim($_POST['comp_mname'][$i] ?? '');
+                        $c_name = trim($c_lname . ', ' . $c_fname . ' ' . $c_mname);
+                        
+                        $c_gender = trim($_POST['comp_gender'][$i] ?? '');
+                        $c_email = trim($_POST['comp_email'][$i] ?? '');
+                        $c_phone = trim($_POST['comp_phone'][$i] ?? '');
+                        
+                        $c_id_image = null;
+                        if (isset($_FILES['comp_id_image']['name'][$i]) && $_FILES['comp_id_image']['error'][$i] == 0) {
+                            $target_dir = "../uploads/proofs/";
+                            if (!is_dir($target_dir)) {
+                                mkdir($target_dir, 0777, true);
+                            }
+                            $c_id_image = time() . '_comp_admin_' . $i . '_' . basename($_FILES["comp_id_image"]["name"][$i]);
+                            move_uploaded_file($_FILES["comp_id_image"]["tmp_name"][$i], $target_dir . $c_id_image);
+                        }
+
+                        if (!empty($c_lname) && !empty($c_fname)) {
+                            $companions[] = ['name' => mysqli_real_escape_string($conn, $c_name), 'first_name' => mysqli_real_escape_string($conn, $c_fname), 'last_name' => mysqli_real_escape_string($conn, $c_lname), 'middle_name' => mysqli_real_escape_string($conn, $c_mname), 'gender' => mysqli_real_escape_string($conn, $c_gender), 'email' => mysqli_real_escape_string($conn, $c_email), 'phone' => mysqli_real_escape_string($conn, $c_phone), 'id_image' => $c_id_image ? mysqli_real_escape_string($conn, $c_id_image) : null];
+                        }
+                    }
+                }
+            }
+            $companions_json = !empty($companions) ? json_encode($companions) : null;
+
             // Insert with security deposit
-            $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, occupation, company_or_school, contact_person_name, contact_person_number, security_deposit) VALUES (?, ?, ?, ?, ?, ?, 'Approved', ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("iissidsssssd", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $bed_preference, $occupation, $company, $em_name, $em_num, $security_deposit);
+            $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, occupation, company_or_school, contact_person_name, contact_person_number, security_deposit, companions) VALUES (?, ?, ?, ?, ?, ?, 'Approved', ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("iissidsssssds", $user_id, $room_id, $cin, $cout, $months, $totalAmount, $bed_preference, $occupation, $company, $em_name, $em_num, $security_deposit, $companions_json);
             
             if($stmt->execute()){
                 $res_id = $conn->insert_id;
+                
+                sync_resident_profile($conn, $res_id); // Auto-sync newly created resident + companions
 
                 // Mark old unpaid payments as Carried Over
                 if($prev_balance > 0) {
@@ -611,22 +645,27 @@ $theme = get_theme_colors($conn);
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label fw-bold">Room Type</label>
-                            <select name="room_type" id="room_type" class="form-select" required onchange="updateRoomOptions(); calculateTotal(); checkAvailability()">
+                            <select name="room_type" id="room_type" class="form-select" required onchange="updateRoomOptions(); calculateTotal(); checkAvailability(); updateCompanionForms();">
                                 <option value="Single" <?= $f_room_type == 'Single' ? 'selected' : '' ?>>Single</option>
                                 <option value="4-Bed" <?= $f_room_type == '4-Bed' ? 'selected' : '' ?>>4-Bed</option>
                                 <option value="6-Bed" <?= $f_room_type == '6-Bed' ? 'selected' : '' ?>>6-Bed</option>
                             </select>
                         <small id="availability_status" class="fw-bold mt-1 d-block" style="cursor: pointer;" onclick="openRoomModal()" title="Click to select room"></small>
                         </div>
-                        <div class="col-md-6 mb-3" id="bed_pref_div" style="display: <?= $f_room_type != 'Single' ? 'block' : 'none' ?>;">
+                        <div class="col-md-4 mb-3" id="bed_pref_div" style="display: <?= $f_room_type != 'Single' ? 'block' : 'none' ?>;">
                             <label class="form-label fw-bold">Bed Preference</label>
-                            <select name="bed_preference" class="form-select" onchange="calculateTotal(); checkAvailability()">
+                            <select name="bed_preference" class="form-select" onchange="calculateTotal(); checkAvailability(); updateCompanionForms();">
                                 <option value="Any" <?= $f_bed_preference == 'Any' ? 'selected' : '' ?>>Any</option>
                                 <option value="Lower Bunk" <?= $f_bed_preference == 'Lower Bunk' ? 'selected' : '' ?>>Lower Bunk</option>
                                 <option value="Upper Bunk" <?= $f_bed_preference == 'Upper Bunk' ? 'selected' : '' ?>>Upper Bunk</option>
                                 <option value="Whole Room" <?= $f_bed_preference == 'Whole Room' ? 'selected' : '' ?>>Whole Room</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3" id="occupant_count_div" style="display:none;">
+                            <label class="form-label fw-bold">Number of Occupants</label>
+                            <select name="occupant_count" id="occupant_count" class="form-select" onchange="updateCompanionForms()">
                             </select>
                         </div>
                     </div>
@@ -669,6 +708,9 @@ $theme = get_theme_colors($conn);
                             </select>
                         </div>
                     </div>
+                    
+                    <!-- Companions Section -->
+                    <div id="companion_forms_container" style="display:none;" class="mb-4"></div>
 
                     <div class="alert alert-light border">
                         <div class="d-flex justify-content-between mb-2">
@@ -944,6 +986,63 @@ function updateRoomOptions() {
     } else {
         prefDiv.style.display = 'none';
         if(bedSelect) bedSelect.innerHTML = '<option value="Any">Any</option>';
+    }
+    updateCompanionForms();
+}
+
+function updateCompanionForms() {
+    let room = document.getElementById('room_type').value;
+    let bedPrefEl = document.querySelector('[name="bed_preference"]');
+    let bedPref = bedPrefEl ? bedPrefEl.value : 'Any';
+    let occCountDiv = document.getElementById('occupant_count_div');
+    let occCountSelect = document.getElementById('occupant_count');
+    let container = document.getElementById('companion_forms_container');
+
+    if (bedPref === 'Whole Room' && (room === '4-Bed' || room === '6-Bed')) {
+        if (occCountDiv) occCountDiv.style.display = 'block';
+        let maxOcc = room === '4-Bed' ? 4 : 6;
+        
+        if (occCountSelect && occCountSelect.options.length !== maxOcc) {
+            let currentVal = occCountSelect.value;
+            occCountSelect.innerHTML = '';
+            for(let i=1; i<=maxOcc; i++) {
+                let selected = (currentVal == i) ? 'selected' : (i == maxOcc ? 'selected' : '');
+                occCountSelect.innerHTML += `<option value="${i}" ${selected}>${i} Person${i>1?'s':''}</option>`;
+            }
+        }
+
+        let count = occCountSelect ? (parseInt(occCountSelect.value) - 1) : (maxOcc - 1);
+
+        if (count > 0) {
+            let html = '<div class="p-4 mb-4 border rounded bg-light"><h6 class="fw-bold text-success mb-3"><i class="fas fa-users me-2"></i>Companions Information</h6>';
+            html += '<p class="text-muted small mb-4">Please provide the details and valid IDs for your companions to complete this whole room reservation.</p>';
+            for(let i=1; i<=count; i++) {
+            html += `
+            <div class="p-3 mb-3 bg-white border rounded shadow-sm">
+                <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+                    <span class="badge bg-success rounded-pill px-3 py-2 fw-bold"><i class="fas fa-user-plus me-1"></i> Companion ${i}</span>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label small fw-bold">Last Name*</label><input type="text" name="comp_lname[]" class="form-control form-control-sm" required oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                    <div class="col-md-4"><label class="form-label small fw-bold">First Name*</label><input type="text" name="comp_fname[]" class="form-control form-control-sm" required oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                    <div class="col-md-4"><label class="form-label small fw-bold">Middle Name</label><input type="text" name="comp_mname[]" class="form-control form-control-sm" oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                    <div class="col-md-6"><label class="form-label small fw-bold">Gender*</label><select name="comp_gender[]" class="form-select form-select-sm" required><option value="" disabled selected>Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+                    <div class="col-md-6"><label class="form-label small fw-bold">Contact Number*</label><input type="text" name="comp_phone[]" class="form-control form-control-sm" pattern="^09\\d{9}$" maxlength="11" oninput="let v=this.value.replace(/[^0-9]/g,''); if(v.length>0&&v[0]!=='0')v='0'+v; if(v.length>1&&v[1]!=='9')v='09'+v.substring(2); this.value=v;" required></div>
+                    <div class="col-md-12"><label class="form-label small fw-bold">Valid ID (Image)*</label><input type="file" name="comp_id_image[]" class="form-control form-control-sm" accept="image/*" required></div>
+                </div>
+            </div>`;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+            container.style.display = 'block';
+        } else {
+            container.innerHTML = '';
+            container.style.display = 'none';
+        }
+    } else {
+        if (occCountDiv) occCountDiv.style.display = 'none';
+        container.innerHTML = '';
+        container.style.display = 'none';
     }
 }
 
@@ -1437,6 +1536,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
         calculateTotal();
         checkAvailability();
     }
+    updateCompanionForms();
 });
 
 // Parent Sidebar Badges

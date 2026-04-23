@@ -39,9 +39,6 @@ $bill_filter = isset($_GET['bill_filter']) ? $_GET['bill_filter'] : 'all';
 $status_filter = isset($_GET['status_filter']) ? $_GET['status_filter'] : 'all';
 
 $where = "role != 'admin' AND role != 'Super Admin' AND u.is_archived = 0";
-if($search){
-    $where .= " AND (last_name LIKE '%$search%' OR first_name LIKE '%$search%' OR email LIKE '%$search%')";
-}
 
 if($bill_filter == 'unpaid'){
     $where .= " AND (SELECT IFNULL(SUM(p.amount), 0) FROM payments p JOIN reservations res ON p.reservation_id = res.reservation_id WHERE res.user_id = u.user_id AND p.payment_status = 'Unpaid') > 0";
@@ -66,11 +63,62 @@ $query = mysqli_query($conn, "
     FROM users u WHERE $where ORDER BY u.last_name ASC
 ");
 
-// Fetch into array to allow multiple iterations for different views
-$residents = [];
+$primary_users = [];
 while($row = mysqli_fetch_assoc($query)){
-    $residents[] = $row;
+    $row['is_companion'] = 0;
+    $primary_users[$row['user_id']] = $row;
 }
+
+$all_entries = array_values($primary_users);
+
+// Fetch Companions for active reservations
+$comp_q = mysqli_query($conn, "SELECT r.reservation_id, r.user_id, r.companions FROM reservations r WHERE r.status IN ('Approved', 'Pending', 'Verifying') AND r.companions IS NOT NULL AND r.companions != '' AND r.is_archived = 0");
+while($comp_row = mysqli_fetch_assoc($comp_q)) {
+    $comps = json_decode($comp_row['companions'], true);
+    if (is_array($comps)) {
+        foreach($comps as $comp) {
+            $primary_user = $primary_users[$comp_row['user_id']] ?? null;
+            if ($primary_user) {
+                $c_row = $primary_user; 
+                $c_row['is_companion'] = 1;
+                
+                $c_fname = $comp['first_name'] ?? $comp['name'] ?? '';
+                $c_lname = $comp['last_name'] ?? '';
+                $c_mname = $comp['middle_name'] ?? '';
+                $c_row['first_name'] = $c_fname;
+                $c_row['last_name'] = $c_lname;
+                $c_row['middle_name'] = $c_mname;
+                $c_row['full_name'] = trim($c_lname . (!empty($c_lname) ? ', ' : '') . $c_fname . ' ' . $c_mname);
+                $c_row['email'] = $comp['email'] ?? 'N/A';
+                $c_row['phone_number'] = $comp['phone'] ?? 'N/A';
+                $c_row['gender'] = $comp['gender'] ?? 'Not Specified';
+                $c_row['profile_image'] = null; 
+                $c_row['school_id_image'] = $comp['id_image'] ?? null;
+
+                $all_entries[] = $c_row;
+            }
+        }
+    }
+}
+
+// Apply Search Filter in PHP
+$residents = [];
+foreach ($all_entries as $entry) {
+    if ($search) {
+        $search_lower = strtolower($search);
+        if (strpos(strtolower($entry['full_name']), $search_lower) === false && 
+            strpos(strtolower($entry['first_name']), $search_lower) === false && 
+            strpos(strtolower($entry['last_name']), $search_lower) === false && 
+            strpos(strtolower($entry['email']), $search_lower) === false) {
+            continue;
+        }
+    }
+    $residents[] = $entry;
+}
+
+usort($residents, function($a, $b) {
+    return strcmp($a['last_name'], $b['last_name']);
+});
 
 // Sidebar Counts
 $pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
@@ -183,17 +231,23 @@ $theme = get_theme_colors($conn);
                                 </td>
                                 <td><?= $row['phone_number'] ?></td>
                                 <td>
-                                    <?php 
-                                        $billed = $row['total_billed'];
-                                        $paid = $row['total_paid'];
-                                        $balance = $billed - $paid;
-                                    ?>
-                                    <div class="small">Paid: ₱<?= number_format($paid, 2) ?></div>
-                                    <div class="fw-bold <?= $balance > 0 ? 'text-danger' : 'text-success' ?>">Bal: ₱<?= number_format($balance, 2) ?></div>
-                                    <?= $balance > 0 ? '<span class="badge bg-danger" style="font-size:0.65rem;">With Balance</span>' : '<span class="badge bg-success" style="font-size:0.65rem;">Fully Paid</span>' ?>
+                                    <?php if(isset($row['is_companion']) && $row['is_companion'] == 1): ?>
+                                        <div class="small text-muted fst-italic">Linked to Primary</div>
+                                        <span class="badge bg-light text-dark border" style="font-size:0.65rem;"><i class="fas fa-link me-1"></i>Companion</span>
+                                    <?php else: ?>
+                                        <?php 
+                                            $billed = $row['total_billed'];
+                                            $paid = $row['total_paid'];
+                                            $balance = $billed - $paid;
+                                        ?>
+                                        <div class="small">Paid: ₱<?= number_format($paid, 2) ?></div>
+                                        <div class="fw-bold <?= $balance > 0 ? 'text-danger' : 'text-success' ?>">Bal: ₱<?= number_format($balance, 2) ?></div>
+                                        <?= $balance > 0 ? '<span class="badge bg-danger" style="font-size:0.65rem;">With Balance</span>' : '<span class="badge bg-success" style="font-size:0.65rem;">Fully Paid</span>' ?>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
+                                    <?php if(isset($row['is_companion']) && $row['is_companion'] == 1): ?><span class="badge bg-info text-dark">Companion</span>
+                                    <?php elseif($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
                                     <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-dark">Completed</span>
                                     <?php else: 
                                         $m = $row['res_months'];
@@ -211,7 +265,7 @@ $theme = get_theme_colors($conn);
                                 <td><?= date('M d, Y', strtotime($row['created_at'])) ?></td>
                                 <td class="text-end no-print">
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-user='<?= htmlspecialchars(json_encode($row), ENT_QUOTES, 'UTF-8') ?>' onclick="openResidentModal(this)"><i class="fas fa-eye"></i> View</button>
-                                    <?php if($is_super): ?>
+                                    <?php if($is_super && (!isset($row['is_companion']) || $row['is_companion'] == 0)): ?>
                                     <form method="POST" class="d-inline" onsubmit="confirmDeleteUser(event)">
                                         <input type="hidden" name="user_id" value="<?= $row['user_id'] ?>">
                                         <input type="hidden" name="delete_user" value="1">
@@ -246,7 +300,8 @@ $theme = get_theme_colors($conn);
                             <p class="text-muted small mb-2"><?= htmlspecialchars($row['email']) ?></p>
                             <p class="text-muted small mb-3"><i class="fas fa-phone me-1"></i> <?= htmlspecialchars($row['phone_number']) ?></p>
                             <div class="mb-3 mt-auto">
-                                <?php if($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
+                                <?php if(isset($row['is_companion']) && $row['is_companion'] == 1): ?><span class="badge bg-info text-dark">Companion</span>
+                                <?php elseif($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
                                 <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-dark">Completed</span>
                                 <?php else: 
                                     $m = $row['res_months'];
@@ -264,7 +319,7 @@ $theme = get_theme_colors($conn);
                         </div>
                         <div class="card-footer bg-white border-top border-light d-flex justify-content-between p-3 gap-2">
                             <button type="button" class="btn btn-sm btn-outline-primary flex-fill" data-user='<?= htmlspecialchars(json_encode($row), ENT_QUOTES, 'UTF-8') ?>' onclick="openResidentModal(this)"><i class="fas fa-eye"></i> View</button>
-                            <?php if($is_super): ?>
+                            <?php if($is_super && (!isset($row['is_companion']) || $row['is_companion'] == 0)): ?>
                             <form method="POST" onsubmit="confirmDeleteUser(event)" class="flex-fill m-0">
                                 <input type="hidden" name="user_id" value="<?= $row['user_id'] ?>">
                                 <input type="hidden" name="delete_user" value="1">
@@ -410,12 +465,14 @@ $theme = get_theme_colors($conn);
         document.getElementById('modalUserPhone').innerText = user.phone_number || 'N/A';
 
         // Billing
-        const billed = parseFloat(user.total_billed || 0);
-        const paid = parseFloat(user.total_paid || 0);
-        const bal = billed - paid;
-        document.getElementById('modalTotalBill').innerText = '₱' + billed.toLocaleString('en-US', {minimumFractionDigits: 2});
-        document.getElementById('modalTotalPaid').innerText = '₱' + paid.toLocaleString('en-US', {minimumFractionDigits: 2});
-        document.getElementById('modalBalance').innerText = '₱' + bal.toLocaleString('en-US', {minimumFractionDigits: 2});
+        if (user.is_companion == 1) {
+            document.getElementById('modalBillingSummary').innerHTML = '<div><span class="badge bg-light text-dark border"><i class="fas fa-link me-1"></i>Billing linked to Primary Tenant</span></div>';
+        } else {
+            const billed = parseFloat(user.total_billed || 0);
+            const paid = parseFloat(user.total_paid || 0);
+            const bal = billed - paid;
+            document.getElementById('modalBillingSummary').innerHTML = `<div>Total Bill: <span class="fw-bold" id="modalTotalBill">₱${billed.toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div><div class="border-start ps-3">Paid: <span class="fw-bold text-success" id="modalTotalPaid">₱${paid.toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div><div class="border-start ps-3">Balance: <span class="fw-bold text-danger" id="modalBalance">₱${bal.toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>`;
+        }
         
         const joinedDate = new Date(user.created_at);
         document.getElementById('modalUserJoined').innerText = joinedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -473,7 +530,8 @@ $theme = get_theme_colors($conn);
 
         // Badges
         let badgesHtml = '';
-        if (user.do_not_renew == 1) badgesHtml += '<span class="badge bg-danger">Do Not Renew</span>';
+        if (user.is_companion == 1) badgesHtml += '<span class="badge bg-info text-dark">Companion</span>';
+        else if (user.do_not_renew == 1) badgesHtml += '<span class="badge bg-danger">Do Not Renew</span>';
         else if (user.active_count == 0 && user.completed_count > 0) badgesHtml += '<span class="badge bg-dark">Completed</span>';
         else {
             let m = parseInt(user.res_months) || 0;
@@ -484,6 +542,12 @@ $theme = get_theme_colors($conn);
             badgesHtml += `<span class="badge ${cls}">${lbl}</span>`;
         }
         document.getElementById('modalUserBadges').innerHTML = badgesHtml;
+        
+        if (user.is_companion == 1) {
+            document.getElementById('modalBtnFullProfile').innerHTML = '<i class="fas fa-external-link-alt me-1"></i> View Primary Tenant Profile';
+        } else {
+            document.getElementById('modalBtnFullProfile').innerHTML = '<i class="fas fa-external-link-alt me-1"></i> Full History & Bookings';
+        }
         document.getElementById('modalBtnFullProfile').href = `view_user.php?uid=${user.user_id}`;
 
         new bootstrap.Modal(document.getElementById('viewResidentModal')).show();

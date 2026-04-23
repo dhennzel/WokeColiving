@@ -1311,7 +1311,7 @@ $theme = get_theme_colors($conn);
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Emergency Contact Name</label>
-                            <input type="text" name="emergency_contact_name" class="form-control" value="<?= htmlspecialchars($user['emergency_contact_name'] ?? '') ?>">
+                            <input type="text" name="emergency_contact_name" class="form-control" value="<?= htmlspecialchars($user['emergency_contact_name'] ?? '') ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Emergency Contact Number</label>

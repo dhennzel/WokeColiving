@@ -20,6 +20,28 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 // Ensure site_settings table exists globally
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS site_settings (id INT AUTO_INCREMENT PRIMARY KEY, setting_key VARCHAR(50) UNIQUE NOT NULL, setting_value TEXT)");
 
+// Auto-migrate new schema changes (Companions Feature)
+$mig_comp = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='migration_companions_v2'");
+if(mysqli_num_rows($mig_comp) == 0) {
+    $check_res_tbl2 = mysqli_query($conn, "SHOW TABLES LIKE 'reservations'");
+    if(mysqli_num_rows($check_res_tbl2) > 0) {
+        $check_comp = mysqli_query($conn, "SHOW COLUMNS FROM reservations LIKE 'companions'");
+        if(mysqli_num_rows($check_comp) == 0) {
+            mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN companions TEXT DEFAULT NULL");
+        }
+    }
+    $check_res_tbl = mysqli_query($conn, "SHOW TABLES LIKE 'residents'");
+    if(mysqli_num_rows($check_res_tbl) > 0) {
+        $check_res_comp = mysqli_query($conn, "SHOW COLUMNS FROM residents LIKE 'is_companion'");
+        if(mysqli_num_rows($check_res_comp) == 0) {
+            mysqli_query($conn, "ALTER TABLE residents MODIFY user_id INT NULL");
+            mysqli_query($conn, "ALTER TABLE residents ADD COLUMN is_companion TINYINT(1) DEFAULT 0");
+            mysqli_query($conn, "ALTER TABLE residents ADD COLUMN primary_res_id INT DEFAULT NULL");
+        }
+    }
+    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('migration_companions_v2', '1')");
+}
+
 if (!function_exists('get_theme_colors')) {
 function get_theme_colors($conn) {
     $theme = [
@@ -203,12 +225,18 @@ function setup_reservations_table($conn) {
             company_or_school VARCHAR(100) DEFAULT NULL,
             contact_person_name VARCHAR(100) DEFAULT NULL,
             contact_person_number VARCHAR(20) DEFAULT NULL,
+            companions TEXT DEFAULT NULL,
             extended_from INT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
             FOREIGN KEY (room_id) REFERENCES rooms(room_id)
         )";
         mysqli_query($conn, $sql);
+    } else {
+        $check_comp = mysqli_query($conn, "SHOW COLUMNS FROM reservations LIKE 'companions'");
+        if(mysqli_num_rows($check_comp) == 0) {
+            mysqli_query($conn, "ALTER TABLE reservations ADD COLUMN companions TEXT DEFAULT NULL");
+        }
     }
 }
 }
@@ -654,7 +682,8 @@ function get_room_occupants($conn, $room_id) {
     $query = mysqli_query($conn, "
         SELECT r.reservation_id, r.start_date, r.end_date, r.bed_preference, r.status, u.gender,
                u.user_id, u.first_name, u.last_name, u.middle_name, u.profile_image,
-               CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name
+               CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name,
+               r.companions
         FROM reservations r
         JOIN users u ON r.user_id = u.user_id
         WHERE r.room_id = $room_id 
@@ -667,6 +696,22 @@ function get_room_occupants($conn, $room_id) {
     $occupants = [];
     while ($row = mysqli_fetch_assoc($query)) {
         $occupants[] = $row;
+        if (!empty($row['companions'])) {
+            $comps = json_decode($row['companions'], true);
+            if (is_array($comps)) {
+                foreach ($comps as $idx => $comp) {
+                    $comp_row = $row; 
+                    $comp_row['full_name'] = $comp['name'] . ' (Companion)';
+                    $comp_row['first_name'] = $comp['name'];
+                    $comp_row['last_name'] = '(Companion)';
+                    $comp_row['middle_name'] = '';
+                    $comp_row['gender'] = $comp['gender'] ?? 'Any';
+                    $comp_row['user_id'] = null; 
+                    $comp_row['profile_image'] = null;
+                    $occupants[] = $comp_row;
+                }
+            }
+        }
     }
     return $occupants;
 }
@@ -855,7 +900,7 @@ if (!function_exists('setup_residents_table')) {
 function setup_residents_table($conn) {
     mysqli_query($conn, "CREATE TABLE IF NOT EXISTS residents (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT UNIQUE NOT NULL,
+        user_id INT UNIQUE NULL,
         first_name VARCHAR(50),
         last_name VARCHAR(50),
         middle_name VARCHAR(50),
@@ -874,6 +919,8 @@ function setup_residents_table($conn) {
         is_walkin TINYINT(1) DEFAULT 0,
         do_not_renew TINYINT(1) DEFAULT 0,
         is_archived TINYINT(1) DEFAULT 0,
+        is_companion TINYINT(1) DEFAULT 0,
+        primary_res_id INT DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
     )");
@@ -883,12 +930,18 @@ function setup_residents_table($conn) {
     if(mysqli_num_rows($check_suffix) == 0) {
         mysqli_query($conn, "ALTER TABLE residents ADD COLUMN suffix VARCHAR(10) DEFAULT NULL AFTER middle_name");
     }
+    $check_comp = mysqli_query($conn, "SHOW COLUMNS FROM residents LIKE 'is_companion'");
+    if(mysqli_num_rows($check_comp) == 0) {
+        mysqli_query($conn, "ALTER TABLE residents MODIFY user_id INT NULL");
+        mysqli_query($conn, "ALTER TABLE residents ADD COLUMN is_companion TINYINT(1) DEFAULT 0");
+        mysqli_query($conn, "ALTER TABLE residents ADD COLUMN primary_res_id INT DEFAULT NULL");
+    }
 }
 }
 
 if (!function_exists('sync_resident_profile')) {
 function sync_resident_profile($conn, $reservation_id) {
-    $res_q = mysqli_query($conn, "SELECT r.*, u.first_name, u.last_name, u.middle_name, u.suffix, u.email, u.phone_number, u.profile_image, u.school_id_image, u.role, u.is_walkin, u.do_not_renew, u.address as user_address, u.gender as user_gender FROM reservations r JOIN users u ON r.user_id = u.user_id WHERE r.reservation_id=$reservation_id");
+    $res_q = mysqli_query($conn, "SELECT r.*, r.companions, u.first_name, u.last_name, u.middle_name, u.suffix, u.email, u.phone_number, u.profile_image, u.school_id_image, u.role, u.is_walkin, u.do_not_renew, u.address as user_address, u.gender as user_gender FROM reservations r JOIN users u ON r.user_id = u.user_id WHERE r.reservation_id=$reservation_id");
     if($r = mysqli_fetch_assoc($res_q)){
         $stmt = mysqli_prepare($conn, "INSERT INTO residents (user_id, first_name, last_name, middle_name, suffix, email, phone_number, gender, occupation, company, address, emergency_contact_name, emergency_contact_number, profile_image, school_id_image, role, is_walkin, do_not_renew, is_archived)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -900,6 +953,23 @@ function sync_resident_profile($conn, $reservation_id) {
             do_not_renew=VALUES(do_not_renew), is_archived=VALUES(is_archived)");
         mysqli_stmt_bind_param($stmt, "isssssssssssssssiii", $r['user_id'], $r['first_name'], $r['last_name'], $r['middle_name'], $r['suffix'], $r['email'], $r['phone_number'], $r['user_gender'], $r['occupation'], $r['company_or_school'], $r['user_address'], $r['contact_person_name'], $r['contact_person_number'], $r['profile_image'], $r['school_id_image'], $r['role'], $r['is_walkin'], $r['do_not_renew'], $r['is_archived']);
         mysqli_stmt_execute($stmt);
+        
+        if (!empty($r['companions'])) {
+            $comps = json_decode($r['companions'], true);
+            if (is_array($comps)) {
+                mysqli_query($conn, "DELETE FROM residents WHERE primary_res_id = $reservation_id AND is_companion = 1");
+                $comp_stmt = mysqli_prepare($conn, "INSERT INTO residents (first_name, last_name, middle_name, email, phone_number, gender, school_id_image, is_companion, primary_res_id, role) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, 'companion')");
+                foreach ($comps as $comp) {
+                    $c_phone = $comp['phone'] ?? '';
+                    $c_id_img = $comp['id_image'] ?? '';
+                    $c_fname = $comp['first_name'] ?? $comp['name'] ?? '';
+                    $c_lname = $comp['last_name'] ?? '';
+                    $c_mname = $comp['middle_name'] ?? '';
+                    mysqli_stmt_bind_param($comp_stmt, "sssssssi", $c_fname, $c_lname, $c_mname, $comp['email'], $c_phone, $comp['gender'], $c_id_img, $reservation_id);
+                    mysqli_stmt_execute($comp_stmt);
+                }
+            }
+        }
     }
 }
 }

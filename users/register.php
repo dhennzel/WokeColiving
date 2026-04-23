@@ -101,9 +101,9 @@ if (isset($_POST['register'])) {
         <?php if ($error) { echo "<div class='alert alert-danger py-2 small mb-3'>$error</div>"; } ?>
         <form method="POST">
             <div class="row g-2 mb-2 position-relative" id="dynamic-name-row">
-                <div class="name-col col-6 col-md-3 order-1"><input type="text" name="lname" class="form-control" placeholder="Last Name" required value="<?= htmlspecialchars($lname) ?>" oninput="this.value = this.value.replace(/[0-9]/g, '')" style="text-transform: capitalize;"></div>
-                <div class="name-col col-6 col-md-3 order-1"><input type="text" name="fname" class="form-control" placeholder="First Name" required value="<?= htmlspecialchars($fname) ?>" oninput="this.value = this.value.replace(/[0-9]/g, '')" style="text-transform: capitalize;"></div>
-                <div class="name-col col-6 col-md-3 order-1"><input type="text" name="mname" class="form-control" placeholder="Middle Name" value="<?= htmlspecialchars($mname) ?>" oninput="this.value = this.value.replace(/[0-9]/g, '')" style="text-transform: capitalize;"></div>
+                <div class="name-col col-6 col-md-3 order-1"><input type="text" name="lname" class="form-control" placeholder="Last Name" required value="<?= htmlspecialchars($lname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                <div class="name-col col-6 col-md-3 order-1"><input type="text" name="fname" class="form-control" placeholder="First Name" required value="<?= htmlspecialchars($fname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                <div class="name-col col-6 col-md-3 order-1"><input type="text" name="mname" class="form-control" placeholder="Middle Name" value="<?= htmlspecialchars($mname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
                 <div class="name-col col-6 col-md-3 order-1">
                     <select name="suffix" class="form-control">
                         <option value="">Suffix</option>

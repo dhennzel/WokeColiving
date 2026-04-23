@@ -71,6 +71,16 @@ $stmt->fetch();
 $stmt->close();
 $user_name = $user_lname . ', ' . $user_fname . (!empty($user_mname) ? ' ' . $user_mname : '');
 
+// Fetch ID Type if exists
+$user_id_type = '';
+$chk_id_type = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'id_type'");
+if(mysqli_num_rows($chk_id_type) == 0) {
+    mysqli_query($conn, "ALTER TABLE users ADD COLUMN id_type VARCHAR(50) DEFAULT NULL");
+} else {
+    $q_id = mysqli_query($conn, "SELECT id_type FROM users WHERE user_id=$user_id");
+    if($r_id = mysqli_fetch_assoc($q_id)) $user_id_type = $r_id['id_type'];
+}
+
 // Fetch Room Prices dynamically from DB for JS
 $room_prices_js = [];
 $price_query = mysqli_query($conn, "SELECT room_type, total_price, price_upper, price_lower, price_whole, long_term_price_upper, long_term_price_lower, long_term_price_whole, daily_price_bed, daily_price_room FROM rooms GROUP BY room_type");
@@ -185,31 +195,37 @@ if (isset($_POST['confirm_booking'])) {
             $user_emergency_contact_number = $new_emergency_number;
         }
 
-        // Handle School ID upload for students
+        // Update ID Type
+        if(isset($_POST['id_type']) && !empty($_POST['id_type'])){
+            $new_id_type = mysqli_real_escape_string($conn, $_POST['id_type']);
+            mysqli_query($conn, "UPDATE users SET id_type='$new_id_type' WHERE user_id=$user_id");
+            $user_id_type = $new_id_type;
+        }
+
+        // Handle Valid ID upload for students/employed
         $school_id_filename = $user_school_id_image; // Keep existing by default
-        $is_student = ($user_occupation == 'Student');
-        if(isset($_POST['occupation']) && $_POST['occupation'] == 'Student'){
-            $is_student = true;
+        $needs_id = in_array($user_occupation, ['Student', 'Employed']);
+        if(isset($_POST['occupation']) && in_array($_POST['occupation'], ['Student', 'Employed'])){
+            $needs_id = true;
         }
         
-        if($is_student){
+        if($needs_id){
             // Check if new upload or keep existing
             if(isset($_FILES['school_id_image']) && $_FILES['school_id_image']['error'] == 0) {
                 $target_dir = "../uploads/proofs/";
                 if (!is_dir($target_dir)) {
                     mkdir($target_dir, 0777, true);
                 }
-                $school_id_filename = time() . '_school_' . basename($_FILES["school_id_image"]["name"]);
+                $school_id_filename = time() . '_id_' . basename($_FILES["school_id_image"]["name"]);
                 $target_file = $target_dir . $school_id_filename;
                 if (!move_uploaded_file($_FILES["school_id_image"]["tmp_name"], $target_file)) {
-                    $error = "Sorry, there was an error uploading your school ID.";
+                    $error = "Sorry, there was an error uploading your ID.";
                 }
             } elseif(empty($user_school_id_image)) {
-                // Student must upload school ID
-                if (empty($error)) $error = "School ID image is required for students.";
+                if (empty($error)) $error = "Valid ID image is required.";
             }
             
-            // Save/update school ID if no error
+            // Save/update ID if no error
             if(!$error && $school_id_filename){
                 mysqli_query($conn, "UPDATE users SET school_id_image='$school_id_filename' WHERE user_id=$user_id");
             }
@@ -237,6 +253,47 @@ if (isset($_POST['confirm_booking'])) {
 
         $specific_room_id = isset($_POST['specific_room_id']) ? (int)$_POST['specific_room_id'] : 0;
         $auto_assigned = ($specific_room_id > 0) ? 0 : 1;
+
+        // --- EXTRACT COMPANIONS IF WHOLE ROOM ---
+        $companions = [];
+        if ($bed_preference == 'Whole Room' && in_array($troom, ['4-Bed', '6-Bed'])) {
+            if (isset($_POST['comp_fname']) && is_array($_POST['comp_fname'])) {
+                for ($i = 0; $i < count($_POST['comp_fname']); $i++) {
+                    $c_lname = trim($_POST['comp_lname'][$i] ?? '');
+                    $c_fname = trim($_POST['comp_fname'][$i] ?? '');
+                    $c_mname = trim($_POST['comp_mname'][$i] ?? '');
+                    $c_name = trim($c_lname . ', ' . $c_fname . ' ' . $c_mname);
+                    
+                    $c_gender = trim($_POST['comp_gender'][$i] ?? '');
+                    $c_email = trim($_POST['comp_email'][$i] ?? '');
+                    $c_phone = trim($_POST['comp_phone'][$i] ?? '');
+                    
+                    $c_id_image = null;
+                    if (isset($_FILES['comp_id_image']['name'][$i]) && $_FILES['comp_id_image']['error'][$i] == 0) {
+                        $target_dir = "../uploads/proofs/";
+                        if (!is_dir($target_dir)) {
+                            mkdir($target_dir, 0777, true);
+                        }
+                        $c_id_image = time() . '_comp_' . $i . '_' . basename($_FILES["comp_id_image"]["name"][$i]);
+                        move_uploaded_file($_FILES["comp_id_image"]["tmp_name"][$i], $target_dir . $c_id_image);
+                    }
+
+                    if (!empty($c_lname) && !empty($c_fname)) {
+                        $companions[] = [
+                            'name' => mysqli_real_escape_string($conn, $c_name),
+                            'first_name' => mysqli_real_escape_string($conn, $c_fname),
+                            'last_name' => mysqli_real_escape_string($conn, $c_lname),
+                            'middle_name' => mysqli_real_escape_string($conn, $c_mname),
+                            'gender' => mysqli_real_escape_string($conn, $c_gender),
+                            'email' => mysqli_real_escape_string($conn, $c_email),
+                            'phone' => mysqli_real_escape_string($conn, $c_phone),
+                            'id_image' => $c_id_image ? mysqli_real_escape_string($conn, $c_id_image) : null
+                        ];
+                    }
+                }
+            }
+        }
+        $companions_json = !empty($companions) ? json_encode($companions) : null;
 
         // Downpayment / Reservation Fee Logic
         $amount_to_pay_now = isset($_POST['pay_only_downpayment']) ? 2000.00 : 0; // Halimbawa ₱2,000 fix fee
@@ -423,14 +480,14 @@ if (isset($_POST['confirm_booking'])) {
                 if($sig_img) {
                     // Insert with signature
                     try {
-                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, signature_image, auto_assigned, occupation, company_or_school, contact_person_name, contact_person_number, security_deposit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        $stmt->bind_param("iissidsssissssd", $user_id, $room_id, $cin, $cout, $months, $contract_price, $status, $bed_preference, $sig_img, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number, $security_deposit);
+                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, signature_image, auto_assigned, occupation, company_or_school, contact_person_name, contact_person_number, security_deposit, companions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $stmt->bind_param("iissidsssissssds", $user_id, $room_id, $cin, $cout, $months, $contract_price, $status, $bed_preference, $sig_img, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number, $security_deposit, $companions_json);
                     } catch (Exception $e) { $stmt = false; }
                 } else {
                     // Standard insert
                     try {
-                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, auto_assigned, occupation, company_or_school, contact_person_name, contact_person_number, security_deposit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        if($stmt) $stmt->bind_param("iissidssissssd", $user_id, $room_id, $cin, $cout, $months, $contract_price, $status, $bed_preference, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number, $security_deposit);
+                        $stmt = $conn->prepare("INSERT INTO reservations (user_id, room_id, start_date, end_date, months, total_price, status, bed_preference, auto_assigned, occupation, company_or_school, contact_person_name, contact_person_number, security_deposit, companions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        if($stmt) $stmt->bind_param("iissidssissssds", $user_id, $room_id, $cin, $cout, $months, $contract_price, $status, $bed_preference, $auto_assigned, $user_occupation, $user_company, $user_emergency_contact_name, $user_emergency_contact_number, $security_deposit, $companions_json);
                     } catch (Exception $e) { $stmt = false; }
                 }
 
@@ -664,8 +721,8 @@ if (isset($_POST['confirm_booking'])) {
         <?php endif; ?>
         <div class="row g-4">
             <!-- Personal Info -->
-            <div class="col-md-5 anim-trigger delay-1">
-                <div class="card card-custom h-100">
+            <div class="col-md-5 anim-trigger delay-1 d-flex flex-column gap-4">
+                <div class="card card-custom">
                     <div class="card-header fw-bold text-success"><i class="fas fa-user me-2"></i>Personal Information</div>
                     <div class="card-body">
                         <div class="mb-3">
@@ -694,6 +751,17 @@ if (isset($_POST['confirm_booking'])) {
                                 </select>
                             <?php endif; ?>
                         </div>
+                        <div class="mb-3" id="id_type_div" style="display: none;">
+                            <label class="form-label">ID Type*</label>
+                            <?php if(!empty($user_id_type)): ?>
+                                <input type="text" name="id_type" class="form-control" id="id_type_readonly" value="<?= htmlspecialchars($user_id_type) ?>" readonly>
+                                <input type="hidden" id="id_type" value="<?= htmlspecialchars($user_id_type) ?>">
+                            <?php else: ?>
+                                <select name="id_type" id="id_type" class="form-select">
+                                    <option value="" disabled selected>Select ID Type</option>
+                                </select>
+                            <?php endif; ?>
+                        </div>
                         <div class="mb-3" id="company_div" style="display: none;">
                             <label class="form-label" id="company_label">Company / School Name*</label>
                             <?php if(!empty($user_company)): ?>
@@ -703,17 +771,17 @@ if (isset($_POST['confirm_booking'])) {
                                 <input type="text" name="company" id="company" class="form-control" placeholder="Enter your company or school name" required>
                             <?php endif; ?>
                         </div>
-                        <!-- School ID Upload for Students -->
+                        <!-- ID Upload -->
                         <div class="mb-3" id="school_id_div" style="display: none;">
-                            <label class="form-label">School ID*</label>
+                            <label class="form-label" id="id_image_label">Valid ID (Image)*</label>
                             <?php if(!empty($user_school_id_image)): ?>
                                 <div class="mb-2">
-                                    <img src="../uploads/proofs/<?= htmlspecialchars($user_school_id_image) ?>" alt="School ID" style="max-width: 200px; max-height: 150px;" class="border rounded">
-                                    <div class="small text-success mt-1"><i class="fas fa-check-circle"></i> School ID already uploaded</div>
+                                    <img src="../uploads/proofs/<?= htmlspecialchars($user_school_id_image) ?>" alt="Valid ID" style="max-width: 200px; max-height: 150px;" class="border rounded">
+                                    <div class="small text-success mt-1"><i class="fas fa-check-circle"></i> ID already uploaded</div>
                                 </div>
                             <?php endif; ?>
                             <input type="file" name="school_id_image" id="school_id_image" class="form-control" accept="image/*">
-                            <small class="text-muted">Upload a clear photo of your school ID (Valid ID required)</small>
+                            <small class="text-muted" id="id_image_help">Upload a clear photo of your ID</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Permanent Address*</label>
@@ -766,7 +834,7 @@ if (isset($_POST['confirm_booking'])) {
                                 <input type="text" name="emergency_contact_name" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_name) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_name" value="<?= htmlspecialchars($user_emergency_contact_name) ?>">
                             <?php else: ?>
-                                <input type="text" name="emergency_contact_name" id="emergency_contact_name" class="form-control" placeholder="e.g. Juan Dela Cruz" required>
+                                <input type="text" name="emergency_contact_name" id="emergency_contact_name" class="form-control" placeholder="e.g. Juan Dela Cruz" required oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')">
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
@@ -792,11 +860,14 @@ if (isset($_POST['confirm_booking'])) {
                         </div>
                     </div>
                 </div>
+                
+                <!-- Companions Section -->
+                <div id="companion_forms_container" style="display:none;"></div>
             </div>
 
             <!-- Reservation Info -->
-            <div class="col-md-7 anim-trigger delay-2">
-                <div class="card card-custom h-100">
+            <div class="col-md-7 anim-trigger delay-2 d-flex flex-column gap-4">
+                <div class="card card-custom">
                     <div class="card-header fw-bold text-success"><i class="fas fa-bed me-2"></i>Booking Details</div>
                     <div class="card-body">
                         <div class="mb-3">
@@ -817,13 +888,19 @@ if (isset($_POST['confirm_booking'])) {
                                 <input type="hidden" name="bed_preference" value="<?= htmlspecialchars($_GET['bed_preference']) ?>">
                                 <small class="text-success"><i class="fas fa-lock me-1"></i> Preference locked from selection</small>
                             <?php else: ?>
-                                <select name="bed_preference" class="form-select" onchange="calculateTotal(); checkRealTimeAvailability()">
+                                <select name="bed_preference" class="form-select" onchange="calculateTotal(); checkRealTimeAvailability(); updateCompanionForms();">
                                     <option value="Any">Any</option>
                                     <option value="Lower Bunk">Lower Bunk</option>
                                     <option value="Upper Bunk">Upper Bunk</option>
                                     <option value="Whole Room">Whole Room</option>
                                 </select>
                             <?php endif; ?>
+                        </div>
+
+                        <div class="mb-3" id="occupant_count_div" style="display:none;">
+                            <label class="form-label">Number of Occupants</label>
+                            <select name="occupant_count" id="occupant_count" class="form-select" onchange="updateCompanionForms()">
+                            </select>
                         </div>
 
                         <div class="mb-3">
@@ -871,38 +948,37 @@ if (isset($_POST['confirm_booking'])) {
                                 <span class="h4 text-success fw-bold mb-0">₱<span id="totalAmount">0</span></span>
                             </div>
                         </div>
-
+                    </div>
+                </div>
 
                         <!-- Agreement Section -->
-                        <div class="mb-3 p-3 border rounded bg-light">
-                            <h6 class="fw-bold text-success mb-3"><i class="fas fa-file-contract me-2"></i>Agreement & Policies</h6>
-                            
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" name="agree_rules" id="agree_rules" required>
-                                <label class="form-check-label small" for="agree_rules">
-                                    <a href="#" <?= !empty($house_rules_file) ? 'data-bs-toggle="modal" data-bs-target="#rulesModal"' : 'onclick="alert(\'House rules file not uploaded yet.\'); return false;"' ?> class="text-success text-decoration-none fw-bold">I agree to the house rules and regulations</a>
-                                </label>
-                            </div>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" name="agree_fees" id="agree_fees" required>
-                                <label class="form-check-label small" for="agree_fees">
-                                    I agree to pay utilities, fees, and possible damages
-                                </label>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label small fw-bold">Electronic Signature (Type Full Name)</label>
-                                <input type="text" name="typed_signature" class="form-control" value="<?= htmlspecialchars($user_name) ?>" readonly>
-                            </div>
-                            
-                            <div class="mb-1">
-                                <label class="form-label small fw-bold">Date Submitted</label>
-                                <input type="text" class="form-control" value="<?= date('F d, Y') ?>" readonly>
-                            </div>
+                <div class="card card-custom">
+                    <div class="card-header fw-bold text-success"><i class="fas fa-file-contract me-2"></i>Agreement & Policies</div>
+                    <div class="card-body">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="agree_rules" id="agree_rules" required>
+                            <label class="form-check-label small" for="agree_rules">
+                                <a href="#" <?= !empty($house_rules_file) ? 'data-bs-toggle="modal" data-bs-target="#rulesModal"' : 'onclick="alert(\'House rules file not uploaded yet.\'); return false;"' ?> class="text-success text-decoration-none fw-bold">I agree to the house rules and regulations</a>
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="agree_fees" id="agree_fees" required>
+                            <label class="form-check-label small" for="agree_fees">
+                                I agree to pay utilities, fees, and possible damages
+                            </label>
                         </div>
 
-                        <button type="button" onclick="confirmReservation()" class="btn btn-custom w-100 py-3 mt-3"><i class="fas fa-check-circle"></i> Confirm Reservation</button>
-                    </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Electronic Signature (Type Full Name)</label>
+                            <input type="text" name="typed_signature" class="form-control" value="<?= htmlspecialchars($user_name) ?>" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Date Submitted</label>
+                            <input type="text" class="form-control" value="<?= date('F d, Y') ?>" readonly>
+                        </div>
+
+                        <button type="button" onclick="confirmReservation()" class="btn btn-custom w-100 py-3 mt-2"><i class="fas fa-check-circle"></i> Confirm Reservation</button>
                 </div>
             </div>
         </div>
@@ -969,8 +1045,11 @@ function toggleCompanyField() {
     var occupation = document.getElementById('occupation');
     var companyDiv = document.getElementById('company_div');
     var schoolIdDiv = document.getElementById('school_id_div');
+    var idTypeDiv = document.getElementById('id_type_div');
+    var idType = document.getElementById('id_type');
     var companyInput = document.getElementById('company');
     var schoolIdInput = document.getElementById('school_id_image');
+    var idImageLabel = document.getElementById('id_image_label');
     
     // Labels
     var labelName = document.getElementById('label_emergency_name');
@@ -981,21 +1060,33 @@ function toggleCompanyField() {
     var inputNumber = document.getElementById('emergency_contact_number');
     
     var companyLabel = document.getElementById('company_label');
+    let currentIdType = "<?= $user_id_type ?? '' ?>";
 
     if (occupation && occupation.value === 'Employed') {
-        companyDiv.style.display = 'none';
-        schoolIdDiv.style.display = 'none';
-        if(companyInput) companyInput.required = false;
-        if(schoolIdInput) schoolIdInput.required = false;
-        if(labelName) labelName.innerText = "Company Name*";
-        if(labelNumber) labelNumber.innerText = "Company Number*";
-        if(inputName) inputName.placeholder = "Enter company name";
-        if(inputNumber) inputNumber.placeholder = "Enter company contact number";
+        if(companyDiv) companyDiv.style.display = 'none';
+        if(schoolIdInput) schoolIdInput.required = <?= empty($user_school_id_image) ? 'true' : 'false' ?>;
+            if(idType) idType.required = true;
+            if(idType && idType.tagName === 'SELECT') {
+                idType.innerHTML = '<option value="" disabled selected>Select Valid ID</option><option value="Company ID">Company ID</option><option value="National ID">National ID</option><option value="Driver\'s License">Driver\'s License</option><option value="Passport">Passport</option><option value="UMID">UMID</option><option value="Postal ID">Postal ID</option><option value="SSS ID">SSS ID</option>';
+                if(currentIdType) idType.value = currentIdType;
+            }
+            if(idImageLabel) idImageLabel.innerText = "Valid ID (Image)*";
+            if(labelName) labelName.innerText = "Company Name*";
+            if(labelNumber) labelNumber.innerText = "Company Number*";
+            if(inputName) inputName.placeholder = "Enter company name";
+            if(inputNumber) inputNumber.placeholder = "Enter company contact number";
     } else if (occupation && occupation.value === 'Student') {
-        companyDiv.style.display = 'block'; // Show for student
-        schoolIdDiv.style.display = 'block';
+        if(companyDiv) companyDiv.style.display = 'block'; 
+            if(schoolIdDiv) schoolIdDiv.style.display = 'block';
+            if(idTypeDiv) idTypeDiv.style.display = 'block';
         if(companyInput) companyInput.required = true;
         if(schoolIdInput) schoolIdInput.required = <?= empty($user_school_id_image) ? 'true' : 'false' ?>;
+            if(idType) idType.required = true;
+            if(idType && idType.tagName === 'SELECT') {
+                idType.innerHTML = '<option value="" disabled selected>Select ID Type</option><option value="School ID">School ID</option><option value="National ID">National ID</option><option value="Driver\'s License">Driver\'s License</option><option value="E-FORM">E-FORM</option><option value="Passport">Passport</option>';
+                if(currentIdType) idType.value = currentIdType;
+            }
+            if(idImageLabel) idImageLabel.innerText = "Student ID / Valid ID (Image)*";
         if(companyLabel) companyLabel.innerText = "School Name*";
         if(companyInput) companyInput.placeholder = "Enter your school name";
         if(labelName) labelName.innerText = "Guardian Name*";
@@ -1003,9 +1094,11 @@ function toggleCompanyField() {
         if(inputName) inputName.placeholder = "Enter guardian name";
         if(inputNumber) inputNumber.placeholder = "Enter guardian contact number";
     } else {
-        companyDiv.style.display = 'none';
-        schoolIdDiv.style.display = 'none';
+        if(companyDiv) companyDiv.style.display = 'none';
+            if(schoolIdDiv) schoolIdDiv.style.display = 'none';
+            if(idTypeDiv) idTypeDiv.style.display = 'none'; 
         if(companyInput) companyInput.required = false;
+         if(idType) idType.required = false;
         if(labelName) labelName.innerText = "Emergency Contact Name*";
         if(labelNumber) labelNumber.innerText = "Emergency Contact Number*";
         if(inputName) inputName.placeholder = "e.g. Juan Dela Cruz";
@@ -1166,6 +1259,84 @@ function confirmReservation() {
         }
     }
 
+    function updateCompanionForms() {
+        let room = document.getElementById('troom').value;
+        let bedPrefEl = document.querySelector('[name="bed_preference"]');
+        let bedPref = bedPrefEl ? bedPrefEl.value : 'Any';
+        let occCountDiv = document.getElementById('occupant_count_div');
+        let occCountSelect = document.getElementById('occupant_count');
+        let container = document.getElementById('companion_forms_container');
+
+        if (bedPref === 'Whole Room' && (room === '4-Bed' || room === '6-Bed')) {
+            if (occCountDiv) occCountDiv.style.display = 'block';
+            let maxOcc = room === '4-Bed' ? 4 : 6;
+            
+            if (occCountSelect && occCountSelect.options.length !== maxOcc) {
+                let currentVal = occCountSelect.value;
+                occCountSelect.innerHTML = '';
+                for(let i=1; i<=maxOcc; i++) {
+                    let selected = (currentVal == i) ? 'selected' : (i == maxOcc ? 'selected' : '');
+                    occCountSelect.innerHTML += `<option value="${i}" ${selected}>${i} Person${i>1?'s':''}</option>`;
+                }
+            }
+
+            let count = occCountSelect ? (parseInt(occCountSelect.value) - 1) : (maxOcc - 1);
+
+            if (count > 0) {
+                let html = '<div class="card card-custom"><div class="card-header fw-bold text-success"><i class="fas fa-users me-2"></i>Companions Information</div><div class="card-body">';
+                html += '<p class="text-muted small mb-4">Please provide the details and valid IDs for your companions to complete this whole room reservation.</p>';
+                for(let i=1; i<=count; i++) {
+                html += `
+                <div class="p-3 mb-4 bg-light border rounded">
+                    <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+                        <span class="badge bg-success rounded-pill px-3 py-2 fw-bold"><i class="fas fa-user-plus me-1"></i> Companion ${i}</span>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Last Name*</label>
+                            <input type="text" name="comp_lname[]" class="form-control" placeholder="Last Name" required oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">First Name*</label>
+                            <input type="text" name="comp_fname[]" class="form-control" placeholder="First Name" required oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Middle Name</label>
+                            <input type="text" name="comp_mname[]" class="form-control" placeholder="Middle Name" oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Gender*</label>
+                            <select name="comp_gender[]" class="form-select" required>
+                                <option value="" disabled selected>Select</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Contact Number*</label>
+                            <input type="text" name="comp_phone[]" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\\d{9}$" maxlength="11" oninput="let v=this.value.replace(/[^0-9]/g,''); if(v.length>0&&v[0]!=='0')v='0'+v; if(v.length>1&&v[1]!=='9')v='09'+v.substring(2); this.value=v;" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Valid ID (Image)*</label>
+                            <input type="file" name="comp_id_image[]" class="form-control" accept="image/*" required>
+                        </div>
+                    </div>
+                </div>`;
+                }
+                html += '</div></div>';
+                container.innerHTML = html;
+                container.style.display = 'block';
+            } else {
+                container.innerHTML = '';
+                container.style.display = 'none';
+            }
+        } else {
+            if (occCountDiv) occCountDiv.style.display = 'none';
+            container.innerHTML = '';
+            container.style.display = 'none';
+        }
+    }
+
     function updateRoomOptions() {
         let room = document.getElementById('troom').value;
         let prefDiv = document.getElementById('bed_pref_div');
@@ -1192,6 +1363,7 @@ function confirmReservation() {
             prefDiv.style.display = 'none';
             if(bedSelect) bedSelect.innerHTML = '<option value="Any">Any</option>';
         }
+        updateCompanionForms();
     }
 
     function updateDurationFromDates() {
@@ -1438,6 +1610,7 @@ function confirmReservation() {
             calculateTotal(); // Calculate immediately if dates exist
             checkRealTimeAvailability();
         }
+        updateCompanionForms();
     });
 
     // Notification Logic

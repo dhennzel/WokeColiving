@@ -654,7 +654,7 @@ if(isset($_SESSION['user_id'])){
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <div class="form-floating">
-                                        <input type="text" class="form-control" id="name" name="name" placeholder="Your Name" autocomplete="name" required>
+                                        <input type="text" class="form-control" id="name" name="name" placeholder="Your Name" autocomplete="name" required oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')">
                                         <label for="name">Your Name</label>
                                     </div>
                                 </div>
