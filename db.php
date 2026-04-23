@@ -79,6 +79,58 @@ function is_super_admin() {
 }
 }
 
+if (!function_exists('send_system_email')) {
+function send_system_email($conn, $to, $subject, $message, $recipient_name = '') {
+    // Fetch SMTP settings from DB
+    $settings_q = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key LIKE 'smtp_%'");
+    $smtp_settings = [
+        'host' => 'smtp.gmail.com',
+        'port' => 587,
+        'username' => '',
+        'password' => '',
+        'from_email' => '',
+        'from_name' => 'Woke Coliving'
+    ];
+    while($row = mysqli_fetch_assoc($settings_q)) {
+        $key = str_replace('smtp_', '', $row['setting_key']);
+        if(array_key_exists($key, $smtp_settings)) {
+            $smtp_settings[$key] = $row['setting_value'];
+        }
+    }
+
+    $phpmailer_path = __DIR__ . '/PHPMailer/src/PHPMailer.php';
+    if (file_exists($phpmailer_path) && !empty($smtp_settings['username']) && !empty($smtp_settings['password'])) {
+        require_once __DIR__ . '/PHPMailer/src/Exception.php';
+        require_once __DIR__ . '/PHPMailer/src/PHPMailer.php';
+        require_once __DIR__ . '/PHPMailer/src/SMTP.php';
+
+        $mail = new PHPMailer(true);
+        try {
+            $mail->isSMTP();
+            $mail->Host       = $smtp_settings['host'];
+            $mail->SMTPAuth   = true;
+            $mail->Username   = $smtp_settings['username'];
+            $mail->Password   = $smtp_settings['password'];
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = (int)$smtp_settings['port'];
+
+            $mail->setFrom($smtp_settings['from_email'], $smtp_settings['from_name']);
+            $mail->addAddress($to, $recipient_name);
+            $mail->isHTML(true);
+            $mail->Subject = $subject;
+            $mail->Body    = $message;
+
+            $mail->send();
+            return true;
+        } catch (Exception $e) {
+            error_log("PHPMailer Error: " . $mail->ErrorInfo);
+            return false;
+        }
+    }
+    return false; // Don't fallback to prevent server issues
+}
+}
+
 if (!function_exists('send_notification')) {
 function send_notification($conn, $user_id, $message, $type = 'System', $custom_subject = null) {
     // 1. Insert into Database (In-App Notification)
@@ -116,47 +168,7 @@ function send_notification($conn, $user_id, $message, $type = 'System', $custom_
     if($u_row = mysqli_fetch_assoc($u_res)){
         $to = $u_row['email'];
         $subject = $custom_subject ?? "Woke Coliving Notification: $type";
-
-        // --- GMAIL SMTP CONFIGURATION (Requires PHPMailer) ---
-        // 1. Download PHPMailer and extract to: c:\xampp\htdocs\WokeColiving\PHPMailer
-        // 2. Enable "2-Step Verification" in Google Account -> Security
-        // 3. Generate an "App Password" and paste it below
-        $phpmailer_path = __DIR__ . '/PHPMailer/src/PHPMailer.php';
-
-        if (file_exists($phpmailer_path)) {
-            require_once __DIR__ . '/PHPMailer/src/Exception.php';
-            require_once __DIR__ . '/PHPMailer/src/PHPMailer.php';
-            require_once __DIR__ . '/PHPMailer/src/SMTP.php';
-
-            $mail = new PHPMailer(true);
-            try {
-                $mail->isSMTP();
-                $mail->Host       = 'smtp.gmail.com';
-                $mail->SMTPAuth   = true;
-                $mail->Username   = 'YOUR_GMAIL@gmail.com'; // <--- PUT YOUR GMAIL HERE
-                $mail->Password   = 'YOUR_APP_PASSWORD';    // <--- PUT YOUR APP PASSWORD HERE
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                $mail->Port       = 587;
-
-                $mail->setFrom('YOUR_GMAIL@gmail.com', 'Woke Coliving');
-                $mail->addAddress($to, $u_row['full_name']);
-                $mail->isHTML(true);
-                $mail->Subject = $subject;
-                $mail->Body    = $message;
-
-                $mail->send();
-            } catch (Exception $e) {
-                // Fallback to standard mail if SMTP fails
-                $headers = "From: no-reply@wokecoliving.com\r\n";
-                $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-                @mail($to, $subject, $message, $headers);
-            }
-        } else {
-            // Fallback if PHPMailer not installed
-            $headers = "From: no-reply@wokecoliving.com\r\n";
-            $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-            @mail($to, $subject, $message, $headers);
-        }
+        send_system_email($conn, $to, $subject, $message, $u_row['full_name']);
     }
 }
 }
@@ -267,6 +279,10 @@ function setup_payments_table($conn) {
         $check_col = mysqli_query($conn, "SHOW COLUMNS FROM payments LIKE 'is_archived'");
         if(mysqli_num_rows($check_col) == 0) {
             mysqli_query($conn, "ALTER TABLE payments ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
+        }
+        $check_pk = mysqli_query($conn, "SHOW COLUMNS FROM payments LIKE 'parking_reservation_id'");
+        if(mysqli_num_rows($check_pk) == 0) {
+            mysqli_query($conn, "ALTER TABLE payments ADD COLUMN parking_reservation_id INT DEFAULT NULL AFTER reservation_id");
         }
     }
 }

@@ -18,9 +18,9 @@ $type_q = mysqli_query($conn, "
         ps.slot_type, 
         SUM(p.amount) as earnings
     FROM payments p
-    JOIN parking_reservations pr ON SUBSTRING_INDEX(SUBSTRING_INDEX(p.description, '(Parking ID: ', -1), ')', 1) = pr.id
+    JOIN parking_reservations pr ON p.parking_reservation_id = pr.id
     JOIN parking_slots ps ON pr.slot_id = ps.id
-    WHERE p.description LIKE '%Parking Fee%' AND p.payment_status='Paid'
+    WHERE p.parking_reservation_id IS NOT NULL AND p.payment_status='Paid'
     GROUP BY ps.slot_type
 ");
 $type_data = [];

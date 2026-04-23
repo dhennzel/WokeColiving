@@ -100,8 +100,8 @@ if (isset($_POST['add_parking_reservation'])) {
     $active_res_q = mysqli_query($conn, "SELECT reservation_id FROM reservations WHERE user_id=$user_id AND status='Approved' ORDER BY end_date DESC LIMIT 1");
     if ($active_res_row = mysqli_fetch_assoc($active_res_q)) {
         $room_res_id = $active_res_row['reservation_id'];
-        $pay_stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, ?, ?, ?)");
-        mysqli_stmt_bind_param($pay_stmt, "idssss", $room_res_id, $cost, $payment_method, $payment_status, $start_date, $desc);
+        $pay_stmt = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, parking_reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        mysqli_stmt_bind_param($pay_stmt, "iidssss", $room_res_id, $pr_id, $cost, $payment_method, $payment_status, $start_date, $desc);
         mysqli_stmt_execute($pay_stmt);
     }
 

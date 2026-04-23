@@ -844,25 +844,6 @@ function filterOccupancy() {
             
             group.style.display = visibleCount > 0 ? 'block' : 'none';
         });
-        
-        // Re-sort all visible room-items by their room name/number
-        groups.forEach(group => {
-            const container = group.querySelector('.row');
-            const items = Array.from(group.querySelectorAll('.room-item'));
-            
-            // Sort items by room number
-            items.sort((a, b) => {
-                const aName = a.querySelector('.fw-bold').innerText;
-                const bName = b.querySelector('.fw-bold').innerText;
-                // Extract numeric part from room name (e.g., "Room 201" -> 201)
-                const aNum = parseInt(aName.replace(/\D/g, '')) || 0;
-                const bNum = parseInt(bName.replace(/\D/g, '')) || 0;
-                return aNum - bNum;
-            });
-            
-            // Re-append items in sorted order
-            items.forEach(item => container.appendChild(item));
-        });
     } else {
         // Specific floor selected - show grouped by floor
         groups.forEach(group => {

@@ -71,15 +71,6 @@ if($row_clearance = mysqli_fetch_assoc($q_clearance)){
     $current_clearance_file = $row_clearance['setting_value'];
 }
 
-// Handle Reset Defaults
-if(isset($_POST['reset_defaults'])){
-    if(is_super_admin()){
-    mysqli_query($conn, "DELETE FROM site_settings WHERE setting_key LIKE 'theme_%'");
-    $message = "Theme colors reset to defaults.";
-    $theme = get_theme_colors($conn); // Refresh
-    }
-}
-
 // Handle Logo Revert
 if(isset($_POST['revert_logo'])){
     if(is_super_admin()){
@@ -96,6 +87,29 @@ if(isset($_POST['revert_logo'])){
         $error = "No backup logo found.";
     }
     }
+}
+
+// Handle Reset Defaults
+if(isset($_POST['reset_defaults'])){
+    if(is_super_admin()){
+        $type = $_POST['reset_defaults'];
+        if($type == 'theme'){
+            mysqli_query($conn, "DELETE FROM site_settings WHERE setting_key LIKE 'theme_%'");
+            $message = "Theme colors reset to defaults.";
+            $theme = get_theme_colors($conn); // Refresh
+        } elseif($type == 'smtp'){
+            mysqli_query($conn, "DELETE FROM site_settings WHERE setting_key LIKE 'smtp_%'");
+            $message = "SMTP settings cleared.";
+        }
+    }
+}
+
+// Handle SMTP Settings
+if(isset($_POST['update_smtp']) && is_super_admin()){
+    foreach($_POST as $key => $val){
+        if(strpos($key, 'smtp_') === 0) mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('$key', '".mysqli_real_escape_string($conn, $val)."') ON DUPLICATE KEY UPDATE setting_value='".mysqli_real_escape_string($conn, $val)."'");
+    }
+    $message = "SMTP settings updated successfully.";
 }
 // --- Credentials Update ---
 if(isset($_POST['update_credentials'])){
@@ -425,6 +439,20 @@ $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
 ?>
+<?php
+// Fetch SMTP settings for the form
+$smtp_settings = [
+    'host' => '', 'port' => '', 'username' => '', 'password' => '', 
+    'from_email' => '', 'from_name' => ''
+];
+$smtp_q = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key LIKE 'smtp_%'");
+while($row = mysqli_fetch_assoc($smtp_q)){
+    $key = str_replace('smtp_', '', $row['setting_key']);
+    if(array_key_exists($key, $smtp_settings)){
+        $smtp_settings[$key] = $row['setting_value'];
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -499,6 +527,14 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                                 <i class="fas fa-file-contract fa-3x text-info mb-3"></i>
                                 <h5 class="fw-bold text-dark">System Policies</h5>
                                 <p class="text-muted small mb-0">Upload house rules, GCash QR, and printable clearance forms.</p>
+                            </div>
+                        </div>
+                        <!-- SMTP Settings Card -->
+                        <div class="col-md-4">
+                            <div class="card card-custom h-100 text-center p-4 profile-setting-card" data-bs-toggle="modal" data-bs-target="#smtpModal" style="cursor:pointer; transition: 0.3s;" onmouseover="this.style.transform='translateY(-5px)';" onmouseout="this.style.transform='translateY(0)';">
+                                <i class="fas fa-paper-plane fa-3x text-secondary mb-3"></i>
+                                <h5 class="fw-bold text-dark">Email (SMTP) Settings</h5>
+                                <p class="text-muted small mb-0">Configure the system to send emails for notifications and password resets.</p>
                             </div>
                         </div>
                         <?php endif; ?>
@@ -601,12 +637,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                     <!-- Logo -->
                     <div class="mb-4 bg-white p-3 rounded shadow-sm">
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <label class="form-label fw-bold small text-muted mb-0">System Logo</label>
-                            <?php if(file_exists("../Images/WokeLogo_backup.jpg")): ?>
-                                <button type="submit" name="revert_logo" class="btn btn-link btn-sm text-danger p-0 text-decoration-none" style="font-size: 0.75rem;" title="Revert to previous logo" formnovalidate>
-                                    <i class="fas fa-history me-1"></i> Revert
-                                </button>
-                            <?php endif; ?>
+                            <label class="form-label fw-bold small text-muted mb-0">System Logo (Recommended: Square)</label>
                         </div>
                         <div class="d-flex align-items-center gap-3">
                             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" class="rounded-circle border shadow-sm" style="width: 60px; height: 60px; object-fit: cover;">
@@ -706,7 +737,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                             </div>
                         </div>
                         <div class="text-end mt-3">
-                            <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none fw-bold" data-bs-toggle="modal" data-bs-target="#resetThemeModal">
+                            <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none fw-bold" onclick="confirmReset('theme')">
                                 <i class="fas fa-undo me-1"></i> Reset to Default
                             </button>
                         </div>
@@ -777,6 +808,56 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 </div>
 <?php endif; ?>
 
+<!-- SMTP Modal -->
+<div class="modal fade" id="smtpModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-paper-plane me-2"></i>Email (SMTP) Settings</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body p-4">
+                    <div class="alert alert-info small"><i class="fas fa-info-circle me-2"></i>Configure your Gmail or other SMTP service to send system emails. For Gmail, you'll need to generate an "App Password".</div>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">SMTP Host</label>
+                            <input type="text" name="smtp_host" class="form-control" value="<?= htmlspecialchars($smtp_settings['host']) ?>" placeholder="e.g., smtp.gmail.com">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">SMTP Port</label>
+                            <input type="number" name="smtp_port" class="form-control" value="<?= htmlspecialchars($smtp_settings['port']) ?>" placeholder="e.g., 587">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">SMTP Username (Your Email)</label>
+                            <input type="email" name="smtp_username" class="form-control" value="<?= htmlspecialchars($smtp_settings['username']) ?>" placeholder="your-email@gmail.com">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">SMTP Password (App Password)</label>
+                            <input type="password" name="smtp_password" class="form-control" value="<?= htmlspecialchars($smtp_settings['password']) ?>" placeholder="Enter App Password">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">"From" Email</label>
+                            <input type="email" name="smtp_from_email" class="form-control" value="<?= htmlspecialchars($smtp_settings['from_email']) ?>" placeholder="no-reply@yourdomain.com">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">"From" Name</label>
+                            <input type="text" name="smtp_from_name" class="form-control" value="<?= htmlspecialchars($smtp_settings['from_name']) ?>" placeholder="Woke Coliving">
+                        </div>
+                    </div>
+                    <div class="text-end mt-3">
+                        <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none fw-bold" onclick="confirmReset('smtp')"><i class="fas fa-undo me-1"></i> Clear Settings</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="update_smtp" class="btn btn-secondary fw-bold">Save SMTP Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Crop Modal -->
 <div class="modal fade" id="cropModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -793,27 +874,6 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
             <div class="modal-footer border-0 justify-content-center">
                 <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-custom px-4" id="crop-btn">Crop & Save</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Reset Confirmation Modal -->
-<div class="modal fade" id="resetThemeModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header text-white" style="background-color: #dc3545;">
-                <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Reset</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-0">Are you sure you want to reset the theme colors to their default values? This will restore the original green and yellow branding.</p>
-            </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST">
-                    <button type="submit" name="reset_defaults" class="btn btn-danger rounded-pill px-4">Yes, Reset to Default</button>
-                </form>
             </div>
         </div>
     </div>
@@ -908,6 +968,26 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
     [pInput, dInput, aInput, dangInput, infoInput, bgbInput, bgsInput, txtInput, sbgInput, stxtInput].forEach(input => {
         if (input) input.addEventListener('input', updateTheme);
     });
+
+    function confirmReset(type) {
+        let title = type === 'theme' ? 'Reset Theme?' : 'Clear SMTP Settings?';
+        let text = type === 'theme' 
+            ? "Are you sure you want to reset all theme colors to their default values?"
+            : "Are you sure you want to clear all saved SMTP email settings?";
+
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, proceed!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.querySelector(`form button[name="reset_defaults"][value="${type}"]`)?.form.submit();
+            }
+        });
+    }
 
     // Login Background Preview
     const loginBgInput = document.getElementById('login_bg_input');

@@ -200,14 +200,27 @@ if(isset($_POST['process_refund'])){
     $gcash_ref = isset($_POST['gcash_ref']) ? mysqli_real_escape_string($conn, $_POST['gcash_ref']) : null;
     
     $p_q = mysqli_query($conn, "SELECT * FROM payments WHERE payment_id=$pid");
-    if($p_row = mysqli_fetch_assoc($p_q)){
+    if ($p_row = mysqli_fetch_assoc($p_q)) {
         $res_id = $p_row['reservation_id'];
         
+        // 1. Update the original payment description to show it's been refunded
         $deduct_str = $deduction > 0 ? " | Deductions: ₱" . number_format($deduction, 2) . " ($remarks)" : "";
         $refund_desc_suffix = " (Refunded ₱".number_format($net_amount, 2)." via $method" . ($method == 'GCash' && $gcash_ref ? " - Ref#$gcash_ref" : "") . "$deduct_str)";
         mysqli_query($conn, "UPDATE payments SET description = CONCAT(description, '$refund_desc_suffix') WHERE payment_id=$pid");
 
-        // For Cash or GCash, it's an external transaction. We just log it.
+        // 2. Create a withdrawal record for audit trail
+        $w_notes = "Security Deposit Refund for Res ID #$res_id. Gross: ₱".number_format($orig_amount,2).". Deductions: ₱".number_format($deduction,2).". Remarks: $remarks. Method: $method.";
+        if($gcash_ref) $w_notes .= " Ref: $gcash_ref";
+        
+        $w_stmt = mysqli_prepare($conn, "INSERT INTO withdrawal_requests (user_id, amount, gcash_name, gcash_number, status, processed_at, admin_notes) VALUES (?, ?, ?, ?, 'Processed', NOW(), ?)");
+        $u_q = mysqli_query($conn, "SELECT first_name, last_name, phone_number FROM users WHERE user_id=$uid");
+        $u_data = mysqli_fetch_assoc($u_q);
+        $gcash_name = trim($u_data['first_name'] . ' ' . $u_data['last_name']);
+        $gcash_num = $u_data['phone_number'];
+        mysqli_stmt_bind_param($w_stmt, "idsss", $uid, $net_amount, $gcash_name, $gcash_num, $w_notes);
+        mysqli_stmt_execute($w_stmt);
+
+        // 3. Log and notify
         log_activity($conn, $uid, "Deposit Refunded", "Security Deposit processed. Net Refund: ₱".number_format($net_amount, 2)." via $method.");
         send_notification($conn, $uid, "💸 <strong>Deposit Refunded</strong><br>Your security deposit has been processed. Net Refund: ₱".number_format($net_amount, 2)." via $method. $deduct_str", "Billing");
         echo "<script>window.location.href='view_user.php?uid=$uid&tab=sd&msg=refunded_external';</script>";
