@@ -97,8 +97,8 @@ if(isset($_POST['revert_logo'])){
     }
     }
 }
-
-if(isset($_POST['update_profile'])){
+// --- Credentials Update ---
+if(isset($_POST['update_credentials'])){
     $new_username = mysqli_real_escape_string($conn, $_POST['username']);
     $first_name = mysqli_real_escape_string($conn, $_POST['first_name']);
     $last_name = mysqli_real_escape_string($conn, $_POST['last_name']);
@@ -208,10 +208,16 @@ if(isset($_POST['update_profile'])){
             $admin_info['last_name'] = $last_name;
             $admin_info['email'] = $email;
             $admin_info['phone_number'] = $phone_number;
-            $message = "Profile updated successfully.";
+            $message = "Account credentials updated successfully.";
+        } else {
+            $error = "Error updating profile: " . mysqli_error($conn);
+        }
+    }
+}
 
-            // Handle Cropped Logo Upload
-            if(is_super_admin()){
+ // --- Branding Update ---
+ if(isset($_POST['update_branding']) && is_super_admin()) {
+    // Handle Cropped Logo Upload
             if(isset($_POST['cropped_logo_data']) && !empty($_POST['cropped_logo_data'])){
                 $data = $_POST['cropped_logo_data'];
                 list($type, $data) = explode(';', $data);
@@ -245,161 +251,164 @@ if(isset($_POST['update_profile'])){
             }
 
             // Handle Login Background Upload
-            if(isset($_FILES['login_bg']) && $_FILES['login_bg']['error'] == 0){
-                $target_dir = "../assets/images/";
-                if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-                
-                $file_ext = strtolower(pathinfo($_FILES["login_bg"]["name"], PATHINFO_EXTENSION));
-                $new_filename = "login_bg_" . time() . "." . $file_ext;
-                $target_file = $target_dir . $new_filename;
-                
-                if(move_uploaded_file($_FILES["login_bg"]["tmp_name"], $target_file)){
-                    // Get old bg to delete
-                    $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='login_bg'");
-                    if($row = mysqli_fetch_assoc($q)){
-                        $old_bg = $row['setting_value'];
-                        if(!empty($old_bg) && file_exists("../assets/images/" . $old_bg) && $old_bg != 'hero.jpg'){
-                            unlink("../assets/images/" . $old_bg);
-                        }
-                    }
-                    
-                    $val = mysqli_real_escape_string($conn, $new_filename);
-                    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('login_bg', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
-                    $message .= " Login background updated.";
-                } else {
-                    $error = "Failed to upload login background.";
+    if(isset($_FILES['login_bg']) && $_FILES['login_bg']['error'] == 0){
+        $target_dir = "../assets/images/";
+        if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+        
+        $file_ext = strtolower(pathinfo($_FILES["login_bg"]["name"], PATHINFO_EXTENSION));
+        $new_filename = "login_bg_" . time() . "." . $file_ext;
+        $target_file = $target_dir . $new_filename;
+        
+        if(move_uploaded_file($_FILES["login_bg"]["tmp_name"], $target_file)){
+            // Get old bg to delete
+            $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='login_bg'");
+            if($row = mysqli_fetch_assoc($q)){
+                $old_bg = $row['setting_value'];
+                if(!empty($old_bg) && file_exists("../assets/images/" . $old_bg) && $old_bg != 'hero.jpg'){
+                    @unlink("../assets/images/" . $old_bg);
                 }
             }
-
-            // Handle Living Area Image Upload
-            if(isset($_FILES['living_area_img']) && $_FILES['living_area_img']['error'] == 0){
-                $target_dir = "../assets/images/";
-                if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-                
-                $file_ext = strtolower(pathinfo($_FILES["living_area_img"]["name"], PATHINFO_EXTENSION));
-                $new_filename = "living_area_" . time() . "." . $file_ext;
-                $target_file = $target_dir . $new_filename;
-                
-                if(move_uploaded_file($_FILES["living_area_img"]["tmp_name"], $target_file)){
-                    // Get old img to delete
-                    $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='living_area_image'");
-                    if($row = mysqli_fetch_assoc($q)){
-                        $old_img = $row['setting_value'];
-                        if(!empty($old_img) && file_exists("../assets/images/" . $old_img) && $old_img != 'hero.jpg'){
-                            unlink("../assets/images/" . $old_img);
-                        }
-                    }
-                    
-                    $val = mysqli_real_escape_string($conn, $new_filename);
-                    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('living_area_image', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
-                    $message .= " Living area image updated.";
-                    $current_living_area_img = $new_filename;
-                } else {
-                    $error = "Failed to upload living area image.";
-                }
-            }
-
-            // Handle Theme Colors
-            if(isset($_POST['primary_color'])){
-                $colors = [
-                    'theme_primary' => $_POST['primary_color'],
-                    'theme_dark' => $_POST['dark_color'],
-                    'theme_accent' => $_POST['accent_color']
-                ];
-                foreach($colors as $key => $val){
-                    $val = mysqli_real_escape_string($conn, $val);
-                    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('$key', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
-                }
-                $theme = get_theme_colors($conn); // Refresh
-            }
-
-            // Handle House Rules File Upload
-            if(isset($_FILES['house_rules_file']) && $_FILES['house_rules_file']['error'] == 0){
-                $target_dir = "../uploads/settings/";
-                if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-                
-                $file_ext = strtolower(pathinfo($_FILES["house_rules_file"]["name"], PATHINFO_EXTENSION));
-                $new_filename = "house_rules_" . time() . "." . $file_ext;
-                $target_file = $target_dir . $new_filename;
-                
-                if(move_uploaded_file($_FILES["house_rules_file"]["tmp_name"], $target_file)){
-                    // Get old file to delete
-                    $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='house_rules'");
-                    if($row = mysqli_fetch_assoc($q)){
-                        $old_file = $row['setting_value'];
-                        if(!empty($old_file) && file_exists("../uploads/settings/" . $old_file)){
-                            @unlink("../uploads/settings/" . $old_file);
-                        }
-                    }
-                    
-                    $val = mysqli_real_escape_string($conn, $new_filename);
-                    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('house_rules', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
-                    $message .= " House rules file updated.";
-                    $current_house_rules = $new_filename;
-                } else {
-                    $error = "Failed to upload house rules file.";
-                }
-            }
-
-            // Handle GCash QR Image Upload
-            if(isset($_FILES['gcash_qr_image']) && $_FILES['gcash_qr_image']['error'] == 0){
-                $target_dir = "../uploads/settings/";
-                if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-                
-                $file_ext = strtolower(pathinfo($_FILES["gcash_qr_image"]["name"], PATHINFO_EXTENSION));
-                $new_filename = "gcash_qr_" . time() . "." . $file_ext;
-                $target_file = $target_dir . $new_filename;
-                
-                if(move_uploaded_file($_FILES["gcash_qr_image"]["tmp_name"], $target_file)){
-                    $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='gcash_qr'");
-                    if($row = mysqli_fetch_assoc($q)){
-                        $old_file = $row['setting_value'];
-                        if(!empty($old_file) && file_exists("../uploads/settings/" . $old_file)){
-                            @unlink("../uploads/settings/" . $old_file);
-                        }
-                    }
-                    
-                    $val = mysqli_real_escape_string($conn, $new_filename);
-                    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('gcash_qr', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
-                    $message .= " GCash QR updated.";
-                    $current_gcash_qr = $new_filename;
-                } else {
-                    $error = "Failed to upload GCash QR.";
-                }
-            }
-
-            // Handle Clearance Form File Upload
-            if(isset($_FILES['clearance_file']) && $_FILES['clearance_file']['error'] == 0){
-                $target_dir = "../uploads/settings/";
-                if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-                
-                $file_ext = strtolower(pathinfo($_FILES["clearance_file"]["name"], PATHINFO_EXTENSION));
-                $new_filename = "clearance_form_" . time() . "." . $file_ext;
-                $target_file = $target_dir . $new_filename;
-                
-                if(move_uploaded_file($_FILES["clearance_file"]["tmp_name"], $target_file)){
-                    $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='clearance_file'");
-                    if($row = mysqli_fetch_assoc($q)){
-                        $old_file = $row['setting_value'];
-                        if(!empty($old_file) && file_exists("../uploads/settings/" . $old_file)){
-                            @unlink("../uploads/settings/" . $old_file);
-                        }
-                    }
-                    
-                    $val = mysqli_real_escape_string($conn, $new_filename);
-                    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('clearance_file', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
-                    $message .= " Clearance form updated.";
-                    $current_clearance_file = $new_filename;
-                } else {
-                    $error = "Failed to upload clearance form.";
-                }
-            }
-            }
+            
+            $val = mysqli_real_escape_string($conn, $new_filename);
+            mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('login_bg', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+            $message .= " Login background updated.";
         } else {
-            $error = "Error updating profile: " . mysqli_error($conn);
+            $error = "Failed to upload login background.";
         }
     }
+
+    // Handle Living Area Image Upload
+    if(isset($_FILES['living_area_img']) && $_FILES['living_area_img']['error'] == 0){
+        $target_dir = "../assets/images/";
+        if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+        
+        $file_ext = strtolower(pathinfo($_FILES["living_area_img"]["name"], PATHINFO_EXTENSION));
+        $new_filename = "living_area_" . time() . "." . $file_ext;
+        $target_file = $target_dir . $new_filename;
+        
+        if(move_uploaded_file($_FILES["living_area_img"]["tmp_name"], $target_file)){
+            // Get old img to delete
+            $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='living_area_image'");
+            if($row = mysqli_fetch_assoc($q)){
+                $old_img = $row['setting_value'];
+                if(!empty($old_img) && file_exists("../assets/images/" . $old_img) && $old_img != 'hero.jpg'){
+                    @unlink("../assets/images/" . $old_img);
+                }
+            }
+            
+            $val = mysqli_real_escape_string($conn, $new_filename);
+            mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('living_area_image', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+            $message .= " Living area image updated.";
+            $current_living_area_img = $new_filename;
+        } else {
+            $error = "Failed to upload living area image.";
+        }
+    }
+    if(empty($message) && empty($error)) $message = "Branding saved.";
 }
+
+// --- Theme Update ---
+if(isset($_POST['update_theme']) && is_super_admin()) {
+    if(isset($_POST['primary_color'])){
+        $colors = [
+            'theme_primary' => $_POST['primary_color'],
+            'theme_dark' => $_POST['dark_color'],
+            'theme_accent' => $_POST['accent_color']
+        ];
+        foreach($colors as $key => $val){
+            $val = mysqli_real_escape_string($conn, $val);
+            mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('$key', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+        }
+        $theme = get_theme_colors($conn); // Refresh
+        $message = "Theme colors updated successfully.";
+    }
+}
+
+// --- Policies Update ---
+if(isset($_POST['update_policies']) && is_super_admin()) {
+    // Handle House Rules File Upload
+    if(isset($_FILES['house_rules_file']) && $_FILES['house_rules_file']['error'] == 0){
+        $target_dir = "../uploads/settings/";
+        if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+        
+        $file_ext = strtolower(pathinfo($_FILES["house_rules_file"]["name"], PATHINFO_EXTENSION));
+        $new_filename = "house_rules_" . time() . "." . $file_ext;
+        $target_file = $target_dir . $new_filename;
+        
+        if(move_uploaded_file($_FILES["house_rules_file"]["tmp_name"], $target_file)){
+            $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='house_rules'");
+            if($row = mysqli_fetch_assoc($q)){
+                $old_file = $row['setting_value'];
+                if(!empty($old_file) && file_exists("../uploads/settings/" . $old_file)){
+                    @unlink("../uploads/settings/" . $old_file);
+                }
+            }
+            
+            $val = mysqli_real_escape_string($conn, $new_filename);
+            mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('house_rules', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+            $message .= " House rules file updated.";
+            $current_house_rules = $new_filename;
+        } else {
+            $error = "Failed to upload house rules file.";
+        }
+    }
+
+    // Handle GCash QR Image Upload
+    if(isset($_FILES['gcash_qr_image']) && $_FILES['gcash_qr_image']['error'] == 0){
+        $target_dir = "../uploads/settings/";
+        if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+        
+        $file_ext = strtolower(pathinfo($_FILES["gcash_qr_image"]["name"], PATHINFO_EXTENSION));
+        $new_filename = "gcash_qr_" . time() . "." . $file_ext;
+        $target_file = $target_dir . $new_filename;
+        
+        if(move_uploaded_file($_FILES["gcash_qr_image"]["tmp_name"], $target_file)){
+            $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='gcash_qr'");
+            if($row = mysqli_fetch_assoc($q)){
+                $old_file = $row['setting_value'];
+                if(!empty($old_file) && file_exists("../uploads/settings/" . $old_file)){
+                    @unlink("../uploads/settings/" . $old_file);
+                }
+            }
+            
+            $val = mysqli_real_escape_string($conn, $new_filename);
+            mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('gcash_qr', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+            $message .= " GCash QR updated.";
+            $current_gcash_qr = $new_filename;
+        } else {
+            $error = "Failed to upload GCash QR.";
+        }
+    }
+
+    // Handle Clearance Form File Upload
+    if(isset($_FILES['clearance_file']) && $_FILES['clearance_file']['error'] == 0){
+        $target_dir = "../uploads/settings/";
+        if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+        
+        $file_ext = strtolower(pathinfo($_FILES["clearance_file"]["name"], PATHINFO_EXTENSION));
+        $new_filename = "clearance_form_" . time() . "." . $file_ext;
+        $target_file = $target_dir . $new_filename;
+        
+        if(move_uploaded_file($_FILES["clearance_file"]["tmp_name"], $target_file)){
+            $q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='clearance_file'");
+            if($row = mysqli_fetch_assoc($q)){
+                $old_file = $row['setting_value'];
+                if(!empty($old_file) && file_exists("../uploads/settings/" . $old_file)){
+                    @unlink("../uploads/settings/" . $old_file);
+                }
+            }
+            
+            $val = mysqli_real_escape_string($conn, $new_filename);
+            mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('clearance_file', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
+            $message .= " Clearance form updated.";
+            $current_clearance_file = $new_filename;
+        } else {
+            $error = "Failed to upload clearance form.";
+        }
+    }
+    if(empty($message) && empty($error)) $message = "System policies saved.";
+    }
+
 
 // Fetch Pending Counts for Sidebar
 $pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
@@ -421,6 +430,16 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
     <link rel="stylesheet" href="admin.css">
     <style>
         .img-container { max-height: 400px; overflow: hidden; }
+        .profile-setting-card {
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 16px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background: #ffffff;
+        }
+        .profile-setting-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -430,179 +449,53 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
         <?php include 'admin_topbar.php'; ?>
         <main class="main-content">
             <div class="page-header">
-                <h1>Admin Profile</h1>
+                <h1></h1>
             </div>
             <div class="row justify-content-center">
                 <div class="col-md-10">
-                    <div class="card card-custom p-4">
-                        <h4 class="fw-bold mb-4 text-center" style="color: var(--dark-green);">System Settings</h4>
-                        <?php if($message) echo "<div class='alert alert-success'>$message</div>"; ?>
-                        <?php if($error) echo "<div class='alert alert-danger'>$error</div>"; ?>
-                        <form method="POST" enctype="multipart/form-data">
-                            <input type="hidden" name="cropped_logo_data" id="cropped_logo_data">
-                            <input type="hidden" name="cropped_profile_data" id="cropped_profile_data">
-                            <div class="row g-5">
-                                <!-- Left Column: Credentials -->
-                                <div class="<?= is_super_admin() ? 'col-md-6 border-end' : 'col-md-12' ?>">
-                                    <h5 class="text-success fw-bold mb-3"><i class="fas fa-user-shield me-2"></i>Account Credentials</h5>
-                                    
-                                    <div class="mb-4">
-                                        <label class="form-label fw-bold small">Personal Profile Picture</label>
-                                        <div class="d-flex align-items-center gap-3">
-                                            <?php
-                                                $my_avatar = "https://ui-avatars.com/api/?name=" . urlencode($admin_info['username']) . "&background=2DC08F&color=fff";
-                                                if (!empty($admin_info['profile_image']) && file_exists("../uploads/profiles/" . $admin_info['profile_image'])) {
-                                                    $my_avatar = "../uploads/profiles/" . $admin_info['profile_image'] . "?v=" . time();
-                                                }
-                                            ?>
-                                            <img src="<?= htmlspecialchars($my_avatar) ?>" id="admin_profile_preview" class="rounded-circle border shadow-sm" style="width: 50px; height: 50px; object-fit: cover;">
-                                            <div class="flex-grow-1">
-                                                <input type="file" name="admin_profile_image" id="admin_profile_image" class="form-control form-control-sm" accept="image/*">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="row g-2 mb-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold small">First Name</label>
-                                            <input type="text" name="first_name" class="form-control" value="<?= htmlspecialchars($admin_info['first_name'] ?? '') ?>" required>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold small">Last Name</label>
-                                            <input type="text" name="last_name" class="form-control" value="<?= htmlspecialchars($admin_info['last_name'] ?? '') ?>" required>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold small">Email & Phone Number</label>
-                                        <div class="input-group input-group-sm mb-2"><span class="input-group-text"><i class="fas fa-envelope"></i></span><input type="email" name="email" class="form-control" value="<?= htmlspecialchars($admin_info['email'] ?? '') ?>"></div>
-                                        <div class="input-group input-group-sm"><span class="input-group-text"><i class="fas fa-phone"></i></span><input type="text" name="phone_number" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" value="<?= htmlspecialchars($admin_info['phone_number'] ?? '') ?>" oninput="let v = this.value.replace(/[^0-9]/g, ''); if(v.length > 0 && v[0] !== '0') v = '0' + v; if(v.length > 1 && v[1] !== '9') v = '09' + v.substring(2); this.value = v;"></div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold small">Login Username</label>
-                                        <input type="text" name="username" class="form-control" value="<?= htmlspecialchars($admin_user) ?>" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold small">New Password</label>
-                                        <input type="password" name="password" id="newPass" class="form-control" placeholder="Leave blank to keep current">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold small">Confirm Password</label>
-                                        <input type="password" name="confirm_password" id="confirmPass" class="form-control" placeholder="Confirm new password">
-                                    </div>
-                                    <div class="form-check">
-                                        <input type="checkbox" class="form-check-input" id="showPassToggle">
-                                        <label class="form-check-label small" for="showPassToggle">Show Password</label>
-                                    </div>
-                                </div>
-
-                                <!-- Right Column: Branding -->
-                                <?php if(is_super_admin()): ?>
-                                <div class="col-md-6">
-                                    <h5 class="text-secondary fw-bold mb-4 small text-uppercase border-bottom pb-2"><i class="fas fa-sliders-h me-2"></i>System Branding</h5>
-                                    
-                                    <!-- Logo -->
-                                    <div class="mb-4">
-                                        <div class="d-flex align-items-center justify-content-between mb-2">
-                                            <label class="form-label fw-bold small mb-0">System Logo</label>
-                                            <?php if(file_exists("../Images/WokeLogo_backup.jpg")): ?>
-                                                <button type="submit" name="revert_logo" class="btn btn-link btn-sm text-danger p-0 text-decoration-none" style="font-size: 0.75rem;" title="Revert to previous logo">
-                                                    <i class="fas fa-history me-1"></i> Revert
-                                                </button>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="d-flex align-items-center gap-3">
-                                            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" class="rounded-circle border shadow-sm" style="width: 45px; height: 45px; object-fit: cover;">
-                                            <div class="flex-grow-1">
-                                                <input type="file" name="site_logo" id="logo_input" class="form-control form-control-sm" accept="image/*">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Login Background -->
-                                    <div class="mb-4">
-                                        <label class="form-label fw-bold small">Login Background</label>
-                                        <input type="file" name="login_bg" id="login_bg_input" class="form-control form-control-sm" accept="image/*">
-                                        <div id="login_bg_preview_container" class="mt-2" style="display:none;">
-                                            <img id="login_bg_preview" src="" class="rounded w-100 border" style="height: 120px; object-fit: cover;">
-                                        </div>
-                                        <div class="text-end mt-1">
-                                            <small class="text-muted" style="font-size: 0.7rem;">Current: <?= htmlspecialchars($current_login_bg) ?></small>
-                                        </div>
-                                    </div>
-
-                                    <!-- Living Area Image -->
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold small">Living Area Image</label>
-                                        <input type="file" name="living_area_img" class="form-control form-control-sm" accept="image/*">
-                                        <div class="text-end mt-1">
-                                            <small class="text-muted" style="font-size: 0.7rem;">Current: <?= htmlspecialchars($current_living_area_img) ?></small>
-                                        </div>
-                                    </div>
-
-                                    <!-- Theme Colors -->
-                                    <h5 class="text-secondary fw-bold mb-4 small text-uppercase border-bottom pb-2 mt-5"><i class="fas fa-palette me-2"></i>Theme Customization</h5>
-                                    <div class="row g-2">
-                                        <div class="col-4">
-                                            <label class="form-label small fw-bold mb-1">Primary</label>
-                                            <input type="color" name="primary_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['primary'] ?>" title="Primary Color">
-                                        </div>
-                                        <div class="col-4">
-                                            <label class="form-label small fw-bold mb-1">Dark/Sidebar</label>
-                                            <input type="color" name="dark_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['dark'] ?>" title="Dark Color">
-                                        </div>
-                                        <div class="col-4">
-                                            <label class="form-label small fw-bold mb-1">Accent</label>
-                                            <input type="color" name="accent_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['accent'] ?>" title="Accent Color">
-                                        </div>
-                                    </div>
-                                    <div class="text-end mt-2">
-                                        <button type="submit" name="reset_defaults" class="btn btn-link btn-sm text-danger p-0 text-decoration-none" style="font-size: 0.75rem;" formnovalidate>
-                                            <i class="fas fa-undo me-1"></i> Reset to Default
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- House Rules -->
-                                    <h5 class="text-secondary fw-bold mb-4 small text-uppercase border-bottom pb-2 mt-5"><i class="fas fa-file-contract me-2"></i>System Policies</h5>
-                                    <div class="mb-4">
-                                        <label class="form-label fw-bold small">House Rules & Regulations File</label>
-                                        <input type="file" name="house_rules_file" id="house_rules_file" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-                                        <?php if(!empty($current_house_rules)): ?>
-                                            <div class="mt-2 text-end">
-                                                <a href="../uploads/settings/<?= htmlspecialchars($current_house_rules) ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-download me-1"></i> View Current File</a>
-                                            </div>
-                                        <?php endif; ?>
-                                        <small class="text-muted d-block mt-1">Upload a PDF, DOC, or Image file containing the house rules.</small>
-                                    </div>
-
-                                    <!-- GCash QR -->
-                                    <div class="mb-4">
-                                        <label class="form-label fw-bold small">GCash QR Code</label>
-                                        <input type="file" name="gcash_qr_image" id="gcash_qr_image" class="form-control form-control-sm" accept="image/*">
-                                        <?php if(!empty($current_gcash_qr)): ?>
-                                            <div class="mt-2 text-end">
-                                                <a href="../uploads/settings/<?= htmlspecialchars($current_gcash_qr) ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-qrcode me-1"></i> View Current QR</a>
-                                            </div>
-                                        <?php endif; ?>
-                                        <small class="text-muted d-block mt-1">Upload the GCash QR Code displayed to guests on the payment page.</small>
-                                    </div>
-
-                                    <!-- Clearance Form -->
-                                    <div class="mb-4">
-                                        <label class="form-label fw-bold small">Printable Clearance Form</label>
-                                        <input type="file" name="clearance_file" id="clearance_file" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-                                        <small class="text-muted d-block mt-1">Upload a blank clearance form to print for tenants completing their contracts.</small>
-                                    </div>
-                                </div>
-                                <?php endif; ?>
+                    <h4 class="fw-bold mb-4 text-center" style="color: var(--dark-green);">Admin Profile</h4>
+                    <?php if($message) echo "<div class='alert alert-success'>$message</div>"; ?>
+                    <?php if($error) echo "<div class='alert alert-danger'>$error</div>"; ?>
+                    
+                    <div class="row g-4">
+                        <!-- Account Credentials Card -->
+                        <div class="col-md-4">
+                            <div class="card card-custom h-100 text-center p-4 profile-setting-card" data-bs-toggle="modal" data-bs-target="#credentialsModal" style="cursor:pointer; transition: 0.3s;" onmouseover="this.style.transform='translateY(-5px)';" onmouseout="this.style.transform='translateY(0)';">
+                                <i class="fas fa-user-shield fa-3x text-success mb-3"></i>
+                                <h5 class="fw-bold text-dark">Account Credentials</h5>
+                                <p class="text-muted small mb-0">Update your personal info, login details, and profile picture.</p>
                             </div>
-                            
-                            <hr class="my-4">
-                            <div class="text-end">
-                                <button type="submit" name="update_profile" class="btn btn-custom px-5 py-2">Save Changes</button>
+                        </div>
+                        
+                        <?php if(is_super_admin()): ?>
+                        <!-- System Branding Card -->
+                        <div class="col-md-4">
+                            <div class="card card-custom h-100 text-center p-4 profile-setting-card" data-bs-toggle="modal" data-bs-target="#brandingModal" style="cursor:pointer; transition: 0.3s;" onmouseover="this.style.transform='translateY(-5px)';" onmouseout="this.style.transform='translateY(0)';">
+                                <i class="fas fa-image fa-3x text-primary mb-3"></i>
+                                <h5 class="fw-bold text-dark">System Branding</h5>
+                                <p class="text-muted small mb-0">Update the system logo, login background, and living area images.</p>
                             </div>
-                        </form>
+                        </div>
+
+                        <!-- Theme Customization Card -->
+                        <div class="col-md-4">
+                            <div class="card card-custom h-100 text-center p-4 profile-setting-card" data-bs-toggle="modal" data-bs-target="#themeModal" style="cursor:pointer; transition: 0.3s;" onmouseover="this.style.transform='translateY(-5px)';" onmouseout="this.style.transform='translateY(0)';">
+                                <i class="fas fa-palette fa-3x text-warning mb-3"></i>
+                                <h5 class="fw-bold text-dark">Theme Customization</h5>
+                                <p class="text-muted small mb-0">Change the primary, dark, and accent colors of the system.</p>
+                            </div>
+                        </div>
+
+                        <!-- System Policies Card -->
+                        <div class="col-md-4">
+                            <div class="card card-custom h-100 text-center p-4 profile-setting-card" data-bs-toggle="modal" data-bs-target="#policiesModal" style="cursor:pointer; transition: 0.3s;" onmouseover="this.style.transform='translateY(-5px)';" onmouseout="this.style.transform='translateY(0)';">
+                                <i class="fas fa-file-contract fa-3x text-info mb-3"></i>
+                                <h5 class="fw-bold text-dark">System Policies</h5>
+                                <p class="text-muted small mb-0">Upload house rules, GCash QR, and printable clearance forms.</p>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                     </div>
-
                 </div>
             </div>
         </div>
@@ -610,6 +503,238 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
         </main>
     </div>
 </div>
+
+<!-- Credentials Modal -->
+<div class="modal fade" id="credentialsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-user-shield me-2"></i>Account Credentials</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-body bg-light p-4">
+                    <input type="hidden" name="cropped_profile_data" id="cropped_profile_data">
+                    <div class="mb-4 bg-white p-3 rounded shadow-sm">
+                        <label class="form-label fw-bold small text-muted">Personal Profile Picture</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <?php
+                                $my_avatar = "https://ui-avatars.com/api/?name=" . urlencode($admin_info['username']) . "&background=2DC08F&color=fff";
+                                if (!empty($admin_info['profile_image']) && file_exists("../uploads/profiles/" . $admin_info['profile_image'])) {
+                                    $my_avatar = "../uploads/profiles/" . $admin_info['profile_image'] . "?v=" . time();
+                                }
+                            ?>
+                            <img src="<?= htmlspecialchars($my_avatar) ?>" id="admin_profile_preview" class="rounded-circle border shadow-sm" style="width: 60px; height: 60px; object-fit: cover;">
+                            <div class="flex-grow-1">
+                                <input type="file" name="admin_profile_image" id="admin_profile_image" class="form-control" accept="image/*">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3 bg-white p-3 rounded shadow-sm mx-0">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">First Name</label>
+                            <input type="text" name="first_name" class="form-control" value="<?= htmlspecialchars($admin_info['first_name'] ?? '') ?>" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Last Name</label>
+                            <input type="text" name="last_name" class="form-control" value="<?= htmlspecialchars($admin_info['last_name'] ?? '') ?>" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Email</label>
+                            <div class="input-group input-group-sm"><span class="input-group-text"><i class="fas fa-envelope"></i></span><input type="email" name="email" class="form-control" value="<?= htmlspecialchars($admin_info['email'] ?? '') ?>"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Phone Number</label>
+                            <div class="input-group input-group-sm"><span class="input-group-text"><i class="fas fa-phone"></i></span><input type="text" name="phone_number" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="Please enter a valid 11-digit Philippine mobile number starting with 09" value="<?= htmlspecialchars($admin_info['phone_number'] ?? '') ?>" oninput="let v = this.value.replace(/[^0-9]/g, ''); if(v.length > 0 && v[0] !== '0') v = '0' + v; if(v.length > 1 && v[1] !== '9') v = '09' + v.substring(2); this.value = v;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-3 rounded shadow-sm">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">Login Username</label>
+                            <input type="text" name="username" class="form-control" value="<?= htmlspecialchars($admin_user) ?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">New Password</label>
+                            <input type="password" name="password" id="newPass" class="form-control" placeholder="Leave blank to keep current">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">Confirm Password</label>
+                            <input type="password" name="confirm_password" id="confirmPass" class="form-control" placeholder="Confirm new password">
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="showPassToggle">
+                            <label class="form-check-label small text-muted" for="showPassToggle">Show Password</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="update_credentials" class="btn btn-success fw-bold">Save Credentials</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<?php if(is_super_admin()): ?>
+<!-- Branding Modal -->
+<div class="modal fade" id="brandingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-image me-2"></i>System Branding</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-body bg-light p-4">
+                    <input type="hidden" name="cropped_logo_data" id="cropped_logo_data">
+                    
+                    <!-- Logo -->
+                    <div class="mb-4 bg-white p-3 rounded shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <label class="form-label fw-bold small text-muted mb-0">System Logo</label>
+                            <?php if(file_exists("../Images/WokeLogo_backup.jpg")): ?>
+                                <button type="submit" name="revert_logo" class="btn btn-link btn-sm text-danger p-0 text-decoration-none" style="font-size: 0.75rem;" title="Revert to previous logo" formnovalidate>
+                                    <i class="fas fa-history me-1"></i> Revert
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" class="rounded-circle border shadow-sm" style="width: 60px; height: 60px; object-fit: cover;">
+                            <div class="flex-grow-1">
+                                <input type="file" name="site_logo" id="logo_input" class="form-control" accept="image/*">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Login Background -->
+                    <div class="mb-4 bg-white p-3 rounded shadow-sm">
+                        <label class="form-label fw-bold small text-muted">Login Background</label>
+                        <input type="file" name="login_bg" id="login_bg_input" class="form-control mb-2" accept="image/*">
+                        <div id="login_bg_preview_container" style="display:none;">
+                            <img id="login_bg_preview" src="" class="rounded w-100 border shadow-sm" style="height: 120px; object-fit: cover;">
+                        </div>
+                        <div class="text-end mt-1">
+                            <small class="text-muted" style="font-size: 0.7rem;">Current: <?= htmlspecialchars($current_login_bg) ?></small>
+                        </div>
+                    </div>
+
+                    <!-- Living Area Image -->
+                    <div class="mb-3 bg-white p-3 rounded shadow-sm">
+                        <label class="form-label fw-bold small text-muted">Living Area Image</label>
+                        <input type="file" name="living_area_img" class="form-control mb-2" accept="image/*">
+                        <div class="text-end mt-1">
+                            <small class="text-muted" style="font-size: 0.7rem;">Current: <?= htmlspecialchars($current_living_area_img) ?></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="update_branding" class="btn btn-primary fw-bold">Save Branding</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Theme Modal -->
+<div class="modal fade" id="themeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold"><i class="fas fa-palette me-2"></i>Theme Customization</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body bg-light p-4">
+                    <div class="bg-white p-3 rounded shadow-sm mb-3">
+                        <div class="row g-3">
+                            <div class="col-4">
+                                <label class="form-label small fw-bold text-muted mb-1">Primary</label>
+                                <input type="color" name="primary_color" id="primary_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['primary'] ?>" title="Primary Color">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small fw-bold text-muted mb-1">Dark/Sidebar</label>
+                                <input type="color" name="dark_color" id="dark_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['dark'] ?>" title="Dark Color">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small fw-bold text-muted mb-1">Accent</label>
+                                <input type="color" name="accent_color" id="accent_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['accent'] ?>" title="Accent Color">
+                            </div>
+                        </div>
+                        <div class="text-end mt-3">
+                            <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none fw-bold" data-bs-toggle="modal" data-bs-target="#resetThemeModal">
+                                <i class="fas fa-undo me-1"></i> Reset to Default
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="update_theme" class="btn btn-warning fw-bold">Save Theme</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Policies Modal -->
+<div class="modal fade" id="policiesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-dark">
+                <h5 class="modal-title fw-bold"><i class="fas fa-file-contract me-2"></i>System Policies</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-body bg-light p-4">
+                    <!-- House Rules -->
+                    <div class="mb-4 bg-white p-3 rounded shadow-sm">
+                        <label class="form-label fw-bold small text-muted">House Rules & Regulations File</label>
+                        <input type="file" name="house_rules_file" class="form-control mb-2" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                        <?php if(!empty($current_house_rules)): ?>
+                            <div class="text-end">
+                                <a href="../uploads/settings/<?= htmlspecialchars($current_house_rules) ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-download me-1"></i> View Current File</a>
+                            </div>
+                        <?php endif; ?>
+                        <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Upload a PDF, DOC, or Image file containing the house rules.</small>
+                    </div>
+
+                    <!-- GCash QR -->
+                    <div class="mb-4 bg-white p-3 rounded shadow-sm">
+                        <label class="form-label fw-bold small text-muted">GCash QR Code</label>
+                        <input type="file" name="gcash_qr_image" class="form-control mb-2" accept="image/*">
+                        <?php if(!empty($current_gcash_qr)): ?>
+                            <div class="text-end">
+                                <a href="../uploads/settings/<?= htmlspecialchars($current_gcash_qr) ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-qrcode me-1"></i> View Current QR</a>
+                            </div>
+                        <?php endif; ?>
+                        <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Upload the GCash QR Code displayed to guests on the payment page.</small>
+                    </div>
+
+                    <!-- Clearance Form -->
+                    <div class="mb-3 bg-white p-3 rounded shadow-sm">
+                        <label class="form-label fw-bold small text-muted">Printable Clearance Form</label>
+                        <input type="file" name="clearance_file" class="form-control mb-2" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                        <?php if(!empty($current_clearance_file)): ?>
+                            <div class="text-end">
+                                <a href="../uploads/settings/<?= htmlspecialchars($current_clearance_file) ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-print me-1"></i> View / Print Form</a>
+                            </div>
+                        <?php endif; ?>
+                        <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Upload a blank clearance form to print for tenants completing their contracts.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="update_policies" class="btn btn-info fw-bold text-white">Save Policies</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Crop Modal -->
 <div class="modal fade" id="cropModal" tabindex="-1" data-bs-backdrop="static">
