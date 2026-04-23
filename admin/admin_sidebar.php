@@ -44,7 +44,25 @@ $facilities_total = $pk_cnt;
 $finance_total = $fin_cnt;
 
 $is_super = isset($_SESSION['admin_role']) && $_SESSION['admin_role'] == 'Super Admin';
+
+if (!isset($theme)) {
+    $theme = get_theme_colors($conn);
+}
 ?>
+<style>
+    :root {
+        --primary-green: <?= $theme['primary'] ?>;
+        --dark-green: <?= $theme['dark'] ?>;
+        --accent-yellow: <?= $theme['accent'] ?>;
+        --danger-color: <?= $theme['danger'] ?>;
+        --info-color: <?= $theme['info'] ?>;
+        --bg-body: <?= $theme['bg_body'] ?>;
+        --bg-surface: <?= $theme['bg_surface'] ?>;
+        --text-main: <?= $theme['text_main'] ?>;
+        --sidebar-bg: <?= $theme['sidebar_bg'] ?>;
+        --sidebar-text: <?= $theme['sidebar_text'] ?>;
+    }
+</style>
 <script>
     (function() {
         const currentAdminUser = "<?= htmlspecialchars($_SESSION['admin_username'] ?? 'admin', ENT_QUOTES, 'UTF-8') ?>";

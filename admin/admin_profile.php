@@ -74,7 +74,7 @@ if($row_clearance = mysqli_fetch_assoc($q_clearance)){
 // Handle Reset Defaults
 if(isset($_POST['reset_defaults'])){
     if(is_super_admin()){
-    mysqli_query($conn, "DELETE FROM site_settings WHERE setting_key IN ('theme_primary', 'theme_dark', 'theme_accent')");
+    mysqli_query($conn, "DELETE FROM site_settings WHERE setting_key LIKE 'theme_%'");
     $message = "Theme colors reset to defaults.";
     $theme = get_theme_colors($conn); // Refresh
     }
@@ -313,7 +313,14 @@ if(isset($_POST['update_theme']) && is_super_admin()) {
         $colors = [
             'theme_primary' => $_POST['primary_color'],
             'theme_dark' => $_POST['dark_color'],
-            'theme_accent' => $_POST['accent_color']
+            'theme_accent' => $_POST['accent_color'],
+            'theme_danger' => $_POST['danger_color'],
+            'theme_info' => $_POST['info_color'],
+            'theme_bg_body' => $_POST['bg_body_color'],
+            'theme_bg_surface' => $_POST['bg_surface_color'],
+            'theme_text_main' => $_POST['text_main_color'],
+            'theme_sidebar_bg' => $_POST['sidebar_bg_color'],
+            'theme_sidebar_text' => $_POST['sidebar_text_color']
         ];
         foreach($colors as $key => $val){
             $val = mysqli_real_escape_string($conn, $val);
@@ -663,6 +670,37 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                                 <label class="form-label small fw-bold text-muted mb-1">Accent</label>
                                 <input type="color" name="accent_color" id="accent_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['accent'] ?>" title="Accent Color">
                             </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Danger/Error</label>
+                                <input type="color" name="danger_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['danger'] ?>" title="Danger Color">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Info/Blue</label>
+                                <input type="color" name="info_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['info'] ?>" title="Info Color">
+                            </div>
+                            <div class="col-12 mt-4 border-top pt-3">
+                                <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-layer-group me-2"></i> Layout & Backgrounds (Light Mode)</h6>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-muted mb-1">Body Background</label>
+                                <input type="color" name="bg_body_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['bg_body'] ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-muted mb-1">Card Surface</label>
+                                <input type="color" name="bg_surface_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['bg_surface'] ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-muted mb-1">Main Text</label>
+                                <input type="color" name="text_main_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['text_main'] ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Sidebar Background</label>
+                                <input type="color" name="sidebar_bg_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['sidebar_bg'] ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Sidebar Text / Icons</label>
+                                <input type="color" name="sidebar_text_color" class="form-control form-control-color w-100 border shadow-sm" value="<?= $theme['sidebar_text'] ?>">
+                            </div>
                         </div>
                         <div class="text-end mt-3">
                             <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none fw-bold" data-bs-toggle="modal" data-bs-target="#resetThemeModal">
@@ -838,14 +876,31 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
     const pInput = document.getElementById('primary_color');
     const dInput = document.getElementById('dark_color');
     const aInput = document.getElementById('accent_color');
+    const dangInput = document.querySelector('input[name="danger_color"]');
+    const infoInput = document.querySelector('input[name="info_color"]');
+    const bgbInput = document.querySelector('input[name="bg_body_color"]');
+    const bgsInput = document.querySelector('input[name="bg_surface_color"]');
+    const txtInput = document.querySelector('input[name="text_main_color"]');
+    const sbgInput = document.querySelector('input[name="sidebar_bg_color"]');
+    const stxtInput = document.querySelector('input[name="sidebar_text_color"]');
 
     function updateTheme() {
         root.style.setProperty('--primary-green', pInput.value);
         root.style.setProperty('--dark-green', dInput.value);
         root.style.setProperty('--accent-yellow', aInput.value);
+        root.style.setProperty('--danger-color', dangInput.value);
+        root.style.setProperty('--info-color', infoInput.value);
+        
+        if(!document.body.classList.contains('night-mode')) {
+            root.style.setProperty('--bg-body', bgbInput.value);
+            root.style.setProperty('--bg-surface', bgsInput.value);
+            root.style.setProperty('--text-main', txtInput.value);
+            root.style.setProperty('--sidebar-bg', sbgInput.value);
+            root.style.setProperty('--sidebar-text', stxtInput.value);
+        }
     }
 
-    [pInput, dInput, aInput].forEach(input => {
+    [pInput, dInput, aInput, dangInput, infoInput, bgbInput, bgsInput, txtInput, sbgInput, stxtInput].forEach(input => {
         if (input) input.addEventListener('input', updateTheme);
     });
 

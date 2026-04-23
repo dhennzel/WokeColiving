@@ -22,14 +22,26 @@ mysqli_query($conn, "CREATE TABLE IF NOT EXISTS site_settings (id INT AUTO_INCRE
 
 if (!function_exists('get_theme_colors')) {
 function get_theme_colors($conn) {
-    $theme = ['primary' => '#34B875', 'dark' => '#1B5E20', 'accent' => '#FFB700'];
+    $theme = [
+        'primary' => '#34B875', 
+        'dark' => '#1B5E20', 
+        'accent' => '#F0B429',
+        'danger' => '#e53935',
+        'info' => '#0288d1',
+        'bg_body' => '#F8F9FA',
+        'bg_surface' => '#FFFFFF',
+        'text_main' => '#333333',
+        'sidebar_bg' => '#FFFFFF',
+        'sidebar_text' => '#6c757d'
+    ];
 
-    $q = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key IN ('theme_primary', 'theme_dark', 'theme_accent')");
+    $q = mysqli_query($conn, "SELECT * FROM site_settings WHERE setting_key LIKE 'theme_%'");
     if($q){
         while($row = mysqli_fetch_assoc($q)){
-            if($row['setting_key'] == 'theme_primary') $theme['primary'] = $row['setting_value'];
-            if($row['setting_key'] == 'theme_dark') $theme['dark'] = $row['setting_value'];
-            if($row['setting_key'] == 'theme_accent') $theme['accent'] = $row['setting_value'];
+            $key = str_replace('theme_', '', $row['setting_key']);
+            if(array_key_exists($key, $theme)) {
+                $theme[$key] = $row['setting_value'];
+            }
         }
     }
     return $theme;
