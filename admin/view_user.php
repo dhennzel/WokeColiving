@@ -306,7 +306,13 @@ $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
 
 $pay_where = "r.user_id=$uid AND p.is_archived = 0 AND r.is_archived = 0";
 if($pay_status_filter && $pay_status_filter != 'All'){
-    $pay_where .= " AND p.payment_status = '" . mysqli_real_escape_string($conn, $pay_status_filter) . "'";
+    if($pay_status_filter == 'PendingReview') {
+        $pay_where .= " AND p.payment_status = 'Unpaid' AND p.proof_image IS NOT NULL";
+    } elseif($pay_status_filter == 'Unsubmitted') {
+        $pay_where .= " AND p.payment_status = 'Unpaid' AND p.proof_image IS NULL";
+    } else {
+        $pay_where .= " AND p.payment_status = '" . mysqli_real_escape_string($conn, $pay_status_filter) . "'";
+    }
 } elseif(empty($pay_status_filter)) {
     $pay_where .= " AND (p.payment_status != 'Unpaid' OR p.proof_image IS NOT NULL)";
 }
@@ -865,11 +871,13 @@ $theme = get_theme_colors($conn);
                         <input type="date" name="start_date" class="form-control form-control-sm" value="<?= $start_date ?>" title="Start Date">
                         <span class="text-muted">-</span>
                         <input type="date" name="end_date" class="form-control form-control-sm" value="<?= $end_date ?>" title="End Date">
-                        <select name="pay_status" class="form-select form-select-sm" style="width: 120px;">
+                        <select name="pay_status" class="form-select form-select-sm" style="width: 140px;">
                             <option value="">Submitted</option>
                             <option value="All" <?= $pay_status_filter == 'All' ? 'selected' : '' ?>>All Bills</option>
                             <option value="Paid" <?= $pay_status_filter == 'Paid' ? 'selected' : '' ?>>Paid</option>
-                            <option value="Unpaid" <?= $pay_status_filter == 'Unpaid' ? 'selected' : '' ?>>Unpaid</option>
+                            <option value="PendingReview" <?= $pay_status_filter == 'PendingReview' ? 'selected' : '' ?>>Pending Review</option>
+                            <option value="Unsubmitted" <?= $pay_status_filter == 'Unsubmitted' ? 'selected' : '' ?>>Unsubmitted</option>
+                            <option value="Unpaid" <?= $pay_status_filter == 'Unpaid' ? 'selected' : '' ?>>All Unpaid</option>
                             <option value="Cancelled" <?= $pay_status_filter == 'Cancelled' ? 'selected' : '' ?>>Cancelled</option>
                         </select>
                         <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-filter"></i></button>
@@ -943,7 +951,7 @@ $theme = get_theme_colors($conn);
                                         elseif($pay['payment_status'] == 'Cancelled') $p_status_class = 'bg-danger';
                                     ?>
                                     <span class="badge <?= $p_status_class ?> position-relative">
-                                        <?= $pay['payment_status'] ?>
+                                        <?= ($pay['payment_status'] == 'Unpaid' && !empty($pay['proof_image'])) ? 'Pending Review' : $pay['payment_status'] ?>
                                         <?php if($pay['payment_status'] == 'Unpaid' && !empty($pay['proof_image'])): ?>
                                             <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
                                         <?php endif; ?>

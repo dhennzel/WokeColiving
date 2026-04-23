@@ -181,7 +181,7 @@ if(isset($_POST['submit_payment'])){
                                         <?php foreach($unpaid_bills as $index => $bill): ?>
                                             <label class="form-check mb-2 p-3 border rounded d-flex justify-content-between align-items-center" style="cursor:pointer;" for="bill_<?= $bill['payment_id'] ?>">
                                                 <div class="d-flex align-items-center">
-                                                    <input class="form-check-input bill-checkbox me-3 mt-0" style="width: 1.5em; height: 1.5em;" type="checkbox" name="selected_payments[]" value="<?= $bill['payment_id'] ?>" id="bill_<?= $bill['payment_id'] ?>" data-amount="<?= $bill['amount'] ?>" data-index="<?= $index ?>" data-desc="<?= htmlspecialchars($bill['display_description']) ?>" onchange="handleConsecutiveSelection(this); calculateTotal(); checkSelectAllState()">
+                                                    <input class="form-check-input bill-checkbox me-3 mt-0" style="width: 1.5em; height: 1.5em;" type="checkbox" name="selected_payments[]" value="<?= $bill['payment_id'] ?>" id="bill_<?= $bill['payment_id'] ?>" data-amount="<?= $bill['amount'] ?>" data-index="<?= $index ?>" data-desc="<?= htmlspecialchars($bill['display_description']) ?>" data-is-deposit="<?= $bill['is_deposit'] ? '1' : '0' ?>" data-date="<?= date('Y-m-d', strtotime($bill['payment_date'])) ?>" onchange="handleConsecutiveSelection(this); calculateTotal(); checkSelectAllState()">
                                                     <div>
                                                         <div class="fw-bold"><?= htmlspecialchars($bill['display_description']) ?></div>
                                                         <div class="small text-muted">Added: <?= date('M d, Y', strtotime($bill['payment_date'])) ?></div>
@@ -328,9 +328,35 @@ function validatePaymentForm() {
 
 document.addEventListener('DOMContentLoaded', function() {
     const checkboxes = document.querySelectorAll('.bill-checkbox');
-    if (checkboxes.length > 0) {
+    let hasSelected = false;
+    
+    // Get current date in YYYY-MM-DD
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+    checkboxes.forEach(function(cb) {
+        let isDeposit = cb.getAttribute('data-is-deposit') === '1';
+        let billDate = cb.getAttribute('data-date');
+        
+        // Auto-select Security Deposits, Overdue Bills, and Current Bills
+        if (isDeposit || billDate <= todayStr) {
+            cb.checked = true;
+            hasSelected = true;
+        }
+    });
+
+    // If nothing matches (e.g. all future bills), select at least the first one
+    if (!hasSelected && checkboxes.length > 0) {
         checkboxes[0].checked = true;
     }
+    
+    // Enforce consecutive selection in case of gaps
+    let lastCheckedIndex = -1;
+    checkboxes.forEach((cb, idx) => { if(cb.checked) lastCheckedIndex = idx; });
+    if(lastCheckedIndex > -1) {
+        for(let i=0; i<=lastCheckedIndex; i++) checkboxes[i].checked = true;
+    }
+    
     calculateTotal();
     checkSelectAllState();
 });

@@ -307,7 +307,9 @@ if(isset($_GET['term']) && !empty($_GET['term'])){
 $sql = "
     SELECT r.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), ''), IF(u.suffix IS NOT NULL AND u.suffix != '', CONCAT(' ', u.suffix), '')) as full_name, u.email, u.do_not_renew, u.profile_image, u.is_walkin, rm.room_name, rm.room_number, rm.room_type, rm.total_price AS room_monthly_price, rm.image,
     (SELECT COUNT(*) FROM payments p WHERE p.reservation_id = r.reservation_id AND p.payment_status='Unpaid' AND p.proof_image IS NOT NULL) as pending_payments,
-    (SELECT payment_status FROM payments p WHERE p.reservation_id = r.reservation_id ORDER BY payment_id ASC LIMIT 1) as initial_pay_status
+        (SELECT payment_status FROM payments p WHERE p.reservation_id = r.reservation_id ORDER BY payment_id ASC LIMIT 1) as initial_pay_status,
+        (SELECT IFNULL(SUM(amount), 0) FROM payments p WHERE p.reservation_id = r.reservation_id AND p.payment_status != 'Cancelled') as total_billed,
+        (SELECT IFNULL(SUM(amount), 0) FROM payments p WHERE p.reservation_id = r.reservation_id AND p.payment_status = 'Paid') as total_paid
     FROM reservations r
     INNER JOIN (
         SELECT user_id, 
@@ -345,6 +347,13 @@ $pending_res = $pending_res_q + $pending_pay_q;
 $pending_maint = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM maintenance_requests WHERE status='Pending'"))['c'];
 $pending_house = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM housekeeping_requests WHERE status='Pending'"))['c'];
 $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM account_deletion_requests WHERE status='Pending'"))['c'];
+
+// Fetch current Clearance Form
+$current_clearance_file = "";
+$q_clearance = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='clearance_file'");
+if($row_clearance = mysqli_fetch_assoc($q_clearance)){
+    $current_clearance_file = $row_clearance['setting_value'];
+}
 
 $theme = get_theme_colors($conn);
 ?>
@@ -399,7 +408,7 @@ $theme = get_theme_colors($conn);
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover">
-                        <thead><tr><th>Guest</th><th>Room</th><th>Stay Info</th><th>Total</th><th>Status</th><th>Receipt</th><th class="text-end">Manage</th></tr></thead>
+                        <thead><tr><th>Guest</th><th>Room</th><th>Stay Info</th><th>Billing</th><th>Status</th><th>Receipt</th><th class="text-end">Manage</th></tr></thead>
                         <tbody>
                             <?php while($res = mysqli_fetch_assoc($reservations)) { ?>
                             <tr>
@@ -438,7 +447,16 @@ $theme = get_theme_colors($conn);
                                     ?>
                                     <small class="text-muted"><?= trim($duration_text) ?> <?= !empty($res['extended_from']) ? '<span class="badge bg-info text-dark" style="font-size:0.6rem">Extended</span>' : '' ?></small>
                                 </td>
-                                <td class="fw-bold">₱<?= number_format($res['total_price'],2) ?></td>
+                                <td>
+                                    <?php 
+                                        $billed = $res['total_billed'] > 0 ? $res['total_billed'] : $res['total_price'];
+                                        $paid = $res['total_paid'];
+                                        $balance = $billed - $paid;
+                                    ?>
+                                    <div class="small">Paid: ₱<?= number_format($paid, 2) ?></div>
+                                    <div class="fw-bold <?= $balance > 0 ? 'text-danger' : 'text-success' ?>">Bal: ₱<?= number_format($balance, 2) ?></div>
+                                    <?= $balance > 0 ? '<span class="badge bg-danger" style="font-size:0.65rem;">With Balance</span>' : '<span class="badge bg-success" style="font-size:0.65rem;">Fully Paid</span>' ?>
+                                </td>
                                 <td>
                                     <?php
                                         $s = $res['status'];
@@ -465,8 +483,11 @@ $theme = get_theme_colors($conn);
                                     <?php } else { ?>-<?php } ?>
                                 </td>
                                 <td class="text-end">
+                                    <?php if($res['status'] == 'Completed' && !empty($current_clearance_file)): ?>
+                                        <a href="../uploads/settings/<?= htmlspecialchars($current_clearance_file) ?>" target="_blank" class="btn btn-sm btn-success text-white me-1" title="Print Clearance Form"><i class="fas fa-print me-1"></i> Clearance</a>
+                                    <?php endif; ?>
                                     <?php if($res['status'] == 'Pending' || $res['status'] == 'Verifying' || $res['pending_payments'] > 0): ?>
-                                        <a href="view_user.php?uid=<?= $res['user_id'] ?><?= $res['pending_payments'] > 0 ? '&pay_status=Unpaid' : '' ?>" class="btn btn-sm btn-warning position-relative fw-bold text-dark" title="Action Required">
+                                        <a href="view_user.php?uid=<?= $res['user_id'] ?><?= $res['pending_payments'] > 0 ? '&pay_status=PendingReview' : '' ?>" class="btn btn-sm btn-warning position-relative fw-bold text-dark" title="Action Required">
                                             <i class="fas fa-exclamation-circle me-1"></i> Review Request
                                             <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
                                         </a>

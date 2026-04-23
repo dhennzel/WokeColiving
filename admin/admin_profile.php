@@ -590,11 +590,6 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
                                     <div class="mb-4">
                                         <label class="form-label fw-bold small">Printable Clearance Form</label>
                                         <input type="file" name="clearance_file" id="clearance_file" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-                                        <?php if(!empty($current_clearance_file)): ?>
-                                            <div class="mt-2 text-end">
-                                                <a href="../uploads/settings/<?= htmlspecialchars($current_clearance_file) ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-print me-1"></i> View / Print Form</a>
-                                            </div>
-                                        <?php endif; ?>
                                         <small class="text-muted d-block mt-1">Upload a blank clearance form to print for tenants completing their contracts.</small>
                                     </div>
                                 </div>
