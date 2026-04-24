@@ -4,8 +4,9 @@ include('../db.php');
 
 // Redirect to login if not logged in
 if (!isset($_SESSION['user_id'])) {
-    $_SESSION['login_redirect'] = 'reservation_now.php';
-    header("Location: login.php");
+    $redirect_url = basename($_SERVER['REQUEST_URI']);
+    $_SESSION['login_redirect'] = $redirect_url;
+    header("Location: login.php?redirect=" . urlencode($redirect_url));
     exit();
 }
 
@@ -704,7 +705,7 @@ if (isset($_POST['confirm_booking'])) {
 </script>
 <div class="container py-5 animate-fade-in">
     <div class="d-flex justify-content-end mb-3">
-        <a href="javascript:history.back()" class="btn btn-outline-secondary rounded-pill px-4 fw-bold"><i class="fas fa-arrow-left me-2"></i>Back</a>
+        <a href="javascript:void(0)" onclick="goBackOrHome()" class="btn btn-outline-secondary rounded-pill px-4 fw-bold"><i class="fas fa-arrow-left me-2"></i>Back</a>
     </div>
 
     <?php if(!empty($error)): ?>
@@ -1663,6 +1664,16 @@ function confirmReservation() {
             else document.body.classList.remove('night-mode');
         }
     });
+
+    // Custom back button logic to prevent returning to auth pages
+    function goBackOrHome() {
+        const ref = document.referrer.toLowerCase();
+        if (ref.includes('register.php') || ref.includes('login.php') || !ref) {
+            window.location.href = 'index.php';
+        } else {
+            history.back();
+        }
+    }
 </script>
 
 </body>

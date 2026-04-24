@@ -2,6 +2,12 @@
 include '../db.php';
 session_start();
 
+// Prevent logged-in tenants from accessing the login page
+if (isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit;
+}
+
 $error = "";
 
 if (isset($_POST['login'])) {
@@ -17,12 +23,23 @@ if (isset($_POST['login'])) {
         $_SESSION['user_id'] = $user['user_id'];
         $_SESSION['role'] = $user['role'];
         $_SESSION['night_mode'] = $user['night_mode'] ?? 0;
-        header("Location: ../index.php");
+        
+        $redirect = '../index.php';
+        if (isset($_GET['redirect']) && !empty($_GET['redirect'])) {
+            $redirect = $_GET['redirect'];
+        } elseif (isset($_SESSION['login_redirect']) && !empty($_SESSION['login_redirect'])) {
+            $redirect = $_SESSION['login_redirect'];
+            unset($_SESSION['login_redirect']);
+        }
+        
+        header("Location: $redirect");
         exit;
     } else {
         $error = "Invalid email or password";
     }
 }
+
+$redirect_param = isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '';
 ?>
 
 <!DOCTYPE html>
@@ -41,10 +58,10 @@ if (isset($_POST['login'])) {
     <div class="auth-card">
         <div class="auth-header">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" class="logo">
-            <h2>Welcome Back</h2>
+            <h2>Welcome To Woke Coliving</h2>
         </div>
         <?php if ($error) { echo "<div class='alert alert-danger py-2 small mb-3'>$error</div>"; } ?>
-        <form method="POST">
+        <form method="POST" action="login.php<?= $redirect_param ?>">
             <div class="mb-3">
                 <input type="email" name="email" class="form-control" placeholder="Email Address" required>
             </div>
@@ -60,7 +77,7 @@ if (isset($_POST['login'])) {
             </div>
         </form>
         <div class="auth-footer">
-            <p class="text-muted mb-1">Don't have an account? <a href="register.php">Create One</a></p>
+            <p class="text-muted mb-1">Don't have an account? <a href="register.php<?= $redirect_param ?>">Create One</a></p>
             <a href="../index.php" class="text-muted small text-decoration-none"><i class="fas fa-arrow-left me-1"></i> Back to Home</a>
         </div>
     </div>

@@ -121,12 +121,18 @@ $room_display = !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room[
         body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
     </style>
 </head>
-<body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
+<body class="<?= (isset($_SESSION['user_id']) && isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
 <script>
     (function() {
         const currentUserId = "<?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : '' ?>";
-        const nightModeKey = currentUserId ? 'nightMode_' + currentUserId : 'nightMode';
-        if (localStorage.getItem(nightModeKey) === 'enabled') document.body.classList.add('night-mode');
+        
+        // This 'if' statement prevents the script from running for guests
+        if (currentUserId) {
+            const nightModeKey = 'nightMode_' + currentUserId;
+            if (localStorage.getItem(nightModeKey) === 'enabled') {
+                document.body.classList.add('night-mode');
+            }
+        }
     })();
 </script>
 <!-- NAVBAR -->
@@ -251,6 +257,26 @@ $room_display = !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room[
     </div>
 </div>
 
+<!-- Auth Prompt Modal -->
+<div class="modal fade" id="authPromptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom border-0 shadow-lg">
+            <div class="modal-header bg-success text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-user-circle me-2"></i>Account Required</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <h4 class="fw-bold mb-3">Do you have an account already?</h4>
+                <p class="text-muted mb-4">You need to log in or create an account to proceed with your booking.</p>
+                <div class="d-grid gap-3">
+                    <a href="login.php" id="btnPromptLogin" class="btn btn-success btn-lg rounded-pill fw-bold"><i class="fas fa-sign-in-alt me-2"></i>Yes, Log In</a>
+                    <a href="register.php" id="btnPromptRegister" class="btn btn-outline-success btn-lg rounded-pill fw-bold"><i class="fas fa-user-plus me-2"></i>No, Create Account</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="users_JS/app.js"></script>
 <script>
@@ -350,24 +376,31 @@ $room_display = !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room[
         updatePrices('short');
     });
 
-    // Night Mode Logic
-    const currentUserId = "<?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : '' ?>";
-    if(currentUserId && localStorage.getItem('nightMode_' + currentUserId) === 'enabled') {
-        document.body.classList.add('night-mode');
-    } else if (!currentUserId && localStorage.getItem('nightMode') === 'enabled') {
-        document.body.classList.add('night-mode');
-    }
-
-    // Sync Night Mode across tabs
-    window.addEventListener('storage', (e) => {
-        if (currentUserId && e.key === 'nightMode_' + currentUserId) {
-            if (e.newValue === 'enabled') document.body.classList.add('night-mode');
-            else document.body.classList.remove('night-mode');
-        } else if (!currentUserId && e.key === 'nightMode') {
-            if (e.newValue === 'enabled') document.body.classList.add('night-mode');
-            else document.body.classList.remove('night-mode');
+    // Intercept Booking Links for Guests
+    const isGuest = <?= isset($_SESSION['user_id']) ? 'false' : 'true' ?>;
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('a[href*="reservation_now.php"]');
+        if (isGuest && link && link.id !== 'btnPromptLogin' && link.id !== 'btnPromptRegister') {
+            e.preventDefault();
+            let intendedUrl = link.getAttribute('href');
+            
+            const loginBtn = document.getElementById('btnPromptLogin');
+            const regBtn = document.getElementById('btnPromptRegister');
+            if(loginBtn) loginBtn.href = 'login.php?redirect=' + encodeURIComponent(intendedUrl);
+            if(regBtn) regBtn.href = 'register.php?redirect=' + encodeURIComponent(intendedUrl);
+            
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('authPromptModal'));
+            modal.show();
         }
     });
+
+    // Fix accessibility warning (Blocked aria-hidden) when closing modals
+    document.addEventListener('hide.bs.modal', function () {
+        if (document.activeElement) {
+            document.activeElement.blur();
+        }
+    });
+
 </script>
 </body>
 </html>

@@ -1,7 +1,17 @@
 <?php
+session_start();
+
+// Prevent logged-in tenants from accessing the register page
+if (isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit;
+}
+
 include '../db.php';
 
 $error = "";
+$redirect_url = isset($_GET['redirect']) ? $_GET['redirect'] : '';
+$redirect_param = !empty($redirect_url) ? '?redirect=' . urlencode($redirect_url) : '';
 
 $lname = "";
 $fname = "";
@@ -50,7 +60,19 @@ if (isset($_POST['register'])) {
             $stmt = mysqli_prepare($conn, "INSERT INTO users (last_name, first_name, middle_name, suffix, gender, email, phone_number, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             mysqli_stmt_bind_param($stmt, "ssssssss", $lname, $fname, $mname, $suffix, $gender, $email, $phone, $pass);
             if(mysqli_stmt_execute($stmt)){
-                header("Location: login.php");
+                $new_user_id = mysqli_insert_id($conn);
+                
+                // Auto-login the newly registered user
+                $u_q = mysqli_query($conn, "SELECT role, night_mode FROM users WHERE user_id=$new_user_id");
+                if($u_row = mysqli_fetch_assoc($u_q)){
+                    $_SESSION['user_id'] = $new_user_id;
+                    $_SESSION['role'] = $u_row['role'];
+                    $_SESSION['night_mode'] = $u_row['night_mode'] ?? 0;
+                }
+                
+                // Send them straight to the booking form if a redirect is set
+                $dest = !empty($redirect_url) ? $redirect_url : '../index.php';
+                header("Location: $dest");
                 exit;
             }
         } catch (mysqli_sql_exception $e) {
@@ -99,7 +121,7 @@ if (isset($_POST['register'])) {
             <h2>Join Our Community</h2>
         </div>
         <?php if ($error) { echo "<div class='alert alert-danger py-2 small mb-3'>$error</div>"; } ?>
-        <form method="POST">
+        <form method="POST" action="register.php<?= $redirect_param ?>">
             <div class="row g-2 mb-2 position-relative" id="dynamic-name-row">
                 <div class="name-col col-6 col-md-3 order-1"><input type="text" name="lname" class="form-control" placeholder="Last Name" required value="<?= htmlspecialchars($lname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
                 <div class="name-col col-6 col-md-3 order-1"><input type="text" name="fname" class="form-control" placeholder="First Name" required value="<?= htmlspecialchars($fname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
@@ -139,7 +161,7 @@ if (isset($_POST['register'])) {
             <button type="submit" name="register" class="btn btn-custom mb-3">Create Account</button>
         </form>
         <div class="auth-footer">
-            <p class="text-muted mb-1">Already have an account? <a href="login.php">Login Here</a></p>
+            <p class="text-muted mb-1">Already have an account? <a href="login.php<?= $redirect_param ?>">Login Here</a></p>
             <a href="../index.php" class="text-muted small text-decoration-none"><i class="fas fa-arrow-left me-1"></i> Back to Home</a>
         </div>
     </div>

@@ -420,28 +420,6 @@ if(isset($_SESSION['user_id'])){
         .scroll-top-btn.visible { opacity: 1; visibility: visible; transform: translateY(0); }
         .scroll-top-btn:hover { background: rgba(42, 154, 96, 0.9); transform: translateY(-5px); box-shadow: 0 8px 25px rgba(52, 184, 117, 0.3); color: white; }
 
-        /* Night Mode Styles */
-        body.night-mode { background-color: #121212 !important; color: #e0e0e0 !important; }
-        body.night-mode .navbar.scrolled { background: rgba(30, 30, 30, 0.95) !important; border-bottom: 2px solid var(--primary-green) !important; }
-        body.night-mode .navbar.scrolled .nav-link, body.night-mode .navbar.scrolled .navbar-brand { color: #34B875 !important; }
-        body.night-mode .card, body.night-mode .room-card, body.night-mode .feature-card, body.night-mode .contact-card, body.night-mode .amenity-card { background-color: #1e1e1e !important; color: #e0e0e0 !important; border-color: #333 !important; }
-        body.night-mode .bg-white { background-color: #1e1e1e !important; }
-        body.night-mode .bg-light { background-color: #2c2c2c !important; }
-        body.night-mode .text-dark { color: #e0e0e0 !important; }
-        body.night-mode .text-muted { color: #b0b0b0 !important; }
-        body.night-mode .section-title { color: #e0e0e0 !important; }
-        body.night-mode .slider-btn { background-color: #2c2c2c !important; border-color: #444 !important; color: #e0e0e0 !important; }
-        body.night-mode .slider-btn:hover { background-color: #444 !important; color: var(--primary-green) !important; }
-        body.night-mode .form-control { background-color: #2c2c2c !important; color: #e0e0e0 !important; border-color: #444 !important; }
-        body.night-mode .form-control:focus { background-color: #333 !important; color: #fff !important; }
-        body.night-mode footer { background-color: #1a1a1a !important; }
-        body.night-mode .contact-card .bg-success { background-color: #1b5e20 !important; }
-        body.night-mode .amenity-icon { background: rgba(255, 255, 255, 0.1) !important; }
-        body.night-mode .amenity-card:hover .amenity-icon { background: var(--primary-green) !important; color: #fff !important; }
-        body.night-mode::-webkit-scrollbar, body.night-mode *::-webkit-scrollbar { width: 8px; height: 8px; }
-        body.night-mode::-webkit-scrollbar-track, body.night-mode *::-webkit-scrollbar-track { background: #121212 !important; }
-        body.night-mode::-webkit-scrollbar-thumb, body.night-mode *::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 4px; }
-        body.night-mode::-webkit-scrollbar-thumb:hover, body.night-mode *::-webkit-scrollbar-thumb:hover { background: #34B875 !important; }
 
         @media (max-width: 767.98px) {
             .rooms-scroll-container {
@@ -835,6 +813,26 @@ if(isset($_SESSION['user_id'])){
 <!-- Scroll to Top Button -->
 <a href="#" class="scroll-top-btn" id="scrollTopBtn"><i class="fas fa-chevron-up"></i></a>
 
+<!-- Auth Prompt Modal -->
+<div class="modal fade" id="authPromptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: var(--app-radius);">
+            <div class="modal-header bg-success text-white border-0" style="border-top-left-radius: var(--app-radius); border-top-right-radius: var(--app-radius);">
+                <h5 class="modal-title fw-bold"><i class="fas fa-user-circle me-2"></i>Account Required</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <h4 class="fw-bold mb-3">Do you have an account already?</h4>
+                <p class="text-muted mb-4">You need to log in or create an account to proceed with your booking.</p>
+                <div class="d-grid gap-3">
+                    <a href="users/login.php" id="btnPromptLogin" class="btn btn-success btn-lg rounded-pill fw-bold"><i class="fas fa-sign-in-alt me-2"></i>Yes, Log In</a>
+                    <a href="users/register.php" id="btnPromptRegister" class="btn btn-outline-success btn-lg rounded-pill fw-bold"><i class="fas fa-user-plus me-2"></i>No, Create Account</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script>
@@ -850,6 +848,32 @@ if(isset($_SESSION['user_id'])){
           document.querySelector('.navbar').classList.add('scrolled');
       } else {
           document.querySelector('.navbar').classList.remove('scrolled');
+      }
+  });
+
+  // Intercept Booking Links for Guests
+  const isGuest = <?= isset($_SESSION['user_id']) ? 'false' : 'true' ?>;
+  document.addEventListener('click', function(e) {
+      const link = e.target.closest('a[href*="reservation_now.php"]');
+      if (isGuest && link && link.id !== 'btnPromptLogin' && link.id !== 'btnPromptRegister') {
+          e.preventDefault();
+          let intendedUrl = link.getAttribute('href');
+          intendedUrl = intendedUrl.replace('users/', '');
+          
+          const loginBtn = document.getElementById('btnPromptLogin');
+          const regBtn = document.getElementById('btnPromptRegister');
+          if(loginBtn) loginBtn.href = 'users/login.php?redirect=' + encodeURIComponent(intendedUrl);
+          if(regBtn) regBtn.href = 'users/register.php?redirect=' + encodeURIComponent(intendedUrl);
+          
+          const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('authPromptModal'));
+          modal.show();
+      }
+  });
+
+  // Fix accessibility warning (Blocked aria-hidden) when closing modals
+  document.addEventListener('hide.bs.modal', function () {
+      if (document.activeElement) {
+          document.activeElement.blur();
       }
   });
 
@@ -895,19 +919,6 @@ if(isset($_SESSION['user_id'])){
       });
   }
   setInterval(checkUpdates, 3000); // Check every 3 seconds
-
-  // Night Mode Logic
-  if(localStorage.getItem('nightMode') === 'enabled') {
-      document.body.classList.add('night-mode');
-  }
-
-  // Sync Night Mode across tabs
-  window.addEventListener('storage', (e) => {
-      if (e.key === 'nightMode') {
-          if (e.newValue === 'enabled') document.body.classList.add('night-mode');
-          else document.body.classList.remove('night-mode');
-      }
-  });
 </script>
 </body>
 </html>
