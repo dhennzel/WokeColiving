@@ -126,8 +126,7 @@ if(isset($_SESSION['user_id'])){
         .hero-bg-carousel img { width: 100%; height: 100%; object-fit: cover; transition: transform 10s linear; }
         .hero-bg-carousel .carousel-item.active img { transform: scale(1.1); }
         .hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(42, 154, 96, 0.8), rgba(52, 184, 117, 0.6)); z-index: 1; }
-        .hero-content { position: relative; z-index: 2; opacity: 0; transform: translateY(30px); animation: fadeInUp 1s ease-out forwards 0.5s, float 4s ease-in-out infinite 1.5s; }
-        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0px); } }
+        .hero-content { position: relative; z-index: 2; opacity: 0; transform: translateY(30px); animation: fadeInUp 1s ease-out forwards 0.5s; }
         .feature-icon { font-size: 3.5rem; color: var(--primary-green); margin-bottom: 15px; transition: transform 0.3s; }
         .feature-card:hover .feature-icon { transform: scale(1.1) rotate(5deg); color: var(--accent-yellow); }
         .room-card { border: 2px solid var(--primary-green); border-radius: var(--app-radius); overflow: hidden; box-shadow: var(--app-shadow); transition: all 0.4s ease; background: #FFFFFF; }
@@ -155,7 +154,7 @@ if(isset($_SESSION['user_id'])){
         footer a:hover { color: var(--accent-yellow); }
         .feature-card { transition: transform 0.3s, box-shadow 0.3s; border: none; border-radius: var(--app-radius); background: #FFFFFF; padding: 2.5rem 1.5rem; height: 100%; box-shadow: var(--app-shadow); }
         .feature-card:hover { transform: translateY(-15px) scale(1.05); box-shadow: 0 25px 50px rgba(46, 125, 50, 0.2); border: 1px solid var(--accent-yellow); }
-        .contact-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .contact-card { background: #ffffff; }
         .room-img { width: 100%; height: 400px; object-fit: cover; border-radius: var(--app-radius); box-shadow: var(--app-shadow); }
         .amenities-scroll-container { display: flex; overflow-x: auto; scroll-behavior: smooth; gap: 1.5rem; padding: 15px 5px; -ms-overflow-style: none; scrollbar-width: none; }
         .amenities-scroll-container::-webkit-scrollbar { display: none; }

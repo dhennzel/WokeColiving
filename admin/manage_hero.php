@@ -188,6 +188,16 @@ $theme = get_theme_colors($conn);
     <link rel="stylesheet" href="admin.css">
     <style>
         .hero-card-img { height: 200px; object-fit: cover; width: 100%; border-bottom: 1px solid #eee; }
+        
+        /* Fixed Image Container for Cropper.js */
+        .img-container { 
+            width: 100%; 
+            height: 60vh; 
+            min-height: 300px; 
+            background-color: #e9ecef; 
+            overflow: hidden; 
+        }
+        #image-to-crop { display: block; max-width: 100%; max-height: 100%; margin: 0 auto; }
     </style>
 </head>
 <body>
@@ -272,7 +282,7 @@ $theme = get_theme_colors($conn);
             <div class="modal-body">
                 <div id="edit-msg" class="alert alert-info py-1 small" style="display:none;"></div>
                 <div class="img-container">
-                    <img id="image-to-crop" src="">
+                    <img id="image-to-crop" src="" alt="Image to crop">
                 </div>
             </div>
             <div class="modal-footer">
