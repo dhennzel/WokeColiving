@@ -59,7 +59,8 @@ $query = mysqli_query($conn, "
     (SELECT months FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_months,
     (SELECT DATEDIFF(end_date, start_date) FROM reservations WHERE user_id = u.user_id AND status = 'Approved' AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1) as res_days,
     (SELECT COUNT(*) FROM reservations WHERE user_id = u.user_id AND status IN ('Approved', 'Pending', 'Verifying')) as active_count,
-    (SELECT COUNT(*) FROM reservations WHERE user_id = u.user_id AND status IN ('Completed', 'Incomplete')) as completed_count
+    (SELECT COUNT(*) FROM reservations WHERE user_id = u.user_id AND status = 'Completed') as completed_count,
+    (SELECT COUNT(*) FROM reservations WHERE user_id = u.user_id AND status = 'Incomplete') as incomplete_count
     FROM users u WHERE $where ORDER BY u.last_name ASC
 ");
 
@@ -184,10 +185,7 @@ $theme = get_theme_colors($conn);
                             <option value="unpaid" <?= $bill_filter == 'unpaid' ? 'selected' : '' ?>>With Balance</option>
                             <option value="paid" <?= $bill_filter == 'paid' ? 'selected' : '' ?>>Fully Paid</option>
                         </select>
-                        <input type="text" name="search" class="form-control form-control-sm me-2" placeholder="Search residents..." value="<?= htmlspecialchars($search) ?>">
-                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
                     </form>
-                    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-2"></i>Print</button>
                     <a href="add_reservation.php" class="btn btn-sm btn-custom no-print"><i class="fas fa-user-plus me-1"></i> Add Resident</a>
                     <div class="dropdown no-print">
                         <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="padding-left: 10px; padding-right: 10px;">
@@ -196,6 +194,7 @@ $theme = get_theme_colors($conn);
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
                             <li><a class="dropdown-item fw-bold" href="#" id="btnViewTable" onclick="setView('table', event)"><i class="fas fa-list me-2 text-muted"></i> Default Table</a></li>
                             <li><a class="dropdown-item fw-bold" href="#" id="btnViewCards" onclick="setView('cards', event)"><i class="fas fa-th-large me-2 text-muted"></i> Cards View</a></li>
+                            <li><a class="dropdown-item fw-bold" href="#" onclick="window.print(); return false;"><i class="fas fa-print me-2 text-muted"></i> Print</a></li>
                         </ul>
                     </div>
                 </div>
@@ -248,7 +247,8 @@ $theme = get_theme_colors($conn);
                                 <td>
                                     <?php if(isset($row['is_companion']) && $row['is_companion'] == 1): ?><span class="badge bg-info text-dark">Companion</span>
                                     <?php elseif($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
-                                    <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-dark">Completed / Incomplete</span>
+                                    <?php elseif($row['active_count'] == 0 && $row['incomplete_count'] > 0): ?><span class="badge bg-dark">Incomplete</span>
+                                    <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-primary">Completed</span>
                                     <?php else: 
                                         $m = $row['res_months'];
                                         $d = $row['res_days'];
@@ -302,7 +302,8 @@ $theme = get_theme_colors($conn);
                             <div class="mb-3 mt-auto">
                                 <?php if(isset($row['is_companion']) && $row['is_companion'] == 1): ?><span class="badge bg-info text-dark">Companion</span>
                                 <?php elseif($row['do_not_renew']): ?><span class="badge bg-danger">Do Not Renew</span>
-                                <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-dark">Completed / Incomplete</span>
+                                <?php elseif($row['active_count'] == 0 && $row['incomplete_count'] > 0): ?><span class="badge bg-dark">Incomplete</span>
+                                <?php elseif($row['active_count'] == 0 && $row['completed_count'] > 0): ?><span class="badge bg-primary">Completed</span>
                                 <?php else: 
                                     $m = $row['res_months'];
                                     $d = $row['res_days'];
@@ -532,7 +533,8 @@ $theme = get_theme_colors($conn);
         let badgesHtml = '';
         if (user.is_companion == 1) badgesHtml += '<span class="badge bg-info text-dark">Companion</span>';
         else if (user.do_not_renew == 1) badgesHtml += '<span class="badge bg-danger">Do Not Renew</span>';
-        else if (user.active_count == 0 && user.completed_count > 0) badgesHtml += '<span class="badge bg-dark">Completed</span>';
+        else if (user.active_count == 0 && user.incomplete_count > 0) badgesHtml += '<span class="badge bg-dark">Incomplete</span>';
+        else if (user.active_count == 0 && user.completed_count > 0) badgesHtml += '<span class="badge bg-primary">Completed</span>';
         else {
             let m = parseInt(user.res_months) || 0;
             let d = user.res_days ? parseInt(user.res_days) : null;
