@@ -95,7 +95,7 @@ if(isset($_POST['auto_schedule_weekly'])){
         // Avoid duplicates for same date/room
         $chk = mysqli_query($conn, "SELECT request_id FROM housekeeping_requests WHERE room_id=$rid AND scheduled_date='$sched_date' AND status!='Cancelled'");
         if(mysqli_num_rows($chk) == 0){
-            $sql = "INSERT INTO housekeeping_requests (user_id, room_id, description, status, scheduled_date) VALUES ($uid, $rid, '$desc', 'Scheduled', '$sched_date')";
+            $sql = "INSERT INTO housekeeping_requests (user_id, room_id, description, status, scheduled_date, cost) VALUES ($uid, $rid, '$desc', 'Scheduled', '$sched_date', '0.00')";
             mysqli_query($conn, $sql);
             if($uid != 'NULL') send_notification($conn, $uid, "🧹 <strong>Weekly Cleaning</strong><br>Routine housekeeping scheduled for " . date('M d, Y', strtotime($sched_date)) . ".", "Housekeeping");
             $count++;
@@ -115,7 +115,7 @@ if(isset($_POST['schedule_cleaning'])){
     $u_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE room_id=$room_id AND status='Approved' LIMIT 1");
     $uid = ($u_row = mysqli_fetch_assoc($u_q)) ? $u_row['user_id'] : 'NULL';
     
-    $sql = "INSERT INTO housekeeping_requests (user_id, room_id, description, status, scheduled_date) VALUES ($uid, $room_id, '$desc', 'Scheduled', '$sched_date')";
+    $sql = "INSERT INTO housekeeping_requests (user_id, room_id, description, status, scheduled_date, cost) VALUES ($uid, $room_id, '$desc', 'Scheduled', '$sched_date', '0.00')";
     mysqli_query($conn, $sql);
     
     trigger_update($conn);
@@ -306,7 +306,7 @@ $theme = get_theme_colors($conn);
                                         </div>
                                         <div class="mb-2">
                                             <label class="small fw-bold text-muted">Cost (₱)</label>
-                                            <input type="number" step="0.01" name="cost" class="form-control form-control-sm" value="<?= $row['cost'] > 0 ? $row['cost'] : $standard_hk_price ?>">
+                                            <input type="number" step="0.01" name="cost" class="form-control form-control-sm" value="<?= ($row['cost'] == 0 && $row['status'] == 'Pending') ? $standard_hk_price : $row['cost'] ?>">
                                         </div>
                                         <?php if($row['user_id']): ?>
                                         <div class="form-check mb-3">
@@ -347,7 +347,10 @@ $theme = get_theme_colors($conn);
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="fw-bold text-secondary mb-0">Select Room</h6>
+                        <div>
+                            <h6 class="fw-bold text-secondary mb-0">Select Room</h6>
+                            <small class="text-primary fw-bold" id="selected_tenant_display" style="display:none;"></small>
+                        </div>
                         <div class="d-flex align-items-center">
                             <label class="small fw-bold me-2 text-muted">Filter:</label>
                             <select class="form-select form-select-sm" style="width: 120px;" onchange="filterRooms(this, 'scheduleRoomContainer')">
@@ -370,13 +373,17 @@ $theme = get_theme_colors($conn);
                     </ul>
 
                     <!-- Tab Content -->
-                    <div class="tab-content" id="scheduleRoomContainer" style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding: 5px;">
+                    <div class="tab-content" id="scheduleRoomContainer" style="max-height: 35vh; overflow-y: auto; overflow-x: hidden; padding: 5px;">
                         <?php $first=true; foreach($grouped_rooms as $type => $rooms): $tid = md5($type); ?>
                         <div class="tab-pane fade <?= $first?'show active':'' ?>" id="content-<?=$tid?>" role="tabpanel" style="overflow-x: hidden;">
                             <div class="row g-3 mobile-horizontal-scroll">
-                                <?php foreach($rooms as $room): ?>
+                                <?php foreach($rooms as $room): 
+                                    $t_names = [];
+                                    if(!empty($room['occupants'])) { foreach($room['occupants'] as $occ) $t_names[] = $occ['full_name']; }
+                                    $t_str = !empty($t_names) ? implode(", ", $t_names) : "Vacant";
+                                ?>
                                 <div class="col-md-4 col-lg-3 room-item-filter" data-floor="<?= $room['floor'] ?>">
-                                    <div class="card room-select-card h-100" onclick="selectRoom(this, <?= $room['room_id'] ?>)">
+                                    <div class="card room-select-card h-100" onclick="selectRoom(this, <?= $room['room_id'] ?>)" data-tenants="<?= htmlspecialchars($t_str, ENT_QUOTES) ?>">
                                         <img src="../assets/images/<?= $room['image'] ?>">
                                         <div class="card-body p-2 text-center">
                                             <div class="fw-bold small"><?= !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room['room_number']) : htmlspecialchars($room['room_name']) ?></div>
@@ -440,7 +447,7 @@ $theme = get_theme_colors($conn);
                         <?php $first=false; endforeach; ?>
                     </ul>
 
-                    <div class="tab-content" id="autoRoomContainer" style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding: 5px;">
+                    <div class="tab-content" id="autoRoomContainer" style="max-height: 35vh; overflow-y: auto; overflow-x: hidden; padding: 5px;">
                         <?php $first=true; foreach($grouped_rooms as $type => $rooms): $tid = md5($type . '_auto'); ?>
                         <div class="tab-pane fade <?= $first?'show active':'' ?>" id="content-<?=$tid?>" role="tabpanel" style="overflow-x: hidden;">
                             <div class="row g-3 mobile-horizontal-scroll">
@@ -527,6 +534,13 @@ function selectRoom(card, id) {
     card.classList.add('selected');
     document.getElementById('selected_room_id').value = id;
     document.getElementById('selection_msg').style.display = 'none';
+    
+    const tenants = card.getAttribute('data-tenants');
+    const display = document.getElementById('selected_tenant_display');
+    if(display) {
+        display.style.display = 'block';
+        display.innerHTML = '<i class="fas fa-user-tag me-1"></i> Tenant(s): ' + tenants;
+    }
 }
 
 function validateSelection() {

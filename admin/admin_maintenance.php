@@ -152,7 +152,7 @@ if(isset($_POST['schedule_maintenance'])){
     $u_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE room_id=$room_id AND status='Approved' LIMIT 1");
     $uid = ($u_row = mysqli_fetch_assoc($u_q)) ? $u_row['user_id'] : 'NULL';
     
-    $sql = "INSERT INTO maintenance_requests (user_id, room_id, description, status, scheduled_date, cost) VALUES ($uid, $room_id, '$desc', 'Scheduled', '$sched_date', '$standard_maint_price')";
+    $sql = "INSERT INTO maintenance_requests (user_id, room_id, description, status, scheduled_date, cost) VALUES ($uid, $room_id, '$desc', 'Scheduled', '$sched_date', '0.00')";
     mysqli_query($conn, $sql);
     
     trigger_update($conn);
@@ -175,7 +175,7 @@ if(isset($_POST['auto_schedule_maintenance'])){
     $rooms = mysqli_query($conn, "SELECT room_id FROM rooms WHERE $where");
     while($r = mysqli_fetch_assoc($rooms)){
         $rid = $r['room_id'];
-        mysqli_query($conn, "INSERT INTO maintenance_requests (user_id, room_id, description, status, scheduled_date, cost) VALUES (NULL, $rid, '$desc', 'Scheduled', '$sched_date', '$standard_maint_price')");
+        mysqli_query($conn, "INSERT INTO maintenance_requests (user_id, room_id, description, status, scheduled_date, cost) VALUES (NULL, $rid, '$desc', 'Scheduled', '$sched_date', '0.00')");
     }
     trigger_update($conn);
     header("Location: admin_maintenance.php");
@@ -396,7 +396,7 @@ $theme = get_theme_colors($conn);
                                         </div>
                                         <div class="mb-2">
                                             <label class="small fw-bold text-muted">Cost (₱)</label>
-                                            <input type="number" step="0.01" name="cost" class="form-control form-control-sm" value="<?= $row['cost'] > 0 ? $row['cost'] : $standard_maint_price ?>">
+                                            <input type="number" step="0.01" name="cost" class="form-control form-control-sm" value="<?= ($row['cost'] == 0 && $row['status'] == 'Pending') ? $standard_maint_price : $row['cost'] ?>">
                                         </div>
                                         <?php if($row['user_id']): ?>
                                         <div class="form-check mb-3">
@@ -432,7 +432,7 @@ $theme = get_theme_colors($conn);
             </div>
             <form method="POST">
                 <div class="modal-body">
-                    <div class="row g-3 mb-4">
+                    <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Description</label>
                             <input type="text" name="description" class="form-control" placeholder="e.g. AC Repair, Plumbing" required>
@@ -470,7 +470,7 @@ $theme = get_theme_colors($conn);
                     </ul>
 
                     <!-- Tab Content -->
-                    <div class="tab-content" id="scheduleRoomContainer" style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding: 5px;">
+                    <div class="tab-content" id="scheduleRoomContainer" style="max-height: 35vh; overflow-y: auto; overflow-x: hidden; padding: 5px;">
                         <?php $first=true; foreach($grouped_rooms as $type => $rooms): $tid = md5($type); ?>
                         <div class="tab-pane fade <?= $first?'show active':'' ?>" id="content-<?=$tid?>" role="tabpanel" style="overflow-x: hidden;">
                             <div class="row g-3 mobile-horizontal-scroll">
@@ -539,7 +539,7 @@ $theme = get_theme_colors($conn);
                         <?php $first=false; endforeach; ?>
                     </ul>
 
-                    <div class="tab-content" id="autoRoomContainer" style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding: 5px;">
+                    <div class="tab-content" id="autoRoomContainer" style="max-height: 35vh; overflow-y: auto; overflow-x: hidden; padding: 5px;">
                         <?php $first=true; foreach($grouped_rooms as $type => $rooms): $tid = md5($type . '_auto'); ?>
                         <div class="tab-pane fade <?= $first?'show active':'' ?>" id="content-<?=$tid?>" role="tabpanel" style="overflow-x: hidden;">
                             <div class="row g-3 mobile-horizontal-scroll">

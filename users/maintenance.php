@@ -29,6 +29,11 @@ if(isset($_GET['cancel_id'])){
     }
 }
 
+// Fetch Standard Price
+$standard_maint_price = 0.00; // System default
+$q_price = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key = 'price_maintenance_standard'");
+if($row_p = mysqli_fetch_assoc($q_price)){ $standard_maint_price = (float)$row_p['setting_value']; }
+
 // Handle Form Submission
 if (isset($_POST['submit_request'])) {
     $description = mysqli_real_escape_string($conn, $_POST['description']);
@@ -37,7 +42,7 @@ if (isset($_POST['submit_request'])) {
         $room_row = mysqli_fetch_assoc($room_check);
         $room_id = $room_row['room_id'];
         
-        $sql = "INSERT INTO maintenance_requests (user_id, room_id, description, status) VALUES ('$user_id', '$room_id', '$description', 'Pending')";
+        $sql = "INSERT INTO maintenance_requests (user_id, room_id, description, status, cost) VALUES ('$user_id', '$room_id', '$description', 'Pending', '$standard_maint_price')";
         if (mysqli_query($conn, $sql)) {
             trigger_update($conn);
             $message = "Maintenance request submitted successfully.";
@@ -133,11 +138,15 @@ $notif_query = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id=$u
     <!-- Request Form -->
     <?php if ($has_active_reservation) { ?>
     <div class="card card-custom p-4 mb-5 anim-trigger delay-1">
-        <h5 class="fw-bold mb-3">Submit New Request</h5>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Submit New Request</h5>
+            <span class="badge bg-warning text-dark">Fee: ₱<?= number_format($standard_maint_price, 2) ?></span>
+        </div>
         <form method="POST">
             <div class="mb-3">
                 <label class="form-label">Issue Description</label>
                 <textarea name="description" class="form-control" rows="3" placeholder="Describe the issue in your room (e.g., Leaking faucet, AC not cooling)..." required></textarea>
+                <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Note: A fee of ₱<?= number_format($standard_maint_price, 0) ?> will be charged for on-demand maintenance requests.</small>
             </div>
             <button type="submit" name="submit_request" class="btn btn-custom px-4">Submit Request</button>
         </form>

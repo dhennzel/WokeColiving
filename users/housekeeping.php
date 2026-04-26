@@ -37,7 +37,7 @@ if (isset($_POST['submit_request'])) {
         $room_row = mysqli_fetch_assoc($room_check);
         $room_id = $room_row['room_id'];
         
-        $sql = "INSERT INTO housekeeping_requests (user_id, room_id, description, status) VALUES ('$user_id', '$room_id', '$description', 'Pending')";
+        $sql = "INSERT INTO housekeeping_requests (user_id, room_id, description, status, cost) VALUES ('$user_id', '$room_id', '$description', 'Pending', '$standard_hk_price')";
         if (mysqli_query($conn, $sql)) {
             trigger_update($conn);
             header("Location: housekeeping.php?msg=submitted");
