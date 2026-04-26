@@ -740,14 +740,26 @@ if(isset($_SESSION['user_id'])){
 
   // Scroll to Top Logic
   const scrollTopBtn = document.getElementById('scrollTopBtn');
-  window.addEventListener('scroll', function() {
-      if (window.scrollY > 300) scrollTopBtn.classList.add('visible');
-      else scrollTopBtn.classList.remove('visible');
-  });
-  scrollTopBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
+  let scrollTimeout;
+  if (scrollTopBtn) {
+      window.addEventListener('scroll', function() {
+          if (window.scrollY > 300) {
+              scrollTopBtn.classList.add('visible');
+              clearTimeout(scrollTimeout);
+              scrollTimeout = setTimeout(() => scrollTopBtn.classList.remove('visible'), 3000);
+          } else {
+              scrollTopBtn.classList.remove('visible');
+          }
+      });
+      scrollTopBtn.addEventListener('mouseenter', () => clearTimeout(scrollTimeout));
+      scrollTopBtn.addEventListener('mouseleave', () => {
+          scrollTimeout = setTimeout(() => scrollTopBtn.classList.remove('visible'), 3000);
+      });
+      scrollTopBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+  }
 
   <?php if(isset($_SESSION['swal'])): ?>
     Swal.fire({

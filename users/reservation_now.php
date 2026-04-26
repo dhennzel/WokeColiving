@@ -727,7 +727,7 @@ if (isset($_POST['confirm_booking'])) {
                     <div class="card-header fw-bold text-success"><i class="fas fa-user me-2"></i>Personal Information</div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label class="form-label">Sex*</label>
+                            <label class="form-label">Sex <span class="text-danger">*</span></label>
                             <?php if(!empty($user_gender)): ?>
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($user_gender) ?>" readonly>
                                 <input type="hidden" name="gender" value="<?= htmlspecialchars($user_gender) ?>">
@@ -740,7 +740,7 @@ if (isset($_POST['confirm_booking'])) {
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Occupation Status*</label>
+                            <label class="form-label">Occupation Status <span class="text-danger">*</span></label>
                             <?php if(!empty($user_occupation)): ?>
                                 <input type="text" name="occupation" class="form-control" id="occupation" value="<?= htmlspecialchars($user_occupation) ?>" readonly>
                                 <input type="hidden" name="occupation" value="<?= htmlspecialchars($user_occupation) ?>" id="occupation_hidden">
@@ -753,7 +753,7 @@ if (isset($_POST['confirm_booking'])) {
                             <?php endif; ?>
                         </div>
                         <div class="mb-3" id="id_type_div" style="display: none;">
-                            <label class="form-label">ID Type*</label>
+                            <label class="form-label">ID Type <span class="text-danger">*</span></label>
                             <?php if(!empty($user_id_type)): ?>
                                 <input type="text" name="id_type" class="form-control" id="id_type_readonly" value="<?= htmlspecialchars($user_id_type) ?>" readonly>
                                 <input type="hidden" id="id_type" value="<?= htmlspecialchars($user_id_type) ?>">
@@ -764,7 +764,7 @@ if (isset($_POST['confirm_booking'])) {
                             <?php endif; ?>
                         </div>
                         <div class="mb-3" id="company_div" style="display: none;">
-                            <label class="form-label" id="company_label">Company / School Name*</label>
+                            <label class="form-label" id="company_label">Company / School Name <span class="text-danger">*</span></label>
                             <?php if(!empty($user_company)): ?>
                                 <input type="text" name="company" class="form-control" value="<?= htmlspecialchars($user_company) ?>" readonly>
                                 <input type="hidden" name="company" value="<?= htmlspecialchars($user_company) ?>">
@@ -774,7 +774,7 @@ if (isset($_POST['confirm_booking'])) {
                         </div>
                         <!-- ID Upload -->
                         <div class="mb-3" id="school_id_div" style="display: none;">
-                            <label class="form-label" id="id_image_label">Valid ID (Image)*</label>
+                            <label class="form-label" id="id_image_label">Valid ID (Image) <span class="text-danger">*</span></label>
                             <?php if(!empty($user_school_id_image)): ?>
                                 <div class="mb-2">
                                     <img src="../uploads/proofs/<?= htmlspecialchars($user_school_id_image) ?>" alt="Valid ID" style="max-width: 200px; max-height: 150px;" class="border rounded">
@@ -785,7 +785,7 @@ if (isset($_POST['confirm_booking'])) {
                             <small class="text-muted" id="id_image_help">Upload a clear photo of your ID</small>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Permanent Address*</label>
+                            <label class="form-label">Permanent Address <span class="text-danger">*</span></label>
                             <?php if(!empty($user_address)): ?>
                                 <textarea class="form-control" readonly><?= htmlspecialchars($user_address) ?></textarea>
                                 <input type="hidden" name="address" value="<?= htmlspecialchars($user_address) ?>">
@@ -830,7 +830,7 @@ if (isset($_POST['confirm_booking'])) {
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label" id="label_emergency_name">Emergency Contact Name*</label>
+                            <label class="form-label" id="label_emergency_name">Emergency Contact Name <span class="text-danger">*</span></label>
                             <?php if(!empty($user_emergency_contact_name)): ?>
                                 <input type="text" name="emergency_contact_name" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_name) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_name" value="<?= htmlspecialchars($user_emergency_contact_name) ?>">
@@ -839,7 +839,7 @@ if (isset($_POST['confirm_booking'])) {
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label" id="label_emergency_number">Emergency Contact Number*</label>
+                            <label class="form-label" id="label_emergency_number">Emergency Contact Number <span class="text-danger">*</span></label>
                             <?php if(!empty($user_emergency_contact_number)): ?>
                                 <input type="text" name="emergency_contact_number" class="form-control" value="<?= htmlspecialchars($user_emergency_contact_number) ?>" readonly>
                                 <input type="hidden" name="emergency_contact_number" value="<?= htmlspecialchars($user_emergency_contact_number) ?>">
@@ -872,7 +872,7 @@ if (isset($_POST['confirm_booking'])) {
                     <div class="card-header fw-bold text-success"><i class="fas fa-bed me-2"></i>Booking Details</div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label class="form-label">Room Type</label>
+                            <label class="form-label">Room Type <span class="text-danger">*</span></label>
                             <select name="troom" id="troom" class="form-select" required onchange="calculateTotal(); updateRoomOptions(); checkRealTimeAvailability()">
                                 <option value="" disabled selected>Select Room Type</option>
                                 <option value="6-Bed" <?= ($pre_room == '6-Bed') ? 'selected' : '' ?>>6 Beds Room</option>
@@ -905,7 +905,7 @@ if (isset($_POST['confirm_booking'])) {
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Duration</label>
+                            <label class="form-label">Duration <span class="text-danger">*</span></label>
                             <select id="duration_select" class="form-select" onchange="updateCheckoutDate()">
                                 <option value="" disabled <?= empty($pre_duration) ? 'selected' : '' ?>>Select Duration</option>
                                 <option value="1" <?= ($pre_duration == '1') ? 'selected' : '' ?>>Short Term (1 Month)</option>
@@ -915,7 +915,7 @@ if (isset($_POST['confirm_booking'])) {
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Check-in Date</label>
+                            <label class="form-label">Check-in Date <span class="text-danger">*</span></label>
                             <?php if($is_extension): ?>
                                 <div class="small text-muted mb-1">Current stay ends: <strong><?= $ext_data['end_date'] ?></strong></div>
                             <?php endif; ?>
@@ -923,7 +923,7 @@ if (isset($_POST['confirm_booking'])) {
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Check-out Date</label>
+                            <label class="form-label">Check-out Date <span class="text-danger">*</span></label>
                             <input type="date" name="cout" id="cout" class="form-control" min="<?= date('Y-m-d', strtotime($pre_cin . ' +1 day')) ?>" required onchange="updateDurationFromDates()">
                         </div>
 
@@ -957,11 +957,11 @@ if (isset($_POST['confirm_booking'])) {
                     <div class="card-header fw-bold text-success"><i class="fas fa-file-contract me-2"></i>Agreement & Policies</div>
                     <div class="card-body">
                         <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" name="agree_rules" id="agree_rules" required>
-                            <label class="form-check-label small" for="agree_rules">
-                                <a href="#" <?= !empty($house_rules_file) ? 'data-bs-toggle="modal" data-bs-target="#rulesModal"' : 'onclick="alert(\'House rules file not uploaded yet.\'); return false;"' ?> class="text-success text-decoration-none fw-bold">I agree to the house rules and regulations</a>
-                            </label>
-                        </div>
+    <input class="form-check-input" type="checkbox" name="agree_rules" id="agree_rules" required>
+    <label class="form-check-label small" for="agree_rules">
+        <a href="javascript:void(0)" <?= !empty($house_rules_file) ? 'data-bs-toggle="modal" data-bs-target="#rulesModal"' : 'onclick="alert(\'House rules file not uploaded yet.\'); return false;"' ?> class="text-success text-decoration-none fw-bold" onclick="event.stopPropagation();">I agree to the house rules and regulations</a>
+    </label>
+</div>
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" name="agree_fees" id="agree_fees" required>
                             <label class="form-check-label small" for="agree_fees">
@@ -980,6 +980,7 @@ if (isset($_POST['confirm_booking'])) {
                         </div>
 
                         <button type="button" onclick="confirmReservation()" class="btn btn-custom w-100 py-3 mt-2"><i class="fas fa-check-circle"></i> Confirm Reservation</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -987,7 +988,7 @@ if (isset($_POST['confirm_booking'])) {
 </div>
 
 <!-- Rules Modal -->
-<div class="modal fade" id="rulesModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="rulesModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content card-custom">
             <div class="modal-header border-bottom">
@@ -1018,8 +1019,8 @@ if (isset($_POST['confirm_booking'])) {
                 <?php endif; ?>
             </div>
             <div class="modal-footer border-top-0 bg-white">
-                <button type="button" class="btn btn-secondary-custom w-100 rounded-pill" data-bs-dismiss="modal">Close & Agree</button>
-            </div>
+    <button type="button" class="btn btn-secondary w-100 rounded-pill fw-bold" data-bs-dismiss="modal" onclick="document.getElementById('agree_rules').checked = true;">Close & Agree</button>
+</div>
         </div>
     </div>
 </div>
@@ -1065,15 +1066,18 @@ function toggleCompanyField() {
 
     if (occupation && occupation.value === 'Employed') {
         if(companyDiv) companyDiv.style.display = 'none';
+        if(companyInput) companyInput.required = false;
+        if(schoolIdDiv) schoolIdDiv.style.display = 'block';
+        if(idTypeDiv) idTypeDiv.style.display = 'block';
         if(schoolIdInput) schoolIdInput.required = <?= empty($user_school_id_image) ? 'true' : 'false' ?>;
-            if(idType) idType.required = true;
             if(idType && idType.tagName === 'SELECT') {
+            idType.required = true;
                 idType.innerHTML = '<option value="" disabled selected>Select Valid ID</option><option value="Company ID">Company ID</option><option value="National ID">National ID</option><option value="Driver\'s License">Driver\'s License</option><option value="Passport">Passport</option><option value="UMID">UMID</option><option value="Postal ID">Postal ID</option><option value="SSS ID">SSS ID</option>';
                 if(currentIdType) idType.value = currentIdType;
             }
-            if(idImageLabel) idImageLabel.innerText = "Valid ID (Image)*";
-            if(labelName) labelName.innerText = "Company Name*";
-            if(labelNumber) labelNumber.innerText = "Company Number*";
+            if(idImageLabel) idImageLabel.innerHTML = "Valid ID (Image) <span class='text-danger'>*</span>";
+            if(labelName) labelName.innerHTML = "Company Name <span class='text-danger'>*</span>";
+            if(labelNumber) labelNumber.innerHTML = "Company Number <span class='text-danger'>*</span>";
             if(inputName) inputName.placeholder = "Enter company name";
             if(inputNumber) inputNumber.placeholder = "Enter company contact number";
     } else if (occupation && occupation.value === 'Student') {
@@ -1082,16 +1086,16 @@ function toggleCompanyField() {
             if(idTypeDiv) idTypeDiv.style.display = 'block';
         if(companyInput) companyInput.required = true;
         if(schoolIdInput) schoolIdInput.required = <?= empty($user_school_id_image) ? 'true' : 'false' ?>;
-            if(idType) idType.required = true;
             if(idType && idType.tagName === 'SELECT') {
+            idType.required = true;
                 idType.innerHTML = '<option value="" disabled selected>Select ID Type</option><option value="School ID">School ID</option><option value="National ID">National ID</option><option value="Driver\'s License">Driver\'s License</option><option value="E-FORM">E-FORM</option><option value="Passport">Passport</option>';
                 if(currentIdType) idType.value = currentIdType;
             }
-            if(idImageLabel) idImageLabel.innerText = "Student ID / Valid ID (Image)*";
-        if(companyLabel) companyLabel.innerText = "School Name*";
+            if(idImageLabel) idImageLabel.innerHTML = "Student ID / Valid ID (Image) <span class='text-danger'>*</span>";
+        if(companyLabel) companyLabel.innerHTML = "School Name <span class='text-danger'>*</span>";
         if(companyInput) companyInput.placeholder = "Enter your school name";
-        if(labelName) labelName.innerText = "Guardian Name*";
-        if(labelNumber) labelNumber.innerText = "Guardian Contact Number*";
+        if(labelName) labelName.innerHTML = "Guardian Name <span class='text-danger'>*</span>";
+        if(labelNumber) labelNumber.innerHTML = "Guardian Contact Number <span class='text-danger'>*</span>";
         if(inputName) inputName.placeholder = "Enter guardian name";
         if(inputNumber) inputNumber.placeholder = "Enter guardian contact number";
     } else {
@@ -1099,9 +1103,10 @@ function toggleCompanyField() {
             if(schoolIdDiv) schoolIdDiv.style.display = 'none';
             if(idTypeDiv) idTypeDiv.style.display = 'none'; 
         if(companyInput) companyInput.required = false;
-         if(idType) idType.required = false;
-        if(labelName) labelName.innerText = "Emergency Contact Name*";
-        if(labelNumber) labelNumber.innerText = "Emergency Contact Number*";
+        if(schoolIdInput) schoolIdInput.required = false;
+        if(idType && idType.tagName === 'SELECT') idType.required = false;
+        if(labelName) labelName.innerHTML = "Emergency Contact Name <span class='text-danger'>*</span>";
+        if(labelNumber) labelNumber.innerHTML = "Emergency Contact Number <span class='text-danger'>*</span>";
         if(inputName) inputName.placeholder = "e.g. Juan Dela Cruz";
         if(inputNumber) inputNumber.placeholder = "e.g. 09123456789";
     }
@@ -1294,11 +1299,11 @@ function confirmReservation() {
                     </div>
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label class="form-label">Last Name*</label>
+                            <label class="form-label">Last Name <span class="text-danger">*</span></label>
                             <input type="text" name="comp_lname[]" class="form-control" placeholder="Last Name" required oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">First Name*</label>
+                            <label class="form-label">First Name <span class="text-danger">*</span></label>
                             <input type="text" name="comp_fname[]" class="form-control" placeholder="First Name" required oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;">
                         </div>
                         <div class="col-md-4">
@@ -1306,7 +1311,7 @@ function confirmReservation() {
                             <input type="text" name="comp_mname[]" class="form-control" placeholder="Middle Name" oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Gender*</label>
+                            <label class="form-label">Gender <span class="text-danger">*</span></label>
                             <select name="comp_gender[]" class="form-select" required>
                                 <option value="" disabled selected>Select</option>
                                 <option value="Male">Male</option>
@@ -1314,7 +1319,7 @@ function confirmReservation() {
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Contact Number*</label>
+                            <label class="form-label">Contact Number <span class="text-danger">*</span></label>
                             <input type="text" name="comp_phone[]" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\\d{9}$" maxlength="11" oninput="let v=this.value.replace(/[^0-9]/g,''); if(v.length>0&&v[0]!=='0')v='0'+v; if(v.length>1&&v[1]!=='9')v='09'+v.substring(2); this.value=v;" required>
                         </div>
                         <div class="col-md-4">
@@ -1322,7 +1327,7 @@ function confirmReservation() {
                             <input type="email" name="comp_email[]" class="form-control" placeholder="Optional">
                         </div>
                         <div class="col-md-12">
-                            <label class="form-label">Valid ID (Image)*</label>
+                            <label class="form-label">Valid ID (Image) <span class="text-danger">*</span></label>
                             <input type="file" name="comp_id_image[]" class="form-control" accept="image/*" required>
                         </div>
                     </div>

@@ -326,6 +326,33 @@ try {
             70% { box-shadow: 0 0 0 10px rgba(235, 63, 63, 0); border-color: #1e1e1e; }
             100% { box-shadow: 0 0 0 0 rgba(235, 63, 63, 0); border-color: #1e1e1e; }
         }
+        
+        /* Scroll to Top Button */
+        .scroll-top-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #34B875;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 1050;
+            opacity: 0;
+            visibility: hidden;
+            transform: translate(-50%, 20px);
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease, background-color 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 2px solid white;
+            text-decoration: none;
+        }
+        .scroll-top-btn.visible { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+        .scroll-top-btn:hover { background: #2A9A60; transform: translate(-50%, -5px); box-shadow: 0 8px 25px rgba(52, 184, 117, 0.4); color: white; }
     </style>
 </head>
 <body class="<?= (isset($_SESSION['night_mode']) && $_SESSION['night_mode'] == 1) ? 'night-mode' : '' ?>">
@@ -1226,6 +1253,29 @@ try {
         localStorage.removeItem('dashboard_order_' + currentUserId);
         localStorage.removeItem('dashboard_hidden_' + currentUserId);
         location.reload();
+    }
+
+    // Scroll to Top Logic
+    const scrollTopBtn = document.getElementById('scrollTopBtn');
+    let scrollTimeout;
+    if (scrollTopBtn) {
+        window.addEventListener('scroll', function() {
+            if (window.scrollY > 300) {
+                scrollTopBtn.classList.add('visible');
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => scrollTopBtn.classList.remove('visible'), 3000);
+            } else {
+                scrollTopBtn.classList.remove('visible');
+            }
+        });
+        scrollTopBtn.addEventListener('mouseenter', () => clearTimeout(scrollTimeout));
+        scrollTopBtn.addEventListener('mouseleave', () => {
+            scrollTimeout = setTimeout(() => scrollTopBtn.classList.remove('visible'), 3000);
+        });
+        scrollTopBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
     }
 </script>
 </body>

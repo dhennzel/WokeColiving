@@ -560,8 +560,8 @@ $theme = get_theme_colors($conn);
                     <div id="new_user_section" class="mb-3 p-3 border rounded bg-light" style="display: <?= $f_user_type == 'new' ? 'block' : 'none' ?>;">
                         <h6 class="fw-bold text-success mb-3"><i class="fas fa-user-plus me-2"></i>Guest Details</h6>
                         <div class="row g-2">
-                            <div class="col-md-4"><label class="small fw-bold">Last Name</label><input type="text" name="new_lname" class="form-control" value="<?= htmlspecialchars($f_new_lname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
-                            <div class="col-md-4"><label class="small fw-bold">First Name</label><input type="text" name="new_fname" class="form-control" value="<?= htmlspecialchars($f_new_fname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                            <div class="col-md-4"><label class="small fw-bold">Last Name <span class="text-danger">*</span></label><input type="text" name="new_lname" class="form-control" value="<?= htmlspecialchars($f_new_lname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                            <div class="col-md-4"><label class="small fw-bold">First Name <span class="text-danger">*</span></label><input type="text" name="new_fname" class="form-control" value="<?= htmlspecialchars($f_new_fname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
                             <div class="col-md-4"><label class="small fw-bold">Middle Name</label><input type="text" name="new_mname" class="form-control" value="<?= htmlspecialchars($f_new_mname) ?>" oninput="this.value = this.value.replace(/[^a-zA-Z\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
                             <div class="col-md-4">
                                 <label class="small fw-bold">Suffix</label>
@@ -575,10 +575,10 @@ $theme = get_theme_colors($conn);
                                     <option value="V" <?= $f_new_suffix == 'V' ? 'selected' : '' ?>>V</option>
                                 </select>
                             </div>
-                            <div class="col-md-6"><label class="small fw-bold">Email</label><input type="email" name="new_email" class="form-control" value="<?= htmlspecialchars($f_new_email) ?>"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="new_phone" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_phone) ?>" oninput="let v = this.value.replace(/[^0-9]/g, ''); if(v.length > 0 && v[0] !== '0') v = '0' + v; if(v.length > 1 && v[1] !== '9') v = '09' + v.substring(2); this.value = v;"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Email <span class="text-danger">*</span></label><input type="email" name="new_email" class="form-control" value="<?= htmlspecialchars($f_new_email) ?>"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Phone <span class="text-danger">*</span></label><input type="text" name="new_phone" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_phone) ?>" oninput="let v = this.value.replace(/[^0-9]/g, ''); if(v.length > 0 && v[0] !== '0') v = '0' + v; if(v.length > 1 && v[1] !== '9') v = '09' + v.substring(2); this.value = v;"></div>
                             <div class="col-md-6">
-                                <label class="small fw-bold">Gender</label>
+                                <label class="small fw-bold">Gender <span class="text-danger">*</span></label>
                                 <select name="new_gender" id="new_gender" class="form-select" onchange="updateGenderConstraint(); checkAvailability()">
                                     <option value="" disabled>Select Gender</option>
                                     <option value="Male" <?= $f_new_gender == 'Male' ? 'selected' : '' ?>>Male</option>
@@ -586,7 +586,7 @@ $theme = get_theme_colors($conn);
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="small fw-bold">Occupation Status</label>
+                                <label class="small fw-bold">Occupation Status <span class="text-danger">*</span></label>
                                 <select name="new_occupation" id="new_occupation" class="form-select" onchange="toggleNewGuestCompany()">
                                     <option value="" disabled <?= empty($f_new_occupation) ? 'selected' : '' ?>>Select Status</option>
                                     <option value="Student" <?= $f_new_occupation == 'Student' ? 'selected' : '' ?>>Student</option>
@@ -594,11 +594,11 @@ $theme = get_theme_colors($conn);
                                 </select>
                             </div>
                             <div class="col-md-6" id="new_company_div" style="display: <?= in_array($f_new_occupation, ['Student', 'Employed']) ? 'block' : 'none' ?>;">
-                                <label class="small fw-bold" id="new_company_label">Company/School Name</label>
+                                <label class="small fw-bold" id="new_company_label">Company/School Name <span class="text-danger">*</span></label>
                                 <input type="text" name="new_company" id="new_company" class="form-control" value="<?= htmlspecialchars($f_new_company) ?>">
                             </div>
                             <div class="col-md-12">
-                                <label class="small fw-bold">Permanent Address</label>
+                                <label class="small fw-bold">Permanent Address <span class="text-danger">*</span></label>
                                 <div class="row g-2">
                                     <div class="col-md-6">
                                         <select id="region" class="form-select form-select-sm">
@@ -637,8 +637,8 @@ $theme = get_theme_colors($conn);
                                 </div>
                                 <input type="hidden" name="new_address" id="full_address">
                             </div>
-                            <div class="col-md-6"><label class="small fw-bold" id="new_em_name_label">Emergency Name</label><input type="text" name="new_em_name" class="form-control" value="<?= htmlspecialchars($f_new_em_name) ?>"></div>
-                            <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact</label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_em_num) ?>" oninput="let v = this.value.replace(/[^0-9]/g, ''); if(v.length > 0 && v[0] !== '0') v = '0' + v; if(v.length > 1 && v[1] !== '9') v = '09' + v.substring(2); this.value = v;"></div>
+                            <div class="col-md-6"><label class="small fw-bold" id="new_em_name_label">Emergency Name <span class="text-danger">*</span></label><input type="text" name="new_em_name" class="form-control" value="<?= htmlspecialchars($f_new_em_name) ?>"></div>
+                            <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact <span class="text-danger">*</span></label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_em_num) ?>" oninput="let v = this.value.replace(/[^0-9]/g, ''); if(v.length > 0 && v[0] !== '0') v = '0' + v; if(v.length > 1 && v[1] !== '9') v = '09' + v.substring(2); this.value = v;"></div>
                             <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: Wokecoliving101" minlength="6" maxlength="8"></div>
                         </div>
                         <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>Wokecoliving101</strong> (7 letters, 1 number).</small>
@@ -646,7 +646,7 @@ $theme = get_theme_colors($conn);
 
                     <div class="row">
                         <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Room Type</label>
+                            <label class="form-label fw-bold">Room Type <span class="text-danger">*</span></label>
                             <select name="room_type" id="room_type" class="form-select" required onchange="updateRoomOptions(); calculateTotal(); checkAvailability(); updateCompanionForms();">
                                 <option value="Single" <?= $f_room_type == 'Single' ? 'selected' : '' ?>>Single</option>
                                 <option value="4-Bed" <?= $f_room_type == '4-Bed' ? 'selected' : '' ?>>4-Bed</option>
@@ -671,7 +671,7 @@ $theme = get_theme_colors($conn);
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Duration</label>
+                        <label class="form-label fw-bold">Duration <span class="text-danger">*</span></label>
                         <select id="duration_select" name="duration_select" class="form-select" required onchange="updateCheckoutDate()">
                             <option value="" disabled <?= empty($f_duration) ? 'selected' : '' ?>>Select Duration</option>
                             <option value="1" <?= $f_duration == '1' ? 'selected' : '' ?>>Short Term (1 Month)</option>
@@ -682,11 +682,11 @@ $theme = get_theme_colors($conn);
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Check-in</label>
+                            <label class="form-label fw-bold">Check-in <span class="text-danger">*</span></label>
                             <input type="date" name="cin" id="cin" class="form-control" required value="<?= htmlspecialchars($f_cin) ?>" onchange="updateCheckoutDate(); calculateTotal(); checkAvailability()">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Check-out</label>
+                            <label class="form-label fw-bold">Check-out <span class="text-danger">*</span></label>
                             <input type="date" name="cout" id="cout" class="form-control" required value="<?= htmlspecialchars($f_cout) ?>" onchange="updateDurationFromDates()">
                         </div>
                     </div>
@@ -923,23 +923,23 @@ function toggleNewGuestCompany() {
     if(occ === 'Student') {
         div.style.display = 'block';
         sidDiv.style.display = 'block';
-        label.innerText = 'School Name';
+        label.innerHTML = 'School Name <span class="text-danger">*</span>';
         input.required = true;
-        emNameLabel.innerText = 'Guardian Name';
-        emNumLabel.innerText = 'Guardian Contact Number';
+        emNameLabel.innerHTML = 'Guardian Name <span class="text-danger">*</span>';
+        emNumLabel.innerHTML = 'Guardian Contact Number <span class="text-danger">*</span>';
     } else if(occ === 'Employed') {
         div.style.display = 'none'; // Hide for employed
         sidDiv.style.display = 'none';
-        label.innerText = 'Company Name'; // Label is irrelevant if hidden
+        label.innerHTML = 'Company Name'; // Label is irrelevant if hidden
         input.required = false; // Not required if hidden
-        emNameLabel.innerText = 'Company Name';
-        emNumLabel.innerText = 'Company Number';
+        emNameLabel.innerHTML = 'Company Name <span class="text-danger">*</span>';
+        emNumLabel.innerHTML = 'Company Number <span class="text-danger">*</span>';
     } else {
         div.style.display = 'none';
         sidDiv.style.display = 'none';
         input.required = false;
-        emNameLabel.innerText = 'Emergency Contact Name';
-        emNumLabel.innerText = 'Emergency Contact Number';
+        emNameLabel.innerHTML = 'Emergency Contact Name <span class="text-danger">*</span>';
+        emNumLabel.innerHTML = 'Emergency Contact Number <span class="text-danger">*</span>';
     }
 }
 
@@ -1023,13 +1023,13 @@ function updateCompanionForms() {
                     <span class="badge bg-success rounded-pill px-3 py-2 fw-bold"><i class="fas fa-user-plus me-1"></i> Companion ${i}</span>
                 </div>
                 <div class="row g-3">
-                    <div class="col-md-4"><label class="form-label small fw-bold">Last Name*</label><input type="text" name="comp_lname[]" class="form-control form-control-sm" required oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
-                    <div class="col-md-4"><label class="form-label small fw-bold">First Name*</label><input type="text" name="comp_fname[]" class="form-control form-control-sm" required oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                    <div class="col-md-4"><label class="form-label small fw-bold">Last Name <span class="text-danger">*</span></label><input type="text" name="comp_lname[]" class="form-control form-control-sm" required oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
+                    <div class="col-md-4"><label class="form-label small fw-bold">First Name <span class="text-danger">*</span></label><input type="text" name="comp_fname[]" class="form-control form-control-sm" required oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
                     <div class="col-md-4"><label class="form-label small fw-bold">Middle Name</label><input type="text" name="comp_mname[]" class="form-control form-control-sm" oninput="this.value = this.value.replace(/[^a-zA-Z\\sñÑ]/g, '')" style="text-transform: capitalize;"></div>
-                    <div class="col-md-4"><label class="form-label small fw-bold">Gender*</label><select name="comp_gender[]" class="form-select form-select-sm" required><option value="" disabled selected>Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
-                    <div class="col-md-4"><label class="form-label small fw-bold">Contact Number*</label><input type="text" name="comp_phone[]" class="form-control form-control-sm" pattern="^09\\d{9}$" maxlength="11" oninput="let v=this.value.replace(/[^0-9]/g,''); if(v.length>0&&v[0]!=='0')v='0'+v; if(v.length>1&&v[1]!=='9')v='09'+v.substring(2); this.value=v;" required></div>
+                    <div class="col-md-4"><label class="form-label small fw-bold">Gender <span class="text-danger">*</span></label><select name="comp_gender[]" class="form-select form-select-sm" required><option value="" disabled selected>Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+                    <div class="col-md-4"><label class="form-label small fw-bold">Contact Number <span class="text-danger">*</span></label><input type="text" name="comp_phone[]" class="form-control form-control-sm" pattern="^09\\d{9}$" maxlength="11" oninput="let v=this.value.replace(/[^0-9]/g,''); if(v.length>0&&v[0]!=='0')v='0'+v; if(v.length>1&&v[1]!=='9')v='09'+v.substring(2); this.value=v;" required></div>
                     <div class="col-md-4"><label class="form-label small fw-bold">Email Address</label><input type="email" name="comp_email[]" class="form-control form-control-sm" placeholder="Optional"></div>
-                    <div class="col-md-12"><label class="form-label small fw-bold">Valid ID (Image)*</label><input type="file" name="comp_id_image[]" class="form-control form-control-sm" accept="image/*" required></div>
+                    <div class="col-md-12"><label class="form-label small fw-bold">Valid ID (Image) <span class="text-danger">*</span></label><input type="file" name="comp_id_image[]" class="form-control form-control-sm" accept="image/*" required></div>
                 </div>
             </div>`;
             }
