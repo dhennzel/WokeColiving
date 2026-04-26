@@ -992,3 +992,93 @@ function sync_resident_profile($conn, $reservation_id) {
     }
 }
 }
+
+// --- SYSTEM MAINTENANCE CHECK ---
+if (!function_exists('check_maintenance_mode')) {
+function check_maintenance_mode($conn) {
+    $current_script_path = $_SERVER['SCRIPT_NAME'];
+    $is_admin_path = (strpos($current_script_path, '/admin/') !== false);
+    
+    // Let API scripts die quietly
+    $is_api = (strpos($current_script_path, 'check_updates.php') !== false || strpos($current_script_path, 'get_') !== false);
+
+    if (!$is_admin_path) {
+        $maint_q = @mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='maintenance_mode'");
+        if ($maint_q) {
+            $maint_row = mysqli_fetch_assoc($maint_q);
+            if ($maint_row && $maint_row['setting_value'] == '1') {
+                $end_q = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='maintenance_end_time'");
+                $end_time = ($end_row = mysqli_fetch_assoc($end_q)) ? (int)$end_row['setting_value'] : 0;
+                
+                if (time() < $end_time) {
+                    if ($is_api) {
+                        http_response_code(503);
+                        die(json_encode(['error' => 'Maintenance Mode']));
+                    }
+                    
+                    $theme = get_theme_colors($conn);
+                    $primary = $theme['primary'] ?? '#34B875';
+                    die("<!DOCTYPE html>
+                    <html lang='en'>
+                    <head>
+                        <meta charset='UTF-8'>
+                        <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+                        <title>Under Maintenance | Woke Coliving</title>
+                        <style>
+                            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; color: #333; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
+                            .maint-container { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); max-width: 500px; width: 90%; }
+                            h1 { color: $primary; margin-bottom: 10px; font-weight: 700; }
+                            p { color: #6c757d; line-height: 1.6; }
+                            .icon { font-size: 60px; color: #e53935; margin-bottom: 20px; }
+                            .btn { display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: $primary; color: #fff; text-decoration: none; border-radius: 50px; font-weight: bold; border:none; cursor:pointer;}
+                            .btn:hover { opacity: 0.9; }
+                            .countdown { font-size: 2rem; font-weight: bold; color: #333; margin: 15px 0; background: #f1f3f5; padding: 10px; border-radius: 8px; display: inline-block; min-width: 200px; border: 2px solid #e9ecef; }
+                        </style>
+                        <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'>
+                    </head>
+                    <body>
+                        <div class='maint-container'>
+                            <i class='fas fa-tools icon'></i>
+                            <h1>We'll be back soon!</h1>
+                            <p>The system is currently undergoing scheduled maintenance. We should be back online in:</p>
+                            <div class='countdown' id='countdownTimer'>Calculating...</div>
+                            <p>Thank you for your patience!</p>
+                            <button onclick='location.reload()' class='btn'><i class='fas fa-sync-alt'></i> Check Again</button>
+                        </div>
+                        <script>
+                            var endTime = " . ($end_time * 1000) . ";
+                            function updateTimer() {
+                                var now = new Date().getTime();
+                                var distance = endTime - now;
+                                if (distance <= 0) {
+                                    document.getElementById('countdownTimer').innerHTML = 'Refreshing...';
+                                    setTimeout(function() { location.reload(); }, 1000);
+                                    return;
+                                }
+                                var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                                var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                                var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                                
+                                var display = '';
+                                if (days > 0) display += days + 'd ';
+                                if (hours > 0 || days > 0) display += hours + 'h ';
+                                display += minutes + 'm ' + seconds + 's';
+                                
+                                document.getElementById('countdownTimer').innerHTML = display;
+                            }
+                            setInterval(updateTimer, 1000);
+                            updateTimer();
+                        </script>
+                    </body>
+                    </html>");
+                } else {
+                    mysqli_query($conn, "UPDATE site_settings SET setting_value='0' WHERE setting_key='maintenance_mode'");
+                }
+            }
+        }
+    }
+}
+}
+
+check_maintenance_mode($conn);

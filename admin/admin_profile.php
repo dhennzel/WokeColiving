@@ -71,6 +71,20 @@ if($row_clearance = mysqli_fetch_assoc($q_clearance)){
     $current_clearance_file = $row_clearance['setting_value'];
 }
 
+// Fetch current maintenance mode
+$current_maint_mode = '0';
+$current_maint_end = 0;
+$q_maint = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='maintenance_mode'");
+if($row_maint = mysqli_fetch_assoc($q_maint)){
+    $current_maint_mode = $row_maint['setting_value'];
+}
+if ($current_maint_mode == '1') {
+    $q_end = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='maintenance_end_time'");
+    if($row_end = mysqli_fetch_assoc($q_end)) {
+        $current_maint_end = (int)$row_end['setting_value'];
+    }
+}
+
 // Handle Logo Revert
 if(isset($_POST['revert_logo'])){
     if(is_super_admin()){
@@ -321,6 +335,32 @@ if(isset($_POST['update_credentials'])){
     if(empty($message) && empty($error)) $message = "Branding saved.";
 }
 
+// --- Maintenance Mode Update ---
+if(isset($_POST['update_maintenance_mode']) && is_super_admin()) {
+    $status = $_POST['maintenance_status'];
+    $val = (int)$_POST['maintenance_duration_value'];
+    $unit = $_POST['maintenance_duration_unit'];
+    
+    $multiplier = 3600;
+    if($unit == 'seconds') $multiplier = 1;
+    elseif($unit == 'minutes') $multiplier = 60;
+    elseif($unit == 'hours') $multiplier = 3600;
+    elseif($unit == 'days') $multiplier = 86400;
+    elseif($unit == 'weeks') $multiplier = 604800;
+    elseif($unit == 'months') $multiplier = 2592000;
+
+    $end_time = time() + ($val * $multiplier);
+
+    mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('maintenance_mode', '$status') ON DUPLICATE KEY UPDATE setting_value='$status'");
+    if($status == '1') {
+        mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('maintenance_end_time', '$end_time') ON DUPLICATE KEY UPDATE setting_value='$end_time'");
+        $message = "Maintenance mode enabled for $val $unit.";
+    } else {
+        $message = "Maintenance mode disabled.";
+    }
+    $current_maint_mode = $status;
+}
+
 // --- Theme Update ---
 if(isset($_POST['update_theme']) && is_super_admin()) {
     if(isset($_POST['primary_color'])){
@@ -535,6 +575,19 @@ while($row = mysqli_fetch_assoc($smtp_q)){
                                 <i class="fas fa-paper-plane fa-3x text-secondary mb-3"></i>
                                 <h5 class="fw-bold text-dark">Email (SMTP) Settings</h5>
                                 <p class="text-muted small mb-0">Configure the system to send emails for notifications and password resets.</p>
+                            </div>
+                        </div>
+
+                        <!-- System Maintenance Card -->
+                        <div class="col-md-4">
+                            <div class="card card-custom h-100 text-center p-4 profile-setting-card" data-bs-toggle="modal" data-bs-target="#maintenanceModeModal" style="cursor:pointer; transition: 0.3s;" onmouseover="this.style.transform='translateY(-5px)';" onmouseout="this.style.transform='translateY(0)';">
+                                <i class="fas fa-tools fa-3x text-danger mb-3"></i>
+                                <h5 class="fw-bold text-dark">System Maintenance</h5>
+                                <?php if($current_maint_mode == '1' && $current_maint_end > time()): ?>
+                                    <p class="text-danger small fw-bold mb-0" id="cardMaintCountdown"><span class="spinner-grow spinner-grow-sm me-1" style="width: 0.7rem; height: 0.7rem; vertical-align: middle;"></span> Active (Calculating...)</p>
+                                <?php else: ?>
+                                    <p class="text-muted small mb-0">Enable or disable maintenance mode for the public website.</p>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <?php endif; ?>
@@ -858,6 +911,54 @@ while($row = mysqli_fetch_assoc($smtp_q)){
     </div>
 </div>
 
+<!-- Maintenance Mode Modal -->
+<div class="modal fade" id="maintenanceModeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-tools me-2"></i>System Maintenance Mode</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body bg-light p-4">
+                    <div class="alert alert-warning small"><i class="fas fa-exclamation-triangle me-2"></i>Enabling maintenance mode will block all users and guests from accessing the website. Only admins will be able to log in.</div>
+                    <?php if($current_maint_mode == '1' && $current_maint_end > time()): ?>
+                        <div class="alert alert-danger small border-danger shadow-sm" id="adminMaintCountdownContainer">
+                            <i class="fas fa-clock me-2"></i> Active Maintenance Ends In: <strong id="adminMaintCountdown" class="fs-6">Calculating...</strong>
+                        </div>
+                    <?php endif; ?>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Maintenance Status</label>
+                        <select name="maintenance_status" class="form-select" id="maintStatus" onchange="toggleMaintDuration()">
+                            <option value="0" <?= $current_maint_mode == '0' ? 'selected' : '' ?>>Disabled</option>
+                            <option value="1" <?= $current_maint_mode == '1' ? 'selected' : '' ?>>Enabled</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="maintDurationDiv" style="display: <?= $current_maint_mode == '1' ? 'block' : 'none' ?>;">
+                        <label class="form-label fw-bold">Duration</label>
+                        <div class="input-group">
+                            <input type="number" name="maintenance_duration_value" class="form-control" value="1" min="1">
+                            <select name="maintenance_duration_unit" class="form-select">
+                                <option value="seconds">Seconds</option>
+                                <option value="minutes">Minutes</option>
+                                <option value="hours" selected>Hours</option>
+                                <option value="days">Days</option>
+                                <option value="weeks">Weeks</option>
+                                <option value="months">Months</option>
+                            </select>
+                        </div>
+                        <small class="text-muted">How long will the maintenance last?</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="update_maintenance_mode" class="btn btn-danger fw-bold">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Crop Modal -->
 <div class="modal fade" id="cropModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -883,6 +984,46 @@ while($row = mysqli_fetch_assoc($smtp_q)){
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script src="admin.js"></script>
 <script>
+    <?php if($current_maint_mode == '1' && $current_maint_end > time()): ?>
+        var adminMaintEndTime = <?= $current_maint_end * 1000 ?>;
+        function updateAdminMaintTimer() {
+            var now = new Date().getTime();
+            var distance = adminMaintEndTime - now;
+            var countdownEl = document.getElementById('adminMaintCountdown');
+            var cardCountdownEl = document.getElementById('cardMaintCountdown');
+            var containerEl = document.getElementById('adminMaintCountdownContainer');
+            
+            if (distance <= 0) {
+                if(countdownEl) countdownEl.innerHTML = 'Maintenance period has ended.';
+                if(cardCountdownEl) cardCountdownEl.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i> Maintenance ended';
+                if(containerEl) {
+                    containerEl.classList.remove('alert-danger', 'border-danger');
+                    containerEl.classList.add('alert-success', 'border-success');
+                }
+                return;
+            }
+            
+            var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            
+            var display = '';
+            if (days > 0) display += days + 'd ';
+            if (hours > 0 || days > 0) display += hours + 'h ';
+            display += minutes + 'm ' + seconds + 's';
+            
+            if(countdownEl) countdownEl.innerHTML = display;
+            if(cardCountdownEl) cardCountdownEl.innerHTML = '<span class="spinner-grow spinner-grow-sm text-danger me-1" style="width: 0.7rem; height: 0.7rem; vertical-align: middle;"></span> Active (' + display + ')';
+        }
+        setInterval(updateAdminMaintTimer, 1000);
+        updateAdminMaintTimer();
+    <?php endif; ?>
+
+    function toggleMaintDuration() {
+        document.getElementById('maintDurationDiv').style.display = document.getElementById('maintStatus').value == '1' ? 'block' : 'none';
+    }
+
     // Show Password Toggle
     document.getElementById('showPassToggle').addEventListener('change', function() {
         const type = this.checked ? 'text' : 'password';
