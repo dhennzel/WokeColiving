@@ -197,6 +197,23 @@ $theme = get_theme_colors($conn);
             box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
             border-color: var(--primary-green) !important;
         }
+
+        /* Print Styles */
+        .print-only { display: none; }
+        @media print {
+            @page { margin: 10mm; }
+            body, html { background: #fff !important; margin: 0 !important; padding: 0 !important; color: #000 !important; }
+            .dashboard-container, .modal, .modal-backdrop, .sidebar-backdrop { display: none !important; }
+            
+            .print-only { display: block !important; width: 100%; color: #000 !important; }
+            .print-only h2 { margin-bottom: 5px; font-weight: bold; font-family: sans-serif; }
+            .print-only h4 { margin-top: 0; font-family: sans-serif; }
+            .print-only table { width: 100%; border-collapse: collapse; margin-top: 20px; font-family: sans-serif; }
+            .print-only th, .print-only td { border: 1px solid #000 !important; padding: 8px !important; font-size: 12px; text-align: left; vertical-align: top; }
+            .print-only th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; color-adjust: exact; font-weight: bold; }
+            .print-only .summary-table { margin-top: 0; }
+            .print-only .summary-table th, .print-only .summary-table td { border: none !important; padding: 4px !important; font-size: 14px; }
+        }
     </style>
 </head>
 <body>
@@ -211,9 +228,14 @@ $theme = get_theme_colors($conn);
                     <h1>Room Occupancy</h1>
                     <small class="text-muted">Click on a room type to view detailed occupancy</small>
                 </div>
-                <button onclick="location.reload()" class="btn btn-outline-secondary rounded-pill btn-sm">
-                    <i class="fas fa-sync-alt me-1"></i> Refresh
-                </button>
+                <div>
+                    <button onclick="window.print()" class="btn btn-primary rounded-pill btn-sm me-2 shadow-sm">
+                        <i class="fas fa-print me-1"></i> Print Report
+                    </button>
+                    <button onclick="location.reload()" class="btn btn-outline-secondary rounded-pill btn-sm">
+                        <i class="fas fa-sync-alt me-1"></i> Refresh
+                    </button>
+                </div>
             </div>
 
             <!-- Summary Stats -->
@@ -327,6 +349,60 @@ $theme = get_theme_colors($conn);
     </div>
         </main>
     </div>
+</div>
+
+<!-- Print Only Container -->
+<div class="print-only">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" alt="Woke Coliving Logo" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #F0B429; margin-bottom: 10px;">
+        <h2>Woke Coliving INC</h2>
+        <h4>Room Occupancy Report</h4>
+        <p>As of <?= date('F d, Y h:i A') ?></p>
+    </div>
+    
+    <table class="summary-table">
+        <tr>
+            <td><strong>Total Rooms:</strong> <?= $total_rooms ?></td>
+            <td><strong>Total Occupants:</strong> <?= $total_occupants ?></td>
+            <td><strong>Partially Occupied:</strong> <?= $partial_count ?></td>
+            <td><strong>Vacant Rooms:</strong> <?= $vacant_count ?></td>
+        </tr>
+    </table>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Room</th>
+                <th>Type / Floor</th>
+                <th>Status</th>
+                <th>Occupancy</th>
+                <th>Occupants</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach($grouped_rooms as $type => $rooms_in_type): ?>
+                <?php foreach($rooms_in_type as $room): 
+                    $room_display = !empty($room['room_number']) ? 'Room ' . $room['room_number'] : $room['room_name'];
+                    $occ_names = [];
+                    if(!empty($room['occupants'])){
+                        foreach($room['occupants'] as $occ) {
+                            $bed = (isset($occ['bed_preference']) && $occ['bed_preference'] != 'Any') ? " ({$occ['bed_preference']})" : "";
+                            $occ_names[] = htmlspecialchars($occ['full_name']) . $bed;
+                        }
+                    }
+                    $occ_str = empty($occ_names) ? '<i>Vacant</i>' : implode('<br>', $occ_names);
+                ?>
+                <tr>
+                    <td><strong><?= $room_display ?></strong></td>
+                    <td><?= $type ?> (<?= $room['floor'] ?? 2 ?>F)</td>
+                    <td><?= $room['occupancy_status'] ?></td>
+                    <td><?= $room['occupied_count'] ?> / <?= $room['total_beds'] ?></td>
+                    <td><?= $occ_str ?></td>
+                </tr>
+                <?php endforeach; ?>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
 </div>
 
 <!-- Modals for each room type (Like Room Inventory) -->

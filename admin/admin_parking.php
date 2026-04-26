@@ -13,14 +13,13 @@ $admin_username = $_SESSION['admin_username'] ?? 'Admin';
 // Handle Price Settings Update
 if(isset($_POST['update_parking_prices'])){
     $prices = [
-        'price_parking_car_monthly' => $_POST['car_monthly'],
-        'price_parking_car_daily' => $_POST['car_daily'],
-        'price_parking_motor_monthly' => $_POST['motor_monthly'],
-        'price_parking_motor_daily' => $_POST['motor_daily']
+        'price_parking_car_monthly' => (float)$_POST['car_monthly'],
+        'price_parking_car_daily' => (float)$_POST['car_daily'],
+        'price_parking_motor_monthly' => (float)$_POST['motor_monthly'],
+        'price_parking_motor_daily' => (float)$_POST['motor_daily']
     ];
     
     foreach($prices as $key => $val){
-        $val = (float)$val;
         mysqli_query($conn, "INSERT INTO site_settings (setting_key, setting_value) VALUES ('$key', '$val') ON DUPLICATE KEY UPDATE setting_value='$val'");
     }
 
@@ -82,7 +81,7 @@ if (isset($_POST['add_parking_reservation'])) {
 
     // Insert parking reservation FIRST to get ID
     $pr_stmt = mysqli_prepare($conn, "INSERT INTO parking_reservations (user_id, slot_id, start_date, end_date, total_cost, billing_type, vehicle_plate, vehicle_details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    mysqli_stmt_bind_param($pr_stmt, "iisdssss", $user_id, $slot_id, $start_date, $end_date_sql_val, $cost, $billing_type, $vehicle_plate, $vehicle_details);
+    mysqli_stmt_bind_param($pr_stmt, "iissdsss", $user_id, $slot_id, $start_date, $end_date_sql_val, $cost, $billing_type, $vehicle_plate, $vehicle_details);
     mysqli_stmt_execute($pr_stmt);
     $pr_id = mysqli_insert_id($conn);
 
@@ -161,8 +160,8 @@ while ($row = mysqli_fetch_assoc($slots_q)) {
 
 $reservations_q = mysqli_query($conn, "
     SELECT pr.*, CONCAT(u.last_name, ', ', u.first_name) as full_name, ps.slot_name, ps.slot_type,
-    (SELECT payment_status FROM payments WHERE description LIKE CONCAT('%(Parking ID: ', pr.id, ')%') ORDER BY payment_id DESC LIMIT 1) as pay_status,
-    (SELECT description FROM payments WHERE description LIKE CONCAT('%(Parking ID: ', pr.id, ')%') ORDER BY payment_id DESC LIMIT 1) as pay_desc
+    (SELECT payment_status FROM payments WHERE parking_reservation_id = pr.id OR description LIKE CONCAT('%(Parking ID: ', pr.id, ')%') ORDER BY payment_id DESC LIMIT 1) as pay_status,
+    (SELECT description FROM payments WHERE parking_reservation_id = pr.id OR description LIKE CONCAT('%(Parking ID: ', pr.id, ')%') ORDER BY payment_id DESC LIMIT 1) as pay_desc
     FROM parking_reservations pr 
     JOIN users u ON pr.user_id = u.user_id 
     JOIN parking_slots ps ON pr.slot_id = ps.id 
