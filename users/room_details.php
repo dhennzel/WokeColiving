@@ -17,60 +17,79 @@ if (mysqli_num_rows($query) == 0) {
 
 $room = mysqli_fetch_assoc($query);
 
-// Calculate Availability
-$rid = $room['room_id'];
-$today = date('Y-m-d');
-
-// Fetch occupancy by bed preference
-$occ_q = mysqli_query($conn, "SELECT bed_preference, count(*) as cnt FROM reservations WHERE room_id=$rid AND status IN ('Pending','Approved') AND start_date <= '$today' AND end_date > '$today' GROUP BY bed_preference");
-
-$taken_upper = 0;
-$taken_lower = 0;
-$taken_any = 0;
-$total_occupied = 0;
-$room_capacity = $room['total_beds'];
-
-while($row_occ = mysqli_fetch_assoc($occ_q)){
-    $cnt = $row_occ['cnt'];
-    if($row_occ['bed_preference'] == 'Whole Room') {
-        $total_occupied += $room_capacity;
-        $taken_any += $room_capacity;
-    } else {
-        $total_occupied += $cnt;
-        if($row_occ['bed_preference'] == 'Upper Bunk') $taken_upper += $cnt;
-        elseif($row_occ['bed_preference'] == 'Lower Bunk') $taken_lower += $cnt;
-        else $taken_any += $cnt;
-    }
-}
-
-$available_beds = max(0, $room['total_beds'] - $total_occupied);
+// Calculate Aggregate Availability for the Room Type
 $is_bunk = ($room['room_type'] == '4-Bed' || $room['room_type'] == '6-Bed');
+$available_beds = 0;
 $avail_upper = 0;
 $avail_lower = 0;
+$total_type_beds = 0;
 
-if($is_bunk){
-    $cap_upper = floor($room['total_beds'] / 2);
-    $cap_lower = ceil($room['total_beds'] / 2);
-    
-    $avail_upper = max(0, $cap_upper - $taken_upper);
-    $avail_lower = max(0, $cap_lower - $taken_lower);
-    
-    if($taken_any > 0) {
-        $fill_lower = min($avail_lower, $taken_any);
-        $avail_lower -= $fill_lower;
-        $taken_any -= $fill_lower;
-        
-        $avail_upper -= $taken_any;
-        $avail_upper = max(0, $avail_upper);
+// Use the centralized function to get accurate occupancy and prevent duplicate rooms counting
+$raw_rooms = get_all_rooms_with_occupancy($conn);
+$unique_rooms = [];
+$seen_names = [];
+foreach ($raw_rooms as $r) {
+    $name = !empty($r['room_number']) ? trim($r['room_number']) : trim($r['room_name']);
+    $display_key = strtolower($name);
+    if (!isset($seen_names[$display_key])) {
+        $seen_names[$display_key] = count($unique_rooms);
+        $unique_rooms[] = $r;
+    } else {
+        $idx = $seen_names[$display_key];
+        if ($r['occupied_count'] > $unique_rooms[$idx]['occupied_count']) {
+            $unique_rooms[$idx] = $r;
+        }
     }
 }
 
-// Override if Maintenance
-if($room['availability'] == 'Maintenance') {
-    $available_beds = 0;
-    $avail_upper = 0;
-    $avail_lower = 0;
+foreach ($unique_rooms as $r) {
+    // For Single rooms, aggregate all. For 4-Bed/6-Bed, aggregate by matching gender
+    $gender_match = ($room['room_type'] === 'Single') ? true : ($r['gender'] === $room['gender']);
+    
+    if ($r['room_type'] === $room['room_type'] && $gender_match && $r['availability'] !== 'Maintenance') {
+        $total_type_beds += $r['total_beds'];
+        $available_beds += $r['available_beds'];
+        
+        if ($is_bunk) {
+            $cap_upper = floor($r['total_beds'] / 2);
+            $cap_lower = ceil($r['total_beds'] / 2);
+            
+            $taken_upper = 0;
+            $taken_lower = 0;
+            $taken_any = 0;
+            
+            foreach($r['occupants'] as $occ) {
+                if($occ['bed_preference'] == 'Whole Room') {
+                    $taken_any += $r['total_beds'];
+                } elseif($occ['bed_preference'] == 'Upper Bunk') {
+                    $taken_upper++;
+                } elseif($occ['bed_preference'] == 'Lower Bunk') {
+                    $taken_lower++;
+                } else {
+                    $taken_any++;
+                }
+            }
+            
+            $a_up = max(0, $cap_upper - $taken_upper);
+            $a_low = max(0, $cap_lower - $taken_lower);
+            
+            if($taken_any > 0) {
+                $fill_lower = min($a_low, $taken_any);
+                $a_low -= $fill_lower;
+                $taken_any -= $fill_lower;
+                
+                $a_up -= $taken_any;
+                $a_up = max(0, $a_up);
+            }
+            
+            $avail_upper += $a_up;
+            $avail_lower += $a_low;
+        }
+    }
 }
+
+// Override total beds for view display
+$room['total_beds'] = $total_type_beds;
 
 // Fetch user name for navbar if logged in
 $user_name = "";
@@ -88,7 +107,8 @@ if(isset($_SESSION['user_id'])){
     }
 }
 
-$room_display = !empty($room['room_number']) ? 'Room ' . htmlspecialchars($room['room_number']) : htmlspecialchars($room['room_name']);
+$gender_prefix = ($room['room_type'] === 'Single' || empty($room['gender']) || $room['gender'] == 'Any') ? '' : htmlspecialchars($room['gender']) . ' ';
+$room_display = $gender_prefix . htmlspecialchars($room['room_type']) . ' Room';
 ?>
 <!DOCTYPE html>
 <html lang="en">
