@@ -23,6 +23,7 @@ $available_beds = 0;
 $avail_upper = 0;
 $avail_lower = 0;
 $total_type_beds = 0;
+$is_guest = !isset($_SESSION['user_id']);
 
 // Use the centralized function to get accurate occupancy and prevent duplicate rooms counting
 $raw_rooms = get_all_rooms_with_occupancy($conn);
@@ -43,8 +44,8 @@ foreach ($raw_rooms as $r) {
 }
 
 foreach ($unique_rooms as $r) {
-    // For Single rooms, aggregate all. For 4-Bed/6-Bed, aggregate by matching gender
-    $gender_match = ($room['room_type'] === 'Single') ? true : ($r['gender'] === $room['gender']);
+    // For Single rooms or guests, aggregate all. For logged-in users on 4-Bed/6-Bed, aggregate by matching gender
+    $gender_match = ($room['room_type'] === 'Single' || $is_guest) ? true : ($r['gender'] === $room['gender']);
     
     if ($r['room_type'] === $room['room_type'] && $gender_match && $r['availability'] !== 'Maintenance') {
         $total_type_beds += $r['total_beds'];
@@ -107,7 +108,7 @@ if(isset($_SESSION['user_id'])){
     }
 }
 
-$gender_prefix = ($room['room_type'] === 'Single' || empty($room['gender']) || $room['gender'] == 'Any') ? '' : htmlspecialchars($room['gender']) . ' ';
+$gender_prefix = ($room['room_type'] === 'Single' || empty($room['gender']) || $room['gender'] == 'Any' || $is_guest) ? '' : htmlspecialchars($room['gender']) . ' ';
 $room_display = $gender_prefix . htmlspecialchars($room['room_type']) . ' Room';
 ?>
 <!DOCTYPE html>
