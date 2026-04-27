@@ -166,18 +166,18 @@ $locked_type = (isset($_GET['type']) && in_array($_GET['type'], $allowed_types))
                                 <option value="Female">Female Only</option>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3" id="single_price_div"><label class="form-label fw-bold">Short Term Price (₱)</label><input type="number" name="price" class="form-control" step="0.01" value="<?= $default_prices['price_single'] ?>" readonly></div>
-                        <div class="col-md-6 mb-3" id="single_price_long_div" style="display:none;"><label class="form-label fw-bold">Long Term Price (₱)</label><input type="number" name="long_term_price_whole" id="lt_whole" class="form-control" step="0.01"></div>
+                        <div class="col-md-6 mb-3" id="single_price_div"><label class="form-label fw-bold">Short Term Price (₱)</label><input type="number" name="price" class="form-control" step="0.01" value="<?= $default_prices['price_single'] ?>" min="0" readonly></div>
+                        <div class="col-md-6 mb-3" id="single_price_long_div" style="display:none;"><label class="form-label fw-bold">Long Term Price (₱)</label><input type="number" name="long_term_price_whole" id="lt_whole" class="form-control" min="0" step="0.01"></div>
                         
-                        <div class="col-md-3 mb-3" id="upper_price_div" style="display:none;"><label class="form-label fw-bold">ST Upper Bed (₱)</label><input type="number" name="price_upper" class="form-control" step="0.01"></div>
-                        <div class="col-md-3 mb-3" id="lower_price_div" style="display:none;"><label class="form-label fw-bold">ST Lower Bed (₱)</label><input type="number" name="price_lower" class="form-control" step="0.01"></div>
-                        <div class="col-md-3 mb-3" id="upper_price_long_div" style="display:none;"><label class="form-label fw-bold">LT Upper Bed (₱)</label><input type="number" name="long_term_price_upper" class="form-control" step="0.01"></div>
-                        <div class="col-md-3 mb-3" id="lower_price_long_div" style="display:none;"><label class="form-label fw-bold">LT Lower Bed (₱)</label><input type="number" name="long_term_price_lower" class="form-control" step="0.01"></div>
+                        <div class="col-md-3 mb-3" id="upper_price_div" style="display:none;"><label class="form-label fw-bold">ST Upper Bed (₱)</label><input type="number" name="price_upper" class="form-control" min="0" step="0.01"></div>
+                        <div class="col-md-3 mb-3" id="lower_price_div" style="display:none;"><label class="form-label fw-bold">ST Lower Bed (₱)</label><input type="number" name="price_lower" class="form-control" min="0" step="0.01"></div>
+                        <div class="col-md-3 mb-3" id="upper_price_long_div" style="display:none;"><label class="form-label fw-bold">LT Upper Bed (₱)</label><input type="number" name="long_term_price_upper" class="form-control" min="0" step="0.01"></div>
+                        <div class="col-md-3 mb-3" id="lower_price_long_div" style="display:none;"><label class="form-label fw-bold">LT Lower Bed (₱)</label><input type="number" name="long_term_price_lower" class="form-control" min="0" step="0.01"></div>
                         
-                        <div class="col-md-6 mb-3" id="whole_price_div" style="display:none;"><label class="form-label fw-bold">Whole Room Price (ST)</label><input type="number" name="price_whole" class="form-control" step="0.01"></div>
+                        <div class="col-md-6 mb-3" id="whole_price_div" style="display:none;"><label class="form-label fw-bold">Whole Room Price (ST)</label><input type="number" name="price_whole" class="form-control" min="0" step="0.01"></div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3"><label class="form-label fw-bold">Total Beds</label><input type="number" name="beds" id="beds" class="form-control" value="1" readonly></div>
+                        <div class="col-md-6 mb-3"><label class="form-label fw-bold">Total Beds</label><input type="number" name="beds" id="beds" class="form-control" value="1" min="0" readonly></div>
                         <div class="col-md-6 mb-3"><label class="form-label fw-bold">Image</label><input type="file" name="image" class="form-control" accept="image/*" required></div>
                     </div>
                     <div class="d-grid gap-2 mt-4"><button type="submit" name="add_room" class="btn btn-custom btn-lg">Add Room</button><a href="admin_rooms.php" class="btn btn-outline-secondary rounded-pill">Cancel</a></div>

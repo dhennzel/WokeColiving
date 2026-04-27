@@ -496,15 +496,15 @@ $theme = get_theme_colors($conn);
                                     <h5 class="fw-bold text-success mb-3">Single Room</h5>
                                     <div class="mb-3">
                                         <label class="form-label small fw-bold">Short Term (1mo)</label>
-                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single" class="form-control" value="<?= $default_prices['price_single'] ?>" required></div>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single" class="form-control" value="<?= $default_prices['price_single'] ?>" min="0" required></div>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label small fw-bold">Long Term (6mo+)</label>
-                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single_long" class="form-control" value="<?= $default_prices['price_single_long'] ?>" required></div>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single_long" class="form-control" value="<?= $default_prices['price_single_long'] ?>" min="0" required></div>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label small fw-bold">Daily Price</label>
-                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single_daily" class="form-control" value="<?= $default_prices['price_single_daily'] ?>" required></div>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_single_daily" class="form-control" value="<?= $default_prices['price_single_daily'] ?>" min="0" required></div>
                                     </div>
                                 </div>
                             </div>
@@ -518,22 +518,22 @@ $theme = get_theme_colors($conn);
                                     
                                     <h6 class="small fw-bold text-muted border-bottom pb-1 mb-2">Short Term (1mo)</h6>
                                     <div class="row g-2 mb-3">
-                                        <div class="col-6"><label class="small">Upper</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_upper" class="form-control" value="<?= $default_prices['price_4bed_upper'] ?>" required></div></div>
-                                        <div class="col-6"><label class="small">Lower</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_lower" class="form-control" value="<?= $default_prices['price_4bed_lower'] ?>" required></div></div>
-                                        <div class="col-12"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_whole" class="form-control" value="<?= $default_prices['price_4bed_whole'] ?>" required></div></div>
+                                        <div class="col-6"><label class="small">Upper</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_upper" class="form-control" value="<?= $default_prices['price_4bed_upper'] ?>" min="0" required></div></div>
+                                        <div class="col-6"><label class="small">Lower</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_lower" class="form-control" value="<?= $default_prices['price_4bed_lower'] ?>" min="0" required></div></div>
+                                        <div class="col-12"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_whole" class="form-control" value="<?= $default_prices['price_4bed_whole'] ?>" min="0" required></div></div>
                                     </div>
 
                                     <h6 class="small fw-bold text-muted border-bottom pb-1 mb-2">Long Term (6mo+)</h6>
                                     <div class="row g-2">
-                                        <div class="col-6"><label class="small">Upper</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_upper_long" class="form-control" value="<?= $default_prices['price_4bed_upper_long'] ?>" required></div></div>
-                                        <div class="col-6"><label class="small">Lower</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_lower_long" class="form-control" value="<?= $default_prices['price_4bed_lower_long'] ?>" required></div></div>
-                                        <div class="col-12"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_whole_long" class="form-control" value="<?= $default_prices['price_4bed_whole_long'] ?>" required></div></div>
+                                        <div class="col-6"><label class="small">Upper</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_upper_long" class="form-control" value="<?= $default_prices['price_4bed_upper_long'] ?>" min="0" required></div></div>
+                                        <div class="col-6"><label class="small">Lower</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_lower_long" class="form-control" value="<?= $default_prices['price_4bed_lower_long'] ?>" min="0" required></div></div>
+                                        <div class="col-12"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_whole_long" class="form-control" value="<?= $default_prices['price_4bed_whole_long'] ?>" min="0" required></div></div>
                                     </div>
 
                                     <h6 class="small fw-bold text-muted border-bottom pb-1 mb-2 mt-3">Daily Rates</h6>
                                     <div class="row g-2">
-                                        <div class="col-6"><label class="small">Per Bed</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_daily_bed" class="form-control" value="<?= $default_prices['price_4bed_daily_bed'] ?>" required></div></div>
-                                        <div class="col-6"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_daily_room" class="form-control" value="<?= $default_prices['price_4bed_daily_room'] ?>" required></div></div>
+                                        <div class="col-6"><label class="small">Per Bed</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_daily_bed" class="form-control" value="<?= $default_prices['price_4bed_daily_bed'] ?>" min="0" required></div></div>
+                                        <div class="col-6"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_4bed_daily_room" class="form-control" value="<?= $default_prices['price_4bed_daily_room'] ?>" min="0" required></div></div>
                                     </div>
                                 </div>
                             </div>
@@ -547,22 +547,22 @@ $theme = get_theme_colors($conn);
                                     
                                     <h6 class="small fw-bold text-muted border-bottom pb-1 mb-2">Short Term (1mo)</h6>
                                     <div class="row g-2 mb-3">
-                                        <div class="col-6"><label class="small">Upper</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_upper" class="form-control" value="<?= $default_prices['price_6bed_upper'] ?>" required></div></div>
-                                        <div class="col-6"><label class="small">Lower</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_lower" class="form-control" value="<?= $default_prices['price_6bed_lower'] ?>" required></div></div>
-                                        <div class="col-12"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_whole" class="form-control" value="<?= $default_prices['price_6bed_whole'] ?>" required></div></div>
+                                        <div class="col-6"><label class="small">Upper</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_upper" class="form-control" value="<?= $default_prices['price_6bed_upper'] ?>" min="0" required></div></div>
+                                        <div class="col-6"><label class="small">Lower</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_lower" class="form-control" value="<?= $default_prices['price_6bed_lower'] ?>" min="0" required></div></div>
+                                        <div class="col-12"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_whole" class="form-control" value="<?= $default_prices['price_6bed_whole'] ?>" min="0" required></div></div>
                                     </div>
 
                                     <h6 class="small fw-bold text-muted border-bottom pb-1 mb-2">Long Term (6mo+)</h6>
                                     <div class="row g-2">
-                                        <div class="col-6"><label class="small">Upper</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_upper_long" class="form-control" value="<?= $default_prices['price_6bed_upper_long'] ?>" required></div></div>
-                                        <div class="col-6"><label class="small">Lower</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_lower_long" class="form-control" value="<?= $default_prices['price_6bed_lower_long'] ?>" required></div></div>
-                                        <div class="col-12"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_whole_long" class="form-control" value="<?= $default_prices['price_6bed_whole_long'] ?>" required></div></div>
+                                        <div class="col-6"><label class="small">Upper</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_upper_long" class="form-control" value="<?= $default_prices['price_6bed_upper_long'] ?>" min="0" required></div></div>
+                                        <div class="col-6"><label class="small">Lower</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_lower_long" class="form-control" value="<?= $default_prices['price_6bed_lower_long'] ?>" min="0" required></div></div>
+                                        <div class="col-12"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_whole_long" class="form-control" value="<?= $default_prices['price_6bed_whole_long'] ?>" min="0" required></div></div>
                                     </div>
 
                                     <h6 class="small fw-bold text-muted border-bottom pb-1 mb-2 mt-3">Daily Rates</h6>
                                     <div class="row g-2">
-                                        <div class="col-6"><label class="small">Per Bed</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_daily_bed" class="form-control" value="<?= $default_prices['price_6bed_daily_bed'] ?>" required></div></div>
-                                        <div class="col-6"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_daily_room" class="form-control" value="<?= $default_prices['price_6bed_daily_room'] ?>" required></div></div>
+                                        <div class="col-6"><label class="small">Per Bed</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_daily_bed" class="form-control" value="<?= $default_prices['price_6bed_daily_bed'] ?>" min="0" required></div></div>
+                                        <div class="col-6"><label class="small">Whole Room</label><div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="price_6bed_daily_room" class="form-control" value="<?= $default_prices['price_6bed_daily_room'] ?>" min="0" required></div></div>
                                     </div>
                                 </div>
                             </div>

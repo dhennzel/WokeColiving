@@ -182,4 +182,39 @@ document.addEventListener('DOMContentLoaded', () => {
         // Re-append sorted rows
         rows.forEach(row => tbody.appendChild(row));
     }
+
+    // Globally prevent 'e', '+', '-', letters, icons, and special characters in all number inputs
+    document.addEventListener('keydown', function(e) {
+        // Prevent Enter key from auto-submitting forms inside any Price Settings modal
+        if (e.key === 'Enter' && e.target.closest('#priceSettingsModal')) {
+            e.preventDefault();
+            return;
+        }
+
+        if (e.target && e.target.type === 'number') {
+            // Allow control keys (Backspace, Delete, Tab, Arrows, etc.)
+            if (e.key.length > 1) return;
+            
+            // Allow keyboard shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, etc.)
+            if (e.ctrlKey || e.metaKey) return;
+            
+            // Allow ONLY digits (0-9) and decimal point (.)
+            if (!/^[0-9.]$/.test(e.key)) {
+                e.preventDefault();
+            } else if (e.key === '.' && e.target.value.includes('.')) {
+                // Prevent typing a second decimal point
+                e.preventDefault();
+            }
+        }
+    });
+
+    document.addEventListener('paste', function(e) {
+        if (e.target && e.target.type === 'number') {
+            let pasteData = (e.clipboardData || window.clipboardData).getData('text');
+            // Block paste if it contains any character other than digits and decimal point
+            if (/[^0-9.]/.test(pasteData)) {
+                e.preventDefault();
+            }
+        }
+    });
 });

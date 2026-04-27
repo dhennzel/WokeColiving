@@ -431,7 +431,7 @@ try {
                 </div>
             <?php endif; ?>
         </div>
-        <h2 class="display-5 fw-bold text-success">Hello, <?= htmlspecialchars($user_info['full_name']) ?>!</h2>
+        <h2 class="display-5 fw-bold text-success">Hello, <?= htmlspecialchars($user_info['first_name']) ?>!</h2>
         <div class="mb-2">
             <?php 
                 $m = $user_info['res_months']; $d = $user_info['res_days'];

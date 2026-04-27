@@ -184,21 +184,21 @@ $theme = get_theme_colors($conn);
                                 </div>
                                 <div class="col-md-6 mb-3" id="single_price_div">
                                     <label class="form-label fw-bold">Short Term Price (₱)</label>
-                                    <input type="number" name="price" class="form-control" step="0.01" value="<?= $room['total_price'] ?>" readonly>
+                                    <input type="number" name="price" class="form-control" step="0.01" value="<?= $room['total_price'] ?>" min="0" readonly>
                                 </div>
-                                <div class="col-md-6 mb-3" id="single_price_long_div" style="display:none;"><label class="form-label fw-bold">Long Term Price (₱)</label><input type="number" name="long_term_price_whole" id="lt_whole" class="form-control" step="0.01" value="<?= $room['long_term_price_whole'] ?>" readonly></div>
+                                <div class="col-md-6 mb-3" id="single_price_long_div" style="display:none;"><label class="form-label fw-bold">Long Term Price (₱)</label><input type="number" name="long_term_price_whole" id="lt_whole" class="form-control" min="0" step="0.01" value="<?= $room['long_term_price_whole'] ?>" readonly></div>
                                 
-                                <div class="col-md-3 mb-3" id="upper_price_div" style="display:none;"><label class="form-label fw-bold">ST Upper Bed (₱)</label><input type="number" name="price_upper" class="form-control" step="0.01" value="<?= $room['price_upper'] ?>" readonly></div>
-                                <div class="col-md-3 mb-3" id="lower_price_div" style="display:none;"><label class="form-label fw-bold">ST Lower Bed (₱)</label><input type="number" name="price_lower" class="form-control" step="0.01" value="<?= $room['price_lower'] ?>" readonly></div>
-                                <div class="col-md-3 mb-3" id="upper_price_long_div" style="display:none;"><label class="form-label fw-bold">LT Upper Bed (₱)</label><input type="number" name="long_term_price_upper" class="form-control" step="0.01" value="<?= $room['long_term_price_upper'] ?>" readonly></div>
-                                <div class="col-md-3 mb-3" id="lower_price_long_div" style="display:none;"><label class="form-label fw-bold">LT Lower Bed (₱)</label><input type="number" name="long_term_price_lower" class="form-control" step="0.01" value="<?= $room['long_term_price_lower'] ?>" readonly></div>
+                                <div class="col-md-3 mb-3" id="upper_price_div" style="display:none;"><label class="form-label fw-bold">ST Upper Bed (₱)</label><input type="number" name="price_upper" class="form-control" min="0" step="0.01" value="<?= $room['price_upper'] ?>" readonly></div>
+                                <div class="col-md-3 mb-3" id="lower_price_div" style="display:none;"><label class="form-label fw-bold">ST Lower Bed (₱)</label><input type="number" name="price_lower" class="form-control" min="0" step="0.01" value="<?= $room['price_lower'] ?>" readonly></div>
+                                <div class="col-md-3 mb-3" id="upper_price_long_div" style="display:none;"><label class="form-label fw-bold">LT Upper Bed (₱)</label><input type="number" name="long_term_price_upper" class="form-control" min="0" step="0.01" value="<?= $room['long_term_price_upper'] ?>" readonly></div>
+                                <div class="col-md-3 mb-3" id="lower_price_long_div" style="display:none;"><label class="form-label fw-bold">LT Lower Bed (₱)</label><input type="number" name="long_term_price_lower" class="form-control" min="0" step="0.01" value="<?= $room['long_term_price_lower'] ?>" readonly></div>
                                 
-                                <div class="col-md-6 mb-3" id="whole_price_div" style="display:none;"><label class="form-label fw-bold">Whole Room Price (ST)</label><input type="number" name="price_whole" class="form-control" step="0.01" value="<?= $room['price_whole'] ?>" readonly></div>
+                                <div class="col-md-6 mb-3" id="whole_price_div" style="display:none;"><label class="form-label fw-bold">Whole Room Price (ST)</label><input type="number" name="price_whole" class="form-control" min="0" step="0.01" value="<?= $room['price_whole'] ?>" readonly></div>
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Total Beds</label>
-                                    <input type="number" name="beds" id="beds" class="form-control" value="<?= $room['total_beds'] ?>" required readonly>
+                                    <input type="number" name="beds" id="beds" class="form-control" value="<?= $room['total_beds'] ?>" min="0" required readonly>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Availability Status</label>

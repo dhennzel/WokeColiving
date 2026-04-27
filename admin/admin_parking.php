@@ -553,11 +553,11 @@ $theme = get_theme_colors($conn);
                                     <h6 class="fw-bold text-primary mb-3"><i class="fas fa-car me-2"></i>Car Rates</h6>
                                     <div class="mb-3">
                                         <label class="form-label small fw-bold">Monthly Rate</label>
-                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="car_monthly" class="form-control" value="<?= $default_parking_prices['car_monthly'] ?>" required></div>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="car_monthly" class="form-control" value="<?= $default_parking_prices['car_monthly'] ?>" min="0" required></div>
                                     </div>
                                     <div>
                                         <label class="form-label small fw-bold">Daily Rate</label>
-                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="car_daily" class="form-control" value="<?= $default_parking_prices['car_daily'] ?>" required></div>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="car_daily" class="form-control" value="<?= $default_parking_prices['car_daily'] ?>" min="0" required></div>
                                     </div>
                                 </div>
                             </div>
@@ -568,11 +568,11 @@ $theme = get_theme_colors($conn);
                                     <h6 class="fw-bold text-warning mb-3"><i class="fas fa-motorcycle me-2"></i>Motorcycle Rates</h6>
                                     <div class="mb-3">
                                         <label class="form-label small fw-bold">Monthly Rate</label>
-                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="motor_monthly" class="form-control" value="<?= $default_parking_prices['motor_monthly'] ?>" required></div>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="motor_monthly" class="form-control" value="<?= $default_parking_prices['motor_monthly'] ?>" min="0" required></div>
                                     </div>
                                     <div>
                                         <label class="form-label small fw-bold">Daily Rate</label>
-                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="motor_daily" class="form-control" value="<?= $default_parking_prices['motor_daily'] ?>" required></div>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">₱</span><input type="number" step="0.01" name="motor_daily" class="form-control" value="<?= $default_parking_prices['motor_daily'] ?>" min="0" required></div>
                                     </div>
                                 </div>
                             </div>

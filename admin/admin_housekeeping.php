@@ -306,7 +306,7 @@ $theme = get_theme_colors($conn);
                                         </div>
                                         <div class="mb-2">
                                             <label class="small fw-bold text-muted">Cost (₱)</label>
-                                            <input type="number" step="0.01" name="cost" class="form-control form-control-sm" value="<?= ($row['cost'] == 0 && $row['status'] == 'Pending') ? $standard_hk_price : $row['cost'] ?>">
+                                            <input type="number" step="0.01" name="cost" class="form-control form-control-sm" min="0" value="<?= ($row['cost'] == 0 && $row['status'] == 'Pending') ? $standard_hk_price : $row['cost'] ?>">
                                         </div>
                                         <?php if($row['user_id']): ?>
                                         <div class="form-check mb-3">
@@ -508,7 +508,7 @@ $theme = get_theme_colors($conn);
                         <label class="form-label fw-bold">Standard Housekeeping Fee (₱)</label>
                         <div class="input-group">
                             <span class="input-group-text">₱</span>
-                            <input type="number" step="0.01" name="price_housekeeping_standard" class="form-control" value="<?= $standard_hk_price ?>" required>
+                            <input type="number" step="0.01" name="price_housekeeping_standard" class="form-control" value="<?= $standard_hk_price ?>" min="0" required>
                         </div>
                         <small class="text-muted">This price will be pre-filled when updating pending requests.</small>
                     </div>

@@ -1337,18 +1337,18 @@ $theme = get_theme_colors($conn);
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold">Security Deposit (₱)</label>
-                            <input type="number" step="0.01" name="deposit_amount" id="clear_deposit" class="form-control bg-light" readonly>
+                            <input type="number" step="0.01" name="deposit_amount" id="clear_deposit" class="form-control bg-light" min="0" readonly>
                         </div>
                     </div>
                     <div class="row g-3 mb-3">
                         <div class="col-6">
                             <label class="form-label small fw-bold text-danger">Deductions (₱)</label>
-                            <input type="number" step="0.01" name="deduction_amount" id="clear_deduction" class="form-control border-danger" required oninput="calcClearanceRefund()">
+                            <input type="number" step="0.01" name="deduction_amount" id="clear_deduction" class="form-control border-danger" min="0" required oninput="calcClearanceRefund()">
                             <small class="text-muted" style="font-size:0.65rem;">Auto-filled from unpaid bills</small>
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold text-success">Net Refundable (₱)</label>
-                            <input type="number" step="0.01" name="net_refund" id="clear_net" class="form-control bg-light fw-bold text-success" readonly>
+                            <input type="number" step="0.01" name="net_refund" id="clear_net" class="form-control bg-light fw-bold text-success" min="0" readonly>
                         </div>
                     </div>
                     <div class="mb-0">
@@ -1385,7 +1385,7 @@ $theme = get_theme_colors($conn);
                     
                     <div class="mb-3">
                         <label class="form-label text-danger fw-bold">Deductions (₱)</label>
-                        <input type="number" step="0.01" name="refund_deduction" id="refund_deduction" class="form-control border-danger" required oninput="calcRefundNet()">
+                        <input type="number" step="0.01" name="refund_deduction" id="refund_deduction" class="form-control border-danger" min="0" required oninput="calcRefundNet()">
                         <small class="text-muted" style="font-size:0.75rem;">Auto-filled from unpaid bills/damages.</small>
                     </div>
                     <div class="mb-3">
@@ -1394,7 +1394,7 @@ $theme = get_theme_colors($conn);
                     </div>
                     <div class="mb-4 p-3 bg-light rounded">
                         <label class="form-label text-success fw-bold mb-1">Net Refundable Amount (₱)</label>
-                        <input type="number" step="0.01" name="refund_net_amount" id="refund_net_amount" class="form-control fw-bold text-success fs-5 bg-white" readonly>
+                        <input type="number" step="0.01" name="refund_net_amount" id="refund_net_amount" class="form-control fw-bold text-success fs-5 bg-white" min="0" readonly>
                     </div>
 
                     <div class="mb-3">

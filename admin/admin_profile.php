@@ -879,7 +879,7 @@ while($row = mysqli_fetch_assoc($smtp_q)){
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">SMTP Port</label>
-                            <input type="number" name="smtp_port" class="form-control" value="<?= htmlspecialchars($smtp_settings['port']) ?>" placeholder="e.g., 587">
+                            <input type="number" name="smtp_port" class="form-control" value="<?= htmlspecialchars($smtp_settings['port']) ?>" min="0" placeholder="e.g., 587">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">SMTP Username (Your Email)</label>

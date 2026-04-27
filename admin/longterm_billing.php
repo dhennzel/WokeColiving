@@ -292,17 +292,17 @@ $theme = get_theme_colors($conn);
                         <div class="col-md-6 border-end">
                             <h6 class="text-warning fw-bold mb-3"><i class="fas fa-bolt me-2"></i>Electricity</h6>
                             <div class="row g-2">
-                                <div class="col-6"><label class="small text-muted fw-bold">Prev Reading</label><input type="number" step="0.01" name="electric_start" id="e_start" class="form-control" required oninput="calculateBill()"></div>
-                                <div class="col-6"><label class="small text-muted fw-bold">Curr Reading</label><input type="number" step="0.01" name="electric_end" id="e_end" class="form-control border-warning" required oninput="calculateBill()"></div>
-                                <div class="col-12 mt-2"><label class="small text-muted fw-bold">Rate (₱/kw)</label><input type="number" step="0.01" name="electric_rate" id="e_rate" class="form-control bg-light" value="12.00" required oninput="calculateBill()"></div>
+                                <div class="col-6"><label class="small text-muted fw-bold">Prev Reading</label><input type="number" step="0.01" name="electric_start" id="e_start" class="form-control" min="0" required oninput="calculateBill()"></div>
+                                <div class="col-6"><label class="small text-muted fw-bold">Curr Reading</label><input type="number" step="0.01" name="electric_end" id="e_end" class="form-control border-warning" min="0" required oninput="calculateBill()"></div>
+                                <div class="col-12 mt-2"><label class="small text-muted fw-bold">Rate (₱/kw)</label><input type="number" step="0.01" name="electric_rate" id="e_rate" class="form-control bg-light" value="12.00" min="0" required oninput="calculateBill()"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <h6 class="text-info fw-bold mb-3"><i class="fas fa-tint me-2"></i>Water</h6>
                             <div class="row g-2">
-                                <div class="col-6"><label class="small text-muted fw-bold">Prev Reading</label><input type="number" step="0.01" name="water_start" id="w_start" class="form-control" required oninput="calculateBill()"></div>
-                                <div class="col-6"><label class="small text-muted fw-bold">Curr Reading</label><input type="number" step="0.01" name="water_end" id="w_end" class="form-control border-info" required oninput="calculateBill()"></div>
-                                <div class="col-12 mt-2"><label class="small text-muted fw-bold">Rate (₱/m³)</label><input type="number" step="0.01" name="water_rate" id="w_rate" class="form-control bg-light" value="35.00" required oninput="calculateBill()"></div>
+                                <div class="col-6"><label class="small text-muted fw-bold">Prev Reading</label><input type="number" step="0.01" name="water_start" id="w_start" class="form-control" min="0" required oninput="calculateBill()"></div>
+                                <div class="col-6"><label class="small text-muted fw-bold">Curr Reading</label><input type="number" step="0.01" name="water_end" id="w_end" class="form-control border-info" min="0" required oninput="calculateBill()"></div>
+                                <div class="col-12 mt-2"><label class="small text-muted fw-bold">Rate (₱/m³)</label><input type="number" step="0.01" name="water_rate" id="w_rate" class="form-control bg-light" value="35.00" min="0" required oninput="calculateBill()"></div>
                             </div>
                         </div>
                     </div>

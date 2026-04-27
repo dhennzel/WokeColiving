@@ -777,8 +777,12 @@ if (isset($_POST['confirm_booking'])) {
                             <label class="form-label" id="id_image_label">Valid ID (Image) <span class="text-danger">*</span></label>
                             <?php if(!empty($user_school_id_image)): ?>
                                 <div class="mb-2">
-                                    <img src="../uploads/proofs/<?= htmlspecialchars($user_school_id_image) ?>" alt="Valid ID" style="max-width: 200px; max-height: 150px;" class="border rounded">
-                                    <div class="small text-success mt-1"><i class="fas fa-check-circle"></i> ID already uploaded</div>
+                                    <?php if(file_exists('../uploads/proofs/' . $user_school_id_image)): ?>
+                                        <img src="../uploads/proofs/<?= htmlspecialchars($user_school_id_image) ?>" alt="Valid ID" style="max-width: 200px; max-height: 150px;" class="border rounded">
+                                        <div class="small text-success mt-1"><i class="fas fa-check-circle"></i> ID already uploaded</div>
+                                    <?php else: ?>
+                                        <div class="small text-danger"><i class="fas fa-exclamation-triangle"></i> Previous ID file missing. Please re-upload.</div>
+                                    <?php endif; ?>
                                 </div>
                             <?php endif; ?>
                             <input type="file" name="school_id_image" id="school_id_image" class="form-control" accept="image/*">
@@ -1028,7 +1032,6 @@ if (isset($_POST['confirm_booking'])) {
 <!-- Notification Sound -->
 <audio id="notifSound" src="../assets/sounds/notification.mp3" preload="none"></audio>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="users_JS/app.js"></script>
 
 <script>
     <?php if(isset($_SESSION['swal'])): ?>
