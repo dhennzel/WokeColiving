@@ -84,7 +84,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <i class="fas fa-eye-slash text-muted"></i>
             </span>
         </div>
-        <button type="submit" class="btn btn-custom mt-2">Login</button>
+        <div class="text-center">
+            <button type="submit" class="btn btn-custom mt-2 justify-content-center w-100">Login</button>
+        </div>
     </form>
     <div class="text-center mt-3">
         <a href="admin_forgot_password.php" class="text-muted small text-decoration-none">Forgot Password?</a>

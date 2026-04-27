@@ -177,6 +177,15 @@ if(isset($_POST['request_signature'])){
     exit;
 }
 
+// Handle School ID Reminder
+if(isset($_POST['remind_school_id'])){
+    send_notification($conn, $uid, "⚠️ <strong>School ID Required</strong><br>Please upload your valid School ID to complete your profile verification. You can do this in your profile settings.", "Action Required");
+    log_activity($conn, $uid, "ID Reminder Sent", "Admin reminded user to upload their School ID.");
+    
+    echo "<script>window.location.href='view_user.php?uid=$uid&msg=id_reminded';</script>";
+    exit;
+}
+
 // Handle Bulk Mark Paid
 if(isset($_POST['bulk_mark_paid']) && !empty($_POST['payment_ids'])){
     $ids = array_map('intval', $_POST['payment_ids']);
@@ -539,9 +548,13 @@ $theme = get_theme_colors($conn);
                 <div class="position-relative">
                     <div class="avatar-circle">
                         <?php if(!empty($user['profile_image'])): ?>
+                            <?php if(file_exists('../uploads/profiles/' . $user['profile_image'])): ?>
                             <a href="javascript:void(0)" onclick="showProfilePicture('../uploads/profiles/<?= htmlspecialchars($user['profile_image']) ?>', '<?= htmlspecialchars($user['full_name']) ?>', '<?= htmlspecialchars($user['email']) ?>', '<?= htmlspecialchars($user['phone_number']) ?>')" title="View Profile Picture">
                                 <img src="../uploads/profiles/<?= $user['profile_image'] ?>" style="width: 100%; height: 100%; object-fit: cover;">
                             </a>
+                            <?php else: ?>
+                                <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
+                            <?php endif; ?>
                         <?php else: ?>
                             <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
                         <?php endif; ?>
@@ -587,13 +600,24 @@ $theme = get_theme_colors($conn);
                     <?php if(!empty($user['school_id_image'])): ?>
                         <div class="mt-2">
                             <span class="badge bg-info text-dark"><i class="fas fa-user-graduate me-1"></i> Student</span>
+                            <?php if(file_exists('../uploads/proofs/' . $user['school_id_image'])): ?>
                             <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="showSchoolId('../uploads/proofs/<?= htmlspecialchars($user['school_id_image']) ?>')">
                                 <i class="fas fa-id-card me-1"></i> View School ID
                             </button>
+                            <?php else: ?>
+                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Send a reminder to upload their School ID?')">
+                                <input type="hidden" name="remind_school_id" value="1">
+                                <button type="submit" class="btn btn-sm btn-danger ms-2" title="Send Reminder"><i class="fas fa-bell me-1"></i> ID File Missing (Remind)</button>
+                            </form>
+                            <?php endif; ?>
                         </div>
                     <?php elseif($user['occupation'] == 'Student' && empty($user['school_id_image'])): ?>
                         <div class="mt-2">
-                            <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i> Missing School ID</span>
+                            <span class="badge bg-info text-dark"><i class="fas fa-user-graduate me-1"></i> Student</span>
+                            <form method="POST" class="d-inline" onsubmit="confirmForm(event, 'Send a reminder to upload their School ID?')">
+                                <input type="hidden" name="remind_school_id" value="1">
+                                <button type="submit" class="btn btn-sm btn-warning text-dark ms-2" title="Send Reminder"><i class="fas fa-bell me-1"></i> Missing ID (Remind)</button>
+                            </form>
                         </div>
                     <?php endif; ?>
                     <?php if($was_companion): ?>
@@ -675,6 +699,9 @@ $theme = get_theme_colors($conn);
             <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'sig_requested'): ?>
                 <div class="alert alert-success">Signature request notification sent to user.</div>
+            <?php endif; ?>
+            <?php if(isset($_GET['msg']) && $_GET['msg'] == 'id_reminded'): ?>
+                <div class="alert alert-success">Reminder to upload School ID sent to the user.</div>
             <?php endif; ?>
             <?php if(isset($_GET['msg']) && $_GET['msg'] == 'refunded_external'): ?>
                 <div class="alert alert-success">Security deposit has been marked as refunded.</div>
@@ -771,9 +798,13 @@ $theme = get_theme_colors($conn);
                         <?php if(!empty($pending_update['school_id_image'])): ?>
                         <div class="col-md-12 mt-2">
                             <strong>New School ID:</strong><br>
+                            <?php if(file_exists('../uploads/proofs/' . $pending_update['school_id_image'])): ?>
                             <button type="button" class="btn btn-sm btn-outline-primary mt-1" onclick="showSchoolId('../uploads/proofs/<?= $pending_update['school_id_image'] ?>')">
                                 <i class="fas fa-image me-1"></i> View New ID
                             </button>
+                            <?php else: ?>
+                            <span class="text-danger small"><i class="fas fa-exclamation-triangle"></i> File missing on server.</span>
+                            <?php endif; ?>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -1458,7 +1489,11 @@ $theme = get_theme_colors($conn);
                         <div class="col-md-12">
                             <label class="form-label small fw-bold">Current School ID</label>
                             <div class="mt-1">
+                                <?php if(file_exists('../uploads/proofs/' . $user['school_id_image'])): ?>
                                 <img src="../uploads/proofs/<?= htmlspecialchars($user['school_id_image']) ?>" class="img-thumbnail" style="max-height: 100px; cursor: pointer;" onclick="showSchoolId('../uploads/proofs/<?= htmlspecialchars($user['school_id_image']) ?>')" title="Click to enlarge">
+                                <?php else: ?>
+                                <span class="text-danger small"><i class="fas fa-exclamation-triangle"></i> Image file not found on server.</span>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <?php endif; ?>

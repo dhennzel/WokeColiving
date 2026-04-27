@@ -984,6 +984,13 @@ while($row = mysqli_fetch_assoc($smtp_q)){
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script src="admin.js"></script>
 <script>
+    // Fix accessibility warning (Blocked aria-hidden) when closing modals
+    document.addEventListener('hide.bs.modal', function () {
+        if (document.activeElement) {
+            document.activeElement.blur();
+        }
+    });
+
     <?php if($current_maint_mode == '1' && $current_maint_end > time()): ?>
         var adminMaintEndTime = <?= $current_maint_end * 1000 ?>;
         function updateAdminMaintTimer() {
