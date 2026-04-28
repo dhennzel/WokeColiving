@@ -666,7 +666,6 @@ if(isset($_SESSION['user_id'])){
                 <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> High-Speed Wi-Fi</li>
                 <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> 24/7 Security & CCTV</li>
                 <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> Regular Housekeeping</li>
-                <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> Modern Kitchen & Laundry</li>
             </ul>
             <a href="users/reservation_now.php" class="btn btn-outline-success rounded-pill px-4 fw-bold">Book a Visit</a>
         </div>

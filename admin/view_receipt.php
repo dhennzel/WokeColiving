@@ -354,8 +354,8 @@ $theme = get_theme_colors($conn);
                 <div>
                     <h1 class="logo-text" style="color: var(--accent-yellow);">woke</h1>
                     <p class="logo-subtitle" style="color: white;">COLIVING SPACE</p>
-                    <div class="small fw-bold" style="color: black !important;">123 Coliving St., Corner Avenue, Metro Manila</div>
-                    <div class="small fw-bold" style="color: black !important;">Contact: +63 912 345 6789</div>
+                    <div class="small fw-bold" style="color: black !important;">205 Kanlaon St., Mariveles Bgy., Highway Hills, Mandaluyong </div>
+                    <div class="small fw-bold" style="color: black !important;">Contact: 0917-307-2552</div>
                 </div>
             </div>
             <div class="text-end">
@@ -431,17 +431,17 @@ $theme = get_theme_colors($conn);
 
         <!-- Footer Section -->
         <div class="row g-0 mt-auto pt-4">
-            <div class="col-7"></div> <!-- Inusog pa sa kanan gamit ang mas malaking spacer -->
+            <div class="col-7"></div> 
             <div class="col-5">
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-end">
                     <div class="sig-section position-relative">
                         <?php if(!empty($data['signature_image'])): ?>
-                            <img src="../assets/signatures/<?= $data['signature_image'] ?>" class="sig-image-on-receipt">
+                            <img src="../assets/signatures/<?= $data['signature_image'] ?>" class="sig-image-on-receipt" style="bottom: 75px;">
                         <?php endif; ?>
                         <div class="name-val"><?= htmlspecialchars(strtoupper($data['full_name'])) ?></div>
                         <div class="sig-line">Client signature over printed name</div>
                     </div>
-                    <div class="sig-section">
+                    <div class="sig-section position-relative">
                         <div class="name-val">WOKE COLIVING ADMIN</div>
                         <div class="sig-line">Authorized Representative</div>
                     </div>

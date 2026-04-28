@@ -341,7 +341,7 @@ $sql = "
     JOIN users u ON r.user_id = u.user_id
     JOIN rooms rm ON r.room_id = rm.room_id
     WHERE $where_clause
-    ORDER BY CASE WHEN r.status = 'Approved' THEN 1 WHEN r.status = 'Pending' THEN 2 WHEN r.status = 'Verifying' THEN 3 ELSE 4 END ASC, r.reservation_id DESC
+    ORDER BY u.last_name ASC, u.first_name ASC
 ";
 
 if (!empty($params)) {
