@@ -524,7 +524,7 @@ if(isset($_SESSION['user_id'])){
                     <img src="assets/images/<?= $image ?>" alt="<?= $type ?>">
                 </div>
                 <div class="card-body text-center p-4">
-                    <h3 class="fw-bold text-dark mb-2"><?= $type ?></h3>
+                    <h3 class="fw-bold text-dark mb-2"><?= $type ?><?= ($type !== 'Single') ? 's' : '' ?></h3>
                     <?php if($type != 'Single'): ?>
                         <div class="mb-2">
                             <span class="text-primary fw-bold small">Upper: ₱<?= number_format($p_upper, 2) ?></span><br>

@@ -382,7 +382,7 @@ if(isset($_SESSION['user_id'])){
                         <img src="../assets/images/<?= $image ?>" alt="<?= $type ?>">
                     </div>
                     <div class="card-body text-center p-4">
-                        <h3 class="fw-bold text-dark mb-1"><?= $type ?></h3>
+                        <h3 class="fw-bold text-dark mb-1"><?= $type ?><?= ($type !== 'Single') ? 's' : '' ?></h3>
                         <div class="mb-3">
                             <span class="badge <?= $type_avail_beds > 0 ? 'bg-success' : 'bg-danger' ?> rounded-pill px-3">
                                 <i class="fas <?= $type_avail_beds > 0 ? 'fa-check-circle' : 'fa-times-circle' ?> me-1"></i> <?= $type_avail_beds ?> Bed<?= $type_avail_beds != 1 ? 's' : '' ?> Available

@@ -315,6 +315,12 @@ if(isset($_GET['term']) && !empty($_GET['term'])){
         $where_clause .= " AND DATEDIFF(r.end_date, r.start_date) < 28";
     }
 }
+if(isset($_GET['source']) && !empty($_GET['source'])){
+    $source_filter = $_GET['source'];
+    if($source_filter == 'Walk-in') $where_clause .= " AND u.is_walkin = 1";
+    elseif($source_filter == 'Online') $where_clause .= " AND u.is_walkin = 0";
+}
+
 
 // Fetch Reservations with Filters
 $sql = "
@@ -416,6 +422,12 @@ $theme = get_theme_colors($conn);
                             <option value="Short" <?= (isset($_GET['term']) && $_GET['term']=='Short')?'selected':'' ?>>Short-term</option>
                             <option value="Daily" <?= (isset($_GET['term']) && $_GET['term']=='Daily')?'selected':'' ?>>Daily</option>
                         </select>
+                        <select name="source" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Sources</option>
+                            <option value="Online" <?= (isset($_GET['source']) && $_GET['source']=='Online')?'selected':'' ?>>Online</option>
+                            <option value="Walk-in" <?= (isset($_GET['source']) && $_GET['source']=='Walk-in')?'selected':'' ?>>Walk-in</option>
+                        </select>
+
                         <input type="text" name="search" class="form-control form-control-sm" placeholder="Search..." value="<?= $_GET['search'] ?? '' ?>">
                         <button class="btn btn-sm btn-custom"><i class="fas fa-search"></i></button>
                     </form>
