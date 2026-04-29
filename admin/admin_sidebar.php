@@ -81,7 +81,7 @@ if (!isset($theme)) {
         <div class="logo-placeholder" id="sidebarToggle" title="Toggle Sidebar">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" alt="Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">
         </div>
-        <span class="brand-name">Woke Coliving</span>
+        <span class="brand-name">Dormitory</span>
     </div>
     
     <nav class="sidebar-nav">
