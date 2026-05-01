@@ -124,6 +124,14 @@ foreach ($rooms as $room) {
     $grouped_rooms[$room['room_type']][] = $room;
 }
 
+$active_maint_q = mysqli_query($conn, "SELECT DISTINCT room_id FROM maintenance_requests WHERE status IN ('Pending', 'Scheduled')");
+$active_maint_rooms = [];
+while($r = mysqli_fetch_assoc($active_maint_q)) $active_maint_rooms[] = $r['room_id'];
+
+$active_house_q = mysqli_query($conn, "SELECT DISTINCT room_id FROM housekeeping_requests WHERE status IN ('Pending', 'Scheduled')");
+$active_house_rooms = [];
+while($r = mysqli_fetch_assoc($active_house_q)) $active_house_rooms[] = $r['room_id'];
+
 // Sidebar Counts
 $pending_res_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM reservations WHERE status IN ('Pending', 'Verifying')"))['c'];
 $pending_pay_q = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM payments WHERE payment_status='Unpaid' AND proof_image IS NOT NULL"))['c'];
@@ -359,6 +367,12 @@ $theme = get_theme_colors($conn);
                                         <div class="d-flex justify-content-between align-items-start mb-2">
                                             <h6 class="fw-bold mb-0"><?= $room_display ?></h6>
                                             <div>
+                                                <?php if(in_array($room['room_id'], $active_maint_rooms) || $room['availability'] == 'Maintenance'): ?>
+                                                    <span class="badge bg-danger border" title="Under Maintenance"><i class="fas fa-tools"></i></span>
+                                                <?php endif; ?>
+                                                <?php if(in_array($room['room_id'], $active_house_rooms)): ?>
+                                                    <span class="badge bg-info text-dark border" title="Pending Housekeeping"><i class="fas fa-broom"></i></span>
+                                                <?php endif; ?>
                                                 <span class="badge bg-light text-dark border" title="<?= $room_gender_status ?> Room"><i class="fas <?= $gender_icon ?>"></i></span>
                                                 <span class="badge bg-light text-dark border"><?= $room['floor'] ?>F</span>
                                             </div>

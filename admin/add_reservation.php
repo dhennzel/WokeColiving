@@ -74,6 +74,14 @@ while($row = mysqli_fetch_assoc($price_query)){
 // Fetch All Rooms for Modal Selection
 $all_rooms = get_all_rooms_with_occupancy($conn);
 
+$active_maint_q = mysqli_query($conn, "SELECT DISTINCT room_id FROM maintenance_requests WHERE status IN ('Pending', 'Scheduled')");
+$active_maint_rooms = [];
+while($r = mysqli_fetch_assoc($active_maint_q)) $active_maint_rooms[] = $r['room_id'];
+
+$active_house_q = mysqli_query($conn, "SELECT DISTINCT room_id FROM housekeeping_requests WHERE status IN ('Pending', 'Scheduled')");
+$active_house_rooms = [];
+while($r = mysqli_fetch_assoc($active_house_q)) $active_house_rooms[] = $r['room_id'];
+
 // Check for pre-selected room type
 $pre_room_type = isset($_GET['room_type']) ? $_GET['room_type'] : '';
 
@@ -759,14 +767,22 @@ $theme = get_theme_colors($conn);
                         } elseif (is_numeric($room['room_name'])) {
                             $room_display = "Room " . $room['room_name'];
                         }
+                        $is_maintenance = ($room['availability'] == 'Maintenance');
+                        $click_action = $is_maintenance ? "Swal.fire('Unavailable', 'This room is currently blocked for maintenance.', 'error')" : "selectSpecificRoom({$room['room_id']}, '" . addslashes($room_display) . "')";
                     ?>
                         <div class="col-md-6 col-lg-4 room-select-item" data-type="<?= $room['room_type'] ?>" data-floor="<?= $room['floor'] ?>" data-gender="<?= $room['gender'] ?? 'Male' ?>" data-id="<?= $room['room_id'] ?>">
-                            <div class="card room-card-option shadow-sm" onclick="selectSpecificRoom(<?= $room['room_id'] ?>, '<?= addslashes($room_display) ?>')">
+                            <div class="card room-card-option shadow-sm <?= $is_maintenance ? 'disabled' : '' ?>" onclick="<?= $click_action ?>" style="<?= $is_maintenance ? 'opacity: 0.75;' : '' ?>">
                                 <img src="../assets/images/<?= $room['image'] ?>" class="card-img-top" alt="<?= $room['room_name'] ?>">
                                 <div class="card-body d-flex flex-column p-3">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <h6 class="fw-bold text-dark mb-0"><?= $room_display ?></h6>
                                         <div>
+                                            <?php if(in_array($room['room_id'], $active_maint_rooms) || $is_maintenance): ?>
+                                                <span class="badge bg-danger border" title="Under Maintenance"><i class="fas fa-tools"></i></span>
+                                            <?php endif; ?>
+                                            <?php if(in_array($room['room_id'], $active_house_rooms)): ?>
+                                                <span class="badge bg-info text-dark border" title="Pending Housekeeping"><i class="fas fa-broom"></i></span>
+                                            <?php endif; ?>
                                             <span class="badge bg-light text-dark border me-1"><i class="fas fa-venus-mars"></i> <?= $room['gender'] ?? 'Male' ?></span>
                                             <span class="badge bg-light text-dark border"><?= $room['floor'] ?>F</span>
                                         </div>
@@ -776,7 +792,11 @@ $theme = get_theme_colors($conn);
                                         <div class="availability-details mt-1" id="details_<?= $room['room_id'] ?>"></div>
                                     </div>
                                     <div class="mt-auto text-center">
-                                        <span class="badge bg-secondary w-100 py-2 room-status-badge" id="status_badge_<?= $room['room_id'] ?>">Check Dates</span>
+                                        <?php if($is_maintenance): ?>
+                                            <span class="badge bg-danger w-100 py-2"><i class="fas fa-ban me-1"></i> Maintenance Block</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary w-100 py-2 room-status-badge" id="status_badge_<?= $room['room_id'] ?>">Check Dates</span>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </div>

@@ -116,13 +116,22 @@ if(isset($_POST['update_request'])){
     $cost = isset($_POST['cost']) ? (float)$_POST['cost'] : 0;
     $charge_user = isset($_POST['charge_user']);
     
-    $req_q = mysqli_query($conn, "SELECT user_id, description FROM maintenance_requests WHERE request_id=$req_id");
+    $req_q = mysqli_query($conn, "SELECT user_id, room_id, description FROM maintenance_requests WHERE request_id=$req_id");
     $req_data = mysqli_fetch_assoc($req_q);
     $uid = $req_data['user_id'];
+    $room_id = $req_data['room_id'];
     
     if($uid) log_activity($conn, $uid, "Maintenance Update", "Request #$req_id updated to '$status' by $admin_username");
     
     mysqli_query($conn, "UPDATE maintenance_requests SET status='$status', scheduled_date=$sched_date, cost='$cost' WHERE request_id=$req_id");
+
+    if(isset($_POST['unblock_room']) && $room_id){
+        mysqli_query($conn, "UPDATE rooms SET availability='Available' WHERE room_id=$room_id");
+    } elseif(isset($_POST['block_room_update']) && $room_id){
+        mysqli_query($conn, "UPDATE rooms SET availability='Maintenance' WHERE room_id=$room_id");
+    } elseif(($status == 'Completed' || $status == 'Cancelled') && $room_id){
+        mysqli_query($conn, "UPDATE rooms SET availability='Available' WHERE room_id=$room_id");
+    }
     
     // Handle Billing
     if($charge_user && $cost > 0 && $uid){
@@ -147,6 +156,7 @@ if(isset($_POST['schedule_maintenance'])){
     $room_id = (int)$_POST['room_id'];
     $sched_date = mysqli_real_escape_string($conn, $_POST['scheduled_date']);
     $desc = mysqli_real_escape_string($conn, $_POST['description']);
+    $block_room = isset($_POST['block_room']);
     
     // Try to link to current tenant if exists, otherwise NULL
     $u_q = mysqli_query($conn, "SELECT user_id FROM reservations WHERE room_id=$room_id AND status='Approved' LIMIT 1");
@@ -154,6 +164,10 @@ if(isset($_POST['schedule_maintenance'])){
     
     $sql = "INSERT INTO maintenance_requests (user_id, room_id, description, status, scheduled_date, cost) VALUES ($uid, $room_id, '$desc', 'Scheduled', '$sched_date', '0.00')";
     mysqli_query($conn, $sql);
+
+    if($block_room) {
+        mysqli_query($conn, "UPDATE rooms SET availability='Maintenance' WHERE room_id=$room_id");
+    }
     
     trigger_update($conn);
     header("Location: admin_maintenance.php?msg=scheduled");
@@ -186,7 +200,7 @@ if(isset($_POST['auto_schedule_maintenance'])){
 mysqli_query($conn, "UPDATE maintenance_requests m LEFT JOIN users u ON m.user_id = u.user_id SET m.status = 'Cancelled' WHERE m.status NOT IN ('Completed', 'Cancelled') AND m.user_id IS NOT NULL AND (u.user_id IS NULL OR u.is_archived = 1)");
 
 // Fetch All Requests
-$query = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name, r.room_number 
+$query = "SELECT m.*, CONCAT(u.last_name, ', ', u.first_name, IF(u.middle_name IS NOT NULL AND u.middle_name != '', CONCAT(' ', u.middle_name), '')) as full_name, r.room_name, r.room_number, r.availability 
           FROM maintenance_requests m 
           LEFT JOIN users u ON m.user_id = u.user_id 
           LEFT JOIN rooms r ON m.room_id = r.room_id 
@@ -202,7 +216,7 @@ while($row = mysqli_fetch_assoc($requests)){
 $groups = ['Pending' => $pending_reqs, 'Scheduled' => $scheduled_reqs];
 
 // Fetch available rooms for modal
-$avail_rooms_q = mysqli_query($conn, "SELECT * FROM rooms WHERE status != 'Maintenance'");
+$avail_rooms_q = mysqli_query($conn, "SELECT * FROM rooms WHERE availability != 'Maintenance' AND is_archived = 0");
 $room_options = "";
 while($ar = mysqli_fetch_assoc($avail_rooms_q)){
     $rid = $ar['room_id'];
@@ -369,7 +383,12 @@ $theme = get_theme_colors($conn);
                     <div class="col-md-6 col-lg-4 maintenance-item" data-search="<?= htmlspecialchars($search_tags) ?>">
                         <div class="card card-req h-100 border-0 shadow-sm">
                             <div class="req-header d-flex justify-content-between align-items-center">
-                                <span class="fw-bold text-success"><i class="fas fa-door-open me-1"></i> <?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?></span>
+                                <div>
+                                    <span class="fw-bold text-success"><i class="fas fa-door-open me-1"></i> <?= !empty($row['room_number']) ? 'Room ' . htmlspecialchars($row['room_number']) : htmlspecialchars($row['room_name']) ?></span>
+                                    <?php if($row['availability'] == 'Maintenance'): ?>
+                                        <span class="badge bg-danger ms-2" style="font-size: 0.65rem;">Blocked</span>
+                                    <?php endif; ?>
+                                </div>
                                 <small class="text-muted"><?= date('M d, Y', strtotime($row['created_at'])) ?></small>
                             </div>
                             <div class="req-body d-flex flex-column h-100">
@@ -398,6 +417,19 @@ $theme = get_theme_colors($conn);
                                             <label class="small fw-bold text-muted">Cost (₱)</label>
                                             <input type="number" step="0.01" name="cost" class="form-control form-control-sm" min="0" value="<?= ($row['cost'] == 0 && $row['status'] == 'Pending') ? $standard_maint_price : $row['cost'] ?>">
                                         </div>
+                                        
+                                        <?php if($row['availability'] == 'Maintenance'): ?>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="unblock_room" id="unblock_<?= $row['request_id'] ?>" value="1" checked>
+                                            <label class="form-check-label small text-success fw-bold" for="unblock_<?= $row['request_id'] ?>">Unblock Room (Set Available)</label>
+                                        </div>
+                                        <?php else: ?>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="block_room_update" id="block_upd_<?= $row['request_id'] ?>" value="1">
+                                            <label class="form-check-label small text-danger fw-bold" for="block_upd_<?= $row['request_id'] ?>">Block Room (Set Maintenance)</label>
+                                        </div>
+                                        <?php endif; ?>
+
                                         <?php if($row['user_id']): ?>
                                         <div class="form-check mb-3">
                                             <input class="form-check-input" type="checkbox" name="charge_user" id="charge_<?= $row['request_id'] ?>">
@@ -440,6 +472,13 @@ $theme = get_theme_colors($conn);
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Scheduled Date</label>
                             <input type="date" name="scheduled_date" class="form-control" min="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <div class="form-check form-switch border p-2 rounded bg-light">
+                                <input class="form-check-input ms-1 me-2" type="checkbox" name="block_room" id="blockRoomSchedule" value="1">
+                                <label class="form-check-label text-danger fw-bold" for="blockRoomSchedule">Block Room Bookings (Set to Maintenance)</label>
+                                <small class="text-muted d-block ms-5 mt-1" style="font-size: 0.75rem;">This makes the room unclickable and completely unavailable for tenants to book until maintenance is finished.</small>
+                            </div>
                         </div>
                     </div>
 
