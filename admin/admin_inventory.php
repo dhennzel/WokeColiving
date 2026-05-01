@@ -229,9 +229,10 @@ $theme = get_theme_colors($conn);
                         $total_beds = $room['total_beds'];
                         
                         $taken_upper = 0; $taken_lower = 0; $taken_any = 0;
+                        $has_whole_room = false;
                         foreach($room['occupants'] as $occ) {
                             if($occ['bed_preference'] == 'Whole Room') {
-                                $taken_any += $total_beds;
+                                $has_whole_room = true;
                             } elseif($occ['bed_preference'] == 'Upper Bunk') {
                                 $taken_upper++;
                             } elseif($occ['bed_preference'] == 'Lower Bunk') {
@@ -239,6 +240,11 @@ $theme = get_theme_colors($conn);
                             } else {
                                 $taken_any++;
                             }
+                        }
+                        if ($has_whole_room) {
+                            $taken_any = $total_beds;
+                            $taken_upper = 0;
+                            $taken_lower = 0;
                         }
                         
                         $cap_upper = floor($total_beds / 2);

@@ -797,14 +797,18 @@ function get_all_rooms_with_occupancy($conn, $show_hidden = false) {
         
         // 3. Calculate beds
         $occupied_count = 0;
+        $has_whole_room = false;
         foreach($row['occupants'] as $occ) {
             if($occ['bed_preference'] == 'Whole Room') {
-                $occupied_count += $row['total_beds'];
+                $has_whole_room = true;
             } else {
                 $occupied_count += 1;
             }
         }
-        $row['occupied_count'] = $occupied_count;
+        if ($has_whole_room) {
+            $occupied_count = $row['total_beds'];
+        }
+        $row['occupied_count'] = min($row['total_beds'], $occupied_count);
         $row['available_beds'] = max(0, $row['total_beds'] - $row['occupied_count']);
         
         // 4. THE FIX: Strict Deduplication by Room Name
