@@ -121,9 +121,13 @@ if(isset($_GET['action'])){
             // Update Reservation & Add Payment Record
             mysqli_query($conn, "UPDATE reservations SET end_date='$new_end_date', months=months+$months_to_add, total_price=total_price+$added_cost WHERE reservation_id=$reservation_id");
             
-            $ins_pay = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'System', 'Unpaid', NOW(), ?)");
-            mysqli_stmt_bind_param($ins_pay, "ids", $reservation_id, $added_cost, $description);
-            mysqli_stmt_execute($ins_pay);
+            for ($i = 1; $i <= $months_to_add; $i++) {
+                $pay_desc = ($i == 1) ? $description : "Contract Renewal - Month $i";
+                $pay_date = date('Y-m-d H:i:s', strtotime($res['end_date'] . " + " . ($i - 1) . " months"));
+                $ins_pay = mysqli_prepare($conn, "INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'System', 'Unpaid', ?, ?)");
+                mysqli_stmt_bind_param($ins_pay, "idss", $reservation_id, $monthly_price, $pay_date, $pay_desc);
+                mysqli_stmt_execute($ins_pay);
+            }
             
             if($target_user_id) {
                 log_activity($conn, $target_user_id, "Contract Renewed", "Contract #$reservation_id extended by $months_to_add months by $admin_username.");

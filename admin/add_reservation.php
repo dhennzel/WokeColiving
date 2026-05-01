@@ -455,6 +455,22 @@ if(isset($_POST['add_reservation'])){
                     $pay_stmt->bind_param("idsss", $res_id, $totalAmount, $pay_method, $pay_status, $pay_desc);
                     $pay_stmt->execute();
                 }
+
+                // Generate the monthly payment schedule for Long Term (6 Months) contracts
+                if ($term_type === 'Long') {
+                    for ($month_num = 2; $month_num <= 6; $month_num++) {
+                        $rem_desc = "Month $month_num Rent";
+                        $rem_status = "Unpaid";
+                        $rem_date = date('Y-m-d H:i:s', strtotime($cin . " + " . ($month_num - 1) . " months"));
+                        
+                        $pay_stmt_rem = $conn->prepare("INSERT INTO payments (reservation_id, amount, payment_method, payment_status, payment_date, description) VALUES (?, ?, 'System', ?, ?, ?)");
+                        if ($pay_stmt_rem) {
+                            $pay_stmt_rem->bind_param("idsss", $res_id, $lt_price, $rem_status, $rem_date, $rem_desc);
+                            $pay_stmt_rem->execute();
+                            $pay_stmt_rem->close();
+                        }
+                    }
+                }
                 
                 log_activity($conn, $user_id, "Walk-in Booking", "Reservation #$res_id created by $admin_username");
                 

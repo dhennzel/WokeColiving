@@ -39,7 +39,7 @@ if(mysqli_num_rows($check_col) == 0) {
 }
 
 // Stats: Earnings
-$total_earnings_query = mysqli_query($conn, "SELECT SUM(amount) AS total FROM payments WHERE payment_status='Paid'");
+$total_earnings_query = mysqli_query($conn, "SELECT SUM(amount) AS total FROM payments WHERE payment_status='Paid' AND description NOT LIKE '%Security Deposit%'");
 $total_earnings = mysqli_fetch_assoc($total_earnings_query)['total'] ?? 0;
 
 // Stats: Counts
@@ -211,7 +211,7 @@ rsort($available_years);
 $available_years = array_unique($available_years);
 
 $monthly_earnings = array_fill(0, 12, 0); // 0-11 index
-$chart_q = mysqli_query($conn, "SELECT MONTH(payment_date) as m, SUM(amount) as total FROM payments WHERE payment_status='Paid' AND YEAR(payment_date)='$current_year' GROUP BY m");
+$chart_q = mysqli_query($conn, "SELECT MONTH(payment_date) as m, SUM(amount) as total FROM payments WHERE payment_status='Paid' AND description NOT LIKE '%Security Deposit%' AND YEAR(payment_date)='$current_year' GROUP BY m");
 if($chart_q) {
     while($row = mysqli_fetch_assoc($chart_q)){
         if(!empty($row['m'])) $monthly_earnings[(int)$row['m'] - 1] = (float)$row['total'];

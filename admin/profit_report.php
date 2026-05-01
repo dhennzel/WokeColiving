@@ -31,7 +31,7 @@ if($start_date && $end_date){
 }
 
 // Total Earnings
-$total_query = mysqli_query($conn, "SELECT SUM(amount) as total FROM payments WHERE payment_status='Paid' $filter_payments");
+$total_query = mysqli_query($conn, "SELECT SUM(amount) as total FROM payments WHERE payment_status='Paid' AND description NOT LIKE '%Security Deposit%' $filter_payments");
 $total_earnings = mysqli_fetch_assoc($total_query)['total'] ?? 0;
 
 // Earnings by Room Type
@@ -40,7 +40,7 @@ $type_query = mysqli_query($conn, "
     FROM reservations res
     JOIN rooms r ON res.room_id = r.room_id
     JOIN payments p ON res.reservation_id = p.reservation_id
-    WHERE p.payment_status='Paid' $filter_payments_p
+    WHERE p.payment_status='Paid' AND p.description NOT LIKE '%Security Deposit%' $filter_payments_p
     GROUP BY r.room_type
     ORDER BY room_type ASC
 ");
@@ -63,7 +63,7 @@ $cat_query = mysqli_query($conn, "
         SUM(amount) as total,
         COUNT(*) as count
     FROM payments 
-    WHERE payment_status='Paid' $filter_payments
+    WHERE payment_status='Paid' AND description NOT LIKE '%Security Deposit%' $filter_payments
     GROUP BY category
 ");
 $cat_data = [];
@@ -80,7 +80,7 @@ $earnings_data = [];
 $e_query = mysqli_query($conn, "
     SELECT DATE_FORMAT(payment_date, '%Y-%m') as month, SUM(amount) as total 
     FROM payments 
-    WHERE payment_status='Paid' $filter_payments
+    WHERE payment_status='Paid' AND description NOT LIKE '%Security Deposit%' $filter_payments
     GROUP BY month
 ");
 while($row = mysqli_fetch_assoc($e_query)){
@@ -104,7 +104,7 @@ $daily_earnings_data = [];
 $de_query = mysqli_query($conn, "
     SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') as day, SUM(amount) as total 
     FROM payments 
-    WHERE payment_status='Paid' $filter_payments
+    WHERE payment_status='Paid' AND description NOT LIKE '%Security Deposit%' $filter_payments
     GROUP BY day
 ");
 while($row = mysqli_fetch_assoc($de_query)){
@@ -128,7 +128,7 @@ $yearly_earnings_data = [];
 $ye_query = mysqli_query($conn, "
     SELECT DATE_FORMAT(payment_date, '%Y') as year, SUM(amount) as total 
     FROM payments 
-    WHERE payment_status='Paid' $filter_payments
+    WHERE payment_status='Paid' AND description NOT LIKE '%Security Deposit%' $filter_payments
     GROUP BY year
 ");
 while($row = mysqli_fetch_assoc($ye_query)){
