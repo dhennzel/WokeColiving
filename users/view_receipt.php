@@ -57,7 +57,7 @@ if ($cat_sd_paid > 0 && $required_sd > 0 && $cat_sd_paid != $required_sd) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Acknowledgement Receipt - Woke Coliving</title>
+    <title>Acknowledgement Receipt - Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { font-family: 'Helvetica', Arial, sans-serif; background: #f4f7f6; padding: 40px 0; }
@@ -111,7 +111,7 @@ if ($cat_sd_paid > 0 && $required_sd > 0 && $cat_sd_paid != $required_sd) {
 <div class="receipt-container">
     <div class="header">
         <div class="company-info" style="text-align: left;">
-            <h1>WOKE COLIVING INC.</h1>
+            <h1>DORMITORY</h1>
             <p>205 Kanlaon St., Mariveles Bgy., Highway Hills, Mandaluyong City</p>
             <p>Contact: 0917-307-2552</p>
         </div>

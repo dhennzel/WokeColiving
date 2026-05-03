@@ -27,8 +27,12 @@ $tenant_name = trim(($tenant['first_name'] ?? '') . ' ' . ($tenant['last_name'] 
 $q_template = mysqli_query($conn, "SELECT setting_value FROM site_settings WHERE setting_key='clearance_template'");
 $template_str = ($row_template = mysqli_fetch_assoc($q_template)) ? $row_template['setting_value'] : "";
 if (empty($template_str)) {
-    $template_str = "<div style='text-align: center; margin-bottom: 20px;'><h2>Tenant Clearance Form</h2><p>Woke Coliving INC.</p></div><p>This is to certify that <strong>{TENANT_NAME}</strong> has successfully completed their stay and is hereby cleared of all property and room accountabilities as of {CLEARANCE_DATE}.</p><p>The security deposit will be refunded minus any deductions.</p>";
+    $template_str = "<div style='text-align: center; margin-bottom: 20px;'><h2>Tenant Clearance Form</h2><p>Dormitory</p></div><p>This is to certify that <strong>{TENANT_NAME}</strong> has successfully completed their stay and is hereby cleared of all property and room accountabilities as of {CLEARANCE_DATE}.</p><p>The security deposit will be refunded minus any deductions.</p>";
 }
+
+// Override hardcoded Woke Coliving text from the database template
+$template_str = str_replace("Woke Coliving INC. | 205 Kanlaon St. Mandaluyong, Philippines", "Dormitory / Location: ", $template_str);
+$template_str = str_replace("WOKE COLIVING ADMIN", "DORMITORY ADMIN", $template_str);
 
 // Auto-fill placeholders
 $template_str = str_replace(
@@ -56,9 +60,6 @@ $template_str = str_replace(
         body { font-family: 'Arial', sans-serif; background: #f0f2f5; padding: 20px; }
         .print-container { background: white; max-width: 800px; margin: 0 auto; padding: 40px; box-shadow: 0 0 15px rgba(0,0,0,0.1); border-top: 10px solid #2e7d32; border-radius: 8px; }
         
-        .header-logo-wrapper { text-align: center; margin-bottom: 15px; }
-        .header-logo-wrapper img { width: 85px; height: 85px; object-fit: cover; border-radius: 50%; border: 3px solid #f0b429; margin-bottom: 10px; }
-        
         /* Inherit TinyMCE formats inside container */
         .print-container table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         .print-container td, .print-container th { padding: 10px; border: 1px solid #ddd; vertical-align: middle; }
@@ -83,9 +84,6 @@ $template_str = str_replace(
     
     <div class="print-container">
         <div contenteditable="true">
-            <div class="header-logo-wrapper">
-                <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" alt="Woke Coliving">
-            </div>
             <?= $template_str ?>
         </div>
     </div>

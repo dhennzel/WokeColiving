@@ -170,7 +170,7 @@ $theme = get_theme_colors($conn);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Receipt | Woke Coliving</title>
+    <title>Receipt | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -352,16 +352,16 @@ $theme = get_theme_colors($conn);
             <div class="d-flex align-items-start text-white">
                 <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" class="logo me-3">
                 <div>
-                    <h1 class="logo-text" style="color: var(--accent-yellow);">woke</h1>
-                    <p class="logo-subtitle" style="color: white;">COLIVING SPACE</p>
-                    <div class="small fw-bold" style="color: black !important;">205 Kanlaon St., Mariveles Bgy., Highway Hills, Mandaluyong </div>
-                    <div class="small fw-bold" style="color: black !important;">Contact: 0917-307-2552</div>
+                    <h1 class="logo-text" style="color: var(--accent-yellow);">Dormitory</h1>
+                    <p class="logo-subtitle" style="color: white;"></p>
+                    <div class="small fw-bold" style="color: black !important;">Location:</div>
+                    <div class="small fw-bold" style="color: black !important;">Contact: </div>
                 </div>
             </div>
             <div class="text-end">
                 <div class="receipt-no"><span style="color: #000;">Receipt</span></div>
                 <div class="company-details">
-                    <strong>WOKE COLIVING INC.</strong><br>
+                    <strong>DORMITORY</strong><br>
                 </div>
             </div>
         </div>
@@ -442,7 +442,7 @@ $theme = get_theme_colors($conn);
                         <div class="sig-line">Client signature over printed name</div>
                     </div>
                     <div class="sig-section position-relative">
-                        <div class="name-val">WOKE COLIVING ADMIN</div>
+                        <div class="name-val">DORMITORY ADMIN</div>
                         <div class="sig-line">Authorized Representative</div>
                     </div>
                 </div>

@@ -1,7 +1,7 @@
 <?php
 // Run this script ONCE after deploying to a new server to prepare all tables and columns.
 require_once "db.php";
-echo "<h1>Woke Coliving Database Setup & Migration</h1>";
+echo "<h1>Dormitory Database Setup & Migration</h1>";
 
 echo "Setting up Core Tables...<br>";
 setup_reservations_table($conn);

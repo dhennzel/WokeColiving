@@ -89,7 +89,7 @@ function send_system_email($conn, $to, $subject, $message, $recipient_name = '')
         'username' => '',
         'password' => '',
         'from_email' => '',
-        'from_name' => 'Woke Coliving'
+        'from_name' => 'Dormitory'
     ];
     while($row = mysqli_fetch_assoc($settings_q)) {
         $key = str_replace('smtp_', '', $row['setting_key']);
@@ -167,7 +167,7 @@ function send_notification($conn, $user_id, $message, $type = 'System', $custom_
     $u_res = mysqli_query($conn, "SELECT email, CONCAT(last_name, ', ', first_name) as full_name, phone_number FROM users WHERE user_id='$user_id'");
     if($u_row = mysqli_fetch_assoc($u_res)){
         $to = $u_row['email'];
-        $subject = $custom_subject ?? "Woke Coliving Notification: $type";
+        $subject = $custom_subject ?? "Dormitory Notification: $type";
         send_system_email($conn, $to, $subject, $message, $u_row['full_name']);
     }
 }
@@ -725,7 +725,7 @@ function get_room_occupants($conn, $room_id) {
                     $comp_row['last_name'] = '(Companion)';
                     $comp_row['middle_name'] = '';
                     $comp_row['gender'] = $comp['gender'] ?? 'Any';
-                    $comp_row['user_id'] = null; 
+                    $comp_row['user_id'] = $comp['restored_user_id'] ?? null; 
                     $comp_row['profile_image'] = null;
                     $occupants[] = $comp_row;
                 }
@@ -1027,7 +1027,7 @@ function check_maintenance_mode($conn) {
                     <head>
                         <meta charset='UTF-8'>
                         <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-                        <title>Under Maintenance | Woke Coliving</title>
+                        <title>Under Maintenance | Dormitory</title>
                         <style>
                             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; color: #333; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
                             .maint-container { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); max-width: 500px; width: 90%; }

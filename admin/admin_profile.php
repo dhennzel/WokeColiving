@@ -332,6 +332,7 @@ if(isset($_POST['update_credentials'])){
             $error = "Failed to upload living area image.";
         }
     }
+
     if(empty($message) && empty($error)) $message = "Branding saved.";
 }
 
@@ -497,7 +498,7 @@ while($row = mysqli_fetch_assoc($smtp_q)){
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Profile | Woke Coliving INC</title>
+    <title>Admin Profile | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -895,7 +896,7 @@ while($row = mysqli_fetch_assoc($smtp_q)){
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">"From" Name</label>
-                            <input type="text" name="smtp_from_name" class="form-control" value="<?= htmlspecialchars($smtp_settings['from_name']) ?>" placeholder="Woke Coliving">
+                            <input type="text" name="smtp_from_name" class="form-control" value="<?= htmlspecialchars($smtp_settings['from_name']) ?>" placeholder="Dormitory">
                         </div>
                     </div>
                     <div class="text-end mt-3">

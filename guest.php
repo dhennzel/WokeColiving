@@ -34,7 +34,7 @@ if(isset($_POST['send_message'])){
     $subject = htmlspecialchars($_POST['subject']);
     $msg = htmlspecialchars($_POST['message']);
     
-    $to = "info@wokecoliving.com"; 
+    $to = "info@dormitory.com"; 
     $headers = "From: $email\r\n";
     $headers .= "Reply-To: $email\r\n";
     $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
@@ -79,7 +79,7 @@ if(isset($_SESSION['user_id'])){
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome | Woke Coliving INC</title>
+    <title>Welcome | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -448,7 +448,7 @@ if(isset($_SESSION['user_id'])){
     <div class="container">
         <a class="navbar-brand fw-bold d-flex align-items-center" href="guest.php">
             <img src="Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 30px; height: 30px; object-fit: cover;" class="me-2 rounded-circle">
-            Woke Coliving INC
+            Dormitory
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
@@ -684,7 +684,7 @@ if(isset($_SESSION['user_id'])){
                 <div class="row justify-content-center">
                     <div class="col-md-8">
                         <i class="fas fa-quote-left fa-2x text-warning mb-3"></i>
-                        <p class="lead fst-italic">"Woke Coliving has completely changed my university experience. The community is amazing, and the facilities are top-notch. It feels like a second home."</p>
+                        <p class="lead fst-italic">"Dormitory has completely changed my university experience. The community is amazing, and the facilities are top-notch. It feels like a second home."</p>
                         <h5 class="fw-bold mt-3">- Sarah M., Student</h5>
                     </div>
                 </div>
@@ -731,19 +731,19 @@ if(isset($_SESSION['user_id'])){
                             <p class="mb-4 opacity-75">Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.</p>
                             <div class="d-flex align-items-center mb-3">
                                 <i class="fas fa-phone-alt fa-lg me-3 text-warning"></i>
-                                <span>0917 164 1910</span>
+                                <span>Contact: </span>
                             </div>
                             <div class="d-flex align-items-center mb-3">
                                 <i class="fas fa-phone-alt fa-lg me-3 text-warning"></i>
-                                <span>02 7002 3071</span>
+                                <span>Contact: </span>
                             </div>
                             <div class="d-flex align-items-center mb-3">
                                 <i class="fas fa-envelope fa-lg me-3 text-warning"></i>
-                                <span>timmy@wokecoliving.com</span>
+                                <span>info@dormitory.com</span>
                             </div>
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-map-marker-alt fa-lg me-3 text-warning"></i>
-                                <span>205 Kanlaon St. , Mandaluyong, Philippines, 1550</span>
+                                <span>Location: </span>
                             </div>
                         </div>
                     </div>
@@ -791,15 +791,15 @@ if(isset($_SESSION['user_id'])){
     <div class="container text-center">
         <h4 class="fw-bold mb-3 font-monospace d-flex align-items-center justify-content-center">
             <img src="Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 40px; height: 40px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
-            Woke Coliving INC
+            Dormitory
         </h4>
         <p class="mb-4 opacity-75">Redefining urban living for the modern generation.</p>
         <div class="d-flex justify-content-center gap-3 mb-4">
-            <a href="https://www.facebook.com/WOKEES" target=_blank class="text-white"><i class="fab fa-facebook fa-lg"></i></a>
-            <a href="https://www.instagram.com/woke_coliving/" target=_blank class="text-white"><i class="fab fa-instagram fa-lg"></i></a>
-            <a href="https://www.tiktok.com/@woke_coliving" target=_blank class="text-white"><i class="fab fa-twitter fa-lg"></i></a>
+            <a href="" ><i class="fab fa-facebook fa-lg"></i></a>
+            <a href="" ><i class="fab fa-instagram fa-lg"></i></a>
+            <a href="" ><i class="fab fa-twitter fa-lg"></i></a>
         </div>
-        <small class="opacity-50">&copy; <?= date('Y') ?> Woke Coliving INC. All rights reserved.</small>
+        <small class="opacity-50">&copy; <?= date('Y') ?> Dormitory. All rights reserved.</small>
     </div>
 </footer>
 

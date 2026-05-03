@@ -42,7 +42,7 @@ if(isset($_POST['signature_data'])){
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Sign Lease | Woke Coliving</title>
+    <title>Sign Lease | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>

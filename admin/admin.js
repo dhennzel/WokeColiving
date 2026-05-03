@@ -1,6 +1,6 @@
 /**
  * admin.js
- * Interactive logic for Woke Coliving Admin Dashboard
+ * Interactive logic for Dormitory Admin Dashboard
  */
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -16,6 +16,11 @@ if (isset($_POST['release_key'])) {
     $key_id = (int)$_POST['key_id'];
     $user_id = (int)$_POST['user_id'];
     
+    if ($user_id <= 0) {
+        header("Location: admin_keys.php?msg=invalid_user");
+        exit;
+    }
+
     // Check if user already has an active key
     $check_user = mysqli_query($conn, "SELECT id FROM key_transactions WHERE user_id=$user_id AND status='Active'");
     if (mysqli_num_rows($check_user) > 0) {
@@ -181,7 +186,7 @@ $theme = get_theme_colors($conn);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Key Monitoring | Woke Coliving INC</title>
+    <title>Key Monitoring | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -231,6 +236,8 @@ $theme = get_theme_colors($conn);
             <?php if(isset($_GET['msg'])): ?>
                 <?php if($_GET['msg'] == 'user_has_key'): ?>
                     <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-1"></i> Failed: This user already has an active key. Only one key per account is allowed.</div>
+                <?php elseif($_GET['msg'] == 'invalid_user'): ?>
+                    <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-1"></i> Failed: Invalid user selected. Ensure the tenant is fully registered.</div>
                 <?php else: ?>
                     <div class="alert alert-success">
                         <?php 

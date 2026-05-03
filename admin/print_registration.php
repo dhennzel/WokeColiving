@@ -48,7 +48,7 @@ $theme = get_theme_colors($conn);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Registration Details | Woke Coliving</title>
+    <title>Registration Details | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -97,9 +97,9 @@ $theme = get_theme_colors($conn);
         <div class="d-flex align-items-center">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" class="logo me-3">
             <div>
-                <div class="company-name">Woke Coliving INC</div>
+                <div class="company-name">Dormitory</div>
                 <div class="small opacity-75">123 Coliving Street, City Center</div>
-                <div class="small opacity-75">contact@wokecoliving.com | +63 912 345 6789</div>
+                <div class="small opacity-75">contact@dormitory.com | +63 912 345 6789</div>
             </div>
         </div>
         <div class="text-end">
@@ -197,7 +197,7 @@ $theme = get_theme_colors($conn);
             </div>
             <div class="col-6 text-end">
                 <div class="info-label mb-4">Authorized By</div>
-                <div class="mt-4"><span class="fw-bold border-bottom border-dark pb-1 px-4">Woke Coliving Admin</span></div>
+                <div class="mt-4"><span class="fw-bold border-bottom border-dark pb-1 px-4">Dormitory Admin</span></div>
             </div>
         </div>
     </div>

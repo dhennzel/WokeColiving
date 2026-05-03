@@ -226,7 +226,7 @@ try {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>My Profile | Woke Coliving INC</title>
+    <title>My Profile | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
@@ -370,7 +370,7 @@ try {
     <div class="container">
         <a class="navbar-brand fw-bold d-flex align-items-center" href="../index.php">
             <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 35px; height: 35px; object-fit: cover;" class="me-2 rounded-circle border border-2 border-warning">
-            Woke Coliving INC
+            Dormitory
         </a>
         
         <div class="d-flex align-items-center gap-3 ms-auto">
@@ -533,7 +533,7 @@ try {
 
         <!-- Other Request -->
         <div class="col-md-3 anim-trigger anim-zoom delay-8" data-card-id="other_request">
-            <a href="https://www.facebook.com/messages/t/109786470426283" target="_blank" class="text-decoration-none">
+            <a href="" class="text-decoration-none">
                 <div class="card card-custom profile-card h-100">
                     <div class="icon-box"><i class="fab fa-facebook-messenger"></i></div>
                     <h5 class="fw-bold text-dark">Other Request</h5>

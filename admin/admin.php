@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Woke Coliving | Admin Dashboard</title>
+    <title>Dormitory | Admin Dashboard</title>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
@@ -20,7 +20,7 @@
                 <div class="logo-placeholder">
                     <i class="fas fa-leaf"></i>
                 </div>
-                <span class="brand-name">Woke Coliving</span>
+                <span class="brand-name">Dormitory</span>
             </div>
             
             <nav class="sidebar-nav">

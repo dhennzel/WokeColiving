@@ -236,7 +236,7 @@ $theme = get_theme_colors($conn);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Profit Report | Woke Coliving INC</title>
+    <title>Profit Report | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -365,7 +365,7 @@ $theme = get_theme_colors($conn);
             
             <div class="print-header text-center">
                 <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" style="width: 80px; height: 80px; object-fit: cover;" class="rounded-circle mb-2">
-                <h2 class="fw-bold mb-0">Woke Coliving INC</h2>
+                <h2 class="fw-bold mb-0">Dormitory</h2>
                 <p class="text-muted mb-0">Profit & Revenue Report <?= ($start_date && $end_date) ? "(".date('M d, Y', strtotime($start_date))." - ".date('M d, Y', strtotime($end_date)).")" : "" ?></p>
                 <small class="text-muted">Generated on <?= date('F d, Y h:i A') ?></small>
             </div>

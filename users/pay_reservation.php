@@ -130,7 +130,7 @@ if(isset($_POST['submit_payment'])){
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Pay Reservation | Woke Coliving</title>
+    <title>Pay Reservation | Dormitory</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -214,7 +214,7 @@ if(isset($_POST['submit_payment'])){
                         <div class="text-center mb-4">
                             <p class="small text-muted mb-2">Scan the QR code below to pay:</p>
                             <img src="<?= $gcash_qr_url ?>" alt="GCash QR Code" class="img-fluid border rounded shadow-sm mb-3" style="max-height: 250px;">
-                            <p class="fw-bold text-dark mb-0">Account Name: WOKE COLIVING INC</p>
+                            <p class="fw-bold text-dark mb-0">Account Name: DORMITORY</p>
                             <p class="fw-bold text-dark">Number: 0917 123 4567</p>
                         </div>
                         <div class="mb-3">

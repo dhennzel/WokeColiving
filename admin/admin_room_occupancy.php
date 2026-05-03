@@ -108,7 +108,7 @@ $theme = get_theme_colors($conn);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Room Occupancy | Woke Coliving INC</title>
+    <title>Room Occupancy | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -354,8 +354,8 @@ $theme = get_theme_colors($conn);
 <!-- Print Only Container -->
 <div class="print-only">
     <div style="text-align: center; margin-bottom: 20px;">
-        <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" alt="Woke Coliving Logo" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #F0B429; margin-bottom: 10px;">
-        <h2>Woke Coliving INC</h2>
+        <img src="../Images/WokeLogo.jpg?v=<?= time() ?>" alt="Dormitory Logo" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #F0B429; margin-bottom: 10px;">
+        <h2>Dormitory</h2>
         <h4>Room Occupancy Report</h4>
         <p>As of <?= date('F d, Y h:i A') ?></p>
     </div>

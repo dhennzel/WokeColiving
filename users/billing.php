@@ -33,7 +33,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Billing & Payments | Woke Coliving</title>
+    <title>Billing & Payments | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -80,7 +80,7 @@ $unread_count = mysqli_fetch_assoc($unread_res)['cnt'];
 
 <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top py-3">
     <div class="container">
-        <a class="navbar-brand fw-bold text-success" href="../guest.php">Woke Coliving</a>
+        <a class="navbar-brand fw-bold text-success" href="../guest.php">Dormitory</a>
         <div class="ms-auto d-flex align-items-center gap-3">
             <span class="text-muted fw-bold d-none d-md-block">Hello, <?= htmlspecialchars($user_info['first_name']) ?></span>
             <a href="logout.php" class="btn btn-sm btn-outline-danger rounded-pill">Logout</a>

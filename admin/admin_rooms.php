@@ -94,6 +94,41 @@ if(isset($_POST['update_prices'])){
     exit;
 }
 
+// Handle Category Image Upload
+if(isset($_POST['update_category_image'])){
+    $room_type = mysqli_real_escape_string($conn, $_POST['category_type']);
+    
+    if(isset($_FILES['category_image']) && $_FILES['category_image']['error'] == 0){
+        $target_dir = "../assets/images/";
+        if(!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+        
+        $file_ext = strtolower(pathinfo($_FILES["category_image"]["name"], PATHINFO_EXTENSION));
+        $new_filename = "cat_" . preg_replace('/[^a-zA-Z0-9]/', '', $room_type) . "_" . time() . "." . $file_ext;
+        $target_file = $target_dir . $new_filename;
+        
+        if(move_uploaded_file($_FILES["category_image"]["tmp_name"], $target_file)){
+            // Update all rooms of this type
+            mysqli_query($conn, "UPDATE rooms SET image='$new_filename' WHERE room_type='$room_type'");
+            trigger_update($conn);
+            header("Location: admin_rooms.php?msg=cat_image_updated");
+            exit;
+        } else {
+            $error = "Failed to upload image.";
+        }
+    }
+}
+
+// Handle Category Image Delete
+if(isset($_POST['delete_category_image'])){
+    $room_type = mysqli_real_escape_string($conn, $_POST['category_type']);
+    
+    // Update all rooms to default hero.jpg
+    mysqli_query($conn, "UPDATE rooms SET image='hero.jpg' WHERE room_type='$room_type'");
+    trigger_update($conn);
+    header("Location: admin_rooms.php?msg=cat_image_deleted");
+    exit;
+}
+
 // Handle Individual Room Order Save (AJAX)
 if(isset($_POST['save_individual_room_order'])){
     if(!$is_super) exit;
@@ -211,7 +246,7 @@ $theme = get_theme_colors($conn);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Rooms | Woke Coliving INC</title>
+    <title>Manage Rooms | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -319,6 +354,7 @@ $theme = get_theme_colors($conn);
         <div class="modal-content bg-light">
             <div class="modal-header bg-white">
                 <h5 class="modal-title fw-bold text-success"><i class="fas fa-layer-group me-2"></i><?= $type ?> Inventory</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary ms-3" onclick="openCategoryImageModal('<?= htmlspecialchars($type, ENT_QUOTES) ?>')"><i class="fas fa-image me-1"></i>Update Images</button>
                 <a href="add_room.php?type=<?= urlencode($type) ?>" class="btn btn-sm btn-custom ms-auto me-3"><i class="fas fa-plus me-1"></i>Add Room</a>
                 <div class="d-flex align-items-center me-3">
                     <label class="small fw-bold me-2 text-muted">Filter:</label>
@@ -578,21 +614,45 @@ $theme = get_theme_colors($conn);
     </div>
 </div>
 
+<div class="modal fade" id="categoryImageModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-image me-2"></i>Update Category Image</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" name="category_type" id="catImageType">
+                    <p class="text-muted small mb-3">Upload a new image to apply to all <strong id="catImageTypeName"></strong> rooms.</p>
+                    <div class="mb-3">
+                        <input type="file" name="category_image" class="form-control" accept="image/*" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="delete_category_image" class="btn btn-danger me-auto" formnovalidate onclick="return confirm('Are you sure you want to delete all images for this category and revert to default?')">Delete All</button>
+                    <button type="submit" name="update_category_image" class="btn btn-primary">Upload & Apply</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin.js"></script>
 <script>
-<?php if(isset($_GET['msg']) && $_GET['msg'] == 'prices_updated'): ?>
-Swal.fire({
-    icon: 'success',
-    title: 'Updated!',
-    text: 'Default room prices updated successfully.',
-    timer: 2500,
-    showConfirmButton: false
-});
-// Clean up the URL so the message doesn't persist
-const url = new URL(window.location);
-url.searchParams.delete('msg');
-window.history.replaceState({}, document.title, url);
+<?php if(isset($_GET['msg'])): ?>
+    <?php if($_GET['msg'] == 'prices_updated'): ?>
+        Swal.fire({ icon: 'success', title: 'Updated!', text: 'Default room prices updated successfully.', timer: 2500, showConfirmButton: false });
+    <?php elseif($_GET['msg'] == 'cat_image_updated'): ?>
+        Swal.fire({ icon: 'success', title: 'Images Updated!', text: 'The category image has been updated for all rooms.', timer: 2500, showConfirmButton: false });
+    <?php elseif($_GET['msg'] == 'cat_image_deleted'): ?>
+        Swal.fire({ icon: 'success', title: 'Images Deleted!', text: 'The category images have been reverted to default.', timer: 2500, showConfirmButton: false });
+    <?php endif; ?>
+    const url = new URL(window.location);
+    url.searchParams.delete('msg');
+    window.history.replaceState({}, document.title, url);
 <?php endif; ?>
 
 <?php if($is_super): ?>
@@ -668,6 +728,12 @@ function confirmArchive(e, url) {
 
 function openTypeModal(id) {
     new bootstrap.Modal(document.getElementById('modal_' + id)).show();
+}
+
+function openCategoryImageModal(type) {
+    document.getElementById('catImageType').value = type;
+    document.getElementById('catImageTypeName').innerText = type;
+    new bootstrap.Modal(document.getElementById('categoryImageModal')).show();
 }
 
 // Notification Sound & Auto Refresh Logic

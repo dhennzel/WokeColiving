@@ -294,7 +294,7 @@ if(isset($_POST['register_companion'])){
     $lname = mysqli_real_escape_string($conn, count($parts) > 1 ? array_pop($parts) : '');
     $fname = mysqli_real_escape_string($conn, implode(' ', $parts));
 
-    if(empty($c_email)) $c_email = strtolower(preg_replace('/[^a-zA-Z]/', '', $fname)) . rand(100,999) . '@wokecoliving.com';
+    if(empty($c_email)) $c_email = strtolower(preg_replace('/[^a-zA-Z]/', '', $fname)) . rand(100,999) . '@dormitory.com';
 
     $chk = mysqli_query($conn, "SELECT user_id FROM users WHERE email='$c_email' OR (first_name='$fname' AND last_name='$lname')");
     if(mysqli_num_rows($chk) > 0) {
@@ -315,7 +315,7 @@ if(isset($_POST['register_companion'])){
         echo "<script>window.location.href='view_user.php?uid=$existing_uid&msg=companion_linked';</script>";
         exit;
     } else {
-        $pass = password_hash('Wokecoliving101', PASSWORD_DEFAULT);
+        $pass = password_hash('Dormitory101', PASSWORD_DEFAULT);
         mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone_number, gender, password, role, is_walkin) VALUES ('$fname', '$lname', '$c_email', '$c_phone', '$c_gender', '$pass', 'user', 0)");
         $new_uid = mysqli_insert_id($conn);
         log_activity($conn, $new_uid, "Restored from Companion", "User was previously a companion of $primary.");
@@ -510,7 +510,7 @@ $theme = get_theme_colors($conn);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>User Profile | Woke Coliving INC</title>
+    <title>User Profile | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">

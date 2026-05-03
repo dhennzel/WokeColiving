@@ -40,9 +40,9 @@ if (isset($_POST['send_bulk_reminders'])) {
     while ($row = mysqli_fetch_assoc($rem_result)) {
         $uid = $row['user_id'];
         $bal = number_format($row['total_balance'], 2);
-        $msg = "⚠️ <strong>Billing Reminder</strong><br>Dear " . htmlspecialchars($row['full_name']) . ", this is a friendly reminder from Woke Coliving regarding your current and upcoming dues. Your payable amount for this billing cycle is <strong>₱$bal</strong>. Please settle this amount on or before the due date to avoid penalties. Thank you!";
+        $msg = "⚠️ <strong>Billing Reminder</strong><br>Dear " . htmlspecialchars($row['full_name']) . ", this is a friendly reminder from Dormitory regarding your current and upcoming dues. Your payable amount for this billing cycle is <strong>₱$bal</strong>. Please settle this amount on or before the due date to avoid penalties. Thank you!";
         $timestamp = date("M d, Y h:i A");
-        $subject = "Billing Reminder: ₱$bal Due - Woke Coliving ($timestamp)";
+        $subject = "Billing Reminder: ₱$bal Due - Dormitory ($timestamp)";
         send_notification($conn, $uid, $msg, "Billing Reminder", $subject);
         log_activity($conn, $uid, "Reminder Sent", "Admin sent a balance reminder for ₱$bal.");
         $count++;
@@ -58,9 +58,9 @@ if (isset($_POST['send_single_reminder'])) {
     $tenant_name = $_POST['tenant_name'];
     $bal = number_format((float)$_POST['balance'], 2);
     
-    $msg = "⚠️ <strong>Billing Reminder</strong><br>Dear " . htmlspecialchars($tenant_name) . ", this is a friendly reminder from Woke Coliving regarding your current and upcoming dues. Your payable amount for this billing cycle is <strong>₱$bal</strong>. Please settle this amount on or before the due date to avoid penalties. Thank you!";
+    $msg = "⚠️ <strong>Billing Reminder</strong><br>Dear " . htmlspecialchars($tenant_name) . ", this is a friendly reminder from Dormitory regarding your current and upcoming dues. Your payable amount for this billing cycle is <strong>₱$bal</strong>. Please settle this amount on or before the due date to avoid penalties. Thank you!";
     $timestamp = date("M d, Y h:i A");
-    $subject = "Billing Reminder: ₱$bal Due - Woke Coliving ($timestamp)";
+    $subject = "Billing Reminder: ₱$bal Due - Dormitory ($timestamp)";
     send_notification($conn, $uid, $msg, "Billing Reminder", $subject);
     log_activity($conn, $uid, "Reminder Sent", "Admin sent a balance reminder for ₱$bal.");
     trigger_update($conn);
@@ -102,7 +102,7 @@ $del_req_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Outstanding Balances | Woke Coliving INC</title>
+    <title>Outstanding Balances | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">

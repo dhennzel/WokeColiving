@@ -17,6 +17,25 @@ $room_id = (int)$_GET['id'];
 $error = "";
 $success = "";
 
+// Handle Delete Room
+if(isset($_GET['delete']) && $_GET['delete'] == '1'){
+    try {
+        mysqli_query($conn, "DELETE FROM rooms WHERE room_id=$room_id");
+        trigger_update($conn);
+        header("Location: admin_dashboard.php?msg=deleted");
+        exit;
+    } catch (Exception $e) {
+        $error = "Cannot delete room. It may be linked to reservations or other records.";
+    }
+}
+
+// Handle Delete Image
+if(isset($_GET['delete_image']) && $_GET['delete_image'] == '1'){
+    mysqli_query($conn, "UPDATE rooms SET image='hero.jpg' WHERE room_id=$room_id");
+    trigger_update($conn);
+    $success = "Image deleted and reverted to default.";
+}
+
 // Ensure new price columns exist
 $check_cols = mysqli_query($conn, "SHOW COLUMNS FROM rooms LIKE 'price_upper'");
 if(mysqli_num_rows($check_cols) == 0) {
@@ -126,7 +145,7 @@ $theme = get_theme_colors($conn);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Room | Woke Coliving INC</title>
+    <title>Edit Room | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -222,11 +241,18 @@ $theme = get_theme_colors($conn);
                                 <label class="form-label fw-bold">Room Image</label>
                                 <input type="file" name="image" class="form-control" accept="image/*">
                                 <small class="text-muted">Leave empty to keep current image.</small><br>
+                                <?php if(!empty($room['image']) && $room['image'] !== 'hero.jpg'): ?>
+                                <div class="mt-2 position-relative d-inline-block">
+                                    <img src="../assets/images/<?= $room['image'] ?>" class="img-thumbnail" style="max-height: 200px; max-width: 100%; object-fit: cover; border-radius: 12px;">
+                                    <a href="edit_room.php?id=<?= $room_id ?>&delete_image=1" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 shadow" onclick="return confirm('Are you sure you want to delete this image? It will be replaced with the default.')" title="Delete Image"><i class="fas fa-trash"></i></a>
+                                </div>
+                            <?php else: ?>
                                 <img src="../assets/images/<?= $room['image'] ?>" class="img-thumbnail mt-2" style="max-height: 200px; max-width: 100%; object-fit: cover; border-radius: 12px;">
+                            <?php endif; ?>
                             </div>
                             
                             <div class="d-flex justify-content-between mt-4">
-                                <a href="admin_rooms.php?delete_id=<?= $room['room_id'] ?>" class="btn btn-danger" onclick="confirmDelete(event, this.href)">Delete Room</a>
+                                <a href="edit_room.php?id=<?= $room['room_id'] ?>&delete=1" class="btn btn-danger" onclick="confirmDelete(event, this.href)">Delete Room</a>
                                 <div>
                                     <a href="admin_rooms.php" class="btn btn-outline-secondary me-2 rounded-pill">Cancel</a>
                                     <button type="submit" name="update_room" class="btn btn-custom px-4">Save Changes</button>

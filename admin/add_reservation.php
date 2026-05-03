@@ -154,7 +154,7 @@ if(isset($_POST['add_reservation'])){
 
         $em_name = trim($_POST['new_em_name'] ?? '');
         $em_num = trim($_POST['new_em_num'] ?? '');
-        $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : 'Wokecoliving101';
+        $raw_pass = !empty($_POST['new_password']) ? $_POST['new_password'] : 'Dormitory101';
         $name_regex = "/^[a-zA-Z\sñÑ]+$/";
         
         if (empty($error) && (!preg_match($name_regex, $fname) || !preg_match($name_regex, $lname) || (!empty($mname) && !preg_match($name_regex, $mname)) || (!empty($suffix) && !preg_match($name_regex, $suffix)))) {
@@ -491,7 +491,7 @@ $theme = get_theme_colors($conn);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Add Reservation | Woke Coliving INC</title>
+    <title>Add Reservation | Dormitory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -663,9 +663,9 @@ $theme = get_theme_colors($conn);
                             </div>
                             <div class="col-md-6"><label class="small fw-bold" id="new_em_name_label">Emergency Name <span class="text-danger">*</span></label><input type="text" name="new_em_name" class="form-control" value="<?= htmlspecialchars($f_new_em_name) ?>"></div>
                             <div class="col-md-6"><label class="small fw-bold" id="new_em_num_label">Emergency Contact <span class="text-danger">*</span></label><input type="text" name="new_em_num" class="form-control" placeholder="09xxxxxxxxx" pattern="^09\d{9}$" maxlength="11" title="11-digit PH number starting with 09" value="<?= htmlspecialchars($f_new_em_num) ?>" oninput="let v = this.value.replace(/[^0-9]/g, ''); if(v.length > 0 && v[0] !== '0') v = '0' + v; if(v.length > 1 && v[1] !== '9') v = '09' + v.substring(2); this.value = v;"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: Wokecoliving101" minlength="6" maxlength="8"></div>
+                            <div class="col-md-6"><label class="small fw-bold">Password</label><input type="password" name="new_password" class="form-control" placeholder="Default: Dormitory101" minlength="6" maxlength="8"></div>
                         </div>
-                        <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>Wokecoliving101</strong> (7 letters, 1 number).</small>
+                        <small class="text-muted d-block mt-2">A new account will be created. If password is left blank, it will be <strong>Dormitory101</strong>.</small>
                     </div>
 
                     <div class="row">
